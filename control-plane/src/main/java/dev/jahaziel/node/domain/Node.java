@@ -8,25 +8,48 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /** One host running a node agent. A single-node cluster is a cluster with one member. */
 public final class Node {
   private final NodeId id;
+  private final String name;
+  private final String region;
   private final NodeCapacity capacity;
+  private final String certFingerprint;
+  private final Instant registeredAt;
   private NodeState state;
   private final Set<WorkspaceId> workspaces = new HashSet<>();
   private NodeMetrics metrics = NodeMetrics.zero();
+  private Instant lastHeartbeat;
 
   /**
    * Registers a healthy node.
    *
    * @param id the node identifier
+   * @param name the human-readable name
+   * @param region the hosting region
    * @param capacity the total capacity
+   * @param certFingerprint the agent certificate fingerprint
    */
-  public Node(NodeId id, NodeCapacity capacity) {
+  public Node(
+      NodeId id, String name, String region, NodeCapacity capacity, String certFingerprint) {
     this.id = Objects.requireNonNull(id, "id");
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
+    this.name = name;
+    if (region == null || region.isBlank()) {
+      throw new IllegalArgumentException("region must not be blank");
+    }
+    this.region = region;
     this.capacity = Objects.requireNonNull(capacity, "capacity");
+    if (certFingerprint == null || certFingerprint.isBlank()) {
+      throw new IllegalArgumentException("certFingerprint must not be blank");
+    }
+    this.certFingerprint = certFingerprint;
+    this.registeredAt = Instant.now();
     this.state = new NodeState.Healthy(Instant.now());
   }
 
@@ -35,9 +58,34 @@ public final class Node {
     return id;
   }
 
+  /** Returns the human-readable name. */
+  public String name() {
+    return name;
+  }
+
+  /** Returns the hosting region. */
+  public String region() {
+    return region;
+  }
+
   /** Returns the total capacity. */
   public NodeCapacity capacity() {
     return capacity;
+  }
+
+  /** Returns the agent certificate fingerprint. */
+  public String certFingerprint() {
+    return certFingerprint;
+  }
+
+  /** Returns when the node registered. */
+  public Instant registeredAt() {
+    return registeredAt;
+  }
+
+  /** Returns the last heartbeat, empty when never seen. */
+  public Optional<Instant> lastHeartbeat() {
+    return Optional.ofNullable(lastHeartbeat);
   }
 
   /** Returns the current state. */
@@ -114,6 +162,26 @@ public final class Node {
       throw new IllegalStateException("Node " + id + " cannot drain while " + state);
     }
     state = new NodeState.Draining(Instant.now());
+  }
+
+  /**
+   * Marks the node unhealthy, for example on missed heartbeats.
+   *
+   * @param reason why the node is considered lost
+   */
+  public void markUnhealthy(String reason) {
+    if (state instanceof NodeState.Unhealthy) {
+      throw new IllegalStateException("Node " + id + " is already unhealthy");
+    }
+    if (reason == null || reason.isBlank()) {
+      throw new IllegalArgumentException("reason must not be blank");
+    }
+    state = new NodeState.Unhealthy(Instant.now(), reason);
+  }
+
+  /** Records a heartbeat now. */
+  public void recordHeartbeat() {
+    lastHeartbeat = Instant.now();
   }
 
   /**
