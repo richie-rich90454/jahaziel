@@ -16,6 +16,7 @@ import java.util.UUID;
 public final class Workspace {
   private final WorkspaceId id;
   private final UserId owner;
+  private final String name;
   private WorkspaceState state;
   private WorkspaceQuota quota;
   private final VirtualMachine vm;
@@ -28,12 +29,21 @@ public final class Workspace {
    *
    * @param id the workspace identifier
    * @param owner the owning user
+   * @param name the workspace name, unique per owner
    * @param quota the logical quota
    * @param vm the virtual machine
    */
-  public Workspace(WorkspaceId id, UserId owner, WorkspaceQuota quota, VirtualMachine vm) {
+  public Workspace(
+      WorkspaceId id, UserId owner, String name, WorkspaceQuota quota, VirtualMachine vm) {
     this.id = Objects.requireNonNull(id, "id");
     this.owner = Objects.requireNonNull(owner, "owner");
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
+    if (name.length() > 64) {
+      throw new IllegalArgumentException("name must be at most 64 characters");
+    }
+    this.name = name;
     this.quota = Objects.requireNonNull(quota, "quota");
     this.vm = Objects.requireNonNull(vm, "vm");
     this.state = new WorkspaceState.Requested(Instant.now());
@@ -49,6 +59,11 @@ public final class Workspace {
   /** Returns the owning user. */
   public UserId owner() {
     return owner;
+  }
+
+  /** Returns the workspace name. */
+  public String name() {
+    return name;
   }
 
   /** Returns the current state. */
