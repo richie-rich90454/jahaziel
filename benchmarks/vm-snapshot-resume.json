@@ -1,0 +1,7 @@
+{
+  "benchmark": "vm-snapshot-resume",
+  "target": "warm resume from memory snapshot under 0.5 seconds",
+  "unit": "seconds",
+  "runs": [],
+  "note": "Memory snapshots land in a later release; the file reserves the benchmark name."
+}
