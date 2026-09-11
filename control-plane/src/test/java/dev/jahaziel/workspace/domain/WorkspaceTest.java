@@ -66,6 +66,29 @@ class WorkspaceTest {
   }
 
   @Test
+  void abortBootSuspendsStartingWorkspaces() {
+    workspace.prepare();
+    workspace.boot();
+    workspace.abortBoot();
+    assertInstanceOf(WorkspaceState.Suspended.class, workspace.state());
+    assertThrows(IllegalWorkspaceStateException.class, workspace::abortBoot);
+  }
+
+  @Test
+  void rebootRestartsParkedWorkspaces() {
+    workspace.prepare();
+    workspace.boot();
+    workspace.markReady();
+    workspace.start();
+    workspace.suspend();
+    workspace.reboot();
+    assertInstanceOf(WorkspaceState.Requested.class, workspace.state());
+    assertThrows(IllegalWorkspaceStateException.class, workspace::reboot);
+    workspace.prepare();
+    assertThrows(IllegalWorkspaceStateException.class, workspace::reboot);
+  }
+
+  @Test
   void walksToActive() {
     workspace.prepare();
     assertInstanceOf(WorkspaceState.Preparing.class, workspace.state());
