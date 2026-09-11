@@ -5,7 +5,9 @@
 package dev.jahaziel.api.controller;
 
 import dev.jahaziel.api.dto.ApiError;
+import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.identity.api.UserNotFoundException;
+import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
 import java.util.Map;
@@ -17,8 +19,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave the
- * server.
+ * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave
+ * the server.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -34,6 +36,24 @@ public class ApiExceptionHandler {
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public ApiError userNotFound(UserNotFoundException failure) {
     return error("NOT_FOUND", "User not found");
+  }
+
+  /** Maps refused access to 403 with who and what. */
+  @ExceptionHandler(AccessDeniedException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public ApiError accessDenied(AccessDeniedException failure) {
+    return new ApiError(
+        "FORBIDDEN",
+        "Forbidden",
+        UUID.randomUUID().toString(),
+        Map.of("user", failure.userId().value().toString(), "action", failure.action()));
+  }
+
+  /** Maps unreachable node agents to 503. Starts fail safe, never fail open. */
+  @ExceptionHandler(NodeAgentUnreachableException.class)
+  @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+  public ApiError nodeAgentUnreachable(NodeAgentUnreachableException failure) {
+    return error("NODE_AGENT_UNREACHABLE", "Node agent not responding");
   }
 
   /** Maps illegal lifecycle transitions to 409. */
