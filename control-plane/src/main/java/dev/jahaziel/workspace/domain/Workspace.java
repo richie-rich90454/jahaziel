@@ -175,6 +175,31 @@ public final class Workspace {
     state = new WorkspaceState.Active(Instant.now());
   }
 
+  /**
+   * Parks a starting or failed workspace as suspended. The home subvolume is preserved, so a later
+   * start resumes from the same files.
+   */
+  public void abortBoot() {
+    if (!(state instanceof WorkspaceState.Preparing
+        || state instanceof WorkspaceState.Booting
+        || state instanceof WorkspaceState.Ready
+        || state instanceof WorkspaceState.Failed)) {
+      throw new IllegalWorkspaceStateException(id, state, "abortBoot");
+    }
+    state = new WorkspaceState.Suspended(Instant.now());
+  }
+
+  /**
+   * Reboots a parked workspace into a fresh deployment cycle. The home subvolume is preserved
+   * by the agent across the reboot.
+   */
+  public void reboot() {
+    if (!(state instanceof WorkspaceState.Suspended || state instanceof WorkspaceState.Failed)) {
+      throw new IllegalWorkspaceStateException(id, state, "reboot");
+    }
+    state = new WorkspaceState.Requested(Instant.now());
+  }
+
   /** Destroys the workspace from any state except destroyed. */
   public void destroy() {
     if (state instanceof WorkspaceState.Destroyed) {
