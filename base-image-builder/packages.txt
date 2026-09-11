@@ -1,0 +1,49 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# Core system
+systemd systemd-sysv systemd-timesyncd
+bash coreutils findutils grep sed gawk
+util-linux mount umount
+procps psmisc
+ca-certificates
+locales
+tzdata
+sudo
+
+# Network
+iproute2 iputils-ping netcat-openbsd
+curl wget
+openssh-client
+dnsutils
+
+# Development toolchain (see §72 for full list)
+build-essential gcc g++ clang clang++ cmake make ninja-build
+gdb lldb pkg-config
+
+# Version control
+git git-lfs
+
+# Editors and utilities
+vim nano
+less more
+tree ripgrep fd-find
+jq
+tar zip unzip
+rsync
+
+# Languages (see §72)
+python3 python3-pip python3-venv
+default-jdk maven gradle
+nodejs npm
+golang-go
+rustc cargo
+
+# Container-free isolation helpers
+bubblewrap
+
+# Timezone, locale
+tzdata
+locales
+
+# Base image metadata
+jahaziel-base-image-meta
