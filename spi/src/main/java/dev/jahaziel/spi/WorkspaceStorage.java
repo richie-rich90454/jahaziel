@@ -13,14 +13,15 @@ import java.util.UUID;
 @JahazielSpi(version = 1)
 public interface WorkspaceStorage {
   /**
-   * Prepares storage for a workspace.
+   * Prepares storage for a workspace. Homes are per user, so the owner is required.
    *
    * @param workspaceId the workspace to prepare
+   * @param ownerId the owning user, keying the persistent home
    * @param image the base image to provision from
    * @param quota the logical quota for the home subvolume
    * @return the storage handle
    */
-  WorkspaceHandle prepare(UUID workspaceId, ImageRef image, QuotaBytes quota);
+  WorkspaceHandle prepare(UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota);
 
   /**
    * Destroys workspace storage.
@@ -37,6 +38,13 @@ public interface WorkspaceStorage {
    * @return the snapshot handle
    */
   SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag);
+
+  /**
+   * Deletes a snapshot subvolume.
+   *
+   * @param snapshot the snapshot handle
+   */
+  void deleteSnapshot(SnapshotHandle snapshot);
 
   /**
    * Restores a workspace home subvolume from a snapshot.
