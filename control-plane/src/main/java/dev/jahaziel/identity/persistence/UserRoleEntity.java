@@ -31,7 +31,7 @@ public class UserRoleEntity {
   private String grantedBy;
 
   /** Creates an empty instance for JPA. */
-  protected UserRoleEntity() {}
+  public UserRoleEntity() {}
 
   /** Gets the composite key of the role grant. */
   public Id getId() {
@@ -98,7 +98,7 @@ public class UserRoleEntity {
     private String role;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID userId, String role) {
