@@ -55,7 +55,7 @@ public class AdminActionEntity {
   private UUID approverUserId;
 
   /** Creates an empty instance for JPA. */
-  protected AdminActionEntity() {}
+  public AdminActionEntity() {}
 
   /** Gets the primary key of the admin action. */
   public UUID getActionId() {
