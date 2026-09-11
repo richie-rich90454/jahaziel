@@ -19,4 +19,13 @@
   <artifactId>jahaziel-control-plane</artifactId>
   <name>Jahaziel Control Plane</name>
   <description>Identity, authorization, policy, orchestration, audit ingestion, admin APIs.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
