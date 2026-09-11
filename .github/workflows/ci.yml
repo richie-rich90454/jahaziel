@@ -1,0 +1,24 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Verify
+        run: ./mvnw -B verify
+      - name: Check license headers in docs and config
+        run: |
+          missing=$(git ls-files '*.md' '*.yml' | xargs grep -L 'Copyright 2026 The Jahaziel Authors' || true)
+          if [ -n "$missing" ]; then echo "Missing license header:"; echo "$missing"; exit 1; fi
