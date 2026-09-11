@@ -54,8 +54,8 @@ public class WorkspaceEntity {
   @Column(name = "deleted_at")
   private Instant deletedAt;
 
-  /** Creates an empty instance for JPA. */
-  protected WorkspaceEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public WorkspaceEntity() {}
 
   /** Gets the primary key of the workspace. */
   public UUID getWorkspaceId() {
