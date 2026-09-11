@@ -25,14 +25,13 @@ import dev.jahaziel.workspace.persistence.WorkspaceAclEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 /** Database-backed workspaces. Paths follow the node-agent jail layout deterministically. */
 public final class WorkspaceServiceImpl implements WorkspaceService {
-  private static final int DEFAULT_VCPU_COUNT = 2;
-  private static final long DEFAULT_MEMORY_MIB = 2048;
   private static final StorageUsage UNKNOWN_USAGE = new StorageUsage(0, 0, 0, 0);
 
   private final WorkspaceRepository workspaces;
@@ -89,9 +88,9 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
             new VirtualMachineConfiguration(vcpuCount, memoryMib));
     Workspace workspace =
         new Workspace(workspaceId, owner, name, WorkspaceQuota.defaults(), machine);
-    String jail = storageRoot + "/jail/" + workspaceId.value();
-    String disk = jail + "/rootfs.img";
-    String home = storageRoot + "/workspaces/" + owner.value() + "/home";
+    String jail = WorkspacePaths.jailPath(storageRoot, workspaceId);
+    String disk = WorkspacePaths.diskPath(storageRoot, workspaceId);
+    String home = WorkspacePaths.homePath(storageRoot, owner);
     workspaces.save(WorkspaceMapper.toEntity(workspace, disk, home, jail));
     machines.save(
         WorkspaceMapper.toMachineEntity(machine, workspaceId, nodeId.value(), disk, home, jail));
@@ -100,27 +99,33 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
 
   @Override
   public Workspace get(WorkspaceId id) {
-    return load(id);
+    return assemble(rowOf(id));
   }
 
   @Override
   public WorkspaceView describe(WorkspaceId id) {
-    WorkspaceEntity row =
-        workspaces.findById(id.value()).orElseThrow(() -> new WorkspaceNotFoundException(id));
-    return new WorkspaceView(load(id), row.getCreatedAt(), row.getStateChangedAt(), UNKNOWN_USAGE);
+    return viewOf(rowOf(id));
   }
 
   @Override
   public List<WorkspaceView> describeByOwner(UserId owner) {
-    return workspaces.findByOwnerUserId(owner.value()).stream()
-        .map(
-            row ->
-                new WorkspaceView(
-                    load(new WorkspaceId(row.getWorkspaceId())),
-                    row.getCreatedAt(),
-                    row.getStateChangedAt(),
-                    UNKNOWN_USAGE))
-        .toList();
+    return workspaces.findByOwnerUserId(owner.value()).stream().map(this::viewOf).toList();
+  }
+
+  @Override
+  public List<WorkspaceView> describeAll() {
+    return workspaces.findAll().stream().map(this::viewOf).toList();
+  }
+
+  @Override
+  public void save(Workspace workspace) {
+    Objects.requireNonNull(workspace, "workspace");
+    WorkspaceEntity row = rowOf(workspace.id());
+    row.setState(WorkspaceMapper.stateToString(workspace.state()));
+    row.setStateChangedAt(Instant.now());
+    row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
+    row.setInodeQuota(workspace.quota().inodeLimit());
+    workspaces.save(row);
   }
 
   @Override
@@ -131,8 +136,21 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
   }
 
   private Workspace load(WorkspaceId id) {
-    WorkspaceEntity row =
-        workspaces.findById(id.value()).orElseThrow(() -> new WorkspaceNotFoundException(id));
+    return assemble(rowOf(id));
+  }
+
+  private WorkspaceEntity rowOf(WorkspaceId id) {
+    return workspaces.findById(id.value()).orElseThrow(() -> new WorkspaceNotFoundException(id));
+  }
+
+  private WorkspaceView viewOf(WorkspaceEntity row) {
+    Workspace workspace = assemble(row);
+    return new WorkspaceView(
+        workspace, row.getCreatedAt(), row.getStateChangedAt(), UNKNOWN_USAGE);
+  }
+
+  private Workspace assemble(WorkspaceEntity row) {
+    WorkspaceId id = new WorkspaceId(row.getWorkspaceId());
     List<WorkspaceAclEntity> grants = acl.findByIdWorkspaceId(id.value());
     VirtualMachineEntity machineRow =
         machines
