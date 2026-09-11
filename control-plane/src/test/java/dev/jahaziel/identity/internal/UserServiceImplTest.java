@@ -69,4 +69,14 @@ class UserServiceImplTest {
     assertTrue(service.exists(userId));
     assertFalse(service.exists(new UserId(UUID.randomUUID())));
   }
+
+  @Test
+  void mfaFlagComesFromRow() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(row.isMfaEnabled()).thenReturn(true);
+    when(users.findById(userId.value())).thenReturn(Optional.of(row));
+    assertTrue(service.isMfaEnabled(userId));
+    when(users.findById(userId.value())).thenReturn(Optional.empty());
+    assertThrows(UserNotFoundException.class, () -> service.isMfaEnabled(userId));
+  }
 }
