@@ -1,0 +1,116 @@
+#
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+
+server:
+  port: 8080
+  shutdown: graceful
+  tomcat:
+    max-connections: 10000
+    accept-count: 1000
+    threads:
+      max: 200
+
+spring:
+  application:
+    name: jahaziel-control-plane
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jahaziel
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc.batch_size: 50
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc:
+            client-id: ${OIDC_CLIENT_ID}
+            client-secret: ${OIDC_CLIENT_SECRET}
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          oidc:
+            issuer-uri: ${OIDC_ISSUER_URI}
+
+jahaziel:
+  domain: code.jahaziel.dev
+  node-agent:
+    transport: unix
+    unix-socket: /run/jahaziel/node-agent.sock
+    tls:
+      enabled: true
+      host: 127.0.0.1
+      port: 9443
+      ca-file: /etc/jahaziel/tls/ca.crt
+      cert-file: /etc/jahaziel/tls/control-plane.crt
+      key-file: /etc/jahaziel/tls/control-plane.key
+  gateway:
+    base-url: http://localhost:8081
+  jwt:
+    issuer: https://code.jahaziel.dev
+    ttl-seconds: 900
+    private-key-file: /etc/jahaziel/tls/jwt.key
+    public-key-file: /etc/jahaziel/tls/jwt.pub
+  admission:
+    system-reserved-mib: 4096
+    control-plane-reserved-mib: 4096
+    headroom-reserved-mib: 4096
+    soft-floor-mib: 1024
+    soft-limit-ratio: 0.9
+  idle:
+    window-minutes: 30
+    cpu-threshold-percent: 5.0
+    network-threshold-bytes-per-sec: 102400
+  audit:
+    retention-days: 30
+    partition-months-ahead: 3
+  snapshot:
+    auto-retention-count: 30
+    pre-delete-retention-days: 90
+  storage:
+    root: /var/lib/jahaziel
+    base-image-dir: /var/lib/jahaziel/images
+    workspaces-dir: /var/lib/jahaziel/workspaces
+    default-quota-bytes: 21474836480
+    max-quota-bytes: 42949672960
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    dev.jahaziel: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/jahaziel/control-plane.log
+    max-size: 100MB
+    max-history: 30
