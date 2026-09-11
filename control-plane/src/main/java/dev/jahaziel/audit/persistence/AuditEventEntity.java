@@ -66,8 +66,8 @@ public class AuditEventEntity {
   @Column(name = "hash")
   private String hash;
 
-  /** Creates an empty instance for JPA. */
-  protected AuditEventEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public AuditEventEntity() {}
 
   /** Gets the composite key of the audit event. */
   public Id getId() {
