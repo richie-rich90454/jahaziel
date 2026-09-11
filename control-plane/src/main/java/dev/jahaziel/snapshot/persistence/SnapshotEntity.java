@@ -67,7 +67,7 @@ public class SnapshotEntity {
   private Instant deletedAt;
 
   /** Creates an empty instance for JPA. */
-  protected SnapshotEntity() {}
+  public SnapshotEntity() {}
 
   /** Gets the primary key of the snapshot. */
   public UUID getSnapshotId() {
