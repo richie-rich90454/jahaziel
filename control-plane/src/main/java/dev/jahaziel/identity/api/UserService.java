@@ -25,4 +25,13 @@ public interface UserService {
    * @return true when the user exists
    */
   boolean exists(UserId id);
+
+  /**
+   * Checks MFA enrollment.
+   *
+   * @param id the user identifier
+   * @return true when MFA enrollment is completed
+   * @throws UserNotFoundException when the user does not exist
+   */
+  boolean isMfaEnabled(UserId id);
 }
