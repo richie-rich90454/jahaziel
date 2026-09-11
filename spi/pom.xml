@@ -19,4 +19,13 @@
   <artifactId>jahaziel-spi</artifactId>
   <name>Jahaziel SPI</name>
   <description>Public plugin interfaces, documented and versioned.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
