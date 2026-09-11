@@ -21,7 +21,13 @@ class NodeTest {
 
   @BeforeEach
   void setUp() {
-    node = new Node(new NodeId("node-a"), new NodeCapacity(14, 49152, 500));
+    node =
+        new Node(
+            new NodeId("node-a"),
+            "Primary node",
+            "default",
+            new NodeCapacity(14, 49152, 500),
+            "sha256:abc");
   }
 
   @Test
@@ -29,6 +35,10 @@ class NodeTest {
     assertInstanceOf(NodeState.Healthy.class, node.state());
     assertTrue(node.workspaces().isEmpty());
     assertEquals(NodeMetrics.zero(), node.metrics());
+    assertEquals("Primary node", node.name());
+    assertEquals("default", node.region());
+    assertEquals("sha256:abc", node.certFingerprint());
+    assertTrue(node.lastHeartbeat().isEmpty());
   }
 
   @Test
@@ -72,8 +82,33 @@ class NodeTest {
   }
 
   @Test
+  void blankRegistrationFieldsAreRejected() {
+    NodeCapacity capacity = new NodeCapacity(14, 49152, 500);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new Node(new NodeId("n"), "  ", "default", capacity, "fp"));
+    assertThrows(
+        IllegalArgumentException.class, () -> new Node(new NodeId("n"), "n", "  ", capacity, "fp"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new Node(new NodeId("n"), "n", "default", capacity, "  "));
+  }
+
+  @Test
   void blankReasonsAreRejected() {
     assertThrows(IllegalArgumentException.class, () -> node.degrade("  "));
+    assertThrows(IllegalArgumentException.class, () -> node.markUnhealthy("  "));
+  }
+
+  @Test
+  void unhealthyAndHeartbeat() {
+    node.markUnhealthy("no heartbeat");
+    NodeState.Unhealthy unhealthy = assertInstanceOf(NodeState.Unhealthy.class, node.state());
+    assertEquals("no heartbeat", unhealthy.reason());
+    assertThrows(IllegalStateException.class, () -> node.markUnhealthy("again"));
+    assertThrows(IllegalStateException.class, node::drain);
+    node.recordHeartbeat();
+    assertTrue(node.lastHeartbeat().isPresent());
   }
 
   @Test
