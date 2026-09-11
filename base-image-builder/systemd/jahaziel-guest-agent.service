@@ -1,0 +1,22 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# /etc/systemd/system/jahaziel-guest-agent.service (inside the workspace VM)
+[Unit]
+Description=Jahaziel Guest Agent
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=jahaziel-guest
+Group=jahaziel-guest
+ExecStart=/usr/local/bin/jahaziel-guest-agent --host-cid 2 --port 9001
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
