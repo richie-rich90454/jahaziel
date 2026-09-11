@@ -62,8 +62,8 @@ public class VirtualMachineEntity {
   @Column(name = "destroyed_at")
   private Instant destroyedAt;
 
-  /** Creates an empty instance for JPA. */
-  protected VirtualMachineEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public VirtualMachineEntity() {}
 
   /** Gets the primary key of the virtual machine. */
   public UUID getVmId() {
