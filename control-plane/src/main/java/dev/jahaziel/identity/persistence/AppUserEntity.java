@@ -51,7 +51,7 @@ public class AppUserEntity {
   private boolean mfaEnabled;
 
   /** Creates an empty instance for JPA. */
-  protected AppUserEntity() {}
+  public AppUserEntity() {}
 
   /** Gets the primary key of the user. */
   public UUID getUserId() {
