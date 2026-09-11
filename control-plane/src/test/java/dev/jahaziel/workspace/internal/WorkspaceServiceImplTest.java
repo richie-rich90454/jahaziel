@@ -24,8 +24,12 @@ import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import dev.jahaziel.spi.UserIdentity;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceView;
+import dev.jahaziel.runtime.domain.VirtualMachine;
+import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
+import dev.jahaziel.runtime.domain.VirtualMachineId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import dev.jahaziel.workspace.domain.WorkspaceQuota;
 import dev.jahaziel.workspace.domain.WorkspaceState;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
@@ -68,8 +72,7 @@ class WorkspaceServiceImplTest {
     Workspace workspace = service.create(owner, "site", 2, 2048, nodeId);
     assertInstanceOf(WorkspaceState.Requested.class, workspace.state());
     assertEquals("site", workspace.name());
-    ArgumentCaptor<WorkspaceEntity> workspaceCaptor =
-        ArgumentCaptor.forClass(WorkspaceEntity.class);
+    ArgumentCaptor<WorkspaceEntity> workspaceCaptor = ArgumentCaptor.forClass(WorkspaceEntity.class);
     verify(workspaces).save(workspaceCaptor.capture());
     assertEquals("requested", workspaceCaptor.getValue().getState());
     assertEquals(21474836480L, workspaceCaptor.getValue().getLogicalQuotaBytes());
@@ -87,7 +90,8 @@ class WorkspaceServiceImplTest {
   @Test
   void createRequiresKnownOwner() {
     when(users.get(owner)).thenThrow(new UserNotFoundException(owner));
-    assertThrows(UserNotFoundException.class, () -> service.create(owner, "site", 2, 2048, nodeId));
+    assertThrows(
+        UserNotFoundException.class, () -> service.create(owner, "site", 2, 2048, nodeId));
     verify(workspaces, never()).save(any());
   }
 
@@ -99,7 +103,8 @@ class WorkspaceServiceImplTest {
         IllegalArgumentException.class, () -> service.create(owner, "  ", 2, 2048, nodeId));
     assertThrows(
         IllegalArgumentException.class, () -> service.create(owner, "site", 0, 2048, nodeId));
-    assertThrows(IllegalArgumentException.class, () -> service.create(owner, "site", 2, 0, nodeId));
+    assertThrows(
+        IllegalArgumentException.class, () -> service.create(owner, "site", 2, 0, nodeId));
   }
 
   @Test
@@ -147,6 +152,50 @@ class WorkspaceServiceImplTest {
     List<WorkspaceView> views = service.describeByOwner(owner);
     assertEquals(1, views.size());
     assertEquals(id, views.get(0).workspace().id());
+  }
+
+  @Test
+  void describeAllMapsEveryRow() {
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    Instant at = Instant.now();
+    WorkspaceEntity row = mock(WorkspaceEntity.class);
+    when(row.getWorkspaceId()).thenReturn(id.value());
+    when(row.getCreatedAt()).thenReturn(at);
+    when(row.getStateChangedAt()).thenReturn(at);
+    when(workspaces.findAll()).thenReturn(List.of(row));
+    stubRows(id, "ready");
+    List<WorkspaceView> views = service.describeAll();
+    assertEquals(1, views.size());
+    assertEquals(at, views.get(0).createdAt());
+  }
+
+  @Test
+  void savePersistsStateAndQuota() {
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    stubRows(id, "active");
+    Workspace workspace = service.get(id);
+    workspace.suspend();
+    service.save(workspace);
+    ArgumentCaptor<WorkspaceEntity> captor = ArgumentCaptor.forClass(WorkspaceEntity.class);
+    verify(workspaces, org.mockito.Mockito.times(1)).save(captor.capture());
+    assertEquals("suspended", captor.getValue().getState());
+  }
+
+  @Test
+  void saveMissingThrows() {
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    when(workspaces.findById(id.value())).thenReturn(Optional.empty());
+    Workspace workspace =
+        new Workspace(
+            id,
+            owner,
+            "site",
+            new WorkspaceQuota(1, 1),
+            new VirtualMachine(
+                new VirtualMachineId(UUID.randomUUID()),
+                id,
+                new VirtualMachineConfiguration(1, 1)));
+    assertThrows(WorkspaceNotFoundException.class, () -> service.save(workspace));
   }
 
   private void stubRows(WorkspaceId id, String state) {
