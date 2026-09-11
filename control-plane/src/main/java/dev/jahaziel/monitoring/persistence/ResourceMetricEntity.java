@@ -59,7 +59,7 @@ public class ResourceMetricEntity {
   private int processMax;
 
   /** Creates an empty instance for JPA. */
-  protected ResourceMetricEntity() {}
+  public ResourceMetricEntity() {}
 
   /** Gets the composite key of the hourly rollup. */
   public Id getId() {
@@ -196,7 +196,7 @@ public class ResourceMetricEntity {
     private Instant hourStart;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID workspaceId, Instant hourStart) {
