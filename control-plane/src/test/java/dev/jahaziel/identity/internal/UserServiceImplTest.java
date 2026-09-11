@@ -8,9 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.jahaziel.identity.api.AppUser;
 import dev.jahaziel.identity.api.UserNotFoundException;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.persistence.AppUserEntity;
@@ -44,6 +48,7 @@ class UserServiceImplTest {
   @Test
   void returnsIdentityWithRolesAndGroups() {
     AppUserEntity row = mock(AppUserEntity.class);
+    when(row.getUserId()).thenReturn(userId.value());
     when(row.getExternalId()).thenReturn("sub-1");
     when(row.getEmail()).thenReturn("a@example.com");
     when(row.getDisplayName()).thenReturn("A");
@@ -78,5 +83,57 @@ class UserServiceImplTest {
     assertTrue(service.isMfaEnabled(userId));
     when(users.findById(userId.value())).thenReturn(Optional.empty());
     assertThrows(UserNotFoundException.class, () -> service.isMfaEnabled(userId));
+  }
+
+  @Test
+  void updateStatusPersists() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(users.findById(userId.value())).thenReturn(Optional.of(row));
+    service.updateStatus(userId, "suspended");
+    verify(row).setStatus("suspended");
+    verify(users).save(row);
+  }
+
+  @Test
+  void updateStatusRejectsBadInput() {
+    assertThrows(IllegalArgumentException.class, () -> service.updateStatus(userId, "gone"));
+    assertThrows(IllegalArgumentException.class, () -> service.updateStatus(userId, null));
+    when(users.findById(userId.value())).thenReturn(Optional.empty());
+    assertThrows(UserNotFoundException.class, () -> service.updateStatus(userId, "suspended"));
+    verify(users, never()).save(any());
+  }
+
+  @Test
+  void listUsersMapsRows() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(row.getUserId()).thenReturn(userId.value());
+    when(row.getExternalId()).thenReturn("sub-1");
+    when(row.getEmail()).thenReturn("a@example.com");
+    when(row.getDisplayName()).thenReturn("A");
+    when(row.isMfaEnabled()).thenReturn(true);
+    when(users.findAll()).thenReturn(List.of(row));
+    when(roles.findByIdUserId(userId.value())).thenReturn(List.of());
+    when(groups.findByIdUserId(userId.value())).thenReturn(List.of());
+    List<AppUser> all = service.listUsers();
+    assertEquals(1, all.size());
+    assertEquals("sub-1", all.get(0).externalId());
+    assertEquals(userId, all.get(0).id());
+    assertTrue(all.get(0).mfaEnabled());
+  }
+
+  @Test
+  void slugIsLowercaseEmailLocalPart() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(row.getEmail()).thenReturn("Richard@Example.COM");
+    when(users.findById(userId.value())).thenReturn(Optional.of(row));
+    assertEquals("richard", service.slug(userId));
+  }
+
+  @Test
+  void slugRejectsMalformedEmail() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(row.getEmail()).thenReturn("no-at-sign");
+    when(users.findById(userId.value())).thenReturn(Optional.of(row));
+    assertThrows(IllegalArgumentException.class, () -> service.slug(userId));
   }
 }
