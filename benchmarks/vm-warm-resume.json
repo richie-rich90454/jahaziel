@@ -1,0 +1,7 @@
+{
+  "benchmark": "vm-warm-resume",
+  "target": "warm resume from graceful suspension under 3 seconds",
+  "unit": "seconds",
+  "runs": [],
+  "note": "Recorded by the operator on the reference host; numbers govern, targets guide."
+}
