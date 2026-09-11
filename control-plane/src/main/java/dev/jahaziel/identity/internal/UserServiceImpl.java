@@ -52,4 +52,10 @@ public final class UserServiceImpl implements UserService {
   public boolean exists(UserId id) {
     return users.existsById(id.value());
   }
+
+  @Override
+  public boolean isMfaEnabled(UserId id) {
+    AppUserEntity row = users.findById(id.value()).orElseThrow(() -> new UserNotFoundException(id));
+    return row.isMfaEnabled();
+  }
 }
