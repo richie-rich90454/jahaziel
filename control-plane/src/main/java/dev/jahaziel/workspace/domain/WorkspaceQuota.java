@@ -19,4 +19,9 @@ public record WorkspaceQuota(long logicalBytes, long inodeLimit) {
       throw new IllegalArgumentException("inodeLimit must not be negative");
     }
   }
+
+  /** Returns the default quota for a new workspace. */
+  public static WorkspaceQuota defaults() {
+    return new WorkspaceQuota(21474836480L, 1000000L);
+  }
 }
