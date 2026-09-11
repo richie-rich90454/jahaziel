@@ -31,7 +31,7 @@ public class WorkspaceAclEntity {
   private String grantedBy;
 
   /** Creates an empty instance for JPA. */
-  protected WorkspaceAclEntity() {}
+  public WorkspaceAclEntity() {}
 
   /** Gets the composite key of the ACL grant. */
   public Id getId() {
@@ -102,7 +102,7 @@ public class WorkspaceAclEntity {
     private String permission;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID workspaceId, UUID granteeUserId, String permission) {
