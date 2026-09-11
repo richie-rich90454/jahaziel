@@ -54,6 +54,21 @@ public interface WorkspaceService {
   List<WorkspaceView> describeByOwner(UserId owner);
 
   /**
+   * Describes every workspace. Administration only.
+   *
+   * @return the views, empty when none exist
+   */
+  List<WorkspaceView> describeAll();
+
+  /**
+   * Persists state changes of a managed workspace.
+   *
+   * @param workspace the workspace to persist
+   * @throws WorkspaceNotFoundException when the workspace does not exist
+   */
+  void save(Workspace workspace);
+
+  /**
    * Destroys a workspace and removes its rows. Snapshots cascade with the workspace row.
    *
    * @param id the workspace identifier
