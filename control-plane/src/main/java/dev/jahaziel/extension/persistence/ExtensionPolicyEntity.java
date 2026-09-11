@@ -46,8 +46,8 @@ public class ExtensionPolicyEntity {
   @Column(name = "updated_at")
   private Instant updatedAt;
 
-  /** Creates an empty instance for JPA. */
-  protected ExtensionPolicyEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public ExtensionPolicyEntity() {}
 
   /** Gets the primary key of the extension policy. */
   public UUID getPolicyId() {
