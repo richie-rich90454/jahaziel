@@ -1,0 +1,7 @@
+{
+  "benchmark": "vm-cold-boot",
+  "target": "cold boot from image under 2 seconds",
+  "unit": "seconds",
+  "runs": [],
+  "note": "Recorded by the operator on the reference host; numbers govern, targets guide."
+}
