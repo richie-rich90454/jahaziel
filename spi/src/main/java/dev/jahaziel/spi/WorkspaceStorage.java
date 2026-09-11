@@ -1,0 +1,56 @@
+/*
+ * Copyright 2026 The Jahaziel Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package dev.jahaziel.spi;
+
+import java.util.UUID;
+
+/**
+ * Prepares, snapshots and destroys workspace storage. Identifiers are plain UUIDs so this module
+ * stays dependency-free; the domain value objects map to them at the boundary.
+ */
+@JahazielSpi(version = 1)
+public interface WorkspaceStorage {
+  /**
+   * Prepares storage for a workspace.
+   *
+   * @param workspaceId the workspace to prepare
+   * @param image the base image to provision from
+   * @param quota the logical quota for the home subvolume
+   * @return the storage handle
+   */
+  WorkspaceHandle prepare(UUID workspaceId, ImageRef image, QuotaBytes quota);
+
+  /**
+   * Destroys workspace storage.
+   *
+   * @param handle the storage handle
+   */
+  void destroy(WorkspaceHandle handle);
+
+  /**
+   * Snapshots a workspace home subvolume.
+   *
+   * @param handle the storage handle
+   * @param tag the snapshot tag
+   * @return the snapshot handle
+   */
+  SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag);
+
+  /**
+   * Restores a workspace home subvolume from a snapshot.
+   *
+   * @param handle the storage handle
+   * @param snapshot the snapshot to restore
+   */
+  void restore(WorkspaceHandle handle, SnapshotHandle snapshot);
+
+  /**
+   * Measures storage consumption.
+   *
+   * @param handle the storage handle
+   * @return the current usage
+   */
+  StorageUsage usage(WorkspaceHandle handle);
+}
