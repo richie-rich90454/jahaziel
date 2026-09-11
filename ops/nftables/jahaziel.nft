@@ -1,0 +1,37 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+table inet jahaziel {
+    # NAT for outbound traffic
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "eth0" ip saddr 10.100.0.0/16 masquerade
+    }
+
+    # Forward chain
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        # Allow established connections
+        ct state established,related accept
+
+        # Allow outbound from VMs
+        iifname "br-jahaziel" oifname "eth0" accept
+
+        # Block VM-to-VM traffic (bridge isolation)
+        iifname "br-jahaziel" oifname "br-jahaziel" drop
+
+        # Block everything else
+        drop
+    }
+
+    # Per-VM rate limits
+    chain ratelimit {
+        type filter hook forward priority 0; policy accept;
+
+        # Outbound rate limit: 200 Mbps per VM
+        ip saddr 10.100.0.0/16 oifname "eth0" limit rate over 25 mbytes/second drop
+
+        # Per-VM connection limit: 5000 concurrent
+        ip saddr 10.100.0.0/16 oifname "eth0" ct count over 5000 drop
+    }
+}
