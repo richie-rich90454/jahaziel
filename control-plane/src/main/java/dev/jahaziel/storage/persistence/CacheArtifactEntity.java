@@ -51,7 +51,7 @@ public class CacheArtifactEntity {
   private String source;
 
   /** Creates an empty instance for JPA. */
-  protected CacheArtifactEntity() {}
+  public CacheArtifactEntity() {}
 
   /** Gets the primary key of the cache artifact. */
   public UUID getArtifactId() {
