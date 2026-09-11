@@ -39,6 +39,14 @@
     <name>The Jahaziel Authors</name>
   </organization>
 
+  <!-- Reactor modules. -->
+  <modules>
+    <module>spi</module>
+    <module>control-plane</module>
+    <module>node-agent</module>
+    <module>gateway</module>
+  </modules>
+
   <!-- Pinned versions. Never change without an ADR. -->
   <properties>
     <java.version>25</java.version>
