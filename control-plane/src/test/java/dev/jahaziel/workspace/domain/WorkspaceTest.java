@@ -37,16 +37,32 @@ class WorkspaceTest {
             new VirtualMachineId(UUID.randomUUID()),
             workspaceId,
             new VirtualMachineConfiguration(2, 2048));
-    workspace = new Workspace(workspaceId, owner, quota, vm);
+    workspace = new Workspace(workspaceId, owner, "club-website", quota, vm);
   }
 
   @Test
   void startsRequestedWithDefaults() {
     assertInstanceOf(WorkspaceState.Requested.class, workspace.state());
+    assertEquals("club-website", workspace.name());
     assertTrue(workspace.isOwnedBy(owner));
     assertFalse(workspace.isOwnedBy(new UserId(UUID.randomUUID())));
     assertFalse(workspace.isActive());
     assertTrue(workspace.snapshots().isEmpty());
+  }
+
+  @Test
+  void blankOrLongNamesAreRejected() {
+    WorkspaceQuota quota = new WorkspaceQuota(21474836480L, 1000000L);
+    VirtualMachine vm =
+        new VirtualMachine(
+            new VirtualMachineId(UUID.randomUUID()),
+            workspaceId,
+            new VirtualMachineConfiguration(2, 2048));
+    assertThrows(
+        IllegalArgumentException.class, () -> new Workspace(workspaceId, owner, "  ", quota, vm));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new Workspace(workspaceId, owner, "x".repeat(65), quota, vm));
   }
 
   @Test
