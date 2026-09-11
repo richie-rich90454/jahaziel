@@ -224,7 +224,7 @@ public class AuditEventEntity {
     private Instant timestamp;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID eventId, Instant timestamp) {
