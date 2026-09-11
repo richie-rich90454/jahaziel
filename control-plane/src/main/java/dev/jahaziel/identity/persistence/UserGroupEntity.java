@@ -27,7 +27,7 @@ public class UserGroupEntity {
   private Instant addedAt;
 
   /** Creates an empty instance for JPA. */
-  protected UserGroupEntity() {}
+  public UserGroupEntity() {}
 
   /** Gets the composite key of the group membership. */
   public Id getId() {
@@ -84,7 +84,7 @@ public class UserGroupEntity {
     private String groupName;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID userId, String groupName) {
