@@ -75,7 +75,7 @@ public class AuditTerminalEntity {
   private Long stderrSize;
 
   /** Creates an empty instance for JPA. */
-  protected AuditTerminalEntity() {}
+  public AuditTerminalEntity() {}
 
   /** Gets the composite key of the terminal record. */
   public Id getId() {
@@ -252,7 +252,7 @@ public class AuditTerminalEntity {
     private Instant timestamp;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID recordId, Instant timestamp) {
