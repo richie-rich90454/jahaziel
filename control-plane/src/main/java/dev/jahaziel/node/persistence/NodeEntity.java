@@ -57,8 +57,8 @@ public class NodeEntity {
   @Column(name = "cert_fingerprint")
   private String certFingerprint;
 
-  /** Creates an empty instance for JPA. */
-  protected NodeEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public NodeEntity() {}
 
   /** Gets the primary key of the node. */
   public String getNodeId() {
