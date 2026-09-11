@@ -104,6 +104,8 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <exclude>mvnw.cmd</exclude>
                 <exclude>.mvn/**</exclude>
                 <exclude>LICENSE</exclude>
+                <!-- Machine-consumed package list; keeps its own hash comments. -->
+                <exclude>base-image-builder/packages.txt</exclude>
                 <exclude>**/*.patch</exclude>
               </excludes>
             </licenseSet>
