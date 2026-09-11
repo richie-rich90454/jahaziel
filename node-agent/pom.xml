@@ -18,5 +18,33 @@
 
   <artifactId>jahaziel-node-agent</artifactId>
   <name>Jahaziel Node Agent</name>
-  <description>Per-host process managing workspace VMs via Firecracker. No domain logic here.</description>
+  <description>Per-host process managing workspace VMs via Firecracker. Plain Java, no framework.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>dev.jahaziel</groupId>
+      <artifactId>jahaziel-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>tools.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
