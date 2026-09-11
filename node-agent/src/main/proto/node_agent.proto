@@ -1,0 +1,247 @@
+//
+// Copyright 2026 The Jahaziel Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+
+syntax = "proto3";
+
+package jahaziel.node_agent.v1;
+
+option java_package = "dev.jahaziel.nodeagent.proto";
+option java_multiple_files = true;
+option java_outer_classname = "NodeAgentProto";
+
+service NodeAgent {
+  // Lifecycle
+  rpc PrepareWorkspace(PrepareWorkspaceRequest) returns (PrepareWorkspaceResponse);
+  rpc StartRuntime(StartRuntimeRequest) returns (stream StartRuntimeProgress);
+  rpc StopRuntime(StopRuntimeRequest) returns (StopRuntimeResponse);
+  rpc DestroyWorkspace(DestroyWorkspaceRequest) returns (DestroyWorkspaceResponse);
+
+  // Snapshots
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+  rpc RestoreSnapshot(RestoreSnapshotRequest) returns (RestoreSnapshotResponse);
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (DeleteSnapshotResponse);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+
+  // Networking
+  rpc AttachPort(AttachPortRequest) returns (AttachPortResponse);
+  rpc DetachPort(DetachPortRequest) returns (DetachPortResponse);
+
+  // Observability
+  rpc Metrics(MetricsRequest) returns (MetricsResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message PrepareWorkspaceRequest {
+  string workspace_id = 1;               // UUID
+  string image_ref = 2;                  // e.g. "base-image:2026.09"
+  int64 disk_size_bytes = 3;             // e.g. 21474836480 for 20 GiB
+  int64 memory_mib = 4;                  // e.g. 2048
+  int32 vcpu_count = 5;                  // e.g. 2
+  string owner_user_id = 6;              // UUID, for logging only
+}
+
+message PrepareWorkspaceResponse {
+  string workspace_handle = 1;           // opaque handle to reference this workspace
+  string root_disk_path = 2;             // absolute path to rootfs.img
+  string home_subvolume_path = 3;        // absolute path to home subvolume
+  int64 prepared_at_unix_ms = 4;
+}
+
+message StartRuntimeRequest {
+  string workspace_handle = 1;
+  RuntimeConfig config = 2;
+}
+
+message RuntimeConfig {
+  int32 vcpu_count = 1;
+  int64 memory_mib = 2;
+  int64 disk_iops_limit = 3;
+  int64 disk_bandwidth_bytes_per_sec = 4;
+  int64 network_bandwidth_bytes_per_sec = 5;
+  int32 network_connections_limit = 6;
+  int32 pids_limit = 7;
+  repeated string kernel_cmdline_extra = 8;
+}
+
+message StartRuntimeProgress {
+  oneof update {
+    RuntimeState state_change = 1;
+    string log_line = 2;
+    Error error = 3;
+  }
+}
+
+message RuntimeState {
+  enum State {
+    UNKNOWN = 0;
+    PREPARING = 1;
+    BOOTING = 2;
+    READY = 3;
+    ACTIVE = 4;
+    IDLE = 5;
+    SUSPENDED = 6;
+    DESTROYED = 7;
+    FAILED = 8;
+  }
+  State state = 1;
+  int64 changed_at_unix_ms = 2;
+}
+
+message StopRuntimeRequest {
+  string runtime_handle = 1;
+  bool graceful = 2;
+  int32 timeout_seconds = 3;             // e.g. 30
+}
+
+message StopRuntimeResponse {
+  bool stopped = 1;
+  int64 stopped_at_unix_ms = 2;
+}
+
+message DestroyWorkspaceRequest {
+  string workspace_handle = 1;
+  bool keep_snapshots = 2;
+}
+
+message DestroyWorkspaceResponse {
+  bool destroyed = 1;
+  int64 destroyed_at_unix_ms = 2;
+}
+
+message CreateSnapshotRequest {
+  string workspace_handle = 1;
+  string tag = 2;                        // e.g. "auto-2026-09-11T02-00"
+  string created_by = 3;                 // user id, "system", or "admin:<id>"
+}
+
+message CreateSnapshotResponse {
+  string snapshot_handle = 1;
+  string btrfs_subvolume_path = 2;
+  int64 logical_bytes = 3;
+  int64 physical_bytes = 4;
+  int64 created_at_unix_ms = 5;
+  string sha256_of_manifest = 6;
+}
+
+message RestoreSnapshotRequest {
+  string workspace_handle = 1;
+  string snapshot_handle = 2;
+  bool keep_current_as_snapshot = 3;
+}
+
+message RestoreSnapshotResponse {
+  bool restored = 1;
+  string new_home_subvolume_path = 2;
+  int64 restored_at_unix_ms = 3;
+}
+
+message DeleteSnapshotRequest {
+  string snapshot_handle = 1;
+}
+
+message DeleteSnapshotResponse {
+  bool deleted = 1;
+  int64 deleted_at_unix_ms = 2;
+}
+
+message ListSnapshotsRequest {
+  string workspace_handle = 1;
+}
+
+message ListSnapshotsResponse {
+  repeated SnapshotInfo snapshots = 1;
+}
+
+message SnapshotInfo {
+  string snapshot_handle = 1;
+  string tag = 2;
+  string kind = 3;                       // "auto" | "manual" | "pre-delete"
+  int64 created_at_unix_ms = 4;
+  string created_by = 5;
+  int64 logical_bytes = 6;
+  int64 physical_bytes = 7;
+}
+
+message AttachPortRequest {
+  string runtime_handle = 1;
+  int32 port = 2;                        // e.g. 8080
+  string protocol = 3;                   // "http" | "https" | "tcp"
+}
+
+message AttachPortResponse {
+  string vsock_handle = 1;               // opaque handle for the gateway to connect
+}
+
+message DetachPortRequest {
+  string runtime_handle = 1;
+  int32 port = 2;
+}
+
+message DetachPortResponse {
+  bool detached = 1;
+}
+
+message MetricsRequest {
+  bool include_per_workspace = 1;
+  bool include_host = 2;
+}
+
+message MetricsResponse {
+  HostMetrics host = 1;
+  repeated WorkspaceMetrics workspaces = 2;
+  int64 sampled_at_unix_ms = 3;
+}
+
+message HostMetrics {
+  double cpu_usage_percent = 1;
+  int64 memory_used_bytes = 2;
+  int64 memory_total_bytes = 3;
+  int64 disk_used_bytes = 4;
+  int64 disk_total_bytes = 5;
+  int64 network_rx_bytes_per_sec = 6;
+  int64 network_tx_bytes_per_sec = 7;
+  double load_average_1m = 8;
+  double load_average_5m = 9;
+  double load_average_15m = 10;
+}
+
+message WorkspaceMetrics {
+  string workspace_id = 1;
+  double cpu_usage_percent = 2;
+  int64 memory_used_bytes = 3;
+  int64 memory_total_bytes = 4;
+  int64 disk_used_bytes = 5;
+  int64 disk_read_bytes_per_sec = 6;
+  int64 disk_write_bytes_per_sec = 7;
+  int64 network_rx_bytes_per_sec = 8;
+  int64 network_tx_bytes_per_sec = 9;
+  int32 process_count = 10;
+  int32 file_descriptor_count = 11;
+  RuntimeState.State state = 12;
+  int64 uptime_seconds = 13;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  enum Status {
+    HEALTHY = 0;
+    DEGRADED = 1;
+    UNHEALTHY = 2;
+  }
+  Status status = 1;
+  string firecracker_version = 2;
+  string kernel_version = 3;
+  int32 active_workspaces = 4;
+  int64 free_memory_mib = 5;
+  int64 free_disk_gib = 6;
+  repeated string warnings = 7;
+}
+
+message Error {
+  string code = 1;                       // e.g. "INSUFFICIENT_MEMORY"
+  string message = 2;                    // human-readable
+  map<string, string> details = 3;
+}
