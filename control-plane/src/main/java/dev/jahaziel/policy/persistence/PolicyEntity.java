@@ -42,8 +42,8 @@ public class PolicyEntity {
   @Column(name = "updated_by")
   private String updatedBy;
 
-  /** Creates an empty instance for JPA. */
-  protected PolicyEntity() {}
+  /** Creates an empty instance for JPA and mapping. */
+  public PolicyEntity() {}
 
   /** Gets the primary key of the policy. */
   public UUID getPolicyId() {
