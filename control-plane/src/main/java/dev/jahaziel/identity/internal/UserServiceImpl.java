@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.identity.internal;
 
+import dev.jahaziel.identity.api.AppUser;
 import dev.jahaziel.identity.api.UserNotFoundException;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
@@ -13,7 +14,9 @@ import dev.jahaziel.identity.persistence.UserGroupRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 import dev.jahaziel.spi.UserIdentity;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Database-backed users. */
 public final class UserServiceImpl implements UserService {
@@ -37,15 +40,9 @@ public final class UserServiceImpl implements UserService {
 
   @Override
   public UserIdentity get(UserId id) {
-    AppUserEntity row = users.findById(id.value()).orElseThrow(() -> new UserNotFoundException(id));
-    List<String> roleNames =
-        roles.findByIdUserId(id.value()).stream().map(role -> role.getId().getRole()).toList();
-    List<String> groupNames =
-        groups.findByIdUserId(id.value()).stream()
-            .map(group -> group.getId().getGroupName())
-            .toList();
+    AppUser user = toAppUser(load(id));
     return new UserIdentity(
-        row.getExternalId(), row.getEmail(), row.getDisplayName(), roleNames, groupNames);
+        user.externalId(), user.email(), user.displayName(), user.roles(), user.groups());
   }
 
   @Override
@@ -55,7 +52,52 @@ public final class UserServiceImpl implements UserService {
 
   @Override
   public boolean isMfaEnabled(UserId id) {
-    AppUserEntity row = users.findById(id.value()).orElseThrow(() -> new UserNotFoundException(id));
-    return row.isMfaEnabled();
+    return load(id).isMfaEnabled();
+  }
+
+  @Override
+  public void updateStatus(UserId id, String status) {
+    if (status == null
+        || (!status.equals("active") && !status.equals("suspended") && !status.equals("revoked"))) {
+      throw new IllegalArgumentException("status must be active, suspended, or revoked");
+    }
+    AppUserEntity row = load(id);
+    row.setStatus(status);
+    users.save(row);
+  }
+
+  @Override
+  public List<AppUser> listUsers() {
+    return users.findAll().stream().map(this::toAppUser).toList();
+  }
+
+  @Override
+  public String slug(UserId id) {
+    String email = load(id).getEmail();
+    int at = email.indexOf('@');
+    if (at <= 0) {
+      throw new IllegalArgumentException("user email has no local part");
+    }
+    return email.substring(0, at).toLowerCase(Locale.ROOT);
+  }
+
+  private AppUserEntity load(UserId id) {
+    return users.findById(id.value()).orElseThrow(() -> new UserNotFoundException(id));
+  }
+
+  private AppUser toAppUser(AppUserEntity row) {
+    UUID id = row.getUserId();
+    List<String> roleNames =
+        roles.findByIdUserId(id).stream().map(role -> role.getId().getRole()).toList();
+    List<String> groupNames =
+        groups.findByIdUserId(id).stream().map(group -> group.getId().getGroupName()).toList();
+    return new AppUser(
+        new UserId(id),
+        row.getExternalId(),
+        row.getEmail(),
+        row.getDisplayName(),
+        roleNames,
+        groupNames,
+        row.isMfaEnabled());
   }
 }
