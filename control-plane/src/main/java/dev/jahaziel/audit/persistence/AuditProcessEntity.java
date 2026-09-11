@@ -67,7 +67,7 @@ public class AuditProcessEntity {
   private String[] capabilities;
 
   /** Creates an empty instance for JPA. */
-  protected AuditProcessEntity() {}
+  public AuditProcessEntity() {}
 
   /** Gets the composite key of the process record. */
   public Id getId() {
@@ -224,7 +224,7 @@ public class AuditProcessEntity {
     private Instant timestamp;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID recordId, Instant timestamp) {
