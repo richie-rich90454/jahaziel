@@ -35,7 +35,7 @@ public class WorkspacePortEntity {
   private Instant lastSeenAt;
 
   /** Creates an empty instance for JPA. */
-  protected WorkspacePortEntity() {}
+  public WorkspacePortEntity() {}
 
   /** Gets the composite key of the port registration. */
   public Id getId() {
@@ -112,7 +112,7 @@ public class WorkspacePortEntity {
     private int port;
 
     /** Creates an empty key for JPA. */
-    protected Id() {}
+    public Id() {}
 
     /** Creates a key with all fields. */
     public Id(UUID workspaceId, int port) {
