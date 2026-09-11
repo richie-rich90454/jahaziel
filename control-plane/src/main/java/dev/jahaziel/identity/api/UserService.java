@@ -6,6 +6,7 @@ package dev.jahaziel.identity.api;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.spi.UserIdentity;
+import java.util.List;
 
 /** Users, looked up by the rest of the platform. */
 public interface UserService {
@@ -34,4 +35,29 @@ public interface UserService {
    * @throws UserNotFoundException when the user does not exist
    */
   boolean isMfaEnabled(UserId id);
+
+  /**
+   * Changes the account status.
+   *
+   * @param id the user identifier
+   * @param status one of active, suspended, revoked
+   * @throws UserNotFoundException when the user does not exist
+   */
+  void updateStatus(UserId id, String status);
+
+  /**
+   * Lists all users with full read models.
+   *
+   * @return every user
+   */
+  List<AppUser> listUsers();
+
+  /**
+   * Returns the URL-safe slug of a user. Initial rule: the lowercase email local part.
+   *
+   * @param id the user identifier
+   * @return the slug
+   * @throws UserNotFoundException when the user does not exist
+   */
+  String slug(UserId id);
 }
