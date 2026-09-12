@@ -45,5 +45,7 @@ class FirecrackerClientTest {
     Map<String, Object> drive = FirecrackerClient.driveBody("/rootfs.img");
     assertEquals("/rootfs.img", drive.get("path_on_host"));
     assertEquals(true, drive.get("is_root_device"));
+    assertEquals(true, drive.get("is_read_only"));
+    assertTrue(FirecrackerClient.bootBody("/kernel").get("boot_args").toString().contains(" ro "));
   }
 }
