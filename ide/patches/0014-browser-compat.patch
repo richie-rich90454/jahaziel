@@ -1,0 +1,18 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0014/0014] Browser compatibility for tablets and evergreen
+
+This patch adds polyfills for missing APIs, touch handlers for iPad
+and Android tablets, CSS adjustments for tablet portrait and landscape,
+iPadOS hardware-keyboard shortcuts, and feature detection with graceful
+degradation.
+
+Never uses: :has() selector, <dialog> element, popover attribute, CSS
+nesting, untranspiled class fields, top-level await, or untranspiled
+optional chaining.
+
+Touches:
+  - web client bootstrap, touch handling, keyboard maps, CSS
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: browser matrix suite across Safari 16+, iOS/iPadOS 16+,
+Chrome 110+, Firefox 110+, Edge 110+.
