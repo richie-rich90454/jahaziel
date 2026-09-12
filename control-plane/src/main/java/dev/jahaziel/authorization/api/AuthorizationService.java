@@ -8,8 +8,8 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 /**
- * Workspace access decisions. Administrators may do anything; owners hold every permission on
- * their workspaces; everyone else needs an explicit grant.
+ * Workspace access decisions. Administrators may do anything; owners hold every permission on their
+ * workspaces; everyone else needs an explicit grant.
  */
 public interface AuthorizationService {
   /**
