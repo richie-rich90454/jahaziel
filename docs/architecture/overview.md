@@ -9,13 +9,13 @@
 
 One Spring Boot control plane, one node agent per host, one gateway at
 the edge, Firecracker microVMs per workspace, PostgreSQL for state,
-Btrfs for storage, Caddy for TLS.
+plain folders for storage, Caddy for TLS.
 
 - Control plane: identity, authorization, workspaces, runtime, nodes,
   storage, snapshots, networking, terminal, IDE sessions, audit,
   monitoring, policy, extensions, administration. One jar, one port
   for the API, one database.
-- Node agent: VMs, disks, TAP devices, cgroups, snapshots. No domain
+- Node agent: VMs, TAP devices, cgroups, folder snapshots. No domain
   logic; the workspace id is opaque to it.
 - Gateway: Host-header routing, JWT verification, byte relay to the
   workspace. No control-plane round trip per request.
