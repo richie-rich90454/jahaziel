@@ -1,0 +1,18 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# Preinstalled extensions, installed from Open VSX into the base image.
+# One publisher.name per line. Microsoft-only extensions are unavailable.
+ms-python.python
+rust-lang.rust-analyzer
+golang.go
+redhat.java
+vscjava.vscode-maven
+vmware.vscode-boot-dev-pack
+ms-vscode.vscode-typescript-next
+esbenp.prettier-vscode
+editorconfig.editorconfig
+eamodio.gitlens
+ms-vscode-remote.remote-containers
+tamasfe.even-better-toml
+serayuzgur.crates
+bradlc.vscode-tailwindcss
