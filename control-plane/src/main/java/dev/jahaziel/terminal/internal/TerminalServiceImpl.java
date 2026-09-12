@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentMap;
 
 /** In-memory terminal sessions. Sessions die with the control plane; PTYs live in the VM. */
 public final class TerminalServiceImpl implements TerminalService {
-  private final ConcurrentMap<TerminalSessionId, TerminalSession> sessions = new ConcurrentHashMap<>();
+  private final ConcurrentMap<TerminalSessionId, TerminalSession> sessions =
+      new ConcurrentHashMap<>();
 
   @Override
   public TerminalSession open(WorkspaceId workspaceId, UserId userId, int rows, int cols) {
