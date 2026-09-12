@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Checksums and signs release artifacts. Requires minisign and JAHAZIEL_SIGNING_KEY.
+
 set -euo pipefail
 
 cd "$(dirname "$0")/out"
