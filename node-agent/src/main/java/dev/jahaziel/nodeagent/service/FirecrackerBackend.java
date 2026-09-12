@@ -8,8 +8,9 @@ import dev.jahaziel.nodeagent.cgroup.CgroupV2;
 import dev.jahaziel.nodeagent.config.NodeAgentConfig;
 import dev.jahaziel.nodeagent.firecracker.FirecrackerClient;
 import dev.jahaziel.nodeagent.jail.Jailer;
-import dev.jahaziel.nodeagent.storage.BtrfsStorage;
 import dev.jahaziel.nodeagent.storage.CommandRunner;
+import dev.jahaziel.nodeagent.storage.FolderStorage;
+import dev.jahaziel.spi.ImageRef;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.PrepareRequest;
 import dev.jahaziel.spi.RuntimeHandle;
@@ -23,20 +24,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Firecracker node backend. Implements the plugin contract against jailer, Btrfs, cgroups, and the
- * Firecracker API: prepare storage and shell, boot, stop, destroy.
+ * Firecracker node backend. Implements the plugin contract against jailer, folder storage, cgroups,
+ * and the Firecracker API: prepare storage and shell, boot, stop, destroy. Every VM boots the
+ * shared base image read-only; workspace files live in plain host folders.
  */
 public final class FirecrackerBackend implements NodeBackend {
-  private final BtrfsStorage storage;
+  private final FolderStorage storage;
   private final FirecrackerClient firecracker;
   private final Jailer jailer;
   private final CgroupV2 cgroups;
   private final CommandRunner commands;
   private final NodeAgentConfig config;
+  private final ConcurrentHashMap<UUID, ImageRef> images = new ConcurrentHashMap<>();
   private final ObjectMapper mapper = new ObjectMapper();
   private final AtomicInteger guestCid = new AtomicInteger(3);
   private final AtomicInteger uidCounter = new AtomicInteger(100000);
@@ -44,7 +48,7 @@ public final class FirecrackerBackend implements NodeBackend {
   /**
    * Creates the backend.
    *
-   * @param storage the Btrfs storage
+   * @param storage the folder storage
    * @param firecracker the Firecracker client
    * @param jailer the jailer
    * @param cgroups the cgroup enforcement
@@ -52,7 +56,7 @@ public final class FirecrackerBackend implements NodeBackend {
    * @param config the node configuration
    */
   public FirecrackerBackend(
-      BtrfsStorage storage,
+      FolderStorage storage,
       FirecrackerClient firecracker,
       Jailer jailer,
       CgroupV2 cgroups,
@@ -77,8 +81,9 @@ public final class FirecrackerBackend implements NodeBackend {
     UUID workspaceId = request.workspaceId();
     WorkspaceHandle handle =
         storage.prepare(workspaceId, request.ownerId(), request.image(), request.quota());
+    images.put(workspaceId, request.image());
     cgroups.apply(workspaceId, request.vcpuCount(), request.memoryMib(), 4096);
-    writeFirecrackerConfig(handle, request.vcpuCount(), request.memoryMib());
+    writeFirecrackerConfig(handle, request.image(), request.vcpuCount(), request.memoryMib());
     return handle;
   }
 
@@ -86,9 +91,14 @@ public final class FirecrackerBackend implements NodeBackend {
   public RuntimeHandle start(RuntimeRequest request) {
     Objects.requireNonNull(request, "request");
     UUID workspaceId = request.workspaceId();
+    ImageRef image = images.get(workspaceId);
+    if (image == null) {
+      throw new IllegalStateException("workspace not prepared: " + workspaceId);
+    }
     String netns = "/var/run/netns/jahaziel-" + workspaceId;
     commands.run(List.of("ip", "netns", "add", "jahaziel-" + workspaceId));
     int uid = uidCounter.getAndIncrement();
+    stageJail(workspaceId, image);
     jailer.start(workspaceId, uid, uid, netns);
     firecracker.boot(
         apiSocket(workspaceId),
@@ -117,15 +127,46 @@ public final class FirecrackerBackend implements NodeBackend {
   public void destroy(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
     commands.run(List.of("ip", "netns", "delete", "jahaziel-" + handle.workspaceId()));
+    images.remove(handle.workspaceId());
     storage.destroy(handle);
   }
 
-  private void writeFirecrackerConfig(WorkspaceHandle handle, int vcpuCount, long memoryMib) {
+  /**
+   * Stages the shared base image and kernel into the jail as hard links. Same inode, zero extra
+   * bytes; the guest drive stays read-only so sharing is safe.
+   *
+   * @param workspaceId the workspace being started
+   * @param image the base image reference
+   */
+  private void stageJail(UUID workspaceId, ImageRef image) {
+    Path jailRoot = Path.of(config.jailRoot(), workspaceId.toString(), "root");
+    try {
+      Files.createDirectories(jailRoot);
+      linkShared(jailRoot.resolve("rootfs.img"), Path.of(imageFile(image)));
+      linkShared(jailRoot.resolve("kernel"), Path.of(config.kernelImage()));
+    } catch (IOException failure) {
+      throw new UncheckedIOException("cannot stage jail for " + workspaceId, failure);
+    }
+  }
+
+  private static void linkShared(Path link, Path target) throws IOException {
+    Files.deleteIfExists(link);
+    Files.createLink(link, target);
+  }
+
+  private String imageFile(ImageRef image) {
+    // String concat, not Path: image refs contain colons (base-image:2026.09),
+    // which are illegal in path segments on some platforms.
+    return config.imagesDir() + "/" + image.value() + ".ext4";
+  }
+
+  private void writeFirecrackerConfig(
+      WorkspaceHandle handle, ImageRef image, int vcpuCount, long memoryMib) {
     Map<String, Object> document =
         Map.of(
             "vcpu_count", vcpuCount,
             "memory_mib", memoryMib,
-            "rootfs", handle.rootDiskPath().toString());
+            "rootfs", imageFile(image));
     Path configPath = handle.jailPath().resolve("root").resolve("firecracker.json");
     try {
       Files.createDirectories(configPath.getParent());
