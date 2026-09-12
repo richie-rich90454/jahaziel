@@ -27,11 +27,10 @@ public final class GatewayMain {
    */
   public static void main(String[] args) {
     int port = integer(args, "--port", 8081);
-    String domain = string(args, "--domain", "code.jahaziel.dev");
+    String domain = string(args, "--domain", "code.example.com");
     Path keyPath = Path.of(string(args, "--jwt-pub", "/etc/jahaziel/tls/jwt.pub"));
     RSAPublicKey key = JwtKeys.loadPublicKey(keyPath);
-    JwtVerifier verifier =
-        new JwtVerifier(key, "https://code.jahaziel.dev", "jahaziel-code-server");
+    JwtVerifier verifier = new JwtVerifier(key, "https://code.example.com", "jahaziel-code-server");
     GatewayServer server =
         new GatewayServer(
             new HostParser(domain),
