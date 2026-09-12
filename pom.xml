@@ -108,6 +108,10 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <exclude>LICENSE</exclude>
                 <!-- Machine-consumed package list; keeps its own hash comments. -->
                 <exclude>base-image-builder/packages.txt</exclude>
+                <!-- Machine-consumed pins and lists; read verbatim by scripts. -->
+                <exclude>ide/upstream-version.txt</exclude>
+                <exclude>ide/extensions-builtin/list.txt</exclude>
+                <exclude>ide/tests/no-network-test/blocklist.txt</exclude>
                 <!-- Spring runtime config; header enforced by the CI tracked-files grep. -->
                 <exclude>src/main/resources/application*.yml</exclude>
                 <exclude>src/test/resources/application*.yml</exclude>
