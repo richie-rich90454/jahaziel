@@ -60,8 +60,7 @@ class NodeAgentServiceTest {
   @Test
   void snapshotsDelegate() {
     WorkspaceHandle handle = handle();
-    SnapshotHandle snap =
-        new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/x"), Instant.now());
+    SnapshotHandle snap = new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/x"), Instant.now());
     when(storage.snapshot(any(), any())).thenReturn(snap);
     assertEquals(snap, service.createSnapshot(handle, new SnapshotTag("daily"), "system"));
     service.restoreSnapshot(handle, snap);
