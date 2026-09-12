@@ -8,8 +8,8 @@ import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 /**
- * Workspace runtime lifecycle. Storage prepares, the VM boots, and the home subvolume always
- * survives: stop and restart never lose files.
+ * Workspace runtime lifecycle. Storage prepares, the VM boots, and the home folder always survives:
+ * stop and restart never lose files.
  */
 public interface RuntimeService {
   /**
@@ -21,7 +21,7 @@ public interface RuntimeService {
   Workspace start(WorkspaceId id);
 
   /**
-   * Stops a workspace gracefully, preserving the home subvolume.
+   * Stops a workspace gracefully, preserving the home folder.
    *
    * @param id the workspace identifier
    * @return the suspended workspace
