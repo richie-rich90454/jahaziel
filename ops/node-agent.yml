@@ -40,10 +40,6 @@ storage:
   jail_dir: /var/lib/jahaziel/jail
   audit_staging_dir: /var/lib/jahaziel/audit
   replicas_dir: /var/lib/jahaziel/replicas
-  btrfs:
-    enabled: true
-    compress: zstd:1
-    mount_options: ["noatime", "ssd", "space_cache=v2"]
 
 networking:
   bridge_name: br-jahaziel
