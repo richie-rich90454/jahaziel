@@ -1,0 +1,13 @@
+/* Copyright 2026 The Jahaziel Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Jahaziel Code brand overrides. Loaded by the web client on top of core themes.
+ * No core theme files are modified.
+ */
+:root {
+    --jahaziel-primary: #1e40af;
+    --jahaziel-primary-hover: #1d4ed8;
+    --jahaziel-accent: #d97706;
+    --jahaziel-background: #f8fafc;
+    --jahaziel-foreground: #0f172a;
+}
