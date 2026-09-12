@@ -104,7 +104,8 @@ public final class FirecrackerClient {
   }
 
   /**
-   * Builds the drive body.
+   * Builds the drive body. The drive is always the shared base image, so it stays read-only: every
+   * VM sees the same bytes and no VM can corrupt another's root.
    *
    * @param rootfs the rootfs path
    * @return the JSON-ready map
@@ -118,7 +119,7 @@ public final class FirecrackerClient {
         "is_root_device",
         true,
         "is_read_only",
-        false,
+        true,
         "cache_type",
         "Unsafe",
         "io_engine",
@@ -166,7 +167,7 @@ public final class FirecrackerClient {
         "kernel_image_path",
         kernelPath,
         "boot_args",
-        "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init root=/dev/vda rw"
+        "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init root=/dev/vda ro"
             + " init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1");
   }
 
