@@ -6,7 +6,6 @@ package dev.jahaziel.nodeagent.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -43,13 +42,15 @@ class BtrfsStorageTest {
   @Test
   void prepareReflinksBaseImageAndCreatesHome() {
     WorkspaceHandle handle =
-        storage.prepare(workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(1));
+        storage.prepare(
+            workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(1));
     assertEquals(workspaceId, handle.workspaceId());
     assertEquals(
         Path.of("/var/lib/jahaziel/jail/" + workspaceId + "/rootfs.img"), handle.rootDiskPath());
     assertEquals(
         Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home"), handle.homeSubvolumePath());
-    var captor = ArgumentCaptor.forClass(List.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
     verify(commands, org.mockito.Mockito.times(5)).run(captor.capture());
     List<List<String>> calls = captor.getAllValues();
     assertEquals(List.of("truncate", "-s", "20G", handle.rootDiskPath().toString()), calls.get(1));
@@ -62,8 +63,7 @@ class BtrfsStorageTest {
     WorkspaceHandle handle = handle();
     SnapshotHandle snap = storage.snapshot(handle, new SnapshotTag("daily"));
     assertEquals(
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/daily"),
-        snap.subvolumePath());
+        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/daily"), snap.subvolumePath());
     verify(commands)
         .run(
             List.of(
@@ -78,10 +78,10 @@ class BtrfsStorageTest {
   @Test
   void restoreSwapsHomes() {
     WorkspaceHandle handle = handle();
-    SnapshotHandle snap =
-        new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/x"), Instant.now());
+    SnapshotHandle snap = new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/x"), Instant.now());
     storage.restore(handle, snap);
-    var captor = ArgumentCaptor.forClass(List.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
     verify(commands, org.mockito.Mockito.times(4)).run(captor.capture());
     assertEquals("mv", captor.getAllValues().get(1).get(0));
   }
