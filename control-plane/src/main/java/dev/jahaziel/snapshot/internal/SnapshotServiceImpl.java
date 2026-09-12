@@ -93,7 +93,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
             kind,
             Instant.now(),
             createdBy,
-            snapshot.subvolumePath(),
+            snapshot.snapshotPath(),
             0,
             0,
             parent,
@@ -133,7 +133,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
     storage.restore(
         handleOf(workspace),
         new SnapshotHandle(
-            row.getSnapshotId(), Path.of(row.getBtrfsSubvolumePath()), row.getCreatedAt()));
+            row.getSnapshotId(), Path.of(row.getSnapshotPath()), row.getCreatedAt()));
     audit.append(
         new AuditRecord(
             UUID.randomUUID(),
@@ -156,7 +156,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
     SnapshotEntity row = rowOf(snapshotId);
     storage.deleteSnapshot(
         new SnapshotHandle(
-            row.getSnapshotId(), Path.of(row.getBtrfsSubvolumePath()), row.getCreatedAt()));
+            row.getSnapshotId(), Path.of(row.getSnapshotPath()), row.getCreatedAt()));
     snapshots.delete(row);
   }
 
@@ -169,7 +169,6 @@ public final class SnapshotServiceImpl implements SnapshotService {
   private WorkspaceHandle handleOf(Workspace workspace) {
     return new WorkspaceHandle(
         workspace.id().value(),
-        Path.of(WorkspacePaths.diskPath(storageRoot, workspace.id())),
         Path.of(WorkspacePaths.homePath(storageRoot, workspace.owner())),
         Path.of(WorkspacePaths.jailPath(storageRoot, workspace.id())));
   }
