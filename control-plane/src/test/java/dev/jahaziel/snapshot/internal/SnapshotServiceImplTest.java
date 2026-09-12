@@ -126,7 +126,7 @@ class SnapshotServiceImplTest {
     when(row.getKind()).thenReturn("manual");
     when(row.getCreatedAt()).thenReturn(at);
     when(row.getCreatedBy()).thenReturn("user:x");
-    when(row.getBtrfsSubvolumePath()).thenReturn("/snaps/" + tag);
+    when(row.getSnapshotPath()).thenReturn("/snaps/" + tag);
     when(row.getLogicalBytes()).thenReturn(0L);
     when(row.getPhysicalBytes()).thenReturn(0L);
     when(row.getParentSnapshotId()).thenReturn(null);
