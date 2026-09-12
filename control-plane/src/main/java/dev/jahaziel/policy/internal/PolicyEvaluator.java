@@ -7,15 +7,14 @@ package dev.jahaziel.policy.internal;
 import dev.jahaziel.policy.api.PolicyDoc;
 import dev.jahaziel.policy.api.PolicyService;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Resolves the effective policy for a scope chain. Global documents apply first, then user,
- * then workspace; later documents deep-merge over earlier ones.
+ * Resolves the effective policy for a scope chain. Global documents apply first, then user, then
+ * workspace; later documents deep-merge over earlier ones.
  */
 public final class PolicyEvaluator {
   private final PolicyService policies;
@@ -59,6 +58,7 @@ public final class PolicyEvaluator {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private Map<String, Object> parse(String json) {
     try {
       Map<String, Object> parsed = mapper.readValue(json, Map.class);
