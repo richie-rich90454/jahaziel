@@ -77,7 +77,8 @@ class FakeNodeAgentTest {
   @Test
   void summariesValidate() {
     SnapshotHandle snap = new SnapshotHandle(UUID.randomUUID(), Path.of("/s"), Instant.now());
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotSummary(snap, "  ", Instant.now()));
+    assertThrows(
+        IllegalArgumentException.class, () -> new SnapshotSummary(snap, "  ", Instant.now()));
   }
 
   private WorkspaceHandle prepare() {
