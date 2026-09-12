@@ -26,6 +26,13 @@ tar --use-compress-program="zstd -19" -xf ../../ide/out/jahaziel-code-server.tar
 
 systemd-nspawn -D "$WORK/root" systemctl enable jahaziel-guest-agent.service
 
+# Guests boot the shared image read-only, so scratch paths live on tmpfs.
+cat >> "$WORK/root/etc/fstab" <<'EOF'
+tmpfs /tmp tmpfs defaults,nosuid,nodev 0 0
+tmpfs /var/tmp tmpfs defaults,nosuid,nodev 0 0
+tmpfs /var/log tmpfs defaults,nosuid,nodev 0 0
+EOF
+
 systemd-nspawn -D "$WORK/root" apt-get autoremove -y
 systemd-nspawn -D "$WORK/root" apt-get clean
 rm -rf "$WORK/root/usr/share/doc" "$WORK/root/usr/share/man"
