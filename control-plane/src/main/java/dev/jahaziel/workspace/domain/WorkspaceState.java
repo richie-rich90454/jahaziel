@@ -26,7 +26,7 @@ public sealed interface WorkspaceState {
   /** No input, socket, CPU or network activity for the idle window. */
   record Idle(Instant at, Instant since) implements WorkspaceState {}
 
-  /** Stopped, home subvolume preserved. */
+  /** Stopped, home folder preserved. */
   record Suspended(Instant at) implements WorkspaceState {}
 
   /** Removed by request. */
