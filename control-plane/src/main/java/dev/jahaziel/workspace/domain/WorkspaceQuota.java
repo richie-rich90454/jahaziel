@@ -7,8 +7,8 @@ package dev.jahaziel.workspace.domain;
 /**
  * Logical quota of a workspace. Only actual consumption matters physically.
  *
- * @param logicalBytes logical byte limit of the home subvolume
- * @param inodeLimit inode limit of the home subvolume
+ * @param logicalBytes logical byte limit of the home folder
+ * @param inodeLimit inode limit of the home folder
  */
 public record WorkspaceQuota(long logicalBytes, long inodeLimit) {
   public WorkspaceQuota {
