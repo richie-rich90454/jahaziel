@@ -18,7 +18,12 @@ import java.util.UUID;
  * @param memoryMib guest memory in MiB, reserved at start
  */
 public record PrepareRequest(
-    UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota, int vcpuCount, long memoryMib) {
+    UUID workspaceId,
+    UUID ownerId,
+    ImageRef image,
+    QuotaBytes quota,
+    int vcpuCount,
+    long memoryMib) {
   public PrepareRequest {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(ownerId, "ownerId");
