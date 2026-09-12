@@ -72,7 +72,8 @@ class NodeServiceImplTest {
 
   @Test
   void drainFlipsStoredStateToDraining() {
-    when(nodes.findById(nodeId.value())).thenReturn(Optional.of(healthyRow()));
+    NodeEntity healthy = healthyRow();
+    when(nodes.findById(nodeId.value())).thenReturn(Optional.of(healthy));
     service.drain(nodeId);
     ArgumentCaptor<NodeEntity> captor = ArgumentCaptor.forClass(NodeEntity.class);
     verify(nodes).save(captor.capture());
@@ -91,7 +92,8 @@ class NodeServiceImplTest {
     when(second.getMemoryMib()).thenReturn(32768L);
     when(second.getDiskGib()).thenReturn(250L);
     when(second.getCertFingerprint()).thenReturn("sha256:def");
-    when(nodes.findAll()).thenReturn(List.of(healthyRow(), second));
+    NodeEntity healthy = healthyRow();
+    when(nodes.findAll()).thenReturn(List.of(healthy, second));
     List<Node> found = service.list();
     assertEquals(2, found.size());
     assertEquals(new NodeId("node-a"), found.get(0).id());
