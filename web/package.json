@@ -1,0 +1,13 @@
+{
+  "name": "jahaziel-web",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
