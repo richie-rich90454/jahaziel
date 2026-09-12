@@ -105,7 +105,10 @@ class SnapshotControllerTest {
         .thenReturn(new WorkspaceView(workspace(), at, at, new StorageUsage(0, 0, 0, 0)));
     mvc.perform(
             post(
-                "/api/v1/workspaces/" + workspaceId.value() + "/snapshots/" + snapshotId.value()
+                "/api/v1/workspaces/"
+                    + workspaceId.value()
+                    + "/snapshots/"
+                    + snapshotId.value()
                     + "/restore"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.workspaceId").value(workspaceId.value().toString()));
