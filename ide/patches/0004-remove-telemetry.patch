@@ -1,0 +1,28 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0004/0014] Remove all telemetry
+
+This patch removes all outbound telemetry from the workbench.
+
+Rationale: VS Code ships Azure Application Insights telemetry to
+Microsoft. A self-hosted IDE must not send data outside the workspace.
+
+Touches:
+  - product.json (enableTelemetry, aiConfig, crashReporter)
+  - src/vs/platform/telemetry/ (TelemetryService registration)
+  - src/vs/workbench/services/telemetry/ (TelemetryService registration)
+  - vendor/vscode-telemetry (replaced with no-op)
+  - vendor/vscode-telemetry-workbench (replaced with no-op)
+
+Removal steps:
+  1. Replace vscode-telemetry with a no-op module.
+  2. Replace @vscode/telemetry with a no-op.
+  3. Patch product.json: remove aiConfig, set enableTelemetry false,
+     remove telemetryOptOutUrl and crashReporter.
+  4. Patch src/vs/platform/telemetry/ to no-op implementations.
+  5. Patch src/vs/workbench/services/telemetry/ similarly.
+  6. Disable ExperimentsService by removing its registration.
+  7. Remove the update endpoint and UpdateService checks.
+  8. Force telemetryLevel read-only off.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: ide/tests/no-network-test/ asserts no outbound connections.
