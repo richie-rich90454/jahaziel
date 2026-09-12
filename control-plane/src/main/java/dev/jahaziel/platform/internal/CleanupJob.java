@@ -21,8 +21,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Removes orphaned jail directories: on disk but belonging to no known workspace. Home
- * subvolumes are never touched; only the throwaway jail shells go.
+ * Removes orphaned jail directories: on disk but belonging to no known workspace. Home subvolumes
+ * are never touched; only the throwaway jail shells go.
  */
 public final class CleanupJob implements PlatformJob {
   private final WorkspaceService workspaces;
