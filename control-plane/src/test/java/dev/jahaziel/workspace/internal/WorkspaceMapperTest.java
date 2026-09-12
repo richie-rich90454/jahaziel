@@ -37,7 +37,7 @@ class WorkspaceMapperTest {
   void toEntityMapsDomainFields() {
     Workspace workspace = newWorkspace();
     workspace.prepare();
-    WorkspaceEntity row = WorkspaceMapper.toEntity(workspace, "/disk", "/home", "/jail");
+    WorkspaceEntity row = WorkspaceMapper.toEntity(workspace, "/home", "/jail");
     assertEquals(workspaceId.value(), row.getWorkspaceId());
     assertEquals("preparing", row.getState());
     assertEquals("club", row.getName());
@@ -52,7 +52,7 @@ class WorkspaceMapperTest {
             workspaceId,
             new VirtualMachineConfiguration(4, 4096));
     VirtualMachineEntity row =
-        WorkspaceMapper.toMachineEntity(machine, workspaceId, "node-a", "/disk", "/home", "/jail");
+        WorkspaceMapper.toMachineEntity(machine, workspaceId, "node-a", "/home", "/jail");
     assertEquals("stopped", row.getState());
     assertEquals(4, row.getVcpuCount());
     assertEquals(4096, row.getMemoryMib());
