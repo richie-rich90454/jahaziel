@@ -77,10 +77,7 @@ public class SnapshotController {
       Principal principal) {
     return SnapshotDto.from(
         snapshots.create(
-            new WorkspaceId(id),
-            request.tag(),
-            SnapshotKind.MANUAL,
-            principal.getName()));
+            new WorkspaceId(id), request.tag(), SnapshotKind.MANUAL, principal.getName()));
   }
 
   /**
