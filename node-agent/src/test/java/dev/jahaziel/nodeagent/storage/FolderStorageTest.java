@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,55 +25,67 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-/** Behavior of {@link BtrfsStorage} with a recording command runner. */
-class BtrfsStorageTest {
+/** Behavior of {@link FolderStorage} with a recording command runner. */
+class FolderStorageTest {
   private CommandRunner commands;
-  private BtrfsStorage storage;
+  private FolderStorage storage;
   private UUID workspaceId;
   private UUID ownerId;
 
   @BeforeEach
   void setUp() {
     commands = mock(CommandRunner.class);
-    storage = new BtrfsStorage(commands, "/var/lib/jahaziel", "/var/lib/jahaziel/images");
+    storage = new FolderStorage(commands, "/var/lib/jahaziel");
     workspaceId = UUID.randomUUID();
     ownerId = UUID.randomUUID();
   }
 
   @Test
-  void prepareReflinksBaseImageAndCreatesHome() {
+  void prepareCreatesJailAndHomeFolders() {
     WorkspaceHandle handle =
         storage.prepare(
-            workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(1));
+            workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(4096));
     assertEquals(workspaceId, handle.workspaceId());
-    assertEquals(
-        Path.of("/var/lib/jahaziel/jail/" + workspaceId + "/rootfs.img"), handle.rootDiskPath());
-    assertEquals(
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home"), handle.homeSubvolumePath());
+    assertEquals(Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home"), handle.homePath());
+    assertEquals(Path.of("/var/lib/jahaziel/jail/" + workspaceId), handle.jailPath());
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-    verify(commands, org.mockito.Mockito.times(5)).run(captor.capture());
+    verify(commands, org.mockito.Mockito.times(2)).run(captor.capture());
     List<List<String>> calls = captor.getAllValues();
-    assertEquals(List.of("truncate", "-s", "20G", handle.rootDiskPath().toString()), calls.get(1));
-    assertEquals("cp", calls.get(2).get(0));
-    assertEquals("--reflink=always", calls.get(2).get(1));
+    assertEquals(List.of("mkdir", "-p", handle.jailPath().toString()), calls.get(0));
+    assertEquals(List.of("mkdir", "-p", handle.homePath().toString()), calls.get(1));
   }
 
   @Test
-  void snapshotTagsUnderOwnerSnaps() {
+  void prepareKeepsExistingHomeWithinQuota() {
+    when(commands.exists(any())).thenReturn(true);
+    when(commands.run(any())).thenReturn("1234\t/home");
+    storage.prepare(workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(4096));
+    verify(commands, never()).run(List.of("mkdir", "-p", homePath().toString()));
+    verify(commands).run(List.of("du", "-sb", homePath().toString()));
+  }
+
+  @Test
+  void prepareOverQuotaThrows() {
+    when(commands.exists(any())).thenReturn(true);
+    when(commands.run(any())).thenReturn("9999\t/home");
+    assertThrows(
+        StorageException.class,
+        () ->
+            storage.prepare(
+                workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(100)));
+  }
+
+  @Test
+  void snapshotCopiesHomeReadOnly() {
     WorkspaceHandle handle = handle();
     SnapshotHandle snap = storage.snapshot(handle, new SnapshotTag("daily"));
     assertEquals(
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/daily"), snap.subvolumePath());
+        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/daily"), snap.snapshotPath());
+    verify(commands).run(List.of("mkdir", "-p", snap.snapshotPath().getParent().toString()));
     verify(commands)
-        .run(
-            List.of(
-                "btrfs",
-                "subvolume",
-                "snapshot",
-                "-r",
-                handle.homeSubvolumePath().toString(),
-                snap.subvolumePath().toString()));
+        .run(List.of("cp", "-a", handle.homePath() + "/.", snap.snapshotPath().toString()));
+    verify(commands).run(List.of("chmod", "-R", "a-w", snap.snapshotPath().toString()));
   }
 
   @Test
@@ -82,8 +95,21 @@ class BtrfsStorageTest {
     storage.restore(handle, snap);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-    verify(commands, org.mockito.Mockito.times(4)).run(captor.capture());
-    assertEquals("mv", captor.getAllValues().get(1).get(0));
+    verify(commands, org.mockito.Mockito.times(6)).run(captor.capture());
+    List<List<String>> calls = captor.getAllValues();
+    assertEquals("cp", calls.get(1).get(0));
+    assertEquals("mv", calls.get(3).get(0));
+    assertEquals("mv", calls.get(4).get(0));
+    Path retired = handle.homePath().resolveSibling(handle.homePath().getFileName() + ".old");
+    assertEquals(List.of("rm", "-rf", retired.toString()), calls.get(5));
+  }
+
+  @Test
+  void deleteSnapshotUnlocksThenRemoves() {
+    SnapshotHandle snap = new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/x"), Instant.now());
+    storage.deleteSnapshot(snap);
+    verify(commands).run(List.of("chmod", "-R", "u+w", snap.snapshotPath().toString()));
+    verify(commands).run(List.of("rm", "-rf", snap.snapshotPath().toString()));
   }
 
   @Test
@@ -94,33 +120,39 @@ class BtrfsStorageTest {
   }
 
   @Test
-  void usageParsesQgroup() {
+  void usageSumsHomeAndSnaps() {
     WorkspaceHandle handle = handle();
-    when(commands.run(any()))
-        .thenReturn("qgroupid         rfer         excl\n0/261            4096           4096\n");
+    when(commands.exists(any())).thenReturn(true);
+    when(commands.run(any())).thenReturn("4096\t/x");
     var usage = storage.usage(handle);
     assertEquals(4096, usage.logicalBytes());
     assertEquals(4096, usage.physicalBytes());
+    assertEquals(4096, usage.snapshotBytes());
   }
 
   @Test
-  void qgroupNoiseThrows() {
-    assertThrows(StorageException.class, () -> BtrfsStorage.parseQgroup("nothing here"));
+  void usageMissingSnapsIsZero() {
+    WorkspaceHandle handle = handle();
+    when(commands.exists(any())).thenReturn(false);
+    when(commands.run(any())).thenReturn("4096\t/x");
+    var usage = storage.usage(handle);
+    assertEquals(4096, usage.logicalBytes());
+    assertEquals(0, usage.snapshotBytes());
+    verify(commands, org.mockito.Mockito.times(1)).run(org.mockito.ArgumentMatchers.anyList());
+  }
+
+  @Test
+  void duNoiseThrows() {
+    assertThrows(StorageException.class, () -> FolderStorage.parseDu("nothing here"));
     assertThrows(NullPointerException.class, () -> storage.usage(null));
   }
 
-  @Test
-  void prepareKeepsExistingHome() {
-    when(commands.exists(any())).thenReturn(true);
-    storage.prepare(workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(1));
-    verify(commands, org.mockito.Mockito.times(4)).run(org.mockito.ArgumentMatchers.anyList());
+  private Path homePath() {
+    return Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home");
   }
 
   private WorkspaceHandle handle() {
     return new WorkspaceHandle(
-        workspaceId,
-        Path.of("/var/lib/jahaziel/jail/" + workspaceId + "/rootfs.img"),
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home"),
-        Path.of("/var/lib/jahaziel/jail/" + workspaceId));
+        workspaceId, homePath(), Path.of("/var/lib/jahaziel/jail/" + workspaceId));
   }
 }
