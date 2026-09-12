@@ -18,7 +18,7 @@ public interface WorkspaceStorage {
    * @param workspaceId the workspace to prepare
    * @param ownerId the owning user, keying the persistent home
    * @param image the base image to provision from
-   * @param quota the logical quota for the home subvolume
+   * @param quota the logical quota for the home folder
    * @return the storage handle
    */
   WorkspaceHandle prepare(UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota);
@@ -31,7 +31,7 @@ public interface WorkspaceStorage {
   void destroy(WorkspaceHandle handle);
 
   /**
-   * Snapshots a workspace home subvolume.
+   * Snapshots a workspace home folder.
    *
    * @param handle the storage handle
    * @param tag the snapshot tag
@@ -40,14 +40,14 @@ public interface WorkspaceStorage {
   SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag);
 
   /**
-   * Deletes a snapshot subvolume.
+   * Deletes a snapshot folder.
    *
    * @param snapshot the snapshot handle
    */
   void deleteSnapshot(SnapshotHandle snapshot);
 
   /**
-   * Restores a workspace home subvolume from a snapshot.
+   * Restores a workspace home folder from a snapshot.
    *
    * @param handle the storage handle
    * @param snapshot the snapshot to restore
