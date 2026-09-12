@@ -17,9 +17,9 @@ import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Node agent entry point. Wires storage, backend, facade, jailer, Firecracker client, cgroups,
- * and the audit spool, then waits for shutdown. The mTLS gRPC transport binds in front of the
- * facade once the protobuf codegen lands.
+ * Node agent entry point. Wires storage, backend, facade, jailer, Firecracker client, cgroups, and
+ * the audit spool, then waits for shutdown. The mTLS gRPC transport binds in front of the facade
+ * once the protobuf codegen lands.
  */
 public final class NodeAgentMain {
   private NodeAgentMain() {}
@@ -42,7 +42,8 @@ public final class NodeAgentMain {
             new CgroupV2(Path.of(config.cgroupRoot())),
             commands,
             config);
-    var service = new NodeAgentService(backend, storage, new AuditSpool(Path.of(config.auditStagingDir())));
+    var service =
+        new NodeAgentService(backend, storage, new AuditSpool(Path.of(config.auditStagingDir())));
     System.out.println(
         "Node agent " + config.nodeId() + " ready: " + service.getClass().getSimpleName());
     new CountDownLatch(1).await();
