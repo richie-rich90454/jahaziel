@@ -18,3 +18,5 @@ base-image-builder/work-*/
 guest-agent/jahaziel-guest-agent
 .env
 *.log
+__pycache__/
+*.pyc
