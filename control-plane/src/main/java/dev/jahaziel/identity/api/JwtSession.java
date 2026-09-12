@@ -19,7 +19,8 @@ import java.util.UUID;
  * @param scopes the granted scopes
  * @param expiresAt when the token expires
  */
-public record JwtSession(UserId user, Optional<UUID> workspaceId, List<String> scopes, Instant expiresAt) {
+public record JwtSession(
+    UserId user, Optional<UUID> workspaceId, List<String> scopes, Instant expiresAt) {
   public JwtSession {
     Objects.requireNonNull(user, "user");
     Objects.requireNonNull(workspaceId, "workspaceId");
