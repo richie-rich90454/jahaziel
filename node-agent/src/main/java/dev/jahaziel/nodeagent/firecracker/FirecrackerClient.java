@@ -11,10 +11,7 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -25,8 +22,8 @@ public final class FirecrackerClient {
   private final ObjectMapper mapper = new ObjectMapper();
 
   /**
-   * Puts the root drive, network interface, vsock, machine config, and boot source, then starts
-   * the instance.
+   * Puts the root drive, network interface, vsock, machine config, and boot source, then starts the
+   * instance.
    *
    * @param apiSocket the Firecracker API socket path inside the jail
    * @param rootfs the rootfs image path as seen by Firecracker
@@ -148,7 +145,13 @@ public final class FirecrackerClient {
    */
   static Map<String, Object> machineBody(int vcpuCount, long memoryMib) {
     return Map.of(
-        "vcpu_count", vcpuCount, "mem_size_mib", memoryMib, "smt", false, "track_dirty_pages",
+        "vcpu_count",
+        vcpuCount,
+        "mem_size_mib",
+        memoryMib,
+        "smt",
+        false,
+        "track_dirty_pages",
         false);
   }
 
@@ -178,8 +181,7 @@ public final class FirecrackerClient {
       byte[] response = readAll(channel);
       int status = statusOf(response);
       if (status != 200 && status != 204) {
-        throw new FirecrackerException(
-            path, status, new String(response, StandardCharsets.UTF_8));
+        throw new FirecrackerException(path, status, new String(response, StandardCharsets.UTF_8));
       }
     } catch (IOException failure) {
       throw new FirecrackerException(path, failure);
