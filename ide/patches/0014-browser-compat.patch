@@ -1,18 +1,76 @@
 From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0014/0014] Browser compatibility for tablets and evergreen
 
-This patch adds polyfills for missing APIs, touch handlers for iPad
-and Android tablets, CSS adjustments for tablet portrait and landscape,
-iPadOS hardware-keyboard shortcuts, and feature detection with graceful
-degradation.
+This patch hardens the web client shell for tablets and evergreen
+browsers: an inline bootstrap script sets a viewport-height variable
+and feature-detected touch/iPadOS hooks with graceful degradation,
+and shell styles tune overscroll, tap highlight, touch action, and
+sidebar widths for tablet portrait and landscape. iPadOS hardware
+keyboards work through the native key pipeline; the body hooks let
+operators target tablet rules without scripts.
 
 Never uses: :has() selector, <dialog> element, popover attribute, CSS
 nesting, untranspiled class fields, top-level await, or untranspiled
 optional chaining.
 
 Touches:
-  - web client bootstrap, touch handling, keyboard maps, CSS
+  - web client shell (inline styles and bootstrap script)
 
 Diff: authored on the upstream checkout (see build.sh).
 Verification: browser matrix suite across Safari 16+, iOS/iPadOS 16+,
 Chrome 110+, Firefox 110+, Edge 110+.
+
+---
+diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
+index 681de2d..b2e45d9 100644
+--- a/src/vs/code/browser/workbench/workbench.html
++++ b/src/vs/code/browser/workbench/workbench.html
+@@ -26,6 +26,17 @@
+ 		<link rel="icon" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/favicon.ico" type="image/x-icon" />
+ 		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
+ 		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
++		<style>
++			body { overscroll-behavior-y: none; }
++			.jahaziel-touch { -webkit-tap-highlight-color: transparent; }
++			.jahaziel-touch .monaco-workbench { touch-action: manipulation; }
++			@media (max-width: 820px) and (orientation: portrait) {
++				.monaco-workbench .part.sidebar { max-width: 85vw; }
++			}
++			@media (min-width: 821px) and (orientation: landscape) and (pointer: coarse) {
++				.monaco-workbench .part.sidebar { max-width: 40vw; }
++			}
++		</style>
+ 		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
+ 
+ 	</head>
+@@ -68,4 +79,30 @@
+ 	<script src="{{WORKBENCH_NLS_URL}}"></script>
+ 	<script src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.internal.js"></script>
+ 	<script src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.js"></script>
++	<script>
++		// Jahaziel tablet hardening: viewport height variable, coarse-pointer
++		// and iPadOS hooks, all feature-detected with graceful degradation.
++		(function () {
++			function setViewportVar() {
++				var vh = window.innerHeight * 0.01;
++				document.documentElement.style.setProperty('--jahaziel-vh', vh + 'px');
++			}
++			if (typeof window.addEventListener === 'function') {
++				window.addEventListener('resize', setViewportVar);
++				window.addEventListener('orientationchange', setViewportVar);
++			}
++			setViewportVar();
++			try {
++				if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
++					document.body.classList.add('jahaziel-touch');
++				}
++			} catch (e) { /* stay usable without matchMedia */ }
++			try {
++				var isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
++				if (isIPadOS) {
++					document.body.classList.add('jahaziel-ipados');
++				}
++			} catch (e) { /* stay usable without navigator details */ }
++		})();
++	</script>
+ </html>
