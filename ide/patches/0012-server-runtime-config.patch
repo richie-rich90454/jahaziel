@@ -1,10 +1,29 @@
 From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0012/0014] Server runtime configuration
 
-This patch configures the server runtime for workspace VMs: data
-folder, socket paths, and the signed-token session handshake with the
-gateway. The server listens on the workspace loopback only and never
-accepts direct Internet connections.
+No upstream code changes are needed for the workspace runtime
+contract, so this patch carries no hunks (build.sh skips diff-less
+patches explicitly). The stock server already satisfies every clause:
 
-Diff: authored on the upstream checkout (see build.sh).
+- Loopback only: --host defaults to localhost; our guest unit passes
+  --host 127.0.0.1 explicitly.
+- Data folder: --server-data-dir (defaults under the server data
+  folder name from patch 0001).
+- Socket path: --socket-path exists; we serve TCP loopback because
+  the gateway reaches the guest over vsock TCP forwarding.
+- Session handshake: the signed JWT session is verified by the
+  gateway on every connection (see gateway JwtVerifier); the
+  connection-token flags exist for operators who terminate TLS
+  ahead of the gateway.
+
+The guest unit base-image-builder/systemd/jahaziel-code-server.service
+launches bin/jahaziel-code-server (the packaged name follows
+serverApplicationName from patch 0001) with --without-connection-token
+on loopback: with no route-push transport yet there is no channel for
+a per-workspace token, so the gateway JWT check plus vsock-only
+ingress is the auth boundary. Switching the unit to
+--connection-token-file is the defined seam once route push lands.
+
+Touches: (contract only; guest unit lives in base-image-builder/)
+
 Verification: server boot smoke test inside a workspace VM.
