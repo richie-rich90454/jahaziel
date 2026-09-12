@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# No-network test: starts the built IDE with only Open VSX reachable, runs a
-# full session (open, edit, save, terminal, git, extension install, debug),
-# captures all DNS and TCP, and fails on any connection to blocklist.txt.
-# Runs in CI on every patch-stack change. Requires: tcpdump, python3.
+
 set -euo pipefail
 
 cd "$(dirname "$0")"
