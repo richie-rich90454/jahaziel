@@ -107,7 +107,8 @@ public final class FirecrackerBackend implements NodeBackend {
         guestMac(),
         request.vcpuCount(),
         request.memoryMib(),
-        "/kernel");
+        "/kernel",
+        request.kernelCmdlineExtra());
     return new RuntimeHandle(workspaceId);
   }
 
