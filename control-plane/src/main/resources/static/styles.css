@@ -1,0 +1,38 @@
+/* Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0. */
+:root {
+  color-scheme: light dark;
+  --gap: 1rem;
+}
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: var(--gap);
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+main {
+  display: grid;
+  gap: var(--gap);
+}
+@media (min-width: 768px) {
+  #workspaces {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap);
+  }
+}
+@media (min-width: 1024px) {
+  #workspaces {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+li {
+  list-style: none;
+  border: 1px solid currentColor;
+  padding: var(--gap);
+}
