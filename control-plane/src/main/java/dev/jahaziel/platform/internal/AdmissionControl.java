@@ -8,8 +8,7 @@ import dev.jahaziel.platform.api.AdmissionDecision;
 
 /**
  * Admission control. Capacity counts reserved memory, never actual RSS: a started VM's full
- * allocation is gone whether the guest uses it or not. Never kills a running VM to admit a new
- * one.
+ * allocation is gone whether the guest uses it or not. Never kills a running VM to admit a new one.
  */
 public final class AdmissionControl {
   private AdmissionControl() {}
