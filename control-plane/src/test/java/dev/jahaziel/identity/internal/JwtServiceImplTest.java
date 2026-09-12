@@ -36,7 +36,7 @@ class JwtServiceImplTest {
         new JwtServiceImpl(
             (RSAPrivateKey) pair.getPrivate(),
             (RSAPublicKey) pair.getPublic(),
-            "https://code.jahaziel.dev",
+            "https://code.example.com",
             "jahaziel-code-server");
     userId = new UserId(UUID.randomUUID());
     workspaceId = UUID.randomUUID();
