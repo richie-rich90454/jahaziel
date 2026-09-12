@@ -49,7 +49,7 @@ spring:
             issuer-uri: ${OIDC_ISSUER_URI}
 
 jahaziel:
-  domain: code.jahaziel.dev
+  domain: code.example.com
   node-agent:
     transport: unix
     unix-socket: /run/jahaziel/node-agent.sock
@@ -63,7 +63,7 @@ jahaziel:
   gateway:
     base-url: http://localhost:8081
   jwt:
-    issuer: https://code.jahaziel.dev
+    issuer: https://code.example.com
     ttl-seconds: 900
     private-key-file: /etc/jahaziel/tls/jwt.key
     public-key-file: /etc/jahaziel/tls/jwt.pub
