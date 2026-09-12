@@ -4,9 +4,6 @@
  */
 package dev.jahaziel.audit.internal;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.audit.persistence.AuditEventEntity;
 import dev.jahaziel.spi.ActorType;
@@ -14,6 +11,9 @@ import dev.jahaziel.spi.Outcome;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Maps audit rows to domain objects and back. Pure static functions; the mapping lives at the
