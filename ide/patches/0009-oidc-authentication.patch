@@ -1,0 +1,16 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0009/0014] Replace account auth with OIDC to the control plane
+
+This patch replaces the Microsoft and GitHub authentication flows with
+a generic OIDC flow against the control plane. The IDE receives a
+short-lived signed token from the control plane on the WebSocket
+upgrade, verifies it against the public key, and establishes the
+session.
+
+Token shape:
+  iss https://code.jahaziel.dev, sub user-uuid, aud
+  jahaziel-code-server, 15 minute TTL, jti session-uuid, wid
+  workspace-uuid, scope workspace:read workspace:write.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: session-auth smoke test with a gateway-issued token.
