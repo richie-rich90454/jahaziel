@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Jahaziel shell integration. Emits OSC 633 sequences for command audit.
-# Installed to /etc/profile.d, /etc/bash.bashrc, and /etc/zsh/zshrc.
 
 if [[ -n "${JAHAZIEL_SHELL_INTEGRATION_LOADED:-}" ]]; then
     return
