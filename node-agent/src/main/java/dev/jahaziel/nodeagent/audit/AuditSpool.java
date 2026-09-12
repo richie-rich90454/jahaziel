@@ -45,7 +45,8 @@ public final class AuditSpool {
     Path file = stagingDir.resolve(workspaceId + "-" + LocalDate.now() + ".jsonl");
     try {
       Files.createDirectories(stagingDir);
-      Files.writeString(file, jsonLine + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+      Files.writeString(
+          file, jsonLine + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     } catch (IOException failure) {
       throw new UncheckedIOException("audit spool failed for " + workspaceId, failure);
     }
