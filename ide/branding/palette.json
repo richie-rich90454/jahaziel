@@ -1,0 +1,11 @@
+{
+  "name": "Jahaziel Code brand palette",
+  "license": "Apache-2.0",
+  "tokens": {
+    "primary": "#1e40af",
+    "primaryHover": "#1d4ed8",
+    "accent": "#d97706",
+    "background": "#f8fafc",
+    "foreground": "#0f172a"
+  }
+}
