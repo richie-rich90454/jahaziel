@@ -30,7 +30,8 @@ public final class AdminServiceImpl implements AdminService {
    * @param workspaces the workspace service
    * @param actions the admin action rows
    */
-  public AdminServiceImpl(UserService users, WorkspaceService workspaces, AdminActionRepository actions) {
+  public AdminServiceImpl(
+      UserService users, WorkspaceService workspaces, AdminActionRepository actions) {
     this.users = Objects.requireNonNull(users, "users");
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.actions = Objects.requireNonNull(actions, "actions");
