@@ -27,8 +27,7 @@ class GatewayServerTest {
 
   @Test
   void readsHeadAndHeaders() throws Exception {
-    GatewayServer.RequestHead head =
-        GatewayServer.readHead(new ByteArrayInputStream(REQUEST));
+    GatewayServer.RequestHead head = GatewayServer.readHead(new ByteArrayInputStream(REQUEST));
     assertEquals("GET", head.method());
     assertEquals("/app", head.target());
     assertEquals("richard-8080.code.test", head.headers().get("host"));
