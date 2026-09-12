@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.audit.internal;
 
-import tools.jackson.databind.ObjectMapper;
 import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.audit.persistence.AuditEventEntity;
@@ -17,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Database-backed audit log with a hash chain. Chain contract: each hash is lowercase hex SHA-256
@@ -41,8 +41,10 @@ public final class AuditServiceImpl implements AuditService {
   public AuditRecord append(AuditRecord event) {
     Objects.requireNonNull(event, "event");
     List<AuditEventEntity> previous = events.findLatest(PageRequest.of(0, 1));
-    String prevHash =
-        previous.stream().findFirst().map(AuditEventEntity::getHash).orElse("genesis");
+    String prevHash = "genesis";
+    if (!previous.isEmpty()) {
+      prevHash = previous.get(0).getHash();
+    }
     Optional<String> prevLink = previous.isEmpty() ? Optional.empty() : Optional.of(prevHash);
     String hash = chainHash(prevHash, event);
     AuditRecord stored =
