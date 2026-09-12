@@ -56,7 +56,8 @@ class AdminServiceImplTest {
   @Test
   void blankReasonsAreRejected() {
     assertThrows(IllegalArgumentException.class, () -> service.suspendUser(userId, "  ", adminId));
-    assertThrows(IllegalArgumentException.class, () -> service.unsuspendUser(userId, null, adminId));
+    assertThrows(
+        IllegalArgumentException.class, () -> service.unsuspendUser(userId, null, adminId));
   }
 
   @Test
