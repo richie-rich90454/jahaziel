@@ -5,9 +5,9 @@
 package dev.jahaziel.extension.internal;
 
 import dev.jahaziel.extension.api.ExtensionPolicyDoc;
+import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.spi.Decision;
 import dev.jahaziel.spi.ExtensionPolicy;
-import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.spi.ExtensionRequest;
 import java.util.List;
 import java.util.Objects;
@@ -53,8 +53,8 @@ public final class ExtensionDecider implements ExtensionPolicy {
   }
 
   /**
-   * Matches a version against a constraint. Null or blank constraints match everything; a
-   * trailing {@code .*} matches prefixes; anything else must equal.
+   * Matches a version against a constraint. Null or blank constraints match everything; a trailing
+   * {@code .*} matches prefixes; anything else must equal.
    *
    * @param constraint the stored constraint
    * @param version the requested version
