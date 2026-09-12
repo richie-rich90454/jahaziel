@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param workspaceId the workspace to prepare
  * @param ownerId the owning user, keying the persistent home
  * @param image the base image to provision from
- * @param quota the logical quota for the home subvolume
+ * @param quota the logical quota for the home folder
  * @param vcpuCount virtual CPU count
  * @param memoryMib guest memory in MiB, reserved at start
  */
