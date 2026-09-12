@@ -42,11 +42,7 @@ public class VirtualMachineEntity {
   @Column(name = "memory_mib")
   private long memoryMib;
 
-  /** Disk image path on the host. */
-  @Column(name = "disk_path")
-  private String diskPath;
-
-  /** Home subvolume path on the host. */
+  /** Home folder path on the host. */
   @Column(name = "home_path")
   private String homePath;
 
@@ -125,22 +121,12 @@ public class VirtualMachineEntity {
     this.memoryMib = memoryMib;
   }
 
-  /** Gets the disk image path on the host. */
-  public String getDiskPath() {
-    return diskPath;
-  }
-
-  /** Sets the disk image path on the host. */
-  public void setDiskPath(String diskPath) {
-    this.diskPath = diskPath;
-  }
-
-  /** Gets the home subvolume path on the host. */
+  /** Gets the home folder path on the host. */
   public String getHomePath() {
     return homePath;
   }
 
-  /** Sets the home subvolume path on the host. */
+  /** Sets the home folder path on the host. */
   public void setHomePath(String homePath) {
     this.homePath = homePath;
   }
