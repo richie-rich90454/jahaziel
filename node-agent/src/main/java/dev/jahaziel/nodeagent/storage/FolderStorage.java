@@ -18,31 +18,26 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Copy-on-write workspace storage on Btrfs. Homes are per user; the root disk reflinks the base
- * image per workspace.
+ * Plain-folder workspace storage. Homes, snapshots, and jails are ordinary directories on any
+ * filesystem: no disk images, no partitions, no filesystem-specific features. Snapshots are
+ * recursive copies frozen read-only; quotas are enforced logically against du measurements.
  */
-public final class BtrfsStorage implements WorkspaceStorage {
+public final class FolderStorage implements WorkspaceStorage {
   private final CommandRunner commands;
   private final String storageRoot;
-  private final String imagesDir;
 
   /**
    * Creates the storage.
    *
    * @param commands the host command runner
    * @param storageRoot the storage root
-   * @param imagesDir the base images directory
    */
-  public BtrfsStorage(CommandRunner commands, String storageRoot, String imagesDir) {
+  public FolderStorage(CommandRunner commands, String storageRoot) {
     this.commands = Objects.requireNonNull(commands, "commands");
     if (storageRoot == null || storageRoot.isBlank()) {
       throw new IllegalArgumentException("storageRoot must not be blank");
     }
-    if (imagesDir == null || imagesDir.isBlank()) {
-      throw new IllegalArgumentException("imagesDir must not be blank");
-    }
     this.storageRoot = storageRoot;
-    this.imagesDir = imagesDir;
   }
 
   @Override
@@ -52,16 +47,14 @@ public final class BtrfsStorage implements WorkspaceStorage {
     Objects.requireNonNull(image, "image");
     Objects.requireNonNull(quota, "quota");
     Path jail = jailPath(workspaceId);
-    Path disk = jail.resolve("rootfs.img");
     Path home = homePath(ownerId);
     commands.run(List.of("mkdir", "-p", jail.toString()));
-    commands.run(List.of("truncate", "-s", "20G", disk.toString()));
-    commands.run(List.of("cp", "--reflink=always", imageFile(image), disk.toString()));
-    if (!commands.exists(home)) {
-      commands.run(List.of("btrfs", "subvolume", "create", home.toString()));
+    if (commands.exists(home)) {
+      enforceQuota(home, quota);
+    } else {
+      commands.run(List.of("mkdir", "-p", home.toString()));
     }
-    commands.run(List.of("btrfs", "qgroup", "limit", quota.value() + "b", home.toString()));
-    return new WorkspaceHandle(workspaceId, disk, home, jail);
+    return new WorkspaceHandle(workspaceId, home, jail);
   }
 
   @Override
@@ -74,71 +67,69 @@ public final class BtrfsStorage implements WorkspaceStorage {
   public SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag) {
     Objects.requireNonNull(handle, "handle");
     Objects.requireNonNull(tag, "tag");
-    Path snap = snapsDir(handle).resolve(tag.value());
-    commands.run(
-        List.of(
-            "btrfs",
-            "subvolume",
-            "snapshot",
-            "-r",
-            handle.homeSubvolumePath().toString(),
-            snap.toString()));
+    Path snaps = snapsDir(handle);
+    Path snap = snaps.resolve(tag.value());
+    commands.run(List.of("mkdir", "-p", snaps.toString()));
+    commands.run(List.of("cp", "-a", contentsOf(handle.homePath()), snap.toString()));
+    commands.run(List.of("chmod", "-R", "a-w", snap.toString()));
     return new SnapshotHandle(UUID.randomUUID(), snap, Instant.now());
   }
 
   @Override
   public void deleteSnapshot(SnapshotHandle snapshot) {
     Objects.requireNonNull(snapshot, "snapshot");
-    commands.run(List.of("btrfs", "subvolume", "delete", snapshot.subvolumePath().toString()));
+    commands.run(List.of("chmod", "-R", "u+w", snapshot.snapshotPath().toString()));
+    commands.run(List.of("rm", "-rf", snapshot.snapshotPath().toString()));
   }
 
   @Override
   public void restore(WorkspaceHandle handle, SnapshotHandle snapshot) {
     Objects.requireNonNull(handle, "handle");
     Objects.requireNonNull(snapshot, "snapshot");
-    Path home = handle.homeSubvolumePath();
+    Path home = handle.homePath();
     Path staged = home.resolveSibling(home.getFileName() + ".new");
     Path retired = home.resolveSibling(home.getFileName() + ".old");
-    commands.run(
-        List.of(
-            "btrfs",
-            "subvolume",
-            "snapshot",
-            snapshot.subvolumePath().toString(),
-            staged.toString()));
+    commands.run(List.of("mkdir", "-p", staged.toString()));
+    commands.run(List.of("cp", "-a", contentsOf(snapshot.snapshotPath()), staged.toString()));
+    commands.run(List.of("chmod", "-R", "u+w", staged.toString()));
     commands.run(List.of("mv", home.toString(), retired.toString()));
     commands.run(List.of("mv", staged.toString(), home.toString()));
-    commands.run(List.of("btrfs", "subvolume", "delete", retired.toString()));
+    commands.run(List.of("rm", "-rf", retired.toString()));
   }
 
   @Override
   public StorageUsage usage(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
-    String output =
-        commands.run(
-            List.of("btrfs", "qgroup", "show", "--raw", handle.homeSubvolumePath().toString()));
-    long[] numbers = parseQgroup(output);
-    return new StorageUsage(numbers[0], numbers[1], 0, numbers[0] - numbers[1]);
+    long homeBytes = directoryBytes(handle.homePath());
+    Path snaps = snapsDir(handle);
+    long snapshotBytes = commands.exists(snaps) ? directoryBytes(snaps) : 0;
+    return new StorageUsage(homeBytes, homeBytes, snapshotBytes, 0);
   }
 
   /**
-   * Parses referenced and exclusive bytes from qgroup show output.
+   * Parses the byte count from du output.
    *
    * @param output the command output
-   * @return referenced and exclusive bytes
+   * @return the leading byte count
    */
-  static long[] parseQgroup(String output) {
-    String[] lines = output.trim().split("\n");
-    String last = lines[lines.length - 1].trim();
-    String[] fields = last.split("\\s+");
-    if (fields.length < 3) {
-      throw new StorageException("btrfs qgroup show", -1, output);
-    }
+  static long parseDu(String output) {
+    String first = output.trim().split("\\s+")[0];
     try {
-      return new long[] {Long.parseLong(fields[1]), Long.parseLong(fields[2])};
+      return Long.parseLong(first);
     } catch (NumberFormatException failure) {
-      throw new StorageException("btrfs qgroup show", -1, output);
+      throw new StorageException("du -sb", -1, output);
     }
+  }
+
+  private void enforceQuota(Path home, QuotaBytes quota) {
+    long bytes = directoryBytes(home);
+    if (bytes > quota.value()) {
+      throw new StorageException("quota exceeded for " + home, -1, bytes + " > " + quota.value());
+    }
+  }
+
+  private long directoryBytes(Path dir) {
+    return parseDu(commands.run(List.of("du", "-sb", dir.toString())));
   }
 
   private Path jailPath(UUID workspaceId) {
@@ -150,12 +141,11 @@ public final class BtrfsStorage implements WorkspaceStorage {
   }
 
   private Path snapsDir(WorkspaceHandle handle) {
-    return handle.homeSubvolumePath().getParent().resolve("snaps");
+    return handle.homePath().getParent().resolve("snaps");
   }
 
-  private String imageFile(ImageRef image) {
-    // String concat, not Path: image refs contain colons (base-image:2026.09),
-    // which are illegal in path segments on some platforms.
-    return imagesDir + "/" + image.value() + ".ext4";
+  private static String contentsOf(Path dir) {
+    // String concat, not Path: the trailing "/." copies the contents, not the directory itself.
+    return dir + "/.";
   }
 }
