@@ -11,6 +11,7 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
 
@@ -32,6 +33,7 @@ public final class FirecrackerClient {
    * @param vcpuCount virtual CPU count
    * @param memoryMib guest memory in MiB
    * @param kernelPath the kernel path as seen by Firecracker
+   * @param kernelCmdlineExtra extra kernel command line arguments
    */
   public void boot(
       String apiSocket,
@@ -40,12 +42,13 @@ public final class FirecrackerClient {
       String guestMac,
       int vcpuCount,
       long memoryMib,
-      String kernelPath) {
+      String kernelPath,
+      List<String> kernelCmdlineExtra) {
     put(apiSocket, "/drives/rootfs", driveBody(rootfs));
     put(apiSocket, "/network-interfaces/eth0", networkBody(tapName, guestMac));
     put(apiSocket, "/vsock", Map.of("guest_cid", 3, "uds_path", "/vsock.sock"));
     put(apiSocket, "/machine-config", machineBody(vcpuCount, memoryMib));
-    put(apiSocket, "/boot-source", bootBody(kernelPath));
+    put(apiSocket, "/boot-source", bootBody(kernelPath, kernelCmdlineExtra));
     put(apiSocket, "/actions", Map.of("action_type", "InstanceStart"));
   }
 
@@ -160,15 +163,16 @@ public final class FirecrackerClient {
    * Builds the boot source body.
    *
    * @param kernelPath the kernel path
+   * @param kernelCmdlineExtra extra kernel command line arguments
    * @return the JSON-ready map
    */
-  static Map<String, Object> bootBody(String kernelPath) {
-    return Map.of(
-        "kernel_image_path",
-        kernelPath,
-        "boot_args",
+  static Map<String, Object> bootBody(String kernelPath, List<String> kernelCmdlineExtra) {
+    String extra = String.join(" ", kernelCmdlineExtra);
+    String bootArgs =
         "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init root=/dev/vda ro"
-            + " init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1");
+            + " init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1"
+            + (extra.isBlank() ? "" : " " + extra);
+    return Map.of("kernel_image_path", kernelPath, "boot_args", bootArgs);
   }
 
   private void put(String apiSocket, String path, Object body) {
