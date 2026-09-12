@@ -7,7 +7,7 @@ package dev.jahaziel.nodeagent.storage;
 import java.nio.file.Path;
 import java.util.List;
 
-/** Runs host commands. The seam that lets storage logic be tested without Btrfs. */
+/** Runs host commands. The seam that lets storage logic be tested without touching the host. */
 public interface CommandRunner {
   /**
    * Runs one command.
