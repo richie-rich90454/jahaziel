@@ -31,8 +31,9 @@ class DailySnapshotJobTest {
     WorkspaceService workspaces = mock(WorkspaceService.class);
     WorkspaceId firstId = new WorkspaceId(UUID.randomUUID());
     WorkspaceId secondId = new WorkspaceId(UUID.randomUUID());
-    when(workspaces.describeAll())
-        .thenReturn(List.of(view(firstId), view(secondId)));
+    WorkspaceView first = view(firstId);
+    WorkspaceView second = view(secondId);
+    when(workspaces.describeAll()).thenReturn(List.of(first, second));
     new DailySnapshotJob(snapshots, workspaces)
         .run(new JobContext(Instant.parse("2026-01-02T02:00:00Z")));
     verify(snapshots).create(firstId, "auto-2026-01-02T02-00", SnapshotKind.AUTO, "system");
