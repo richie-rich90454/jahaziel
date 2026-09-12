@@ -150,9 +150,7 @@ public class AdminController {
   @GetMapping("/workspaces")
   public List<WorkspaceDto> workspaces(Principal principal) {
     requireAdmin(principal);
-    return admin.listWorkspaces().stream()
-        .map(view -> WorkspaceDto.from(view, appDomain))
-        .toList();
+    return admin.listWorkspaces().stream().map(view -> WorkspaceDto.from(view, appDomain)).toList();
   }
 
   /**
