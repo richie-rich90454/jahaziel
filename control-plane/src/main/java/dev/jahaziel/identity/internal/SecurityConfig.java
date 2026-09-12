@@ -6,8 +6,6 @@ package dev.jahaziel.identity.internal;
 
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
-import dev.jahaziel.identity.domain.UserId;
-import java.util.List;
 import java.util.Objects;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,8 +16,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Web security. Bearer tokens authenticate the API; browser login uses OIDC against the
- * configured provider. Actuator health stays public.
+ * Web security. Bearer tokens authenticate the API; browser login uses OIDC against the configured
+ * provider. Actuator health stays public.
  */
 @Configuration
 @EnableWebSecurity
@@ -57,7 +55,8 @@ public class SecurityConfig {
                     .authenticated())
         .oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true))
         .logout(logout -> logout.logoutSuccessUrl("/"))
-        .sessionManagement(sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+        .sessionManagement(
+            sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
         .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/admin/**"))
         .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
         .build();
