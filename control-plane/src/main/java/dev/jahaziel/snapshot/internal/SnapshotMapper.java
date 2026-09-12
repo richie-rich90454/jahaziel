@@ -31,7 +31,7 @@ public final class SnapshotMapper {
     row.setKind(SnapshotKinds.toString(metadata.kind()));
     row.setCreatedAt(metadata.createdAt());
     row.setCreatedBy(metadata.createdBy());
-    row.setBtrfsSubvolumePath(metadata.subvolumePath().toString());
+    row.setSnapshotPath(metadata.snapshotPath().toString());
     row.setLogicalBytes(metadata.logicalBytes());
     row.setPhysicalBytes(metadata.physicalBytes());
     row.setParentSnapshotId(null);
@@ -57,7 +57,7 @@ public final class SnapshotMapper {
         SnapshotKinds.fromString(row.getKind()),
         row.getCreatedAt(),
         row.getCreatedBy(),
-        Path.of(row.getBtrfsSubvolumePath()),
+        Path.of(row.getSnapshotPath()),
         row.getLogicalBytes(),
         row.getPhysicalBytes(),
         parent == null ? Optional.empty() : Optional.of(new SnapshotId(parent)),
