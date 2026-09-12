@@ -21,6 +21,8 @@ systemd-nspawn -D "$WORK/root" apt-get install -y --no-install-recommends \
 
 cp ../../guest-agent/target/release/jahaziel-guest-agent "$WORK/root/usr/local/bin/"
 cp shell/jahaziel-shell-integration.sh "$WORK/root/etc/profile.d/"
+cp shell/jahaziel-sync.py "$WORK/root/usr/local/bin/jahaziel-sync"
+chmod 0755 "$WORK/root/usr/local/bin/jahaziel-sync"
 tar --use-compress-program="zstd -19" -xf ../../ide/out/jahaziel-code-server.tar.zst \
   -C "$WORK/root/opt"
 mv "$WORK/root/opt/vscode-reh-web-linux-x64" "$WORK/root/opt/jahaziel-code-server"
@@ -28,7 +30,7 @@ mv "$WORK/root/opt/vscode-reh-web-linux-x64" "$WORK/root/opt/jahaziel-code-serve
 mkdir -p "$WORK/root/etc/systemd/system"
 cp systemd/*.service "$WORK/root/etc/systemd/system/"
 systemd-nspawn -D "$WORK/root" useradd -r -m -s /bin/bash jahaziel-guest
-systemd-nspawn -D "$WORK/root" systemctl enable jahaziel-guest-agent.service jahaziel-code-server.service
+systemd-nspawn -D "$WORK/root" systemctl enable jahaziel-guest-agent.service jahaziel-code-server.service jahaziel-sync-push.timer
 
 # Guests boot the shared image read-only, so scratch paths live on tmpfs.
 cat >> "$WORK/root/etc/fstab" <<'EOF'
