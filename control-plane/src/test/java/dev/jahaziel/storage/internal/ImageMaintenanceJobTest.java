@@ -22,11 +22,11 @@ class ImageMaintenanceJobTest {
 
   @Test
   void acceptsMatchingChecksum() throws Exception {
-    Files.write(images.resolve("base-image:2026.09.ext4.zst"), new byte[] {1, 2, 3});
+    Files.write(images.resolve("base-image-2026.09.ext4.zst"), new byte[] {1, 2, 3});
     MessageDigest sha = MessageDigest.getInstance("SHA-256");
     String hex = HexFormat.of().formatHex(sha.digest(new byte[] {1, 2, 3}));
-    Files.writeString(images.resolve("base-image:2026.09.ext4.zst.sha256"), hex + "  file\n");
-    ImageMaintenanceJob job = new ImageMaintenanceJob(images, "base-image:2026.09");
+    Files.writeString(images.resolve("base-image-2026.09.ext4.zst.sha256"), hex + "  file\n");
+    ImageMaintenanceJob job = new ImageMaintenanceJob(images, "base-image-2026.09");
     assertDoesNotThrow(() -> job.run(new JobContext(Instant.now())));
   }
 
