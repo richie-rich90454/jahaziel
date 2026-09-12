@@ -45,7 +45,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
         request.workspaceId(),
         request.ownerId(),
         request.image().value(),
-        0,
         request.memoryMib(),
         request.vcpuCount(),
         request.quota());
@@ -53,7 +52,7 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
 
   @Override
   public WorkspaceHandle prepare(UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota) {
-    return prepareWorkspace(workspaceId, ownerId, image.value(), 0, 0, 0, quota);
+    return prepareWorkspace(workspaceId, ownerId, image.value(), 0, 0, quota);
   }
 
   @Override
@@ -105,7 +104,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
       UUID workspaceId,
       UUID ownerId,
       String imageRef,
-      long diskSizeBytes,
       long memoryMib,
       int vcpuCount,
       QuotaBytes quota) {
@@ -113,7 +111,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
     WorkspaceHandle handle =
         new WorkspaceHandle(
             workspaceId,
-            Path.of("/jail/" + workspaceId + "/rootfs.img"),
             Path.of("/workspaces/" + ownerId + "/home"),
             Path.of("/jail/" + workspaceId));
     prepared.put(workspaceId, handle);
