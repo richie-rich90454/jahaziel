@@ -11,18 +11,18 @@ import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link HostParser}. */
 class HostParserTest {
-  private final HostParser parser = new HostParser("code.jahaziel.dev");
+  private final HostParser parser = new HostParser("code.example.com");
 
   @Test
   void parsesUserAndPort() {
-    ParsedHost parsed = parser.parse("richard-8080.code.jahaziel.dev");
+    ParsedHost parsed = parser.parse("richard-8080.code.example.com");
     assertEquals("richard", parsed.userSlug());
     assertEquals(8080, parsed.port());
   }
 
   @Test
   void splitsAtLastDash() {
-    ParsedHost parsed = parser.parse("mary-jane-9000.code.jahaziel.dev");
+    ParsedHost parsed = parser.parse("mary-jane-9000.code.example.com");
     assertEquals("mary-jane", parsed.userSlug());
     assertEquals(9000, parsed.port());
   }
@@ -30,9 +30,9 @@ class HostParserTest {
   @Test
   void rejectsForeignAndMalformedHosts() {
     assertThrows(IllegalArgumentException.class, () -> parser.parse("richard-8080.evil.dev"));
-    assertThrows(IllegalArgumentException.class, () -> parser.parse("richard.code.jahaziel.dev"));
-    assertThrows(IllegalArgumentException.class, () -> parser.parse("richard-x.code.jahaziel.dev"));
-    assertThrows(IllegalArgumentException.class, () -> parser.parse("-8080.code.jahaziel.dev"));
+    assertThrows(IllegalArgumentException.class, () -> parser.parse("richard.code.example.com"));
+    assertThrows(IllegalArgumentException.class, () -> parser.parse("richard-x.code.example.com"));
+    assertThrows(IllegalArgumentException.class, () -> parser.parse("-8080.code.example.com"));
     assertThrows(NullPointerException.class, () -> parser.parse(null));
   }
 }
