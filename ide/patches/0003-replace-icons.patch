@@ -1,0 +1,18 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0003/0014] Replace icons and fonts
+
+This patch replaces every SVG, PNG, and ICO with our asset of the same
+dimensions, and swaps Cascadia Code/Mono for JetBrains Mono (OFL 1.1)
+and Segoe UI for the system font stack.
+
+Rationale: upstream icons are Microsoft trademarks; Cascadia lacks a
+compatible license story for our build.
+
+Touches:
+  - resources/, extensions/*/resources/ (binary assets)
+  - workbench font stacks
+
+Asset inventory: ide/branding/icons/inventory.md (authored with the assets).
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: no Microsoft trademarked asset remains; fonts render in smoke.
