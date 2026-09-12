@@ -52,7 +52,7 @@ class NodeAgentServiceTest {
     when(backend.prepare(any())).thenReturn(handle);
     WorkspaceHandle prepared =
         service.prepareWorkspace(
-            workspaceId, ownerId, "base-image:2026.09", 1, 2048, 2, new QuotaBytes(1));
+            workspaceId, ownerId, "base-image:2026.09", 2048, 2, new QuotaBytes(1));
     assertEquals(handle, prepared);
     assertTrue(spoolText().contains("workspace.prepare"));
   }
@@ -86,8 +86,7 @@ class NodeAgentServiceTest {
     Files.createDirectories(snaps);
     Files.createDirectory(snaps.resolve("daily"));
     WorkspaceHandle withHome =
-        new WorkspaceHandle(
-            workspaceId, Path.of("/rootfs.img"), root.resolve("home"), handle.jailPath());
+        new WorkspaceHandle(workspaceId, root.resolve("home"), handle.jailPath());
     Files.createDirectories(root.resolve("home"));
     List<SnapshotSummary> listed = service.listSnapshots(withHome);
     assertEquals(1, listed.size());
@@ -95,8 +94,7 @@ class NodeAgentServiceTest {
   }
 
   private WorkspaceHandle handle() {
-    return new WorkspaceHandle(
-        workspaceId, Path.of("/rootfs.img"), Path.of("/home"), Path.of("/jail"));
+    return new WorkspaceHandle(workspaceId, Path.of("/home"), Path.of("/jail"));
   }
 
   private String spoolText() {
