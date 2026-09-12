@@ -29,18 +29,7 @@ public final class WorkspacePaths {
   }
 
   /**
-   * Returns the root disk image path.
-   *
-   * @param storageRoot the storage root
-   * @param workspaceId the workspace identifier
-   * @return the disk path
-   */
-  public static String diskPath(String storageRoot, WorkspaceId workspaceId) {
-    return jailPath(storageRoot, workspaceId) + "/rootfs.img";
-  }
-
-  /**
-   * Returns the persistent home subvolume path. Homes are per user.
+   * Returns the persistent home folder path. Homes are per user.
    *
    * @param storageRoot the storage root
    * @param ownerId the owning user identifier
