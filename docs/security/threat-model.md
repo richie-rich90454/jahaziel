@@ -46,6 +46,7 @@
 | Gateway WebSocket upgrade | Public | Signed token in query param; token TTL 15 min; single-use |
 | Node agent Unix socket | Localhost | 0600 permission; owned by `jahaziel-node-agent`; uid check on accept |
 | Node agent TLS port 9443 | Localhost | mTLS; client cert from platform CA; IP allowlist |
+| Sync relay vsock :9002 | Guest-initiated only | socat byte relay; per-workspace secret in hello frame; 30 s timeout |
 | PostgreSQL port 5432 | Localhost | `listen_addresses = 'localhost'`; password auth; role separation |
 | Firecracker API socket | Inside jail | `api.sock` owned by per-VM UID; no network access |
 | Caddy admin API `:2019` | Localhost | `admin off` in production config |
