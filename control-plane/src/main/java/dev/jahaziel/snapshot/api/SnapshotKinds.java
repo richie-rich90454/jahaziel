@@ -6,9 +6,7 @@ package dev.jahaziel.snapshot.api;
 
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 
-/**
- * Stored snapshot kind forms. The database uses dashes where the enum uses underscores.
- */
+/** Stored snapshot kind forms. The database uses dashes where the enum uses underscores. */
 public final class SnapshotKinds {
   private SnapshotKinds() {}
 
