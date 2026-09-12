@@ -42,7 +42,8 @@ public final class PortServiceImpl implements PortService {
   }
 
   @Override
-  public PortBinding registerPort(UserId userId, int port, WorkspaceId workspaceId, String protocol) {
+  public PortBinding registerPort(
+      UserId userId, int port, WorkspaceId workspaceId, String protocol) {
     users.get(userId);
     var workspace = workspaces.get(workspaceId);
     if (!workspace.isOwnedBy(userId)) {
