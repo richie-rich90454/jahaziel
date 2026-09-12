@@ -4,8 +4,6 @@
  */
 package dev.jahaziel.platform.api;
 
-import java.time.Duration;
-
 /** Scope a scheduled job runs in. */
 public enum JobScope {
   /** One instance per cluster. */
