@@ -1,0 +1,37 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0001/0014] Rebrand product.json
+
+This patch rebrands the application metadata in product.json.
+
+Rationale: the fork ships as Jahaziel Code with its own protocol, data
+folders, bundle identifiers, license, and issue tracker.
+
+Touches:
+  - product.json (all nameShort, nameLong, applicationName, dataFolderName,
+    urlProtocol, serverApplicationName, serverDataFolderName, win32*,
+    darwinBundleIdentifier, licenseName, licenseUrl, reportIssueUrl fields)
+
+Target product.json:
+  {
+    "nameShort": "Jahaziel Code",
+    "nameLong": "Jahaziel Code",
+    "applicationName": "jahaziel-code",
+    "dataFolderName": ".jahaziel-code",
+    "urlProtocol": "jahaziel-code",
+    "serverApplicationName": "jahaziel-code-server",
+    "serverDataFolderName": ".jahaziel-code-server",
+    "win32MutexName": "jahazielcode",
+    "win32DirName": "Jahaziel Code",
+    "win32NameVersion": "Jahaziel Code",
+    "win32RegValueName": "JahazielCode",
+    "win32AppUserModelId": "Jahaziel.Code",
+    "win32ShellNameShort": "Jahaziel Code",
+    "darwinBundleIdentifier": "dev.jahaziel.code",
+    "licenseName": "MIT",
+    "licenseUrl": "https://github.com/jahaziel-project/jahaziel/blob/main/LICENSE",
+    "reportIssueUrl": "https://github.com/jahaziel-project/jahaziel/issues/new",
+    "quality": "stable"
+  }
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: smoke test opens with Jahaziel Code branding.
