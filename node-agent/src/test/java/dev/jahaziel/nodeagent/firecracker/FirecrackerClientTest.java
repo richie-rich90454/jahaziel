@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +47,15 @@ class FirecrackerClientTest {
     assertEquals("/rootfs.img", drive.get("path_on_host"));
     assertEquals(true, drive.get("is_root_device"));
     assertEquals(true, drive.get("is_read_only"));
-    assertTrue(FirecrackerClient.bootBody("/kernel").get("boot_args").toString().contains(" ro "));
+    assertTrue(
+        FirecrackerClient.bootBody("/kernel", List.of())
+            .get("boot_args")
+            .toString()
+            .contains(" ro "));
+    assertTrue(
+        FirecrackerClient.bootBody("/kernel", List.of("jahaziel.workspace=x"))
+            .get("boot_args")
+            .toString()
+            .endsWith("jahaziel.workspace=x"));
   }
 }
