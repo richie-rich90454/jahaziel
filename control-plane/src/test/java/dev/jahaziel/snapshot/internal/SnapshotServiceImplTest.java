@@ -56,7 +56,8 @@ class SnapshotServiceImplTest {
 
   @Test
   void createsSnapshotRow() {
-    when(workspaces.get(workspaceId)).thenReturn(workspace());
+    Workspace workspace = workspace();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
     SnapshotHandle handle =
         new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/daily"), Instant.now());
     when(storage.snapshot(any(), any())).thenReturn(handle);
@@ -101,7 +102,8 @@ class SnapshotServiceImplTest {
   void restoreAndDeleteDelegate() {
     SnapshotEntity row = row("daily", Instant.now());
     when(snapshots.findById(any())).thenReturn(Optional.of(row));
-    when(workspaces.get(workspaceId)).thenReturn(workspace());
+    Workspace workspace = workspace();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
     service.restore(workspaceId, new SnapshotId(UUID.randomUUID()));
     verify(storage).restore(any(), any());
     service.delete(new SnapshotId(UUID.randomUUID()));
