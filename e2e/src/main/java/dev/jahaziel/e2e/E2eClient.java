@@ -11,12 +11,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Objects;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Minimal REST client for acceptance. A user goes from login to workspace to IDE to terminal to
- * an open port in the browser.
+ * Minimal REST client for acceptance. A user goes from login to workspace to IDE to terminal to an
+ * open port in the browser.
  */
 public final class E2eClient {
   private final HttpClient http = HttpClient.newHttpClient();
@@ -141,7 +140,12 @@ public final class E2eClient {
       HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() != expected) {
         throw new IllegalStateException(
-            request.method() + " " + request.uri() + " returned " + response.statusCode() + ": "
+            request.method()
+                + " "
+                + request.uri()
+                + " returned "
+                + response.statusCode()
+                + ": "
                 + response.body());
       }
       return response.body();
@@ -153,7 +157,7 @@ public final class E2eClient {
 
   private String field(String body, String name) {
     try {
-      return mapper.readTree(body).get(name).asText();
+      return mapper.readTree(body).get(name).asString();
     } catch (tools.jackson.core.JacksonException failure) {
       throw new IllegalArgumentException("response has no field " + name + ": " + body, failure);
     }
