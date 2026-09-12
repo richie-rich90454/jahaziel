@@ -72,7 +72,16 @@ class MetricsServiceImplTest {
 
   private HourlyRollup rollup() {
     return new HourlyRollup(
-        workspace, Instant.parse("2026-01-02T03:00:00Z"), 41, 90, 1024, 2048, 1000, 2000, 3000,
-        4000, 81);
+        workspace,
+        Instant.parse("2026-01-02T03:00:00Z"),
+        41,
+        90,
+        1024,
+        2048,
+        1000,
+        2000,
+        3000,
+        4000,
+        81);
   }
 }
