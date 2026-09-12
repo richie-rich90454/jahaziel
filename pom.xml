@@ -25,7 +25,7 @@
 
   <name>Jahaziel</name>
   <description>Self-hosted browser-based development platform: one Linux machine per developer.</description>
-  <url>https://github.com/jahaziel-project/jahaziel</url>
+  <url>https://github.com/example/jahaziel</url>
   <inceptionYear>2026</inceptionYear>
 
   <licenses>
