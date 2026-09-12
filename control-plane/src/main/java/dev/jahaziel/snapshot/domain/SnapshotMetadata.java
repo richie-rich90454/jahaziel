@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Metadata of a point-in-time snapshot of a workspace home subvolume.
+ * Metadata of a point-in-time snapshot of a workspace home folder.
  *
  * @param id the snapshot identifier
  * @param workspaceId the workspace
@@ -20,7 +20,7 @@ import java.util.UUID;
  * @param kind how the snapshot was triggered
  * @param createdAt when the snapshot was taken
  * @param createdBy who triggered it, user id, system, or admin id
- * @param subvolumePath absolute path to the read-only subvolume
+ * @param snapshotPath absolute path to the read-only snapshot folder
  * @param logicalBytes logical size in bytes
  * @param physicalBytes physical size in bytes
  * @param parentId the previous snapshot, empty for the first
@@ -33,7 +33,7 @@ public record SnapshotMetadata(
     SnapshotKind kind,
     Instant createdAt,
     String createdBy,
-    Path subvolumePath,
+    Path snapshotPath,
     long logicalBytes,
     long physicalBytes,
     Optional<SnapshotId> parentId,
@@ -49,7 +49,7 @@ public record SnapshotMetadata(
     if (createdBy == null || createdBy.isBlank()) {
       throw new IllegalArgumentException("createdBy must not be blank");
     }
-    Objects.requireNonNull(subvolumePath, "subvolumePath");
+    Objects.requireNonNull(snapshotPath, "snapshotPath");
     if (logicalBytes < 0) {
       throw new IllegalArgumentException("logicalBytes must not be negative");
     }
@@ -66,11 +66,11 @@ public record SnapshotMetadata(
    * @param workspaceId the workspace
    * @param tag the human tag
    * @param createdBy who triggered it
-   * @param subvolumePath absolute path to the read-only subvolume
+   * @param snapshotPath absolute path to the read-only snapshot folder
    * @return the metadata
    */
   public static SnapshotMetadata manual(
-      WorkspaceId workspaceId, String tag, String createdBy, Path subvolumePath) {
+      WorkspaceId workspaceId, String tag, String createdBy, Path snapshotPath) {
     return new SnapshotMetadata(
         new SnapshotId(UUID.randomUUID()),
         workspaceId,
@@ -78,7 +78,7 @@ public record SnapshotMetadata(
         SnapshotKind.MANUAL,
         Instant.now(),
         createdBy,
-        subvolumePath,
+        snapshotPath,
         0,
         0,
         Optional.empty(),
