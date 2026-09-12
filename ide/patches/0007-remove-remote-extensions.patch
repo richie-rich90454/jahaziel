@@ -1,0 +1,11 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0007/0014] Remove remote extensions
+
+This patch removes Remote-SSH, Remote-Containers, Remote-WSL, and
+Remote-Tunnels.
+
+Rationale: the entire IDE is remote already. The browser connects to a
+server on the workspace VM, so there is no local-vs-remote distinction.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: patch regression test fails without it and passes with it.
