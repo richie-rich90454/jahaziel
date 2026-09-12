@@ -1,9 +1,28 @@
 From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0011/0014] Disable Microsoft settings sync
 
-This patch removes the Microsoft-hosted Settings Sync provider and its
-account entries. Sync, if ever wanted, points at platform storage, not
-Microsoft.
+This patch drops the settings-sync workbench contribution (views,
+commands, status entries) from the shared workbench entry. The sync
+store was already unreachable without a product
+configurationSyncStore key, and the Microsoft account providers are
+gone with patch 0009, so no sync path can reach Microsoft. Sync, if
+ever wanted, points at platform storage, not Microsoft.
 
-Diff: authored on the upstream checkout (see build.sh).
+Touches:
+  - workbench entry (userDataSync contribution import)
+
 Verification: no sync endpoints in the no-network test.
+
+---
+diff --git a/src/vs/workbench/workbench.common.main.ts b/src/vs/workbench/workbench.common.main.ts
+index 285fea2..6e4b422 100644
+--- a/src/vs/workbench/workbench.common.main.ts
++++ b/src/vs/workbench/workbench.common.main.ts
+@@ -351,7 +351,6 @@ import './contrib/languageStatus/browser/languageStatus.contribution.js';
+ import './contrib/authentication/browser/authentication.contribution.js';
+ 
+ // User Data Sync
+-import './contrib/userDataSync/browser/userDataSync.contribution.js';
+ 
+ // User Data Profiles
+ import './contrib/userDataProfile/browser/userDataProfile.contribution.js';
