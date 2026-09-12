@@ -33,7 +33,6 @@ public final class RuntimeServiceImpl implements RuntimeService {
   private final NodeBackend backend;
   private final WorkspaceService workspaces;
   private final ImageRef image;
-  private final NodeId nodeId;
 
   /**
    * Creates the service.
@@ -48,7 +47,6 @@ public final class RuntimeServiceImpl implements RuntimeService {
     this.backend = Objects.requireNonNull(backend, "backend");
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.image = Objects.requireNonNull(image, "image");
-    this.nodeId = Objects.requireNonNull(nodeId, "nodeId");
   }
 
   @Override
