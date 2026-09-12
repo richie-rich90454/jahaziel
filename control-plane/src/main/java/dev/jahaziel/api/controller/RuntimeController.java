@@ -59,7 +59,7 @@ public class RuntimeController {
   }
 
   /**
-   * Stops a workspace, preserving the home subvolume.
+   * Stops a workspace, preserving the home folder.
    *
    * @param id the workspace identifier
    * @return the workspace DTO
