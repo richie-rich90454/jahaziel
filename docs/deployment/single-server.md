@@ -12,7 +12,7 @@ Fresh Debian 12 install, one public IPv4, DNS pointed at the host.
 ## 1. Base
 
 ```bash
-apt-get update && apt-get install -y openjdk-25-jre postgresql-16 caddy nftables
+sudo ops/toolchain/install-toolchain.sh
 systemctl enable --now postgresql
 ```
 
@@ -37,8 +37,8 @@ chmod 0710 /var/lib/jahaziel
 
 | Record | Type | Value |
 |---|---|---|
-| `code.jahaziel.dev` | A | server IPv4 |
-| `*.code.jahaziel.dev` | A | server IPv4 |
+| `code.example.com` | A | server IPv4 |
+| `*.code.example.com` | A | server IPv4 |
 
 Copy `ops/caddy/Caddyfile` to `/etc/caddy/Caddyfile`, set the DNS
 provider token, and reload Caddy. Certificates are automatic.
@@ -64,9 +64,9 @@ Flyway migrates the schema on control-plane start.
 
 ## 5. Verify
 
-- `https://code.jahaziel.dev/actuator/health` returns 200.
+- `https://code.example.com/actuator/health` returns 200.
 - Log in, create a workspace, open the IDE, run a command.
-- `https://<user>-8080.code.jahaziel.dev` serves the workspace port.
+- `https://<user>-8080.code.example.com` serves the workspace port.
 
 ## 6. Backups
 
