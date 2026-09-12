@@ -6,7 +6,6 @@ package dev.jahaziel.api.dto;
 
 import dev.jahaziel.snapshot.api.SnapshotKinds;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
-import dev.jahaziel.snapshot.internal.SnapshotMapper;
 import java.time.Instant;
 import java.util.UUID;
 
