@@ -6,7 +6,6 @@ package dev.jahaziel.audit.internal;
 
 import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.audit.domain.AuditRecord;
-import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.spi.ActorType;
 import dev.jahaziel.spi.Outcome;
 import dev.jahaziel.workspace.domain.WorkspaceId;
@@ -23,8 +22,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Drains node spool files into the audit log. Spool lines carry guest actions; the reader
- * stamps identifiers, timestamps, and the workspace link the guest cannot forge.
+ * Drains node spool files into the audit log. Spool lines carry guest actions; the reader stamps
+ * identifiers, timestamps, and the workspace link the guest cannot forge.
  */
 public final class AuditSpoolReader {
   private final AuditService audit;
