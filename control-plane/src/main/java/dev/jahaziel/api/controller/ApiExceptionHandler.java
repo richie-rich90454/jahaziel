@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave
- * the server.
+ * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave the
+ * server.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
