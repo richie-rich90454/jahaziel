@@ -65,7 +65,7 @@ class SnapshotMapperTest {
     when(row.getKind()).thenReturn("auto");
     when(row.getCreatedAt()).thenReturn(at);
     when(row.getCreatedBy()).thenReturn("system");
-    when(row.getBtrfsSubvolumePath()).thenReturn("/snaps/daily");
+    when(row.getSnapshotPath()).thenReturn("/snaps/daily");
     when(row.getLogicalBytes()).thenReturn(0L);
     when(row.getPhysicalBytes()).thenReturn(0L);
     when(row.getParentSnapshotId()).thenReturn(null);
