@@ -30,13 +30,11 @@ public final class WorkspaceMapper {
    * Maps a workspace to its row.
    *
    * @param workspace the workspace
-   * @param diskPath the root disk path on the host
-   * @param homePath the home subvolume path on the host
+   * @param homePath the home folder path on the host
    * @param jailPath the jail path on the host
    * @return the row
    */
-  public static WorkspaceEntity toEntity(
-      Workspace workspace, String diskPath, String homePath, String jailPath) {
+  public static WorkspaceEntity toEntity(Workspace workspace, String homePath, String jailPath) {
     WorkspaceEntity row = new WorkspaceEntity();
     row.setWorkspaceId(workspace.id().value());
     row.setOwnerUserId(workspace.owner().value());
@@ -55,8 +53,7 @@ public final class WorkspaceMapper {
    * @param machine the machine
    * @param workspaceId the workspace
    * @param nodeId the hosting node
-   * @param diskPath the root disk path on the host
-   * @param homePath the home subvolume path on the host
+   * @param homePath the home folder path on the host
    * @param jailPath the jail path on the host
    * @return the row
    */
@@ -64,7 +61,6 @@ public final class WorkspaceMapper {
       VirtualMachine machine,
       WorkspaceId workspaceId,
       String nodeId,
-      String diskPath,
       String homePath,
       String jailPath) {
     VirtualMachineEntity row = new VirtualMachineEntity();
@@ -74,7 +70,6 @@ public final class WorkspaceMapper {
     row.setState("stopped");
     row.setVcpuCount(machine.config().vcpuCount());
     row.setMemoryMib(machine.config().memoryMib());
-    row.setDiskPath(diskPath);
     row.setHomePath(homePath);
     row.setJailPath(jailPath);
     row.setCreatedAt(Instant.now());
