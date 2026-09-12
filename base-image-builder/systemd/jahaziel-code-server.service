@@ -13,8 +13,12 @@ Group=jahaziel-guest
 # Loopback only: the gateway verifies the signed JWT session on every
 # connection and reaches the guest over vsock, so no listener here is
 # reachable except through the gateway. Guest storage is ephemeral
-# until the host file bridge lands; the per-workspace token file is
-# the defined seam once route push carries it (see patch 0012).
+# (tmpfs); the host home folder is the truth at rest and syncs over
+# vsock at start, every minute, and at stop (see jahaziel-sync).
+ExecStartPre=/bin/mkdir -p /tmp/jahaziel/workspace /tmp/jahaziel/data
+ExecStartPre=/usr/bin/python3 /usr/local/bin/jahaziel-sync pull
+ExecStart=/opt/jahaziel-code-server/bin/jahaziel-code-server --host 127.0.0.1 --port 8080 --without-connection-token --server-data-dir /tmp/jahaziel/data --extensions-dir /tmp/jahaziel/data/extensions /tmp/jahaziel/workspace
+ExecStop=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
 ExecStartPre=/bin/mkdir -p /tmp/jahaziel/workspace /tmp/jahaziel/data
 ExecStart=/opt/jahaziel-code-server/bin/jahaziel-code-server --host 127.0.0.1 --port 8080 --without-connection-token --server-data-dir /tmp/jahaziel/data --extensions-dir /tmp/jahaziel/data/extensions /tmp/jahaziel/workspace
 Restart=on-failure
