@@ -24,7 +24,7 @@ import java.util.UUID;
  * @param logicalBytes logical size in bytes
  * @param physicalBytes physical size in bytes
  * @param parentId the previous snapshot, empty for the first
- * @param manifestSha256 SHA-256 of the snapshot manifest
+ * @param manifestSha256 SHA-256 of the snapshot manifest, empty until verified
  */
 public record SnapshotMetadata(
     SnapshotId id,
@@ -57,9 +57,7 @@ public record SnapshotMetadata(
       throw new IllegalArgumentException("physicalBytes must not be negative");
     }
     Objects.requireNonNull(parentId, "parentId");
-    if (manifestSha256 == null || manifestSha256.isBlank()) {
-      throw new IllegalArgumentException("manifestSha256 must not be blank");
-    }
+    Objects.requireNonNull(manifestSha256, "manifestSha256");
   }
 
   /**
