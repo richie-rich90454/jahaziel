@@ -1,6 +1,7 @@
-/* Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0. */
-:root {
-  color-scheme: light dark;
+/**
+ * Copyright 2026 The Jahaziel Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
   --gap: 1rem;
 }
 body {
