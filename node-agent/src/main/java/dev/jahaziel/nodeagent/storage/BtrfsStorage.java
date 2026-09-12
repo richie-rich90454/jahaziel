@@ -51,17 +51,17 @@ public final class BtrfsStorage implements WorkspaceStorage {
     Objects.requireNonNull(ownerId, "ownerId");
     Objects.requireNonNull(image, "image");
     Objects.requireNonNull(quota, "quota");
-    String jail = jailPath(workspaceId);
-    String disk = jail + "/rootfs.img";
-    String home = homePath(ownerId);
-    commands.run(List.of("mkdir", "-p", jail));
-    commands.run(List.of("truncate", "-s", "20G", disk));
-    commands.run(List.of("cp", "--reflink=always", imageFile(image), disk));
-    if (!commands.exists(Path.of(home))) {
-      commands.run(List.of("btrfs", "subvolume", "create", home));
+    Path jail = jailPath(workspaceId);
+    Path disk = jail.resolve("rootfs.img");
+    Path home = homePath(ownerId);
+    commands.run(List.of("mkdir", "-p", jail.toString()));
+    commands.run(List.of("truncate", "-s", "20G", disk.toString()));
+    commands.run(List.of("cp", "--reflink=always", imageFile(image), disk.toString()));
+    if (!commands.exists(home)) {
+      commands.run(List.of("btrfs", "subvolume", "create", home.toString()));
     }
-    commands.run(List.of("btrfs", "qgroup", "limit", quota.value() + "b", home));
-    return new WorkspaceHandle(workspaceId, Path.of(disk), Path.of(home), Path.of(jail));
+    commands.run(List.of("btrfs", "qgroup", "limit", quota.value() + "b", home.toString()));
+    return new WorkspaceHandle(workspaceId, disk, home, jail);
   }
 
   @Override
@@ -74,10 +74,16 @@ public final class BtrfsStorage implements WorkspaceStorage {
   public SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag) {
     Objects.requireNonNull(handle, "handle");
     Objects.requireNonNull(tag, "tag");
-    String snap = snapsDir(handle) + "/" + tag.value();
+    Path snap = snapsDir(handle).resolve(tag.value());
     commands.run(
-        List.of("btrfs", "subvolume", "snapshot", "-r", handle.homeSubvolumePath().toString(), snap));
-    return new SnapshotHandle(UUID.randomUUID(), Path.of(snap), Instant.now());
+        List.of(
+            "btrfs",
+            "subvolume",
+            "snapshot",
+            "-r",
+            handle.homeSubvolumePath().toString(),
+            snap.toString()));
+    return new SnapshotHandle(UUID.randomUUID(), snap, Instant.now());
   }
 
   @Override
@@ -90,20 +96,27 @@ public final class BtrfsStorage implements WorkspaceStorage {
   public void restore(WorkspaceHandle handle, SnapshotHandle snapshot) {
     Objects.requireNonNull(handle, "handle");
     Objects.requireNonNull(snapshot, "snapshot");
-    String home = handle.homeSubvolumePath().toString();
-    String staged = home + ".new";
-    String retired = home + ".old";
-    commands.run(List.of("btrfs", "subvolume", "snapshot", snapshot.subvolumePath().toString(), staged));
-    commands.run(List.of("mv", home, retired));
-    commands.run(List.of("mv", staged, home));
-    commands.run(List.of("btrfs", "subvolume", "delete", retired));
+    Path home = handle.homeSubvolumePath();
+    Path staged = home.resolveSibling(home.getFileName() + ".new");
+    Path retired = home.resolveSibling(home.getFileName() + ".old");
+    commands.run(
+        List.of(
+            "btrfs",
+            "subvolume",
+            "snapshot",
+            snapshot.subvolumePath().toString(),
+            staged.toString()));
+    commands.run(List.of("mv", home.toString(), retired.toString()));
+    commands.run(List.of("mv", staged.toString(), home.toString()));
+    commands.run(List.of("btrfs", "subvolume", "delete", retired.toString()));
   }
 
   @Override
   public StorageUsage usage(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
     String output =
-        commands.run(List.of("btrfs", "qgroup", "show", "--raw", handle.homeSubvolumePath().toString()));
+        commands.run(
+            List.of("btrfs", "qgroup", "show", "--raw", handle.homeSubvolumePath().toString()));
     long[] numbers = parseQgroup(output);
     return new StorageUsage(numbers[0], numbers[1], 0, numbers[0] - numbers[1]);
   }
@@ -128,20 +141,21 @@ public final class BtrfsStorage implements WorkspaceStorage {
     }
   }
 
-  private String jailPath(UUID workspaceId) {
-    return storageRoot + "/jail/" + workspaceId;
+  private Path jailPath(UUID workspaceId) {
+    return Path.of(storageRoot, "jail", workspaceId.toString());
   }
 
-  private String homePath(UUID ownerId) {
-    return storageRoot + "/workspaces/" + ownerId + "/home";
+  private Path homePath(UUID ownerId) {
+    return Path.of(storageRoot, "workspaces", ownerId.toString(), "home");
   }
 
-  private String snapsDir(WorkspaceHandle handle) {
-    String home = handle.homeSubvolumePath().toString();
-    return home.substring(0, home.length() - "/home".length()) + "/snaps";
+  private Path snapsDir(WorkspaceHandle handle) {
+    return handle.homeSubvolumePath().getParent().resolve("snaps");
   }
 
   private String imageFile(ImageRef image) {
+    // String concat, not Path: image refs contain colons (base-image:2026.09),
+    // which are illegal in path segments on some platforms.
     return imagesDir + "/" + image.value() + ".ext4";
   }
 }
