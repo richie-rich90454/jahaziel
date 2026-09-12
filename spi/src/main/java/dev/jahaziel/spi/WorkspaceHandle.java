@@ -9,19 +9,17 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Opaque handle to prepared workspace storage.
+ * Opaque handle to prepared workspace storage. Workspaces are plain folders: the persistent home
+ * folder plus the ephemeral per-VM jail folder. No disk images, no partitions.
  *
  * @param workspaceId the workspace this storage belongs to
- * @param rootDiskPath absolute path to the per-VM root disk
- * @param homeSubvolumePath absolute path to the persistent home subvolume
+ * @param homePath absolute path to the persistent home folder
  * @param jailPath absolute path to the per-VM jail directory
  */
-public record WorkspaceHandle(
-    UUID workspaceId, Path rootDiskPath, Path homeSubvolumePath, Path jailPath) {
+public record WorkspaceHandle(UUID workspaceId, Path homePath, Path jailPath) {
   public WorkspaceHandle {
     Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(rootDiskPath, "rootDiskPath");
-    Objects.requireNonNull(homeSubvolumePath, "homeSubvolumePath");
+    Objects.requireNonNull(homePath, "homePath");
     Objects.requireNonNull(jailPath, "jailPath");
   }
 }
