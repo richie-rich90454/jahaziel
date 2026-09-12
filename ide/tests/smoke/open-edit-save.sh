@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Smoke: open the workbench, edit a file, save, verify the bytes on disk.
-# Usage: open-edit-save.sh <server-url>
+
 set -euo pipefail
 
 SERVER="${1:?usage: open-edit-save.sh <server-url>}"
