@@ -18,7 +18,6 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +53,14 @@ class JwtVerifierTest {
   @Test
   void rejectsExpiredWrongIssuerAndGarbage() throws Exception {
     assertThrows(
-        JwtRejectedException.class, () -> verifier.verify(token(minutes(-10), "https://code.jahaziel.dev")));
-    assertThrows(JwtRejectedException.class, () -> verifier.verify(token(minutes(10), "https://evil.dev")));
+        JwtRejectedException.class,
+        () -> verifier.verify(token(minutes(-10), "https://code.jahaziel.dev")));
+    assertThrows(
+        JwtRejectedException.class, () -> verifier.verify(token(minutes(10), "https://evil.dev")));
     assertThrows(JwtRejectedException.class, () -> verifier.verify("not-a-token"));
-    assertThrows(JwtRejectedException.class, () -> verifier.verify(token(minutes(10), "https://code.jahaziel.dev") + "x"));
+    assertThrows(
+        JwtRejectedException.class,
+        () -> verifier.verify(token(minutes(10), "https://code.jahaziel.dev") + "x"));
   }
 
   private String token(Date expiry, String issuer) throws Exception {
