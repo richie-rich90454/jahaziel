@@ -26,10 +26,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * HTTP and WebSocket relay to workspaces. Each connection runs on a virtual thread: authenticate
- * by bearer token or query token, route by Host header, forward the request, relay the response.
- * Request bodies use Content-Length framing; WebSocket upgrades relay blindly after the 101.
- * Client errors answer with a status; only a mid-relay backend death closes silently.
+ * HTTP and WebSocket relay to workspaces. Each connection runs on a virtual thread: authenticate by
+ * bearer token or query token, route by Host header, forward the request, relay the response.
+ * Request bodies use Content-Length framing; WebSocket upgrades relay blindly after the 101. Client
+ * errors answer with a status; only a mid-relay backend death closes silently.
  */
 public final class GatewayServer {
   private final HostParser hosts;
@@ -227,7 +227,7 @@ public final class GatewayServer {
     while ((currentByte = in.read()) >= 0) {
       raw.write(currentByte);
       if (previous == '\r' && currentByte == '\n') {
-        String line = current.substring(0, current.length() - 1);
+        String line = current.toString();
         if (line.isEmpty()) {
           break;
         }
