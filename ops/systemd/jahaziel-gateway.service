@@ -1,0 +1,25 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# /etc/systemd/system/jahaziel-gateway.service
+[Unit]
+Description=Jahaziel Gateway
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=jahaziel-gateway
+Group=jahaziel-gateway
+EnvironmentFile=/etc/jahaziel/gateway.env
+ExecStart=/usr/bin/java -jar /opt/jahaziel/gateway.jar
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/log/jahaziel
+
+[Install]
+WantedBy=multi-user.target
