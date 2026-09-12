@@ -7,10 +7,10 @@ package dev.jahaziel.spi;
 /**
  * Storage consumption of a workspace.
  *
- * @param logicalBytes sum of file sizes in the home subvolume
+ * @param logicalBytes sum of file sizes in the home folder
  * @param physicalBytes actual allocated bytes
- * @param snapshotBytes sum of snapshot logical sizes
- * @param deduplicatedBytes savings from copy-on-write, logical minus physical
+ * @param snapshotBytes sum of snapshot folder sizes
+ * @param deduplicatedBytes savings from sharing, logical minus physical
  */
 public record StorageUsage(
     long logicalBytes, long physicalBytes, long snapshotBytes, long deduplicatedBytes) {
