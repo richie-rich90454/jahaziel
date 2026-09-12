@@ -44,10 +44,8 @@ class AppUserTest {
         NullPointerException.class,
         () -> new AppUser(null, "s", "e", "d", List.of(), List.of(), false));
     assertThrows(
-        NullPointerException.class,
-        () -> new AppUser(id, "s", "e", "d", null, List.of(), false));
+        NullPointerException.class, () -> new AppUser(id, "s", "e", "d", null, List.of(), false));
     assertThrows(
-        NullPointerException.class,
-        () -> new AppUser(id, "s", "e", "d", List.of(), null, false));
+        NullPointerException.class, () -> new AppUser(id, "s", "e", "d", List.of(), null, false));
   }
 }
