@@ -105,8 +105,7 @@ class AdminControllerTest {
   @Test
   void adminWithoutMfaIsForbidden() throws Exception {
     when(users.isMfaEnabled(adminId)).thenReturn(false);
-    mvc.perform(get("/admin/v1/users").principal(principal))
-        .andExpect(status().isForbidden());
+    mvc.perform(get("/admin/v1/users").principal(principal)).andExpect(status().isForbidden());
   }
 
   @Test
