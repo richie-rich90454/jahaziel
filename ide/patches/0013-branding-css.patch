@@ -2,10 +2,60 @@ From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0013/0014] Apply brand theme tokens
 
 This patch ships the Jahaziel brand colors as CSS overrides with the
-web client. No core theme files are modified.
+web client: a new resources/server/jahaziel-branding.css carrying the
+tokens from ide/branding/branding.css, a stylesheet link in the web
+client shell, and the packaging listing so the file lands in the
+server output and is served under /static. No core theme files are
+modified.
 
 Touches:
-  - ide/branding/branding.css (shipped alongside the client)
+  - resources/server/jahaziel-branding.css (new)
+  - web client shell (stylesheet link)
+  - server packaging (resource listing)
 
-Diff: authored on the upstream checkout (see build.sh).
 Verification: brand smoke test screenshots the workbench chrome.
+
+---
+diff --git a/build/gulpfile.reh.js b/build/gulpfile.reh.js
+index e314794..7903e40 100644
+--- a/build/gulpfile.reh.js
++++ b/build/gulpfile.reh.js
+@@ -382,7 +382,8 @@ function packageTask(type, platform, arch, sourceFolderName, destinationFolderNa
+ 				'resources/server/favicon.ico',
+ 				'resources/server/code-192.png',
+ 				'resources/server/code-512.png',
+-				'resources/server/manifest.json'
++				'resources/server/manifest.json',
++				'resources/server/jahaziel-branding.css'
+ 			].map(resource => gulp.src(resource, { base: '.' }).pipe(rename(resource)));
+ 		}
+ 
+diff --git a/resources/server/jahaziel-branding.css b/resources/server/jahaziel-branding.css
+new file mode 100644
+index 0000000..943e9c0
+--- /dev/null
++++ b/resources/server/jahaziel-branding.css
+@@ -0,0 +1,11 @@
++/**
++ * Copyright 2026 The Jahaziel Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++:root {
++    --jahaziel-primary: #1e40af;
++    --jahaziel-primary-hover: #1d4ed8;
++    --jahaziel-accent: #d97706;
++    --jahaziel-background: #f8fafc;
++    --jahaziel-foreground: #0f172a;
++}
+diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
+index a4e9516..681de2d 100644
+--- a/src/vs/code/browser/workbench/workbench.html
++++ b/src/vs/code/browser/workbench/workbench.html
+@@ -26,6 +26,7 @@
+ 		<link rel="icon" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/favicon.ico" type="image/x-icon" />
+ 		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
+ 		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
++		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
+ 
+ 	</head>
+ 
