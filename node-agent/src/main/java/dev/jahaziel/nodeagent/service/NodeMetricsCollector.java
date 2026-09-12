@@ -63,8 +63,7 @@ public final class NodeMetricsCollector {
         }
       }
     } catch (IOException | NumberFormatException failure) {
-      throw new UncheckedIOException(
-          new IOException("cannot read /proc/meminfo", failure));
+      throw new UncheckedIOException(new IOException("cannot read /proc/meminfo", failure));
     }
     return new long[] {Math.max(0, total - available), total};
   }
