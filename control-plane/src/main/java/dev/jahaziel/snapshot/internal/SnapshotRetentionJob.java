@@ -14,7 +14,6 @@ import dev.jahaziel.workspace.api.WorkspaceService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -65,7 +64,7 @@ public final class SnapshotRetentionJob implements PlatformJob {
       List<SnapshotMetadata> autos =
           all.stream()
               .filter(meta -> meta.kind() == SnapshotKind.AUTO)
-              .sorted(Comparator.comparing(SnapshotMetadata::createdAt).reversed())
+              .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
               .toList();
       for (int i = autoRetentionCount; i < autos.size(); i++) {
         snapshots.delete(autos.get(i).id());
