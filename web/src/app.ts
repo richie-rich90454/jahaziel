@@ -1,3 +1,8 @@
+///
+/// Copyright 2026 The Jahaziel Authors
+/// SPDX-License-Identifier: Apache-2.0
+///
+
 // Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0.
 // Browser dashboard companion: lists the user's workspaces next to the IDE link.
 // Served statically; the control plane API does the rest.
