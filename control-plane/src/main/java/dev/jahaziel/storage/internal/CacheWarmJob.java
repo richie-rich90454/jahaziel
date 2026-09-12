@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Ensures the shared cache directories exist. Population itself runs from the ops cron with the
