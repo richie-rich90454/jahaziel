@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * In-memory node agent for development and tests. Implements the operations facade and both
- * plugin contracts with no host calls and instant transitions.
+ * In-memory node agent for development and tests. Implements the operations facade and both plugin
+ * contracts with no host calls and instant transitions.
  */
 public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, WorkspaceStorage {
   private final ConcurrentMap<UUID, WorkspaceHandle> prepared = new ConcurrentHashMap<>();
@@ -86,8 +86,7 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
     snapshots
         .values()
         .forEach(
-            list ->
-                list.removeIf(summary -> summary.snapshotId().equals(snapshot.snapshotId())));
+            list -> list.removeIf(summary -> summary.snapshotId().equals(snapshot.snapshotId())));
   }
 
   @Override
