@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import tools.jackson.databind.ObjectMapper;
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.audit.persistence.AuditEventEntity;
 import dev.jahaziel.spi.ActorType;
@@ -20,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 /** Behavior of {@link AuditMapper} with stubbed rows. */
 class AuditMapperTest {
