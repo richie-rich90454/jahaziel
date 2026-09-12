@@ -73,7 +73,7 @@ install_apt_base() {
   run $SUDO apt-get update
   run $SUDO apt-get install -y \
     build-essential pkg-config git curl jq unzip xz-utils zstd \
-    python3 lsb-release debootstrap systemd-container e2fsprogs nftables shellcheck
+    python3 lsb-release debootstrap systemd-container e2fsprogs nftables shellcheck socat
 }
 
 install_postgres() {
