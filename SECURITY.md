@@ -13,6 +13,6 @@ integrity, crash recovery, noisy-neighbor limits, browser matrix) each
 have a corresponding automated test.
 
 Report vulnerabilities privately to the maintainers at
-team@jahaziel.dev. Include steps to reproduce and the affected
+security@example.com. Include steps to reproduce and the affected
 component. Expect acknowledgment within 48 hours. Do not open a public
 issue for an unpatched vulnerability.
