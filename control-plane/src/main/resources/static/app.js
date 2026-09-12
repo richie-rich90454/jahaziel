@@ -1,6 +1,7 @@
-/* Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0. */
-"use strict";
-
+/*
+ * Copyright 2026 The Jahaziel Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 async function api(path, options) {
   const response = await fetch(path, options);
   if (!response.ok) {
