@@ -160,8 +160,7 @@ class RuntimeServiceImplTest {
     @Override
     public WorkspaceHandle prepare(PrepareRequest request) {
       prepares++;
-      return new WorkspaceHandle(
-          request.workspaceId(), Path.of("/rootfs.img"), Path.of("/home"), Path.of("/jail"));
+      return new WorkspaceHandle(request.workspaceId(), Path.of("/home"), Path.of("/jail"));
     }
 
     @Override
