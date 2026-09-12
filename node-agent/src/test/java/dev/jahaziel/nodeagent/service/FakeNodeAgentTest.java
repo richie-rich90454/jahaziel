@@ -65,8 +65,7 @@ class FakeNodeAgentTest {
 
   @Test
   void unpreparedHandlesThrow() {
-    WorkspaceHandle handle =
-        new WorkspaceHandle(workspaceId, Path.of("/x"), Path.of("/y"), Path.of("/z"));
+    WorkspaceHandle handle = new WorkspaceHandle(workspaceId, Path.of("/y"), Path.of("/z"));
     assertThrows(IllegalArgumentException.class, () -> agent.startRuntime(handle, runtime()));
     assertThrows(IllegalArgumentException.class, () -> agent.stopRuntime(handle, true, 30));
     assertThrows(
@@ -83,7 +82,7 @@ class FakeNodeAgentTest {
 
   private WorkspaceHandle prepare() {
     return agent.prepareWorkspace(
-        workspaceId, ownerId, "base-image:2026.09", 21474836480L, 2048, 2, new QuotaBytes(1));
+        workspaceId, ownerId, "base-image:2026.09", 2048, 2, new QuotaBytes(1));
   }
 
   private static RuntimeRequest runtime() {
