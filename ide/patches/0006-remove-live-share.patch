@@ -1,0 +1,11 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0006/0014] Remove Live Share
+
+This patch removes Live Share entirely, including its extension,
+services, commands, and UI surfaces.
+
+Rationale: single-user workspaces have no real-time collaboration
+scope, and Live Share is proprietary.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: patch regression test fails without it and passes with it.
