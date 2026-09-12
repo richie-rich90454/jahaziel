@@ -1,12 +1,12 @@
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 {
-    email admin@jahaziel.dev
+    email admin@example.com
     admin off
     acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 }
 
-code.jahaziel.dev {
+code.example.com {
     encode zstd gzip
     reverse_proxy localhost:8080
     header {
@@ -19,7 +19,7 @@ code.jahaziel.dev {
     }
 }
 
-*.code.jahaziel.dev {
+*.code.example.com {
     encode zstd gzip
     reverse_proxy localhost:8081
     header {
