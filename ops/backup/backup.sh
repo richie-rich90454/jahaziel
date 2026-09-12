@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Daily platform backup: snapshots, database, audit, offsite copy.
-# Install as root cron daily at 02:00; WAL archiving runs continuously.
+
 set -euo pipefail
 
 STAMP="$(date +%Y-%m-%d)"
