@@ -37,14 +37,14 @@ class JwtVerifierTest {
     KeyPair pair = generator.generateKeyPair();
     publicKey = (RSAPublicKey) pair.getPublic();
     privateKey = (RSAPrivateKey) pair.getPrivate();
-    verifier = new JwtVerifier(publicKey, "https://code.jahaziel.dev", "jahaziel-code-server");
+    verifier = new JwtVerifier(publicKey, "https://code.example.com", "jahaziel-code-server");
     userId = UUID.randomUUID();
     workspaceId = UUID.randomUUID();
   }
 
   @Test
   void acceptsWellFormedToken() throws Exception {
-    GatewaySession session = verifier.verify(token(minutes(10), "https://code.jahaziel.dev"));
+    GatewaySession session = verifier.verify(token(minutes(10), "https://code.example.com"));
     assertEquals(userId, session.userId());
     assertEquals(workspaceId, session.workspaceId());
     assertTrue(session.scopes().contains("workspace:read"));
@@ -54,13 +54,13 @@ class JwtVerifierTest {
   void rejectsExpiredWrongIssuerAndGarbage() throws Exception {
     assertThrows(
         JwtRejectedException.class,
-        () -> verifier.verify(token(minutes(-10), "https://code.jahaziel.dev")));
+        () -> verifier.verify(token(minutes(-10), "https://code.example.com")));
     assertThrows(
         JwtRejectedException.class, () -> verifier.verify(token(minutes(10), "https://evil.dev")));
     assertThrows(JwtRejectedException.class, () -> verifier.verify("not-a-token"));
     assertThrows(
         JwtRejectedException.class,
-        () -> verifier.verify(token(minutes(10), "https://code.jahaziel.dev") + "x"));
+        () -> verifier.verify(token(minutes(10), "https://code.example.com") + "x"));
   }
 
   private String token(Date expiry, String issuer) throws Exception {
