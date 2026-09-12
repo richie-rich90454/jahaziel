@@ -6,11 +6,10 @@ package dev.jahaziel.snapshot.internal;
 
 import dev.jahaziel.snapshot.api.SnapshotKinds;
 import dev.jahaziel.snapshot.domain.SnapshotId;
-import dev.jahaziel.snapshot.persistence.SnapshotEntity;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
+import dev.jahaziel.snapshot.persistence.SnapshotEntity;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,7 +34,10 @@ public final class SnapshotMapper {
     row.setBtrfsSubvolumePath(metadata.subvolumePath().toString());
     row.setLogicalBytes(metadata.logicalBytes());
     row.setPhysicalBytes(metadata.physicalBytes());
-    row.setParentSnapshotId(metadata.parentId().map(SnapshotId::value).orElse(null));
+    row.setParentSnapshotId(null);
+    if (metadata.parentId().isPresent()) {
+      row.setParentSnapshotId(metadata.parentId().get().value());
+    }
     row.setSha256OfManifest(metadata.manifestSha256());
     return row;
   }
