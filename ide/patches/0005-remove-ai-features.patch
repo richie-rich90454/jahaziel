@@ -1,0 +1,18 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0005/0014] Remove AI features
+
+This patch removes Copilot Chat, ChatService, InlineChatService,
+LanguageModelService and their UI surfaces, @vscode/prompt-tsx, the
+"Continue with GitHub Copilot" onboarding flow, user-visible
+"Copilot"/"AI"/"chat" references, and the copilot extension
+recommendations.
+
+Rationale: no AI feature ships in the IDE. Users may install an
+extension from Open VSX; none is shipped or endorsed.
+
+Touches:
+  - built-in extension github.copilot-chat (removed)
+  - workbench chat/inline-chat/language-model services and UI
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: patch regression test fails without it and passes with it.
