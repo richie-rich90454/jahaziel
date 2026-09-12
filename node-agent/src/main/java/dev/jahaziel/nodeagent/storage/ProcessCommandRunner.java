@@ -32,8 +32,7 @@ public final class ProcessCommandRunner implements CommandRunner {
   public boolean exists(Path path) {
     Objects.requireNonNull(path, "path");
     try {
-      Process process =
-          new ProcessBuilder(List.of("test", "-e", path.toString())).start();
+      Process process = new ProcessBuilder(List.of("test", "-e", path.toString())).start();
       return process.waitFor() == 0;
     } catch (IOException | InterruptedException failure) {
       Thread.currentThread().interrupt();
