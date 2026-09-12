@@ -1,0 +1,25 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0008/0014] Point the marketplace at Open VSX
+
+This patch changes product.json extensionsGallery to Open VSX.
+
+Rationale: the Microsoft marketplace is proprietary Terms of Service.
+Open VSX serves every extension we need.
+
+Touches:
+  - product.json (extensionsGallery)
+
+Target extensionsGallery:
+  {
+    "serviceUrl": "https://open-vsx.org/vscode/gallery",
+    "itemUrl": "https://open-vsx.org/vscode/item",
+    "resourceUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension",
+    "extensionUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension"
+  }
+
+Consequences: Microsoft-only extensions (C#, Live Share, Copilot Chat,
+Remote-*) are unavailable. The gallery URL is a policy field, so an
+enterprise mirror needs no rebuild.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: install-from-Open-VSX smoke test.
