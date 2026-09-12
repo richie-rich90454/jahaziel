@@ -57,7 +57,7 @@ Install the jars to `/opt/jahaziel/`, secrets to `/etc/jahaziel/*.env`
 ```bash
 cp ops/systemd/*.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now jahaziel-control-plane jahaziel-node-agent jahaziel-gateway
+systemctl enable --now jahaziel-control-plane jahaziel-node-agent jahaziel-gateway jahaziel-sync-relay
 ```
 
 Flyway migrates the schema on control-plane start.
