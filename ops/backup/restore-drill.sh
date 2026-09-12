@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Quarterly restore drill against a sandbox node. Covers bare-metal host
-# restore, single-workspace restore, single-snapshot restore, and
-# point-in-time PostgreSQL restore. Record the result, do not automate
-# the verdict: a human signs off.
+
 set -euo pipefail
 
 SANDBOX="${1:?usage: restore-drill.sh <sandbox-host>}"
