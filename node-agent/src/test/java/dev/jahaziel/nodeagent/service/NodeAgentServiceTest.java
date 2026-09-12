@@ -12,8 +12,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.nodeagent.audit.AuditSpool;
+import dev.jahaziel.nodeagent.sync.SyncServer;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.QuotaBytes;
+import dev.jahaziel.spi.RuntimeRequest;
 import dev.jahaziel.spi.SnapshotHandle;
 import dev.jahaziel.spi.SnapshotTag;
 import dev.jahaziel.spi.WorkspaceHandle;
@@ -26,6 +28,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 /** Behavior of {@link NodeAgentService} with stubbed plugins and a real spool. */
 class NodeAgentServiceTest {
@@ -33,6 +36,7 @@ class NodeAgentServiceTest {
 
   private NodeBackend backend;
   private WorkspaceStorage storage;
+  private SyncServer sync;
   private NodeAgentService service;
   private UUID workspaceId;
   private UUID ownerId;
@@ -41,9 +45,43 @@ class NodeAgentServiceTest {
   void setUp() {
     backend = mock(NodeBackend.class);
     storage = mock(WorkspaceStorage.class);
-    service = new NodeAgentService(backend, storage, new AuditSpool(root));
+    sync = mock(SyncServer.class);
+    service = new NodeAgentService(backend, storage, new AuditSpool(root), sync);
     workspaceId = UUID.randomUUID();
     ownerId = UUID.randomUUID();
+  }
+
+  @Test
+  void prepareRegistersSync() {
+    WorkspaceHandle handle = handle();
+    when(backend.prepare(any())).thenReturn(handle);
+    service.prepareWorkspace(
+        workspaceId, ownerId, "base-image:2026.09", 2048, 2, new QuotaBytes(1));
+    verify(sync).register(workspaceId, Path.of("/home"), 1L);
+  }
+
+  @Test
+  void destroyDeregistersSync() {
+    WorkspaceHandle handle = handle();
+    service.destroyWorkspace(handle, false);
+    verify(backend).destroy(handle);
+    verify(sync).deregister(workspaceId);
+  }
+
+  @Test
+  void startAppendsSyncArgs() {
+    WorkspaceHandle handle = handle();
+    when(sync.secretFor(workspaceId)).thenReturn("s3cret");
+    RuntimeRequest request =
+        new RuntimeRequest(workspaceId, 2, 2048, 0, 0, 0, 5000, 4096, List.of());
+    service.startRuntime(handle, request);
+    ArgumentCaptor<RuntimeRequest> captor = ArgumentCaptor.forClass(RuntimeRequest.class);
+    verify(backend).start(captor.capture());
+    RuntimeRequest sent = captor.getValue();
+    assertEquals(2, sent.vcpuCount());
+    assertEquals(
+        List.of("jahaziel.workspace=" + workspaceId, "jahaziel.sync-secret=s3cret"),
+        sent.kernelCmdlineExtra());
   }
 
   @Test
