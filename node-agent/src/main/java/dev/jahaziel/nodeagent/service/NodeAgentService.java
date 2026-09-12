@@ -5,6 +5,7 @@
 package dev.jahaziel.nodeagent.service;
 
 import dev.jahaziel.nodeagent.audit.AuditSpool;
+import dev.jahaziel.nodeagent.sync.SyncServer;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.PrepareRequest;
 import dev.jahaziel.spi.RuntimeHandle;
@@ -18,6 +19,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +36,7 @@ public final class NodeAgentService implements NodeAgentOperations {
   private final NodeBackend backend;
   private final WorkspaceStorage storage;
   private final AuditSpool spool;
+  private final SyncServer sync;
   private final ConcurrentMap<String, String> ports = new ConcurrentHashMap<>();
 
   /**
@@ -42,11 +45,14 @@ public final class NodeAgentService implements NodeAgentOperations {
    * @param backend the node backend
    * @param storage the workspace storage
    * @param spool the audit spool
+   * @param sync the file-sync server
    */
-  public NodeAgentService(NodeBackend backend, WorkspaceStorage storage, AuditSpool spool) {
+  public NodeAgentService(
+      NodeBackend backend, WorkspaceStorage storage, AuditSpool spool, SyncServer sync) {
     this.backend = Objects.requireNonNull(backend, "backend");
     this.storage = Objects.requireNonNull(storage, "storage");
     this.spool = Objects.requireNonNull(spool, "spool");
+    this.sync = Objects.requireNonNull(sync, "sync");
   }
 
   @Override
@@ -66,6 +72,7 @@ public final class NodeAgentService implements NodeAgentOperations {
                 quota,
                 vcpuCount,
                 memoryMib));
+    sync.register(handle.workspaceId(), handle.homePath(), quota.value());
     audit(workspaceId, "workspace.prepare", Map.of("image", imageRef));
     return handle;
   }
@@ -73,7 +80,7 @@ public final class NodeAgentService implements NodeAgentOperations {
   @Override
   public void startRuntime(WorkspaceHandle handle, RuntimeRequest config) {
     Objects.requireNonNull(handle, "handle");
-    backend.start(config);
+    backend.start(withSyncArgs(handle, config));
     audit(handle.workspaceId(), "runtime.start", Map.of());
   }
 
@@ -88,6 +95,7 @@ public final class NodeAgentService implements NodeAgentOperations {
   public void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots) {
     Objects.requireNonNull(handle, "handle");
     backend.destroy(handle);
+    sync.deregister(handle.workspaceId());
     audit(handle.workspaceId(), "workspace.destroy", Map.of());
   }
 
@@ -145,6 +153,31 @@ public final class NodeAgentService implements NodeAgentOperations {
     Objects.requireNonNull(handle, "handle");
     ports.remove(handle.workspaceId() + ":" + port);
     audit(handle.workspaceId(), "port.detach", Map.of("port", Integer.toString(port)));
+  }
+
+  /**
+   * Copies a runtime request, appending the file-sync kernel arguments that hand the guest its
+   * workspace id and sync secret.
+   *
+   * @param handle the storage handle
+   * @param config the runtime configuration
+   * @return the configuration with sync arguments
+   */
+  private RuntimeRequest withSyncArgs(WorkspaceHandle handle, RuntimeRequest config) {
+    Objects.requireNonNull(config, "config");
+    List<String> extra = new ArrayList<>(config.kernelCmdlineExtra());
+    extra.add("jahaziel.workspace=" + handle.workspaceId());
+    extra.add("jahaziel.sync-secret=" + sync.secretFor(handle.workspaceId()));
+    return new RuntimeRequest(
+        config.workspaceId(),
+        config.vcpuCount(),
+        config.memoryMib(),
+        config.diskIopsLimit(),
+        config.diskBandwidthBytesPerSec(),
+        config.networkBandwidthBytesPerSec(),
+        config.networkConnectionsLimit(),
+        config.pidsLimit(),
+        List.copyOf(extra));
   }
 
   private void audit(UUID workspaceId, String action, Map<String, String> details) {
