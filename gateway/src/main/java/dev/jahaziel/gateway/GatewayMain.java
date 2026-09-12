@@ -14,8 +14,8 @@ import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
 
 /**
- * Gateway entry point. Wires the parser, verifier, directory, and relay, then serves. The
- * directory starts empty; the control plane pushes routes out of band.
+ * Gateway entry point. Wires the parser, verifier, directory, and relay, then serves. The directory
+ * starts empty; the control plane pushes routes out of band.
  */
 public final class GatewayMain {
   private GatewayMain() {}
@@ -34,7 +34,9 @@ public final class GatewayMain {
         new JwtVerifier(key, "https://code.jahaziel.dev", "jahaziel-code-server");
     GatewayServer server =
         new GatewayServer(
-            new HostParser(domain), verifier, new WorkspaceDirectory(),
+            new HostParser(domain),
+            verifier,
+            new WorkspaceDirectory(),
             new LoopbackTargetResolver());
     System.out.println("Gateway serving " + domain + " on port " + port);
     server.serve(port);
