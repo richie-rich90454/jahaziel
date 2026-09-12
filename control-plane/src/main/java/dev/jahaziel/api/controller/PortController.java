@@ -9,7 +9,6 @@ import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,7 +48,8 @@ public class PortController {
   @GetMapping("/workspaces/{id}/ports")
   public List<PortDto> list(@PathVariable UUID id) {
     var bindings = ports.bindingsByWorkspace(new WorkspaceId(id));
-    return bindings.stream().map(binding -> PortDto.from(binding, slugOf(binding), appDomain))
+    return bindings.stream()
+        .map(binding -> PortDto.from(binding, slugOf(binding), appDomain))
         .toList();
   }
 
