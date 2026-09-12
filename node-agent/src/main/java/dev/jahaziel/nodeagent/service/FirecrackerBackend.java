@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Firecracker node backend. Implements the plugin contract against jailer, Btrfs, cgroups, and
- * the Firecracker API: prepare storage and shell, boot, stop, destroy.
+ * Firecracker node backend. Implements the plugin contract against jailer, Btrfs, cgroups, and the
+ * Firecracker API: prepare storage and shell, boot, stop, destroy.
  */
 public final class FirecrackerBackend implements NodeBackend {
   private final BtrfsStorage storage;
