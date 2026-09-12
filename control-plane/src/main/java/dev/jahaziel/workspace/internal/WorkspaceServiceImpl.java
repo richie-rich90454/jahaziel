@@ -89,11 +89,10 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
     Workspace workspace =
         new Workspace(workspaceId, owner, name, WorkspaceQuota.defaults(), machine);
     String jail = WorkspacePaths.jailPath(storageRoot, workspaceId);
-    String disk = WorkspacePaths.diskPath(storageRoot, workspaceId);
     String home = WorkspacePaths.homePath(storageRoot, owner);
-    workspaces.save(WorkspaceMapper.toEntity(workspace, disk, home, jail));
+    workspaces.save(WorkspaceMapper.toEntity(workspace, home, jail));
     machines.save(
-        WorkspaceMapper.toMachineEntity(machine, workspaceId, nodeId.value(), disk, home, jail));
+        WorkspaceMapper.toMachineEntity(machine, workspaceId, nodeId.value(), home, jail));
     return workspace;
   }
 
