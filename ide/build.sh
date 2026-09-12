@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Builds Jahaziel Code from the pinned upstream tag plus the patch stack.
-# Requires: git, yarn 1.22.x, node 22 LTS.
+
 set -euo pipefail
 
 cd "$(dirname "$0")"
