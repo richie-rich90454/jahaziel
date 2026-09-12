@@ -47,6 +47,7 @@ import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.internal.RuntimeServiceImpl;
 import dev.jahaziel.runtime.internal.VmIdleCheckJob;
+import dev.jahaziel.runtime.persistence.VirtualMachineRepository;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.internal.DailySnapshotJob;
 import dev.jahaziel.snapshot.internal.SnapshotRetentionJob;
@@ -65,10 +66,8 @@ import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.internal.TerminalServiceImpl;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.internal.WorkspaceServiceImpl;
-import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
-import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import jakarta.persistence.EntityManager;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPrivateKey;
@@ -80,8 +79,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Service wiring. Every collaborator arrives by constructor; the scheduler starts after all
- * jobs are registered and stops with the context.
+ * Service wiring. Every collaborator arrives by constructor; the scheduler starts after all jobs
+ * are registered and stops with the context.
  */
 @Configuration
 public class AppConfig {
@@ -236,7 +235,8 @@ public class AppConfig {
       @Value("${jahaziel.snapshot.pre-delete-retention-days:90}") int preDeleteDays) {
     InProcessScheduler scheduler = new InProcessScheduler();
     scheduler.register(new DailySnapshotJob(snapshots, workspaces));
-    scheduler.register(new SnapshotRetentionJob(snapshots, workspaces, autoRetention, preDeleteDays, clock));
+    scheduler.register(
+        new SnapshotRetentionJob(snapshots, workspaces, autoRetention, preDeleteDays, clock));
     scheduler.register(new AuditRetentionJob(entities, retentionDays, clock));
     scheduler.register(new PartitionProvisionJob(entities, monthsAhead, clock));
     scheduler.register(new VmIdleCheckJob(workspaces, runtime));
@@ -244,8 +244,7 @@ public class AppConfig {
     scheduler.register(new HealthCheckJob(nodes, Duration.ofSeconds(60), clock));
     scheduler.register(new CleanupJob(workspaces, storageRoot));
     scheduler.register(new CacheWarmJob(storageRoot));
-    scheduler.register(
-        new AuditCollectorJob(new AuditSpoolReader(audit), Path.of(stagingDir)));
+    scheduler.register(new AuditCollectorJob(new AuditSpoolReader(audit), Path.of(stagingDir)));
     return scheduler;
   }
 
