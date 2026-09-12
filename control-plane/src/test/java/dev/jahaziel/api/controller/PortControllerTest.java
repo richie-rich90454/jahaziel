@@ -62,7 +62,7 @@ class PortControllerTest {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
     when(ports.bindingsByWorkspace(id))
         .thenThrow(new dev.jahaziel.workspace.api.WorkspaceNotFoundException(id));
-    mvc.perform(get("/api/v1/workspaces/" + id.value()))
+    mvc.perform(get("/api/v1/workspaces/" + id.value() + "/ports"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
