@@ -1,0 +1,4 @@
+# Keep patch files and shell scripts LF everywhere so `git apply`
+# and `bash` work on Linux checkouts and Windows checkouts alike.
+*.patch text eol=lf
+*.sh text eol=lf
