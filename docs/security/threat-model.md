@@ -41,8 +41,8 @@
 
 | Surface | Exposure | Mitigation |
 |---|---|---|
-| `code.jahaziel.dev:443` | Public | TLS 1.3 only; HSTS; CSP; per-IP rate limit 100 req/min |
-| `*.code.jahaziel.dev:443` | Public | Same; plus per-user rate limit 1000 req/min |
+| `code.example.com:443` | Public | TLS 1.3 only; HSTS; CSP; per-IP rate limit 100 req/min |
+| `*.code.example.com:443` | Public | Same; plus per-user rate limit 1000 req/min |
 | Gateway WebSocket upgrade | Public | Signed token in query param; token TTL 15 min; single-use |
 | Node agent Unix socket | Localhost | 0600 permission; owned by `jahaziel-node-agent`; uid check on accept |
 | Node agent TLS port 9443 | Localhost | mTLS; client cert from platform CA; IP allowlist |
