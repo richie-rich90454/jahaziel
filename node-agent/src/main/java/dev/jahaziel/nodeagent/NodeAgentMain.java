@@ -13,6 +13,8 @@ import dev.jahaziel.nodeagent.service.FirecrackerBackend;
 import dev.jahaziel.nodeagent.service.NodeAgentService;
 import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.ProcessCommandRunner;
+import dev.jahaziel.nodeagent.sync.SyncServer;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 
@@ -34,6 +36,12 @@ public final class NodeAgentMain {
     NodeAgentConfig config = NodeAgentConfig.loadFile(configPath);
     var commands = new ProcessCommandRunner();
     var storage = new FolderStorage(commands, config.storageRoot());
+    var sync = new SyncServer(SyncServer.LOOPBACK_PORT, Path.of(config.storageRoot(), "sync"));
+    try {
+      sync.start();
+    } catch (IOException failure) {
+      throw new IllegalStateException("sync server failed to start", failure);
+    }
     var backend =
         new FirecrackerBackend(
             storage,
@@ -43,7 +51,8 @@ public final class NodeAgentMain {
             commands,
             config);
     var service =
-        new NodeAgentService(backend, storage, new AuditSpool(Path.of(config.auditStagingDir())));
+        new NodeAgentService(
+            backend, storage, new AuditSpool(Path.of(config.auditStagingDir())), sync);
     System.out.println(
         "Node agent " + config.nodeId() + " ready: " + service.getClass().getSimpleName());
     new CountDownLatch(1).await();
