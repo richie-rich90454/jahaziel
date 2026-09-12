@@ -23,7 +23,6 @@ public interface NodeAgentOperations {
    * @param workspaceId the workspace identifier
    * @param ownerId the owning user identifier
    * @param imageRef the base image reference
-   * @param diskSizeBytes the root disk size in bytes
    * @param memoryMib guest memory in MiB
    * @param vcpuCount virtual CPU count
    * @param quota the home quota
@@ -33,7 +32,6 @@ public interface NodeAgentOperations {
       UUID workspaceId,
       UUID ownerId,
       String imageRef,
-      long diskSizeBytes,
       long memoryMib,
       int vcpuCount,
       QuotaBytes quota);
@@ -59,7 +57,7 @@ public interface NodeAgentOperations {
    * Destroys a workspace shell.
    *
    * @param handle the storage handle
-   * @param keepSnapshots whether snapshot subvolumes survive
+   * @param keepSnapshots whether snapshot folders survive
    */
   void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots);
 
@@ -82,7 +80,7 @@ public interface NodeAgentOperations {
   void restoreSnapshot(WorkspaceHandle handle, SnapshotHandle snapshot);
 
   /**
-   * Deletes a snapshot subvolume.
+   * Deletes a snapshot folder.
    *
    * @param snapshot the snapshot handle
    */
