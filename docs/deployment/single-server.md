@@ -12,7 +12,7 @@ Fresh Debian 12 install, one public IPv4, DNS pointed at the host.
 ## 1. Base
 
 ```bash
-apt-get update && apt-get install -y openjdk-25-jre postgresql-16 caddy btrfs-progs nftables
+apt-get update && apt-get install -y openjdk-25-jre postgresql-16 caddy nftables
 systemctl enable --now postgresql
 ```
 
@@ -24,13 +24,13 @@ sudo -u postgres psql -c "CREATE ROLE \"jahaziel-control-plane\" LOGIN PASSWORD 
 sudo -u postgres psql -c "CREATE ROLE \"jahaziel-audit-writer\" LOGIN PASSWORD 'secret';"
 ```
 
-Format and mount the data volume with the platform options:
+Create the storage root as plain folders on any filesystem; workspaces
+need no dedicated partition, disk image, or filesystem features:
 
 ```bash
-mkfs.btrfs -L jahaziel /dev/sda1
-echo '/dev/sda1 /var/lib/jahaziel btrfs compress=zstd:1,noatime,ssd,space_cache=v2,autodefrag 0 0' >> /etc/fstab
-mount /var/lib/jahaziel
-btrfs quota enable /var/lib/jahaziel
+mkdir -p /var/lib/jahaziel/{workspaces,images,jail,audit,replicas}
+chown -R jahaziel-node-agent:jahaziel-node-agent /var/lib/jahaziel
+chmod 0710 /var/lib/jahaziel
 ```
 
 ## 2. DNS and TLS
