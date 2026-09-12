@@ -42,9 +42,9 @@ public class SnapshotEntity {
   @Column(name = "created_by")
   private String createdBy;
 
-  /** Subvolume path on the host. */
-  @Column(name = "btrfs_subvolume_path")
-  private String btrfsSubvolumePath;
+  /** Snapshot folder path on the host. */
+  @Column(name = "snapshot_path")
+  private String snapshotPath;
 
   /** Logical size in bytes. */
   @Column(name = "logical_bytes")
@@ -129,14 +129,14 @@ public class SnapshotEntity {
     this.createdBy = createdBy;
   }
 
-  /** Gets the subvolume path on the host. */
-  public String getBtrfsSubvolumePath() {
-    return btrfsSubvolumePath;
+  /** Gets the snapshot folder path on the host. */
+  public String getSnapshotPath() {
+    return snapshotPath;
   }
 
-  /** Sets the subvolume path on the host. */
-  public void setBtrfsSubvolumePath(String btrfsSubvolumePath) {
-    this.btrfsSubvolumePath = btrfsSubvolumePath;
+  /** Sets the snapshot folder path on the host. */
+  public void setSnapshotPath(String snapshotPath) {
+    this.snapshotPath = snapshotPath;
   }
 
   /** Gets the logical size in bytes. */
