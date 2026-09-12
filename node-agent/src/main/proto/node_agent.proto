@@ -36,7 +36,7 @@ service NodeAgent {
 message PrepareWorkspaceRequest {
   string workspace_id = 1;               // UUID
   string image_ref = 2;                  // e.g. "base-image:2026.09"
-  int64 disk_size_bytes = 3;             // e.g. 21474836480 for 20 GiB
+  reserved 3;                            // was disk_size_bytes: workspaces are plain folders now
   int64 memory_mib = 4;                  // e.g. 2048
   int32 vcpu_count = 5;                  // e.g. 2
   string owner_user_id = 6;              // UUID, for logging only
@@ -44,8 +44,8 @@ message PrepareWorkspaceRequest {
 
 message PrepareWorkspaceResponse {
   string workspace_handle = 1;           // opaque handle to reference this workspace
-  string root_disk_path = 2;             // absolute path to rootfs.img
-  string home_subvolume_path = 3;        // absolute path to home subvolume
+  reserved 2;                            // was root_disk_path: no per-workspace disk anymore
+  string home_path = 3;                  // absolute path to the home folder
   int64 prepared_at_unix_ms = 4;
 }
 
@@ -118,7 +118,7 @@ message CreateSnapshotRequest {
 
 message CreateSnapshotResponse {
   string snapshot_handle = 1;
-  string btrfs_subvolume_path = 2;
+  string snapshot_path = 2;
   int64 logical_bytes = 3;
   int64 physical_bytes = 4;
   int64 created_at_unix_ms = 5;
@@ -133,7 +133,7 @@ message RestoreSnapshotRequest {
 
 message RestoreSnapshotResponse {
   bool restored = 1;
-  string new_home_subvolume_path = 2;
+  string new_home_path = 2;
   int64 restored_at_unix_ms = 3;
 }
 
