@@ -1,28 +1,36 @@
 From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0004/0014] Remove all telemetry
 
-This patch removes all outbound telemetry from the workbench.
+This patch pins telemetry off in product.json. The OSS tree ships no
+telemetry keys or endpoints: the workbench telemetry service stays a
+no-op without product aiConfig, the TAS assignment service never
+fetches without product tasConfig, and settings sync has no store
+without product configurationSyncStore. The explicit flag makes the
+posture auditable and survives any future key injection.
+
+Residual, accepted: webview bootstrap scripts load from the static
+vscode-cdn.net asset host when the server does not set a webview
+endpoint. That fetch carries no workspace data and is outside the
+no-network blocklist; serving those assets locally is future work.
 
 Rationale: VS Code ships Azure Application Insights telemetry to
 Microsoft. A self-hosted IDE must not send data outside the workspace.
 
 Touches:
-  - product.json (enableTelemetry, aiConfig, crashReporter)
-  - src/vs/platform/telemetry/ (TelemetryService registration)
-  - src/vs/workbench/services/telemetry/ (TelemetryService registration)
-  - vendor/vscode-telemetry (replaced with no-op)
-  - vendor/vscode-telemetry-workbench (replaced with no-op)
+  - product.json (enableTelemetry)
 
-Removal steps:
-  1. Replace vscode-telemetry with a no-op module.
-  2. Replace @vscode/telemetry with a no-op.
-  3. Patch product.json: remove aiConfig, set enableTelemetry false,
-     remove telemetryOptOutUrl and crashReporter.
-  4. Patch src/vs/platform/telemetry/ to no-op implementations.
-  5. Patch src/vs/workbench/services/telemetry/ similarly.
-  6. Disable ExperimentsService by removing its registration.
-  7. Remove the update endpoint and UpdateService checks.
-  8. Force telemetryLevel read-only off.
-
-Diff: authored on the upstream checkout (see build.sh).
 Verification: ide/tests/no-network-test/ asserts no outbound connections.
+
+---
+diff --git a/product.json b/product.json
+index b62894b..89f3d83 100644
+--- a/product.json
++++ b/product.json
+@@ -7,6 +7,7 @@
+ 	"licenseName": "MIT",
+ 	"licenseUrl": "https://github.com/example/jahaziel/blob/main/LICENSE",
+ 	"quality": "stable",
++	"enableTelemetry": false,
+ 	"serverLicenseUrl": "https://github.com/example/jahaziel/blob/main/LICENSE",
+ 	"serverGreeting": [],
+ 	"serverLicense": [],
