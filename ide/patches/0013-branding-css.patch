@@ -1,0 +1,11 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0013/0014] Apply brand theme tokens
+
+This patch ships the Jahaziel brand colors as CSS overrides with the
+web client. No core theme files are modified.
+
+Touches:
+  - ide/branding/branding.css (shipped alongside the client)
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: brand smoke test screenshots the workbench chrome.
