@@ -25,7 +25,6 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.internal.WorkspacePaths;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,8 +32,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Database-backed snapshots over workspace storage. Sizes and manifest hashes stay zero and
- * empty until verification measures them.
+ * Database-backed snapshots over workspace storage. Sizes and manifest hashes stay zero and empty
+ * until verification measures them.
  */
 public final class SnapshotServiceImpl implements SnapshotService {
   private final SnapshotRepository snapshots;
@@ -84,7 +83,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
     SnapshotHandle snapshot = storage.snapshot(handle, new SnapshotTag(tag));
     Optional<SnapshotId> parent =
         snapshots.findByWorkspaceId(workspaceId.value()).stream()
-            .max(Comparator.comparing(SnapshotEntity::getCreatedAt))
+            .max((left, right) -> left.getCreatedAt().compareTo(right.getCreatedAt()))
             .map(row -> new SnapshotId(row.getSnapshotId()));
     SnapshotMetadata metadata =
         new SnapshotMetadata(
@@ -123,7 +122,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
     Objects.requireNonNull(workspaceId, "workspaceId");
     return snapshots.findByWorkspaceId(workspaceId.value()).stream()
         .map(SnapshotMapper::toDomain)
-        .sorted(Comparator.comparing(SnapshotMetadata::createdAt).reversed())
+        .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
         .toList();
   }
 
@@ -170,10 +169,8 @@ public final class SnapshotServiceImpl implements SnapshotService {
   private WorkspaceHandle handleOf(Workspace workspace) {
     return new WorkspaceHandle(
         workspace.id().value(),
-        Path.of(
-            WorkspacePaths.diskPath(storageRoot, workspace.id())),
-        Path.of(
-            WorkspacePaths.homePath(storageRoot, workspace.owner())),
+        Path.of(WorkspacePaths.diskPath(storageRoot, workspace.id())),
+        Path.of(WorkspacePaths.homePath(storageRoot, workspace.owner())),
         Path.of(WorkspacePaths.jailPath(storageRoot, workspace.id())));
   }
 }
