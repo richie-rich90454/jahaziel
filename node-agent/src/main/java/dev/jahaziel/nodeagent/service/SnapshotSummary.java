@@ -26,9 +26,9 @@ public record SnapshotSummary(SnapshotHandle handle, String tag, Instant created
     Objects.requireNonNull(createdAt, "createdAt");
   }
 
-  /** Returns the snapshot subvolume path. */
-  public Path subvolumePath() {
-    return handle.subvolumePath();
+  /** Returns the snapshot folder path. */
+  public Path snapshotPath() {
+    return handle.snapshotPath();
   }
 
   /** Returns the snapshot identifier. */
