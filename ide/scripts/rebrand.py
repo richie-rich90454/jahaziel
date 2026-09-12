@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
+#
+
 """Generate the string-replacement patch from a mapping table.
 
 Walks the upstream tree, replaces runtime brand strings, and writes
