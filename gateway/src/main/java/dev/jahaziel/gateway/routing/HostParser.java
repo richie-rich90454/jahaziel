@@ -7,7 +7,7 @@ package dev.jahaziel.gateway.routing;
 import java.util.Objects;
 
 /**
- * Maps wildcard hosts to users and ports. The host {@code richard-8080.code.jahaziel.dev} maps to
+ * Maps wildcard hosts to users and ports. The host {@code richard-8080.code.example.com} maps to
  * user {@code richard} and port {@code 8080}: the split happens at the last dash, so slugs ending
  * in a number followed by a port stay unambiguous only by convention.
  */
@@ -17,7 +17,7 @@ public final class HostParser {
   /**
    * Creates the parser.
    *
-   * @param publicDomain the public domain, for example {@code code.jahaziel.dev}
+   * @param publicDomain the public domain, for example {@code code.example.com}
    */
   public HostParser(String publicDomain) {
     if (publicDomain == null || publicDomain.isBlank()) {
