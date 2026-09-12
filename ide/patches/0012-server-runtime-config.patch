@@ -1,0 +1,10 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0012/0014] Server runtime configuration
+
+This patch configures the server runtime for workspace VMs: data
+folder, socket paths, and the signed-token session handshake with the
+gateway. The server listens on the workspace loopback only and never
+accepts direct Internet connections.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: server boot smoke test inside a workspace VM.
