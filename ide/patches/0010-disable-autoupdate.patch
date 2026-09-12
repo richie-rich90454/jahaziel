@@ -1,9 +1,38 @@
 From: richie-rich90454 <rjiang880@gmail.com>
 Subject: [PATCH 0010/0014] Disable autoupdate
 
-This patch removes the update endpoint from product.json and neuters
-the UpdateService so it never checks. Updates ship with base images on
-the platform rollout schedule, never from inside a workspace.
+This patch removes the stable/insider quality-switch contribution,
+which the quality field would otherwise light up, and documents the
+neutered check path: the browser update service only checks when the
+embedder passes an update provider, and our server never does. The
+OSS tree carries no update endpoint to remove. Updates ship with base
+images on the platform rollout schedule, never from inside a
+workspace.
 
-Diff: authored on the upstream checkout (see build.sh).
+Touches:
+  - workbench update contribution (quality-switch registration)
+
 Verification: no update DNS or TCP in the no-network test.
+
+---
+diff --git a/src/vs/workbench/contrib/update/browser/update.contribution.ts b/src/vs/workbench/contrib/update/browser/update.contribution.ts
+index 4baf8e8..2c94c72 100644
+--- a/src/vs/workbench/contrib/update/browser/update.contribution.ts
++++ b/src/vs/workbench/contrib/update/browser/update.contribution.ts
+@@ -9,7 +9,7 @@ import { Registry } from '../../../../platform/registry/common/platform.js';
+ import { IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions } from '../../../common/contributions.js';
+ import { Categories } from '../../../../platform/action/common/actionCommonCategories.js';
+ import { MenuId, registerAction2, Action2 } from '../../../../platform/actions/common/actions.js';
+-import { ProductContribution, UpdateContribution, CONTEXT_UPDATE_STATE, SwitchProductQualityContribution, RELEASE_NOTES_URL, showReleaseNotesInEditor, DOWNLOAD_URL } from './update.js';
++import { ProductContribution, UpdateContribution, CONTEXT_UPDATE_STATE, RELEASE_NOTES_URL, showReleaseNotesInEditor, DOWNLOAD_URL } from './update.js';
+ import { LifecyclePhase } from '../../../services/lifecycle/common/lifecycle.js';
+ import product from '../../../../platform/product/common/product.js';
+ import { IUpdateService, StateType } from '../../../../platform/update/common/update.js';
+@@ -28,7 +28,6 @@ const workbench = Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensio
+ 
+ workbench.registerWorkbenchContribution(ProductContribution, LifecyclePhase.Restored);
+ workbench.registerWorkbenchContribution(UpdateContribution, LifecyclePhase.Restored);
+-workbench.registerWorkbenchContribution(SwitchProductQualityContribution, LifecyclePhase.Restored);
+ 
+ // Release notes
+ 
