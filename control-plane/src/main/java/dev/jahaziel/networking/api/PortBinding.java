@@ -18,7 +18,8 @@ import java.util.UUID;
  * @param protocol one of http, https, tcp
  * @param registeredAt when the binding was registered
  */
-public record PortBinding(UUID userId, int port, UUID workspaceId, String protocol, Instant registeredAt) {
+public record PortBinding(
+    UUID userId, int port, UUID workspaceId, String protocol, Instant registeredAt) {
   private static final Set<String> PROTOCOLS = Set.of("http", "https", "tcp");
 
   public PortBinding {
