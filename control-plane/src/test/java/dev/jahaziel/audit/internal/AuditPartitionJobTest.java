@@ -22,8 +22,7 @@ import org.junit.jupiter.api.Test;
 
 /** Behavior of the audit partition jobs with a stubbed entity manager. */
 class AuditPartitionJobTest {
-  private final Clock clock =
-      Clock.fixed(Instant.parse("2026-11-15T00:00:00Z"), ZoneOffset.UTC);
+  private final Clock clock = Clock.fixed(Instant.parse("2026-11-15T00:00:00Z"), ZoneOffset.UTC);
 
   @Test
   void retentionDropsExpiredPartitions() {
