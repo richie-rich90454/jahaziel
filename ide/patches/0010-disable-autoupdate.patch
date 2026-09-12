@@ -1,0 +1,9 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0010/0014] Disable autoupdate
+
+This patch removes the update endpoint from product.json and neuters
+the UpdateService so it never checks. Updates ship with base images on
+the platform rollout schedule, never from inside a workspace.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: no update DNS or TCP in the no-network test.
