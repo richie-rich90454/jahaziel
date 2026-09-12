@@ -33,8 +33,7 @@ class ExtensionDeciderTest {
 
   @Test
   void allowsListedExtension() {
-    when(policies.listByScope("global", null))
-        .thenReturn(List.of(doc("allow", null)));
+    when(policies.listByScope("global", null)).thenReturn(List.of(doc("allow", null)));
     assertEquals(Decision.ALLOW, decider.decide(request("1.2.3")));
   }
 
@@ -66,7 +65,6 @@ class ExtensionDeciderTest {
   }
 
   private static ExtensionRequest request(String version) {
-    return new ExtensionRequest(
-        "publisher.name", version, UUID.randomUUID(), UUID.randomUUID());
+    return new ExtensionRequest("publisher.name", version, UUID.randomUUID(), UUID.randomUUID());
   }
 }
