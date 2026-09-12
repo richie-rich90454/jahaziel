@@ -14,8 +14,8 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Marks nodes unhealthy when their heartbeat goes stale. Heartbeats arrive from the agent
- * poller; without a fresh heartbeat for the stale window the node stops receiving placements.
+ * Marks nodes unhealthy when their heartbeat goes stale. Heartbeats arrive from the agent poller;
+ * without a fresh heartbeat for the stale window the node stops receiving placements.
  */
 public final class HealthCheckJob implements PlatformJob {
   private final NodeService nodes;
@@ -39,8 +39,7 @@ public final class HealthCheckJob implements PlatformJob {
   public void run(JobContext context) {
     Instant cutoff = Instant.now(clock).minus(staleAfter);
     for (var node : nodes.list()) {
-      boolean stale =
-          node.lastHeartbeat().map(seen -> seen.isBefore(cutoff)).orElse(true);
+      boolean stale = node.lastHeartbeat().map(seen -> seen.isBefore(cutoff)).orElse(true);
       if (stale) {
         try {
           nodes.markUnhealthy(node.id(), "no heartbeat for " + staleAfter.getSeconds() + "s");
