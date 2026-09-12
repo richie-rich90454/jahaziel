@@ -1,0 +1,9 @@
+From: richie-rich90454 <rjiang880@gmail.com>
+Subject: [PATCH 0011/0014] Disable Microsoft settings sync
+
+This patch removes the Microsoft-hosted Settings Sync provider and its
+account entries. Sync, if ever wanted, points at platform storage, not
+Microsoft.
+
+Diff: authored on the upstream checkout (see build.sh).
+Verification: no sync endpoints in the no-network test.
