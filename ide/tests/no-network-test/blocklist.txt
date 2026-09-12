@@ -1,0 +1,10 @@
+*.microsoft.com
+*.visualstudio.com
+*.azure.com
+*.msecnd.net
+*.github.com
+*.githubusercontent.com
+*.bing.com
+*.live.com
+*.skype.com
+*.msn.com
