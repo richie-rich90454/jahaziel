@@ -23,3 +23,22 @@ enterprise mirror needs no rebuild.
 
 Diff: authored on the upstream checkout (see build.sh).
 Verification: install-from-Open-VSX smoke test.
+
+---
+diff --git a/product.json b/product.json
+index 0402527..19bf504 100644
+--- a/product.json
++++ b/product.json
+@@ -32,6 +32,12 @@
+ 	"reportIssueUrl": "https://github.com/example/jahaziel/issues/new",
+ 	"nodejsRepository": "https://nodejs.org",
+ 	"urlProtocol": "jahaziel-code",
++	"extensionsGallery": {
++		"serviceUrl": "https://open-vsx.org/vscode/gallery",
++		"itemUrl": "https://open-vsx.org/vscode/item",
++		"resourceUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension",
++		"extensionUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension"
++	},
+ 	"webviewContentExternalBaseUrlTemplate": "https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/",
+ 	"builtInExtensions": [
+ 		{
