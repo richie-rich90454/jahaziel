@@ -80,9 +80,9 @@ class WorkspaceServiceImplTest {
     ArgumentCaptor<VirtualMachineEntity> machineCaptor =
         ArgumentCaptor.forClass(VirtualMachineEntity.class);
     verify(machines).save(machineCaptor.capture());
-    String disk = "/var/lib/jahaziel/jail/" + workspace.id().value() + "/rootfs.img";
-    assertEquals(disk, machineCaptor.getValue().getDiskPath());
     assertEquals("node-a", machineCaptor.getValue().getNodeId());
+    assertEquals(
+        "/var/lib/jahaziel/jail/" + workspace.id().value(), machineCaptor.getValue().getJailPath());
     assertEquals(
         "/var/lib/jahaziel/workspaces/" + owner.value() + "/home",
         machineCaptor.getValue().getHomePath());
