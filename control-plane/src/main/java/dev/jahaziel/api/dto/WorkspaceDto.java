@@ -32,7 +32,7 @@ public record WorkspaceDto(
    * Maps a view to a DTO.
    *
    * @param view the view
-   * @param appDomain the public domain, for example {@code code.jahaziel.dev}
+   * @param appDomain the public domain, for example {@code code.example.com}
    * @return the DTO
    */
   public static WorkspaceDto from(WorkspaceView view, String appDomain) {
