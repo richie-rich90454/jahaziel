@@ -17,8 +17,8 @@ import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
- * Records hourly rollups. Live sampling from the agent Metrics feed replaces the provisional
- * zeros; one row per workspace per hour, skipped when already sampled this hour.
+ * Records hourly rollups. Live sampling from the agent Metrics feed replaces the provisional zeros;
+ * one row per workspace per hour, skipped when already sampled this hour.
  */
 public final class ResourceSamplingJob implements PlatformJob {
   private final MetricsService metrics;
@@ -42,7 +42,7 @@ public final class ResourceSamplingJob implements PlatformJob {
   @Override
   public synchronized void run(JobContext context) {
     LocalDateTime hour =
-        LocalDateTime.ofInstant(context.firedAt(), ZoneOffset.UTC)
+        LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)
             .withMinute(0)
             .withSecond(0)
             .withNano(0);
