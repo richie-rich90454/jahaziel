@@ -10,16 +10,16 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Opaque handle to a snapshot of a workspace home subvolume.
+ * Opaque handle to a snapshot of a workspace home folder.
  *
  * @param snapshotId the snapshot identifier
- * @param subvolumePath absolute path to the read-only snapshot subvolume
+ * @param snapshotPath absolute path to the read-only snapshot folder
  * @param createdAt when the snapshot was taken
  */
-public record SnapshotHandle(UUID snapshotId, Path subvolumePath, Instant createdAt) {
+public record SnapshotHandle(UUID snapshotId, Path snapshotPath, Instant createdAt) {
   public SnapshotHandle {
     Objects.requireNonNull(snapshotId, "snapshotId");
-    Objects.requireNonNull(subvolumePath, "subvolumePath");
+    Objects.requireNonNull(snapshotPath, "snapshotPath");
     Objects.requireNonNull(createdAt, "createdAt");
   }
 }
