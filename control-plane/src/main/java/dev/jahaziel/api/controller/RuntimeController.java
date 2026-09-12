@@ -90,9 +90,6 @@ public class RuntimeController {
    */
   @GetMapping("/workspaces/{id}/metrics")
   public MetricsDto metrics(@PathVariable UUID id) {
-    return metrics
-        .latest(new WorkspaceId(id))
-        .map(MetricsDto::from)
-        .orElseGet(MetricsDto::zero);
+    return metrics.latest(new WorkspaceId(id)).map(MetricsDto::from).orElseGet(MetricsDto::zero);
   }
 }
