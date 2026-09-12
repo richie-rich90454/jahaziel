@@ -145,8 +145,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
 
   private WorkspaceView viewOf(WorkspaceEntity row) {
     Workspace workspace = assemble(row);
-    return new WorkspaceView(
-        workspace, row.getCreatedAt(), row.getStateChangedAt(), UNKNOWN_USAGE);
+    return new WorkspaceView(workspace, row.getCreatedAt(), row.getStateChangedAt(), UNKNOWN_USAGE);
   }
 
   private Workspace assemble(WorkspaceEntity row) {
