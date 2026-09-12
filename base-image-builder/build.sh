@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Builds the base image: debootstrap, packages, toolchain, guest agent,
-# shell integration, IDE server, systemd, network, cleanup, compress, sign.
-# Run on the image build host (Debian 12, root, ~30 GB free).
+
 set -euo pipefail
 
 VERSION="${1:-2026.09}"
