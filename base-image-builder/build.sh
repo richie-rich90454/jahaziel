@@ -23,8 +23,12 @@ cp ../../guest-agent/target/release/jahaziel-guest-agent "$WORK/root/usr/local/b
 cp shell/jahaziel-shell-integration.sh "$WORK/root/etc/profile.d/"
 tar --use-compress-program="zstd -19" -xf ../../ide/out/jahaziel-code-server.tar.zst \
   -C "$WORK/root/opt"
+mv "$WORK/root/opt/vscode-reh-web-linux-x64" "$WORK/root/opt/jahaziel-code-server"
 
-systemd-nspawn -D "$WORK/root" systemctl enable jahaziel-guest-agent.service
+mkdir -p "$WORK/root/etc/systemd/system"
+cp systemd/*.service "$WORK/root/etc/systemd/system/"
+systemd-nspawn -D "$WORK/root" useradd -r -m -s /bin/bash jahaziel-guest
+systemd-nspawn -D "$WORK/root" systemctl enable jahaziel-guest-agent.service jahaziel-code-server.service
 
 # Guests boot the shared image read-only, so scratch paths live on tmpfs.
 cat >> "$WORK/root/etc/fstab" <<'EOF'
