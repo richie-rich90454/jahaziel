@@ -5,7 +5,6 @@
 package dev.jahaziel.gateway.proxy;
 
 import java.net.InetSocketAddress;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
