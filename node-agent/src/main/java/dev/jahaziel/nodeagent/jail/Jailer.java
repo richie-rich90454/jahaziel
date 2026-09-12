@@ -11,8 +11,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Jailer invocation and jail directories. Every workspace VM gets its own jail owned by a
- * per-VM UID.
+ * Jailer invocation and jail directories. Every workspace VM gets its own jail owned by a per-VM
+ * UID.
  */
 public final class Jailer {
   private final String jailerBinary;
