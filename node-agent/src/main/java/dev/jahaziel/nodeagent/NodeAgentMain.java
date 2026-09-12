@@ -11,7 +11,7 @@ import dev.jahaziel.nodeagent.firecracker.FirecrackerClient;
 import dev.jahaziel.nodeagent.jail.Jailer;
 import dev.jahaziel.nodeagent.service.FirecrackerBackend;
 import dev.jahaziel.nodeagent.service.NodeAgentService;
-import dev.jahaziel.nodeagent.storage.BtrfsStorage;
+import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.ProcessCommandRunner;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
@@ -33,7 +33,7 @@ public final class NodeAgentMain {
     Path configPath = configPath(args);
     NodeAgentConfig config = NodeAgentConfig.loadFile(configPath);
     var commands = new ProcessCommandRunner();
-    var storage = new BtrfsStorage(commands, config.storageRoot(), config.imagesDir());
+    var storage = new FolderStorage(commands, config.storageRoot());
     var backend =
         new FirecrackerBackend(
             storage,
