@@ -190,8 +190,8 @@ public final class Workspace {
   }
 
   /**
-   * Reboots a parked workspace into a fresh deployment cycle. The home subvolume is preserved
-   * by the agent across the reboot.
+   * Reboots a parked workspace into a fresh deployment cycle. The home subvolume is preserved by
+   * the agent across the reboot.
    */
   public void reboot() {
     if (!(state instanceof WorkspaceState.Suspended || state instanceof WorkspaceState.Failed)) {
