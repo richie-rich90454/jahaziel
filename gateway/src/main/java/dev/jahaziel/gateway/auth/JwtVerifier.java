@@ -37,11 +37,7 @@ public final class JwtVerifier {
     if (audience == null || audience.isBlank()) {
       throw new IllegalArgumentException("audience must not be blank");
     }
-    try {
-      this.verifier = new RSASSAVerifier(publicKey);
-    } catch (JOSEException failure) {
-      throw new IllegalArgumentException("invalid RSA public key", failure);
-    }
+    this.verifier = new RSASSAVerifier(publicKey);
     this.issuer = issuer;
     this.audience = audience;
   }
