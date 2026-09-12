@@ -54,7 +54,6 @@ public final class NodeAgentService implements NodeAgentOperations {
       UUID workspaceId,
       UUID ownerId,
       String imageRef,
-      long diskSizeBytes,
       long memoryMib,
       int vcpuCount,
       dev.jahaziel.spi.QuotaBytes quota) {
@@ -117,7 +116,7 @@ public final class NodeAgentService implements NodeAgentOperations {
   @Override
   public List<SnapshotSummary> listSnapshots(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
-    Path snaps = handle.homeSubvolumePath().getParent().resolve("snaps");
+    Path snaps = handle.homePath().getParent().resolve("snaps");
     try (Stream<Path> entries = Files.list(snaps)) {
       return entries
           .map(
