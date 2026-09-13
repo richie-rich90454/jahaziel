@@ -16,8 +16,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Samples host resources from /proc and the filesystem. Counter deltas stay in memory; the
- * collector reports them with the absolute values the control plane stores.
+ * Samples host resources (/proc on Linux, MXBean fallback elsewhere) and the filesystem. Counter
+ * deltas stay in memory; the collector reports them with the absolute values the control plane
+ * stores.
  */
 public final class NodeMetricsCollector {
   private final Path storageRoot;
@@ -48,24 +49,33 @@ public final class NodeMetricsCollector {
   }
 
   private long[] readMeminfo() {
-    long total = 0;
-    long available = 0;
-    try {
-      for (String line : Files.readAllLines(Paths.get("/proc/meminfo"))) {
-        String[] fields = line.trim().split("\\s+");
-        if (fields.length < 2) {
-          continue;
+    Path meminfo = Paths.get("/proc/meminfo");
+    if (Files.isRegularFile(meminfo)) {
+      long total = 0;
+      long available = 0;
+      try {
+        for (String line : Files.readAllLines(meminfo)) {
+          String[] fields = line.trim().split("\\s+");
+          if (fields.length < 2) {
+            continue;
+          }
+          if (fields[0].equals("MemTotal:")) {
+            total = Long.parseLong(fields[1]) * 1024;
+          } else if (fields[0].equals("MemAvailable:")) {
+            available = Long.parseLong(fields[1]) * 1024;
+          }
         }
-        if (fields[0].equals("MemTotal:")) {
-          total = Long.parseLong(fields[1]) * 1024;
-        } else if (fields[0].equals("MemAvailable:")) {
-          available = Long.parseLong(fields[1]) * 1024;
-        }
+      } catch (IOException | NumberFormatException failure) {
+        throw new UncheckedIOException(new IOException("cannot read /proc/meminfo", failure));
       }
-    } catch (IOException | NumberFormatException failure) {
-      throw new UncheckedIOException(new IOException("cannot read /proc/meminfo", failure));
+      return new long[] {Math.max(0, total - available), total};
     }
-    return new long[] {Math.max(0, total - available), total};
+    OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+    if (os instanceof com.sun.management.OperatingSystemMXBean host) {
+      long total = host.getTotalMemorySize();
+      return new long[] {Math.max(0, total - host.getFreeMemorySize()), total};
+    }
+    return new long[] {0, 0};
   }
 
   private double cpuUsagePercent() {
