@@ -6,10 +6,14 @@ package dev.jahaziel.api.controller;
 
 import dev.jahaziel.api.dto.MetricsDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
+import dev.jahaziel.authorization.api.AccessDeniedException;
+import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.monitoring.api.MetricsService;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import java.security.Principal;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +29,7 @@ public class RuntimeController {
   private final RuntimeService runtime;
   private final WorkspaceService workspaces;
   private final MetricsService metrics;
+  private final AuthorizationService auth;
   private final String appDomain;
 
   /**
@@ -33,16 +38,19 @@ public class RuntimeController {
    * @param runtime the runtime lifecycle
    * @param workspaces the workspace lookup for responses
    * @param metrics the metric rollups
+   * @param auth the authorization checks
    * @param appDomain the public domain
    */
   public RuntimeController(
       RuntimeService runtime,
       WorkspaceService workspaces,
       MetricsService metrics,
+      AuthorizationService auth,
       @Value("${jahaziel.domain}") String appDomain) {
     this.runtime = runtime;
     this.workspaces = workspaces;
     this.metrics = metrics;
+    this.auth = auth;
     this.appDomain = appDomain;
   }
 
@@ -50,46 +58,68 @@ public class RuntimeController {
    * Starts a workspace.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the workspace DTO
    */
   @PostMapping("/workspaces/{id}/start")
-  public WorkspaceDto start(@PathVariable UUID id) {
-    runtime.start(new WorkspaceId(id));
-    return WorkspaceDto.from(workspaces.describe(new WorkspaceId(id)), appDomain);
+  public WorkspaceDto start(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
+    runtime.start(workspace);
+    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
   }
 
   /**
    * Stops a workspace, preserving the home folder.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the workspace DTO
    */
   @PostMapping("/workspaces/{id}/stop")
-  public WorkspaceDto stop(@PathVariable UUID id) {
-    runtime.stop(new WorkspaceId(id));
-    return WorkspaceDto.from(workspaces.describe(new WorkspaceId(id)), appDomain);
+  public WorkspaceDto stop(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
+    runtime.stop(workspace);
+    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
   }
 
   /**
    * Restarts a workspace from its preserved home.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the workspace DTO
    */
   @PostMapping("/workspaces/{id}/restart")
-  public WorkspaceDto restart(@PathVariable UUID id) {
-    runtime.restart(new WorkspaceId(id));
-    return WorkspaceDto.from(workspaces.describe(new WorkspaceId(id)), appDomain);
+  public WorkspaceDto restart(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
+    runtime.restart(workspace);
+    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
   }
 
   /**
    * Returns current metrics. Zeros until the sampler records the first rollup.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the metrics DTO
    */
   @GetMapping("/workspaces/{id}/metrics")
-  public MetricsDto metrics(@PathVariable UUID id) {
-    return metrics.latest(new WorkspaceId(id)).map(MetricsDto::from).orElseGet(MetricsDto::zero);
+  public MetricsDto metrics(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "read");
+    return metrics.latest(workspace).map(MetricsDto::from).orElseGet(MetricsDto::zero);
+  }
+
+  private WorkspaceId require(Principal principal, UUID id, String permission) {
+    UserId user;
+    try {
+      user = new UserId(UUID.fromString(principal.getName()));
+    } catch (IllegalArgumentException failure) {
+      throw new IllegalArgumentException("principal is not a user id");
+    }
+    WorkspaceId workspace = new WorkspaceId(id);
+    if (!auth.isAllowed(user, permission, workspace)) {
+      throw new AccessDeniedException(user, permission);
+    }
+    return workspace;
   }
 }
