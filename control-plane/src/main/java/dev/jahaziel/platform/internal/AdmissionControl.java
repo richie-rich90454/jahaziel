@@ -40,7 +40,9 @@ public final class AdmissionControl {
     if (requestedMib <= available) {
       return new AdmissionDecision.Admit(requestedMib);
     }
-    if (requestedMib >= softFloorMib && (startedMib + softFloorMib) < totalMib * softLimitRatio) {
+    if (requestedMib >= softFloorMib
+        && softFloorMib <= available
+        && (startedMib + softFloorMib) < totalMib * softLimitRatio) {
       return new AdmissionDecision.Admit(softFloorMib);
     }
     return new AdmissionDecision.Refuse("Insufficient memory");
