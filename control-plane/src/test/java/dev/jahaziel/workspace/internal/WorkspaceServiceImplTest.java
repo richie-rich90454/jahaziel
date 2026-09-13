@@ -89,6 +89,17 @@ class WorkspaceServiceImplTest {
   }
 
   @Test
+  void createRejectsDuplicateName() {
+    when(users.get(owner)).thenReturn(new UserIdentity("sub", "a@b.c", "A", List.of(), List.of()));
+    WorkspaceEntity existing = mock(WorkspaceEntity.class);
+    when(existing.getName()).thenReturn("site");
+    when(workspaces.findByOwnerUserId(owner.value())).thenReturn(List.of(existing));
+    assertThrows(
+        IllegalArgumentException.class, () -> service.create(owner, "site", 2, 2048, nodeId));
+    verify(workspaces, never()).save(any());
+  }
+
+  @Test
   void createRequiresKnownOwner() {
     when(users.get(owner)).thenThrow(new UserNotFoundException(owner));
     assertThrows(UserNotFoundException.class, () -> service.create(owner, "site", 2, 2048, nodeId));
