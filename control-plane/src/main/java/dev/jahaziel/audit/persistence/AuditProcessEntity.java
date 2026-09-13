@@ -5,6 +5,7 @@
 package dev.jahaziel.audit.persistence;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -38,8 +39,9 @@ public class AuditProcessEntity {
   @Column(name = "exe_path")
   private String exePath;
 
-  /** Argument vector. */
-  @Column(name = "argv", columnDefinition = "text[]")
+  /** Argument vector, stored as JSON text so Postgres and SQLite share one mapping. */
+  @Column(name = "argv")
+  @Convert(converter = StringArrayConverter.class)
   private String[] argv;
 
   /** Exit code, null while running. */
@@ -62,8 +64,9 @@ public class AuditProcessEntity {
   @Column(name = "gid")
   private int gid;
 
-  /** Capabilities, null when not captured. */
-  @Column(name = "capabilities", columnDefinition = "text[]")
+  /** Capabilities, null when not captured, stored as JSON text. */
+  @Column(name = "capabilities")
+  @Convert(converter = StringArrayConverter.class)
   private String[] capabilities;
 
   /** Creates an empty instance for JPA. */
