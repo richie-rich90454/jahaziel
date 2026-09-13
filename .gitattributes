@@ -2,3 +2,5 @@
 # and `bash` work on Linux checkouts and Windows checkouts alike.
 *.patch text eol=lf
 *.sh text eol=lf
+*.ps1 text eol=lf
+*.bat text eol=crlf
