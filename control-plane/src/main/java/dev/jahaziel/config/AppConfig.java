@@ -34,7 +34,6 @@ import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.networking.internal.PortServiceImpl;
 import dev.jahaziel.networking.persistence.WorkspacePortRepository;
 import dev.jahaziel.node.api.NodeService;
-import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.node.internal.HealthCheckJob;
 import dev.jahaziel.node.internal.NodeServiceImpl;
 import dev.jahaziel.node.persistence.NodeRepository;
@@ -146,9 +145,8 @@ public class AppConfig {
   public RuntimeService runtime(
       NodeBackend backend,
       WorkspaceService workspaces,
-      @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef,
-      @Value("${jahaziel.node-id:node-a}") String nodeId) {
-    return new RuntimeServiceImpl(backend, workspaces, new ImageRef(imageRef), new NodeId(nodeId));
+      @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef) {
+    return new RuntimeServiceImpl(backend, workspaces, new ImageRef(imageRef));
   }
 
   /** Returns nodes. */
