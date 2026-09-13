@@ -12,4 +12,4 @@ Group=jahaziel-guest
 ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
 NoNewPrivileges=yes
 ProtectSystem=strict
-PrivateTmp=yes
+PrivateTmp=no
