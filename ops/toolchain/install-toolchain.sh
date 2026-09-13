@@ -76,6 +76,20 @@ install_apt_base() {
     python3 lsb-release debootstrap systemd-container e2fsprogs nftables shellcheck socat
 }
 
+install_users() {
+  for user in jahaziel-control-plane jahaziel-node-agent jahaziel-gateway; do
+    if id "$user" >/dev/null 2>&1; then
+      log "user $user already present, skipping"
+    else
+      log "creating service user $user"
+      run $SUDO useradd -r -s /usr/sbin/nologin "$user"
+    fi
+  done
+  run $SUDO mkdir -p /var/log/jahaziel /var/lib/jahaziel
+  run $SUDO chown jahaziel-node-agent:jahaziel-node-agent /var/lib/jahaziel
+  run $SUDO chmod 0710 /var/lib/jahaziel
+}
+
 install_postgres() {
   if have psql && psql --version 2>&1 | grep -q " 16\."; then
     log "PostgreSQL 16 already present, skipping"
@@ -140,7 +154,7 @@ install_go() {
   have jq || fail "jq is required to resolve the Go download"
   log "resolving latest Go 1.24 download"
   GO_FILE="$(curl -fsSL 'https://go.dev/dl/?mode=json' \
-    | jq -r '[.[0].files[] | select(.os=="linux" and .arch=="amd64" and .kind=="archive")][0].filename')"
+    | jq -r '[.[] | select(.version | startswith("go1.24")) | .files[] | select(.os=="linux" and .arch=="amd64" and .kind=="archive")][0].filename')"
   [ -n "$GO_FILE" ] && [ "$GO_FILE" != "null" ] || fail "could not resolve Go download"
   log "installing $GO_FILE to /usr/local/go"
   run curl -fsSL "https://go.dev/dl/$GO_FILE" -o /tmp/jahaziel-go.tar.gz
@@ -165,7 +179,9 @@ install_node() {
     return
   fi
   log "installing Yarn $YARN_VERSION"
-  run "$INSTALL_ROOT/node-20/bin/npm" install -g "yarn@$YARN_VERSION"
+  NPM="$(command -v npm || true)"
+  [ -n "$NPM" ] || NPM="$INSTALL_ROOT/node-20/bin/npm"
+  run "$NPM" install -g "yarn@$YARN_VERSION"
 }
 
 install_docker() {
@@ -236,12 +252,14 @@ report() {
 }
 
 install_apt_base
+install_users
 install_postgres
 install_protoc
 install_minisign
 install_java
 install_maven
 install_go
+export PATH="/opt/java-25/bin:/opt/maven/bin:/usr/local/go/bin:/opt/node-20/bin:$HOME/go/bin:$PATH"
 install_node
 install_docker
 install_caddy
@@ -249,7 +267,6 @@ install_go_plugins
 write_profile
 if [ "$DRY_RUN" = "0" ]; then
   # shellcheck disable=SC1091
-  export PATH="/opt/java-25/bin:/opt/maven/bin:/usr/local/go/bin:/opt/node-20/bin:$HOME/go/bin:$PATH"
   report
 else
   log "dry run: no changes made"
