@@ -38,8 +38,8 @@ public class AdminActionEntity {
   @Column(name = "target")
   private String target;
 
-  /** Action details as JSON. */
-  @Column(name = "details", columnDefinition = "jsonb")
+  /** Action details as JSON text. */
+  @Column(name = "details")
   private String details;
 
   /** Reason for the action. */
