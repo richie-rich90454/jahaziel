@@ -12,10 +12,14 @@ import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Database-backed extension policies. */
 public final class ExtensionPolicyServiceImpl implements ExtensionPolicyService {
+  private static final Set<String> SCOPES = Set.of("global", "user", "workspace");
+  private static final Set<String> ACTIONS = Set.of("allow", "block", "require_approval");
+
   private final ExtensionPolicyRepository policies;
 
   /**
@@ -30,14 +34,17 @@ public final class ExtensionPolicyServiceImpl implements ExtensionPolicyService 
   @Override
   public ExtensionPolicyDoc create(
       String scope, String scopeId, String extensionId, String action, String versionConstraint) {
-    if (scope == null || scope.isBlank()) {
-      throw new IllegalArgumentException("scope must not be blank");
+    if (!SCOPES.contains(scope)) {
+      throw new IllegalArgumentException("scope must be global, user, or workspace");
+    }
+    if (scope.equals("global") && scopeId != null) {
+      throw new IllegalArgumentException("global scope takes no scope id");
     }
     if (extensionId == null || extensionId.isBlank()) {
       throw new IllegalArgumentException("extensionId must not be blank");
     }
-    if (action == null || action.isBlank()) {
-      throw new IllegalArgumentException("action must not be blank");
+    if (!ACTIONS.contains(action)) {
+      throw new IllegalArgumentException("action must be allow, block, or require_approval");
     }
     ExtensionPolicyDoc doc =
         new ExtensionPolicyDoc(
