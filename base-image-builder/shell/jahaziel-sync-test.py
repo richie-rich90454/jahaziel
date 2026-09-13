@@ -126,6 +126,7 @@ class FakeServer:
                 return
             op = message.get("op")
             if op == "pull":
+                send_frame(conn, {"ready": True})
                 send_blob(conn, zip_of(self.home))
                 send_frame(conn, {"ok": True, "files": 1})
             elif op == "push":
@@ -225,7 +226,54 @@ def check_traversal_safe() -> None:
         assert not (Path(tmp) / "evil.txt").exists(), "no escape from the root"
         assert not (root / "abs.txt").exists(), "no absolute write"
         assert (root / "ok.txt").read_text(encoding="utf-8") == "ok"
+        # Backslash names bypass zipfile parsing (it normalizes os.sep on
+        # read), so drive _extract directly: empty and backslash names die.
+        kept = sync._extract(_FakeArchive(["a\\b.txt", "", "ok2.txt"]), root)
+        assert kept == {"ok2.txt"}, f"backslash entry refused: {kept}"
+        assert not (root / "a").exists(), "no backslash remap"
     print("traversal_safe ok")
+
+
+class _FakeEntry:
+    def __init__(self, name: str) -> None:
+        self.filename = name
+
+    def is_dir(self) -> bool:
+        return False
+
+
+class _FakeArchive:
+    def __init__(self, names: list) -> None:
+        self._names = names
+
+    def infolist(self) -> list:
+        return [_FakeEntry(name) for name in self._names]
+
+    def open(self, entry: _FakeEntry) -> io.BytesIO:
+        return io.BytesIO(b"x")
+
+
+def check_bad_frame_fails_clean() -> None:
+    first, second = socket.socketpair()
+    try:
+        second.sendall(struct.pack(">I", 0))
+        try:
+            sync.read_frame(first)
+        except ConnectionError:
+            pass
+        else:
+            raise AssertionError("empty frame was accepted")
+        second.sendall(struct.pack(">I", 4) + b"\xff\xfe\x00\x01")
+        try:
+            sync.read_frame(first)
+        except ConnectionError:
+            pass
+        else:
+            raise AssertionError("binary frame was accepted")
+    finally:
+        first.close()
+        second.close()
+    print("bad_frame ok")
 
 
 def check_run_helpers() -> None:
@@ -253,6 +301,7 @@ def main() -> int:
     check_round_trip()
     check_auth_denied()
     check_traversal_safe()
+    check_bad_frame_fails_clean()
     check_run_helpers()
     print("jahaziel-sync checks passed")
     return 0
