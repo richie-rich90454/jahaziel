@@ -93,4 +93,16 @@ class NioCommandRunnerTest {
     assertThrows(NullPointerException.class, () -> commands.run(null));
     assertThrows(NullPointerException.class, () -> commands.exists(null));
   }
+
+  @Test
+  void copyPreservesSymlinks() throws Exception {
+    Path src = root.resolve("src");
+    Files.createDirectories(src);
+    Files.writeString(src.resolve("real.txt"), "data");
+    Files.createSymbolicLink(src.resolve("link.txt"), Path.of("real.txt"));
+    Path dest = root.resolve("dest");
+    assertEquals("", commands.run(List.of("cp", "-a", src + "/.", dest.toString())));
+    assertTrue(Files.isSymbolicLink(dest.resolve("link.txt")));
+    assertEquals("real.txt", Files.readSymbolicLink(dest.resolve("link.txt")).toString());
+  }
 }
