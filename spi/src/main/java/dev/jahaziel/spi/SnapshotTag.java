@@ -7,8 +7,14 @@ package dev.jahaziel.spi;
 /** Human tag of a snapshot, unique per workspace. */
 public record SnapshotTag(String value) {
   public SnapshotTag {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("value must not be blank");
+    if (value == null
+        || value.isBlank()
+        || value.contains("..")
+        || value.contains("/")
+        || value.contains("\\")
+        || value.startsWith(".")
+        || java.nio.file.Path.of(value).isAbsolute()) {
+      throw new IllegalArgumentException("invalid snapshot tag: " + value);
     }
   }
 }
