@@ -13,4 +13,5 @@ Open VSX, the proprietary Live Share extension is uninstallable.
 Rationale: single-user workspaces have no real-time collaboration
 scope, and Live Share is proprietary.
 
-Verification: patch regression test fails without it and passes with it.
+Verification: no OSS code to assert on; enforcement is the Open VSX
+gallery pin in patch 0008, asserted by patch-smoke.sh (0008-gallery).
