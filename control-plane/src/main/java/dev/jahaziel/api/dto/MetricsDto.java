@@ -7,12 +7,13 @@ package dev.jahaziel.api.dto;
 import dev.jahaziel.monitoring.api.HourlyRollup;
 
 /**
- * Current metrics of a workspace for reads. Zeros until the sampler feeds live values.
+ * Current metrics of a workspace for reads. Zeros until the sampler feeds live values. Memory
+ * figures are hourly aggregates, not live gauges or capacity.
  *
  * @param cpuUsagePercent CPU usage percent
  * @param memoryUsedBytes guest memory used in bytes
- * @param memoryTotalBytes guest memory total in bytes
- * @param diskUsedBytes disk used in bytes
+ * @param memoryPeakBytes guest memory peak in bytes
+ * @param diskReadBytesPerSec disk read bytes per second
  * @param networkRxBytesPerSec network receive bytes per second
  * @param networkTxBytesPerSec network transmit bytes per second
  * @param processCount process count
@@ -20,8 +21,8 @@ import dev.jahaziel.monitoring.api.HourlyRollup;
 public record MetricsDto(
     double cpuUsagePercent,
     long memoryUsedBytes,
-    long memoryTotalBytes,
-    long diskUsedBytes,
+    long memoryPeakBytes,
+    long diskReadBytesPerSec,
     long networkRxBytesPerSec,
     long networkTxBytesPerSec,
     int processCount) {
