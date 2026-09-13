@@ -7,9 +7,13 @@ package dev.jahaziel.api.controller;
 import dev.jahaziel.api.dto.CreateWorkspaceRequest;
 import dev.jahaziel.api.dto.UserDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
+import dev.jahaziel.authorization.api.AccessDeniedException;
+import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
+import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
+import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import jakarta.validation.Valid;
@@ -33,6 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class WorkspaceController {
   private final WorkspaceService workspaces;
+  private final RuntimeService runtime;
+  private final AuthorizationService auth;
   private final UserService users;
   private final String appDomain;
   private final String defaultNode;
@@ -41,16 +47,22 @@ public class WorkspaceController {
    * Creates the controller.
    *
    * @param workspaces the workspace service
+   * @param runtime the runtime lifecycle for stop-before-delete
+   * @param auth the authorization checks
    * @param users the user lookup
    * @param appDomain the public domain
    * @param defaultNode the single node id until the scheduler lands
    */
   public WorkspaceController(
       WorkspaceService workspaces,
+      RuntimeService runtime,
+      AuthorizationService auth,
       UserService users,
       @Value("${jahaziel.domain}") String appDomain,
       @Value("${jahaziel.default-node:node-a}") String defaultNode) {
     this.workspaces = workspaces;
+    this.runtime = runtime;
+    this.auth = auth;
     this.users = users;
     this.appDomain = appDomain;
     this.defaultNode = defaultNode;
@@ -109,11 +121,12 @@ public class WorkspaceController {
    * Returns one workspace.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the workspace DTO
    */
   @GetMapping("/workspaces/{id}")
-  public WorkspaceDto get(@PathVariable UUID id) {
-    return WorkspaceDto.from(workspaces.describe(new WorkspaceId(id)), appDomain);
+  public WorkspaceDto get(@PathVariable UUID id, Principal principal) {
+    return WorkspaceDto.from(workspaces.describe(require(principal, id, "read")), appDomain);
   }
 
   /**
@@ -121,14 +134,33 @@ public class WorkspaceController {
    *
    * @param id the workspace identifier
    * @param confirm must be true
+   * @param principal the acting user
    */
   @DeleteMapping("/workspaces/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean confirm) {
+  public void delete(
+      @PathVariable UUID id,
+      @RequestParam(defaultValue = "false") boolean confirm,
+      Principal principal) {
     if (!confirm) {
       throw new IllegalArgumentException("deletion requires confirm=true");
     }
-    workspaces.delete(new WorkspaceId(id));
+    WorkspaceId workspace = require(principal, id, "admin");
+    try {
+      runtime.stop(workspace);
+    } catch (NodeAgentUnreachableException unreachable) {
+      // Fail-closed backend: nothing reachable to stop; still release the record.
+    }
+    workspaces.delete(workspace);
+  }
+
+  private WorkspaceId require(Principal principal, UUID id, String permission) {
+    UserId user = userId(principal);
+    WorkspaceId workspace = new WorkspaceId(id);
+    if (!auth.isAllowed(user, permission, workspace)) {
+      throw new AccessDeniedException(user, permission);
+    }
+    return workspace;
   }
 
   private static UserId userId(Principal principal) {
