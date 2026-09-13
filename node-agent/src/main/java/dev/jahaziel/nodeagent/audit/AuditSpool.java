@@ -55,9 +55,12 @@ public final class AuditSpool {
   /**
    * Lists spooled files.
    *
-   * @return the spooled file paths
+   * @return the spooled file paths, empty before the first append
    */
   public List<Path> spooled() {
+    if (!Files.isDirectory(stagingDir)) {
+      return List.of();
+    }
     try (Stream<Path> files = Files.list(stagingDir)) {
       return files.filter(path -> path.toString().endsWith(".jsonl")).toList();
     } catch (IOException failure) {
