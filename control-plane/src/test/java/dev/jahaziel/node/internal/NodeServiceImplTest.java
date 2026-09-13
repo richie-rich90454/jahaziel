@@ -63,6 +63,16 @@ class NodeServiceImplTest {
   }
 
   @Test
+  void concurrentDuplicateRegisterThrows() {
+    when(nodes.existsById(nodeId.value())).thenReturn(false);
+    when(nodes.save(any()))
+        .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> service.register(nodeId, "Primary node", "default", capacity, "sha256:abc"));
+  }
+
+  @Test
   void getMissingThrowsWithId() {
     when(nodes.findById(nodeId.value())).thenReturn(Optional.empty());
     NodeNotFoundException failure =
