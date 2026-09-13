@@ -6,7 +6,11 @@ package dev.jahaziel.identity.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.api.JwtService;
@@ -60,13 +64,18 @@ class JwtAuthenticationFilterTest {
   }
 
   @Test
-  void clearsContextOnRejection() throws Exception {
+  void rejectsInvalidToken() throws Exception {
     JwtService tokens = mock(JwtService.class);
     when(tokens.verify("bad")).thenThrow(new RuntimeException("nope"));
     JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, user -> List.of());
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader("Authorization", "Bearer bad");
-    filter.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain chain = mock(FilterChain.class);
+    filter.doFilter(request, response, chain);
     assertNull(SecurityContextHolder.getContext().getAuthentication());
+    assertEquals(401, response.getStatus());
+    assertTrue(response.getContentAsString().contains("AUTH_INVALID"));
+    verify(chain, never()).doFilter(any(), any());
   }
 }
