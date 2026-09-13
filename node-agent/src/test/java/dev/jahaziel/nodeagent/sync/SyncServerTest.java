@@ -142,6 +142,18 @@ class SyncServerTest {
   }
 
   @Test
+  void pushKeepsDottedNames() throws Exception {
+    try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
+      session.send(Map.of("op", "push"));
+      assertEquals(true, session.frame().get("ready"));
+      session.blob(zip(Map.of("my..notes.txt", "dots", "a/../ok.txt", "ok")));
+      assertEquals(true, session.frame().get("ok"));
+    }
+    assertEquals("dots", read(home.resolve("my..notes.txt")));
+    assertEquals("ok", read(home.resolve("ok.txt")));
+  }
+
+  @Test
   void pushEnforcesQuota() throws Exception {
     server.register(workspaceId, home, 64);
     try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
