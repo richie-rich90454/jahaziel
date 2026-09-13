@@ -4,17 +4,20 @@
  */
 package dev.jahaziel.api.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import java.security.Principal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -32,12 +35,18 @@ class PortControllerTest {
 
   private UserService users;
 
+  private AuthorizationService auth;
+
+  private final Principal principal = () -> UUID.randomUUID().toString();
+
   @BeforeEach
   void setUp() {
     ports = mock(PortService.class);
     users = mock(UserService.class);
+    auth = mock(AuthorizationService.class);
+    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     mvc =
-        MockMvcBuilders.standaloneSetup(new PortController(ports, users, "code.test"))
+        MockMvcBuilders.standaloneSetup(new PortController(ports, users, auth, "code.test"))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
   }
@@ -51,7 +60,9 @@ class PortControllerTest {
     when(ports.bindingsByWorkspace(new WorkspaceId(workspace))).thenReturn(List.of(binding));
     when(users.slug(new UserId(user))).thenReturn("richard");
     mvc.perform(
-            get("/api/v1/workspaces/" + workspace + "/ports").accept(MediaType.APPLICATION_JSON))
+            get("/api/v1/workspaces/" + workspace + "/ports")
+                .principal(principal)
+                .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].port").value(8080))
         .andExpect(jsonPath("$[0].url").value("https://richard-8080.code.test"));
@@ -62,7 +73,7 @@ class PortControllerTest {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
     when(ports.bindingsByWorkspace(id))
         .thenThrow(new dev.jahaziel.workspace.api.WorkspaceNotFoundException(id));
-    mvc.perform(get("/api/v1/workspaces/" + id.value() + "/ports"))
+    mvc.perform(get("/api/v1/workspaces/" + id.value() + "/ports").principal(principal))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
