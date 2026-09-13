@@ -78,6 +78,12 @@ public final class SnapshotServiceImpl implements SnapshotService {
     if (createdBy == null || createdBy.isBlank()) {
       throw new IllegalArgumentException("createdBy must not be blank");
     }
+    boolean tagTaken =
+        snapshots.findByWorkspaceId(workspaceId.value()).stream()
+            .anyMatch(row -> row.getTag().equals(tag));
+    if (tagTaken) {
+      throw new IllegalArgumentException("snapshot tag already exists: " + tag);
+    }
     Workspace workspace = workspaces.get(workspaceId);
     var handle = handleOf(workspace);
     SnapshotHandle snapshot = storage.snapshot(handle, new SnapshotTag(tag));
@@ -129,6 +135,9 @@ public final class SnapshotServiceImpl implements SnapshotService {
   @Override
   public void restore(WorkspaceId workspaceId, SnapshotId snapshotId) {
     SnapshotEntity row = rowOf(snapshotId);
+    if (!row.getWorkspaceId().equals(workspaceId.value())) {
+      throw new IllegalArgumentException("snapshot does not belong to workspace");
+    }
     Workspace workspace = workspaces.get(workspaceId);
     storage.restore(
         handleOf(workspace),
