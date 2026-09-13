@@ -43,7 +43,7 @@ WORD_MAPPING = [
     (r"\bvscode\b", "jahaziel-code"),
 ]
 
-TEXT_SUFFIXES = {".ts", ".js", ".json", ".html", ".css", ".xml", ".yml"}
+TEXT_SUFFIXES = {".ts", ".js", ".json", ".html", ".css", ".xml", ".yml", ".yaml"}
 
 SKIP_DIRS = {".git", "node_modules", "out", ".build", "test", "tests", "dist"}
 
@@ -53,6 +53,7 @@ SKIP_FILES = {
     "yarn.lock",
     "product.json",
     "vscode.d.ts",
+    "cgmanifest.json",
 }
 
 SKIP_LINE = re.compile(
@@ -70,6 +71,11 @@ SKIP_LINE = re.compile(
             r'"vscode"\s*:',
             r"\bvscode\.",
             r"\.vscode(?!-oss)",
+            r"vscode-(remote|resource|webview)",
+            r"--vscode-",
+            r"Microsoft\.PowerShell",
+            r"WindowsApps",
+            r"customizations/vscode",
         ]
     )
 )
