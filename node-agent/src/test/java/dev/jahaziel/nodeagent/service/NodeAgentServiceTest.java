@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,6 +70,13 @@ class NodeAgentServiceTest {
   }
 
   @Test
+  void destroyKeepsSnapshotsWhenAsked() {
+    WorkspaceHandle handle = handle();
+    service.destroyWorkspace(handle, true);
+    verify(storage, never()).deleteSnapshot(any());
+  }
+
+  @Test
   void startAppendsSyncArgs() {
     WorkspaceHandle handle = handle();
     when(sync.secretFor(workspaceId)).thenReturn("s3cret");
@@ -120,7 +128,7 @@ class NodeAgentServiceTest {
   @Test
   void listsSnapshotsFromDisk() throws Exception {
     WorkspaceHandle handle = handle();
-    Path snaps = root.resolve("snaps");
+    Path snaps = root.resolve("snaps").resolve(workspaceId.toString());
     Files.createDirectories(snaps);
     Files.createDirectory(snaps.resolve("daily"));
     WorkspaceHandle withHome =
@@ -129,6 +137,7 @@ class NodeAgentServiceTest {
     List<SnapshotSummary> listed = service.listSnapshots(withHome);
     assertEquals(1, listed.size());
     assertEquals("daily", listed.get(0).tag());
+    assertEquals(service.listSnapshots(withHome).get(0).snapshotId(), listed.get(0).snapshotId());
   }
 
   private WorkspaceHandle handle() {
