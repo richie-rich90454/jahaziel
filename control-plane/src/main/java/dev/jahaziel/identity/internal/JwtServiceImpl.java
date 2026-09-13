@@ -115,6 +115,10 @@ public final class JwtServiceImpl implements JwtService {
     if (expiry == null || !expiry.after(new Date())) {
       throw new JwtRejectedException("expired or missing expiry");
     }
+    Date notBefore = claims.getNotBeforeTime();
+    if (notBefore != null && notBefore.after(new Date())) {
+      throw new JwtRejectedException("not yet valid");
+    }
     UserId user = new UserId(uuid(claims, "sub"));
     Optional<UUID> workspace = Optional.empty();
     try {
