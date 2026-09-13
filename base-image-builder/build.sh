@@ -7,9 +7,12 @@
 set -euo pipefail
 
 VERSION="${1:-2026.09}"
-ROOT="$(dirname "$0")"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 WORK="$ROOT/work-$VERSION"
 OUT="$ROOT/base-image-$VERSION.ext4.zst"
+
+: "${JAHAZIEL_SIGNING_KEY:?set JAHAZIEL_SIGNING_KEY to the signing key path}"
 
 rm -rf "$WORK"
 mkdir -p "$WORK/root"
@@ -19,7 +22,7 @@ debootstrap --variant=minbase bookworm "$WORK/root" http://deb.debian.org/debian
 systemd-nspawn -D "$WORK/root" apt-get install -y --no-install-recommends \
   $(grep -v '^#' "$ROOT/packages.txt" | grep -v '^$' | tr '\n' ' ')
 
-cp ../../guest-agent/target/release/jahaziel-guest-agent "$WORK/root/usr/local/bin/"
+(cd "$ROOT/../guest-agent" && go build -o "$WORK/root/usr/local/bin/jahaziel-guest-agent" ./...)
 cp shell/jahaziel-shell-integration.sh "$WORK/root/etc/profile.d/"
 cp shell/jahaziel-sync.py "$WORK/root/usr/local/bin/jahaziel-sync"
 chmod 0755 "$WORK/root/usr/local/bin/jahaziel-sync"
