@@ -44,6 +44,3 @@ bubblewrap
 # Timezone, locale
 tzdata
 locales
-
-# Base image metadata
-jahaziel-base-image-meta
