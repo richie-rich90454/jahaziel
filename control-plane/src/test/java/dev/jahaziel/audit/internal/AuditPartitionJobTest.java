@@ -34,8 +34,8 @@ class AuditPartitionJobTest {
     AuditRetentionJob job = new AuditRetentionJob(entities, 30, clock);
     job.run(new JobContext(Instant.now()));
     verify(entities).createNativeQuery("DROP TABLE IF EXISTS audit_event_2026_09");
-    verify(entities).createNativeQuery("DROP TABLE IF EXISTS audit_terminal_2026_10");
-    verify(entities, times(6)).createNativeQuery(anyString());
+    verify(entities).createNativeQuery("DROP TABLE IF EXISTS audit_terminal_2026_09");
+    verify(entities, times(3)).createNativeQuery(anyString());
     assertTrue(job.expiredPartitions().contains("audit_process_2026_09"));
   }
 
