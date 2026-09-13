@@ -40,6 +40,7 @@ VSOCK_PORT = 9002
 RETRIES = 30
 RETRY_DELAY_SECONDS = 2
 SOCKET_TIMEOUT_SECONDS = 30
+MAX_FRAME_BYTES = 16 * 1024 * 1024
 WORKSPACE_DIR = Path("/tmp/jahaziel/workspace")
 
 
@@ -51,6 +52,8 @@ def read_frame(conn: socket.socket) -> dict:
             raise ConnectionError("server closed the connection")
         raw += chunk
     (size,) = struct.unpack(">I", raw)
+    if size > MAX_FRAME_BYTES:
+        raise ConnectionError(f"oversize frame: {size}")
     payload = b""
     while len(payload) < size:
         chunk = conn.recv(min(65536, size - len(payload)))
@@ -100,12 +103,13 @@ def zip_tree(root: Path) -> tuple[bytes, int]:
 
 def unzip_tree(payload: bytes, root: Path) -> set[str]:
     written: set[str] = set()
+    base = root.resolve()
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         for entry in archive.infolist():
             if entry.is_dir():
                 continue
             target = (root / entry.filename).resolve()
-            if root.resolve() not in target.parents:
+            if base not in target.parents:
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(entry) as source, open(target, "wb") as dest:
@@ -114,7 +118,7 @@ def unzip_tree(payload: bytes, root: Path) -> set[str]:
                     if not chunk:
                         break
                     dest.write(chunk)
-            written.add(entry.filename)
+            written.add(target.relative_to(base).as_posix())
     return written
 
 
@@ -190,6 +194,9 @@ def run_pull(workspace: str, secret: str, target: Path) -> int:
         target.mkdir(parents=True, exist_ok=True)
         count = pull(conn, target)
         write_frame(conn, {"op": "bye"})
+        reply = read_frame(conn)
+        if not reply.get("ok"):
+            raise ConnectionError(reply.get("error", "bye rejected"))
         return count
     finally:
         conn.close()
@@ -201,6 +208,9 @@ def run_push(workspace: str, secret: str, source: Path) -> int:
         hello(conn, workspace, secret)
         count = push(conn, source)
         write_frame(conn, {"op": "bye"})
+        reply = read_frame(conn)
+        if not reply.get("ok"):
+            raise ConnectionError(reply.get("error", "bye rejected"))
         return count
     finally:
         conn.close()
