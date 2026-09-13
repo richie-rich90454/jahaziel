@@ -77,9 +77,9 @@ public final class LocalProcessBackend implements NodeBackend {
   public void destroy(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
     requirePrepared(handle.workspaceId());
+    storage.destroy(handle);
     running.remove(handle.workspaceId());
     prepared.remove(handle.workspaceId());
-    storage.destroy(handle);
   }
 
   /**
