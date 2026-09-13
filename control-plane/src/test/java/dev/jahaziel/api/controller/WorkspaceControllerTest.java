@@ -16,8 +16,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.domain.VirtualMachine;
 import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
 import dev.jahaziel.runtime.domain.VirtualMachineId;
@@ -49,6 +51,10 @@ class WorkspaceControllerTest {
 
   private WorkspaceService workspaces;
 
+  private RuntimeService runtime;
+
+  private AuthorizationService auth;
+
   private UserService users;
 
   private final UserId userId = new UserId(UUID.randomUUID());
@@ -58,12 +64,15 @@ class WorkspaceControllerTest {
   @BeforeEach
   void setUp() {
     workspaces = mock(WorkspaceService.class);
+    runtime = mock(RuntimeService.class);
+    auth = mock(AuthorizationService.class);
     users = mock(UserService.class);
+    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     var validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();
     mvc =
         MockMvcBuilders.standaloneSetup(
-                new WorkspaceController(workspaces, users, "code.test", "node-a"))
+                new WorkspaceController(workspaces, runtime, auth, users, "code.test", "node-a"))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)
             .build();
@@ -128,6 +137,15 @@ class WorkspaceControllerTest {
     mvc.perform(get("/api/v1/workspaces/" + id.value()).principal(principal))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+  }
+
+  @Test
+  void forbiddenWorkspaceIsForbidden() throws Exception {
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    when(auth.isAllowed(eq(userId), eq("read"), eq(id))).thenReturn(false);
+    mvc.perform(get("/api/v1/workspaces/" + id.value()).principal(principal))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("FORBIDDEN"));
   }
 
   @Test
