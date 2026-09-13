@@ -45,6 +45,7 @@
     <module>control-plane</module>
     <module>node-agent</module>
     <module>gateway</module>
+    <module>dist</module>
     <module>e2e</module>
   </modules>
 
@@ -53,13 +54,16 @@
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <spring-boot.version>4.1.0</spring-boot.version>
-    <spring-framework.version>7.0.0</spring-framework.version>
+    <!-- Must match spring-boot-dependencies or context startup breaks (YamlProcessor ABI). -->
+    <spring-framework.version>7.0.8</spring-framework.version>
     <postgresql.version>42.7.13</postgresql.version>
+    <sqlite-jdbc.version>3.47.2.0</sqlite-jdbc.version>
     <flyway.version>13.6.0</flyway.version>
     <hikaricp.version>5.1.0</hikaricp.version>
     <jackson.version>2.17.2</jackson.version>
-    <micrometer.version>1.13.5</micrometer.version>
-    <spring-security.version>6.3.4</spring-security.version>
+    <micrometer.version>1.17.0</micrometer.version>
+    <!-- Must match spring-boot-dependencies or auto-config conditions break at startup. -->
+    <spring-security.version>7.1.0</spring-security.version>
     <nimbus-jose-jwt.version>9.40</nimbus-jose-jwt.version>
     <protobuf.version>4.28.2</protobuf.version>
     <grpc.version>1.67.1</grpc.version>
@@ -104,6 +108,7 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
               <excludes>
                 <exclude>mvnw</exclude>
                 <exclude>mvnw.cmd</exclude>
+                <exclude>jahaziel.bat</exclude>
                 <exclude>.mvn/**</exclude>
                 <exclude>LICENSE</exclude>
                 <!-- Machine-consumed package list; keeps its own hash comments. -->
