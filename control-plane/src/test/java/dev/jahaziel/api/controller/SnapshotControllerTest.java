@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.runtime.domain.VirtualMachine;
 import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
@@ -47,6 +48,7 @@ class SnapshotControllerTest {
 
   private SnapshotService snapshots;
   private WorkspaceService workspaces;
+  private AuthorizationService auth;
 
   private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
   private final Principal principal = () -> UUID.randomUUID().toString();
@@ -55,10 +57,13 @@ class SnapshotControllerTest {
   void setUp() {
     snapshots = mock(SnapshotService.class);
     workspaces = mock(WorkspaceService.class);
+    auth = mock(AuthorizationService.class);
+    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     var validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();
     mvc =
-        MockMvcBuilders.standaloneSetup(new SnapshotController(snapshots, workspaces, "code.test"))
+        MockMvcBuilders.standaloneSetup(
+                new SnapshotController(snapshots, workspaces, auth, "code.test"))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)
             .build();
@@ -67,7 +72,8 @@ class SnapshotControllerTest {
   @Test
   void listsSnapshots() throws Exception {
     when(snapshots.list(workspaceId)).thenReturn(List.of(metadata()));
-    mvc.perform(get("/api/v1/workspaces/" + workspaceId.value() + "/snapshots"))
+    mvc.perform(
+            get("/api/v1/workspaces/" + workspaceId.value() + "/snapshots").principal(principal))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].tag").value("daily"))
         .andExpect(jsonPath("$[0].kind").value("manual"));
@@ -104,12 +110,12 @@ class SnapshotControllerTest {
     when(workspaces.describe(workspaceId))
         .thenReturn(new WorkspaceView(workspace(), at, at, new StorageUsage(0, 0, 0, 0)));
     mvc.perform(
-            post(
-                "/api/v1/workspaces/"
+            post("/api/v1/workspaces/"
                     + workspaceId.value()
                     + "/snapshots/"
                     + snapshotId.value()
-                    + "/restore"))
+                    + "/restore")
+                .principal(principal))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.workspaceId").value(workspaceId.value().toString()));
     verify(snapshots).restore(workspaceId, snapshotId);
