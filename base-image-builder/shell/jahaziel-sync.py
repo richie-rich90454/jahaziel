@@ -16,7 +16,7 @@ Protocol (JSON control frames are u32be-length-prefixed, ZIP blobs are
 u64be-length-prefixed). Both directions mirror: files absent from the
 incoming tree are deleted, so renames and deletions propagate.
   hello {"v":1,"op":"hello","workspace":...,"secret":...} -> {"ok":true}
-  pull  {"op":"pull"} -> ZIP blob -> {"ok":true,"files":N}
+  pull  {"op":"pull"} -> {"ready":true} -> ZIP blob -> {"ok":true,"files":N}
   push  {"op":"push"} -> {"ready":true} -> client sends ZIP -> {"ok":true}
   bye   {"op":"bye"} -> {"ok":true}
 
@@ -25,15 +25,22 @@ Test hooks (never set in production): JAHAZIEL_SYNC_FAMILY=tcp,
 JAHAZIEL_SYNC_HOST, JAHAZIEL_SYNC_PORT.
 """
 
+import contextlib
 import io
 import json
 import os
 import socket
 import struct
 import sys
+import tempfile
 import time
 import zipfile
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
 
 VSOCK_CID = 2
 VSOCK_PORT = 9002
@@ -41,7 +48,9 @@ RETRIES = 30
 RETRY_DELAY_SECONDS = 2
 SOCKET_TIMEOUT_SECONDS = 30
 MAX_FRAME_BYTES = 16 * 1024 * 1024
+MAX_BLOB_BYTES = 32 * 1024**3
 WORKSPACE_DIR = Path("/tmp/jahaziel/workspace")
+LOCK_FILE = Path("/tmp/jahaziel/sync.lock")
 
 
 def read_frame(conn: socket.socket) -> dict:
@@ -52,6 +61,8 @@ def read_frame(conn: socket.socket) -> dict:
             raise ConnectionError("server closed the connection")
         raw += chunk
     (size,) = struct.unpack(">I", raw)
+    if size == 0:
+        raise ConnectionError("empty frame")
     if size > MAX_FRAME_BYTES:
         raise ConnectionError(f"oversize frame: {size}")
     payload = b""
@@ -60,7 +71,10 @@ def read_frame(conn: socket.socket) -> dict:
         if not chunk:
             raise ConnectionError("server closed the connection")
         payload += chunk
-    return json.loads(payload.decode("utf-8"))
+    try:
+        return json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as failure:
+        raise ConnectionError(f"bad frame: {failure}")
 
 
 def write_frame(conn: socket.socket, message: dict) -> None:
@@ -69,6 +83,10 @@ def write_frame(conn: socket.socket, message: dict) -> None:
 
 
 def read_blob(conn: socket.socket) -> bytes:
+    return read_blob_to_file(conn).read_bytes()
+
+
+def read_blob_to_file(conn: socket.socket, cap: int = MAX_BLOB_BYTES) -> Path:
     raw = b""
     while len(raw) < 8:
         chunk = conn.recv(8 - len(raw))
@@ -76,55 +94,99 @@ def read_blob(conn: socket.socket) -> bytes:
             raise ConnectionError("server closed the connection")
         raw += chunk
     (size,) = struct.unpack(">Q", raw)
-    payload = b""
-    while len(payload) < size:
-        chunk = conn.recv(min(65536, size - len(payload)))
-        if not chunk:
-            raise ConnectionError("server closed the connection")
-        payload += chunk
-    return payload
+    if size > cap:
+        raise ConnectionError(f"oversize blob: {size}")
+    fd, tmppath = tempfile.mkstemp(prefix="jahaziel-sync-blob-", suffix=".zip")
+    try:
+        with os.fdopen(fd, "wb") as dest:
+            remaining = size
+            while remaining > 0:
+                chunk = conn.recv(min(65536, remaining))
+                if not chunk:
+                    raise ConnectionError("server closed the connection")
+                dest.write(chunk)
+                remaining -= len(chunk)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmppath)
+        raise
+    return Path(tmppath)
 
 
 def write_blob(conn: socket.socket, payload: bytes) -> None:
     conn.sendall(struct.pack(">Q", len(payload)) + payload)
 
 
+def write_blob_from_file(conn: socket.socket, path: Path) -> None:
+    size = path.stat().st_size
+    conn.sendall(struct.pack(">Q", size))
+    with open(path, "rb") as source:
+        while True:
+            chunk = source.read(65536)
+            if not chunk:
+                break
+            conn.sendall(chunk)
+
+
 def zip_tree(root: Path) -> tuple[bytes, int]:
-    buffer = io.BytesIO()
+    fd, tmppath = tempfile.mkstemp(prefix="jahaziel-sync-tree-", suffix=".zip")
+    os.close(fd)
+    try:
+        count = zip_tree_to_file(root, Path(tmppath))
+        return Path(tmppath).read_bytes(), count
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(tmppath)
+
+
+def zip_tree_to_file(root: Path, dest: Path) -> int:
     count = 0
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(root.rglob("*")):
             if not path.is_file() or path.is_symlink():
                 continue
             archive.write(path, path.relative_to(root).as_posix())
             count += 1
-    return buffer.getvalue(), count
+    return count
 
 
 def unzip_tree(payload: bytes, root: Path) -> set[str]:
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        return _extract(archive, root)
+
+
+def unzip_tree_file(path: Path, root: Path) -> set[str]:
+    with zipfile.ZipFile(path) as archive:
+        return _extract(archive, root)
+
+
+def _extract(archive: zipfile.ZipFile, root: Path) -> set[str]:
     written: set[str] = set()
     base = root.resolve()
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        for entry in archive.infolist():
-            if entry.is_dir():
-                continue
-            target = (root / entry.filename).resolve()
-            if base not in target.parents:
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(entry) as source, open(target, "wb") as dest:
-                while True:
-                    chunk = source.read(65536)
-                    if not chunk:
-                        break
-                    dest.write(chunk)
-            written.add(target.relative_to(base).as_posix())
+    for entry in archive.infolist():
+        if entry.is_dir():
+            continue
+        if not entry.filename or "\\" in entry.filename:
+            continue
+        target = (root / entry.filename).resolve()
+        if base not in target.parents:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(entry) as source, open(target, "wb") as dest:
+            while True:
+                chunk = source.read(65536)
+                if not chunk:
+                    break
+                dest.write(chunk)
+        written.add(target.relative_to(base).as_posix())
     return written
 
 
 def mirror(root: Path, keep: set[str]) -> None:
     for path in sorted(root.rglob("*")):
-        if path.is_file() and not path.is_symlink():
+        if path.is_symlink():
+            path.unlink()
+        elif path.is_file():
             if path.relative_to(root).as_posix() not in keep:
                 path.unlink()
     for path in sorted((p for p in root.rglob("*") if p.is_dir()), reverse=True):
@@ -164,9 +226,29 @@ def hello(conn: socket.socket, workspace: str, secret: str) -> None:
         raise PermissionError(reply.get("error", "hello rejected"))
 
 
+@contextlib.contextmanager
+def workspace_lock():
+    """Serialize pull/push on one guest so timer and stop hooks never overlap."""
+    if fcntl is None:
+        yield
+        return
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOCK_FILE, "w") as guard:
+        fcntl.flock(guard, fcntl.LOCK_EX)
+        yield
+
+
 def pull(conn: socket.socket, target: Path) -> int:
     write_frame(conn, {"op": "pull"})
-    kept = unzip_tree(read_blob(conn), target)
+    reply = read_frame(conn)
+    if not reply.get("ready"):
+        raise ConnectionError(reply.get("error", "pull rejected"))
+    blob = read_blob_to_file(conn)
+    try:
+        kept = unzip_tree_file(blob, target)
+    finally:
+        with contextlib.suppress(OSError):
+            blob.unlink()
     mirror(target, kept)
     reply = read_frame(conn)
     if not reply.get("ok"):
@@ -175,12 +257,18 @@ def pull(conn: socket.socket, target: Path) -> int:
 
 
 def push(conn: socket.socket, source: Path) -> int:
-    payload, _ = zip_tree(source)
-    write_frame(conn, {"op": "push"})
-    reply = read_frame(conn)
-    if not reply.get("ready"):
-        raise ConnectionError(reply.get("error", "push rejected"))
-    write_blob(conn, payload)
+    fd, tmppath = tempfile.mkstemp(prefix="jahaziel-sync-push-", suffix=".zip")
+    os.close(fd)
+    try:
+        zip_tree_to_file(source, Path(tmppath))
+        write_frame(conn, {"op": "push"})
+        reply = read_frame(conn)
+        if not reply.get("ready"):
+            raise ConnectionError(reply.get("error", "push rejected"))
+        write_blob_from_file(conn, Path(tmppath))
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(tmppath)
     reply = read_frame(conn)
     if not reply.get("ok"):
         raise ConnectionError(reply.get("error", "push rejected"))
@@ -190,14 +278,15 @@ def push(conn: socket.socket, source: Path) -> int:
 def run_pull(workspace: str, secret: str, target: Path) -> int:
     conn = connect()
     try:
-        hello(conn, workspace, secret)
-        target.mkdir(parents=True, exist_ok=True)
-        count = pull(conn, target)
-        write_frame(conn, {"op": "bye"})
-        reply = read_frame(conn)
-        if not reply.get("ok"):
-            raise ConnectionError(reply.get("error", "bye rejected"))
-        return count
+        with workspace_lock():
+            hello(conn, workspace, secret)
+            target.mkdir(parents=True, exist_ok=True)
+            count = pull(conn, target)
+            write_frame(conn, {"op": "bye"})
+            reply = read_frame(conn)
+            if not reply.get("ok"):
+                raise ConnectionError(reply.get("error", "bye rejected"))
+            return count
     finally:
         conn.close()
 
@@ -205,13 +294,14 @@ def run_pull(workspace: str, secret: str, target: Path) -> int:
 def run_push(workspace: str, secret: str, source: Path) -> int:
     conn = connect()
     try:
-        hello(conn, workspace, secret)
-        count = push(conn, source)
-        write_frame(conn, {"op": "bye"})
-        reply = read_frame(conn)
-        if not reply.get("ok"):
-            raise ConnectionError(reply.get("error", "bye rejected"))
-        return count
+        with workspace_lock():
+            hello(conn, workspace, secret)
+            count = push(conn, source)
+            write_frame(conn, {"op": "bye"})
+            reply = read_frame(conn)
+            if not reply.get("ok"):
+                raise ConnectionError(reply.get("error", "bye rejected"))
+            return count
     finally:
         conn.close()
 
@@ -238,7 +328,10 @@ def main() -> int:
                 count = run_push(workspace, secret, WORKSPACE_DIR)
             print(f"jahaziel-sync {mode}: {count} files")
             return 0
-        except (OSError, ConnectionError, PermissionError) as failure:
+        except PermissionError as denied:
+            print(f"jahaziel-sync {mode} failed: {denied}", file=sys.stderr)
+            return 1
+        except (OSError, ConnectionError) as failure:
             last_error = str(failure)
             time.sleep(RETRY_DELAY_SECONDS)
     print(f"jahaziel-sync {mode} failed: {last_error}", file=sys.stderr)
