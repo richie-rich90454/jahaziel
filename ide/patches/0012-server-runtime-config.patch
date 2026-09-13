@@ -26,4 +26,5 @@ ingress is the auth boundary. Switching the unit to
 
 Touches: (contract only; guest unit lives in base-image-builder/)
 
-Verification: server boot smoke test inside a workspace VM.
+Verification: guest unit flags reviewed against the stock server CLI;
+loopback boot is checked manually per release (no VM harness in CI).
