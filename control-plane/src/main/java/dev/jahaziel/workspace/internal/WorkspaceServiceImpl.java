@@ -80,6 +80,12 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
       throw new IllegalArgumentException("memoryMib must be positive");
     }
     Objects.requireNonNull(nodeId, "nodeId");
+    boolean nameTaken =
+        workspaces.findByOwnerUserId(owner.value()).stream()
+            .anyMatch(row -> row.getName().equals(name));
+    if (nameTaken) {
+      throw new IllegalArgumentException("workspace name already exists: " + name);
+    }
     WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
     VirtualMachine machine =
         new VirtualMachine(
@@ -91,8 +97,13 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
     String jail = WorkspacePaths.jailPath(storageRoot, workspaceId);
     String home = WorkspacePaths.homePath(storageRoot, owner);
     workspaces.save(WorkspaceMapper.toEntity(workspace, home, jail));
-    machines.save(
-        WorkspaceMapper.toMachineEntity(machine, workspaceId, nodeId.value(), home, jail));
+    try {
+      machines.save(
+          WorkspaceMapper.toMachineEntity(machine, workspaceId, nodeId.value(), home, jail));
+    } catch (RuntimeException failure) {
+      workspaces.deleteById(workspaceId.value());
+      throw failure;
+    }
     return workspace;
   }
 
