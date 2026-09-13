@@ -5,72 +5,27 @@
 
 node:
   id: node-a
-  name: "Primary node"
-  region: "default"
-
-server:
-  unix_socket:
-    path: /run/jahaziel/node-agent.sock
-    mode: "0600"
-    owner: jahaziel-node-agent
-    group: jahaziel-node-agent
-  tls:
-    enabled: true
-    listen_address: "127.0.0.1"
-    listen_port: 9443
-    cert_file: /etc/jahaziel/tls/node-agent.crt
-    key_file: /etc/jahaziel/tls/node-agent.key
-    ca_file: /etc/jahaziel/tls/ca.crt
-    require_client_cert: true
 
 firecracker:
   binary: /usr/local/bin/firecracker
   jailer_binary: /usr/local/bin/jailer
-  version_check:
-    enabled: true
-    expected_sha256: "sha256:abc123..."
   jail_root: /var/lib/jahaziel/jail
   kernel_image: /var/lib/jahaziel/images/vmlinux-6.1.102
-  kernel_sha256: "sha256:def456..."
 
 storage:
   root: /var/lib/jahaziel
   images_dir: /var/lib/jahaziel/images
   workspaces_dir: /var/lib/jahaziel/workspaces
-  jail_dir: /var/lib/jahaziel/jail
   audit_staging_dir: /var/lib/jahaziel/audit
-  replicas_dir: /var/lib/jahaziel/replicas
 
 networking:
   bridge_name: br-jahaziel
   tap_prefix: tap-
   subnet: "10.100.0.0/16"
-  per_vm_prefix_len: 30
-  nat:
-    enabled: true
-    masquerade_interface: eth0
-  rate_limits:
-    outbound_bps: 25000000       # 200 Mbps
-    inbound_bps: 0                # unlimited
-    connections: 5000
 
 cgroups:
   root: /sys/fs/cgroup/jahaziel
-  memory_high_margin_mib: 128
-  pids_max: 4096
-  default_io_weight: 100
 
-metrics:
-  sample_interval_seconds: 10
-  retention_hours: 24
-  prometheus:
-    enabled: true
-    listen_address: "127.0.0.1"
-    listen_port: 9090
-
-logging:
-  level: INFO
-  format: json
-  file: /var/log/jahaziel/node-agent.log
-  max_size_mb: 100
-  max_backups: 5
+# Only the keys above are read (see NodeAgentConfig); anything else is
+# ignored. Server mTLS, metrics export, and structured logging land with
+# their features instead of hiding here as dead knobs.
