@@ -51,8 +51,31 @@ nft -f ops/nftables/jahaziel.nft
 
 ## 4. Services
 
-Install the jars to `/opt/jahaziel/`, secrets to `/etc/jahaziel/*.env`
-(mode 0600), configs to `/etc/jahaziel/*.yml`, then enable:
+Copy the built jars to `/opt/jahaziel/` under the names the units expect
+(the Maven build now produces these names directly):
+
+```bash
+cp control-plane/target/control-plane-exec.jar gateway/target/gateway-exec.jar \
+  node-agent/target/node-agent-exec.jar /opt/jahaziel/
+```
+
+Write `/etc/jahaziel/*.env` (mode 0600) with the database and OIDC settings
+the units load via `EnvironmentFile`:
+
+```bash
+cat >/etc/jahaziel/control-plane.env <<'EOF'
+DB_USER=jahaziel-control-plane
+DB_PASSWORD=secret
+OIDC_CLIENT_ID=...
+OIDC_CLIENT_SECRET=...
+OIDC_ISSUER_URI=https://idp.example.com
+EOF
+chmod 0600 /etc/jahaziel/*.env
+```
+
+Service users (`jahaziel-control-plane`, `jahaziel-node-agent`,
+`jahaziel-gateway`) are created by `ops/toolchain/install-toolchain.sh`.
+Install the units, then enable:
 
 ```bash
 cp ops/systemd/*.service /etc/systemd/system/
@@ -61,6 +84,10 @@ systemctl enable --now jahaziel-control-plane jahaziel-node-agent jahaziel-gatew
 ```
 
 Flyway migrates the schema on control-plane start.
+
+Workspace start/stop in this split topology needs the node-agent mTLS
+gRPC transport (planned; starts fail closed until it lands). The fat jar
+below runs the full loop today.
 
 ## 5. Verify
 
@@ -92,7 +119,7 @@ the jar (workspaces, images, jail, audit, sync, keys, logs, and
 ```bash
 bash jahaziel.sh                    # --run=all: API :8080, gateway :8081
 java -jar jahaziel.jar              # bare jar prints help and runs nothing
-java -jar jahaziel.jar --run=all --port=8080 --gateway-port=18081 --data-dir=/srv/jahaziel-data
+java -jar jahaziel.jar --run=all --port=8080 --gateway-port=8081 --data-dir=/srv/jahaziel-data
 ```
 
 Only Java 25 is required on the target; no Docker, no Postgres, no
