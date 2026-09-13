@@ -6,8 +6,13 @@ package dev.jahaziel.api.controller;
 
 import dev.jahaziel.api.dto.ApiError;
 import dev.jahaziel.authorization.api.AccessDeniedException;
+import dev.jahaziel.extension.api.ExtensionPolicyNotFoundException;
 import dev.jahaziel.identity.api.UserNotFoundException;
+import dev.jahaziel.node.api.NodeNotFoundException;
+import dev.jahaziel.policy.api.PolicyNotFoundException;
 import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
+import dev.jahaziel.snapshot.api.SnapshotNotFoundException;
+import dev.jahaziel.terminal.api.TerminalNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
 import java.util.Map;
@@ -36,6 +41,19 @@ public class ApiExceptionHandler {
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public ApiError userNotFound(UserNotFoundException failure) {
     return error("NOT_FOUND", "User not found");
+  }
+
+  /** Maps missing snapshots, nodes, terminals, and policies to 404. */
+  @ExceptionHandler({
+    SnapshotNotFoundException.class,
+    NodeNotFoundException.class,
+    TerminalNotFoundException.class,
+    PolicyNotFoundException.class,
+    ExtensionPolicyNotFoundException.class
+  })
+  @ResponseStatus(HttpStatus.NOT_FOUND)
+  public ApiError resourceNotFound(RuntimeException failure) {
+    return error("NOT_FOUND", "Resource not found");
   }
 
   /** Maps refused access to 403 with who and what. */
