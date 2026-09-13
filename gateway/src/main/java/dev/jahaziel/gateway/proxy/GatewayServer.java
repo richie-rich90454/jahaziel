@@ -32,11 +32,15 @@ import java.util.UUID;
  * errors answer with a status; only a mid-relay backend death closes silently.
  */
 public final class GatewayServer {
+  private static final int MAX_HEAD_BYTES = 64 * 1024;
+  private static final int HEAD_READ_TIMEOUT_MILLIS = 15_000;
+
   private final HostParser hosts;
   private final JwtVerifier tokens;
   private final WorkspaceDirectory directory;
   private final TargetResolver targets;
   private volatile boolean running;
+  private volatile ServerSocket server;
 
   /**
    * Creates the server.
@@ -62,18 +66,31 @@ public final class GatewayServer {
   public void serve(int port) {
     running = true;
     try (ServerSocket server = new ServerSocket(port)) {
+      this.server = server;
       while (running) {
         Socket client = server.accept();
         Thread.ofVirtual().start(() -> handleQuietly(client));
       }
     } catch (IOException failure) {
-      throw new IllegalStateException("gateway failed on port " + port, failure);
+      if (running) {
+        throw new IllegalStateException("gateway failed on port " + port, failure);
+      }
+    } finally {
+      this.server = null;
     }
   }
 
   /** Stops accepting new connections. */
   public void stop() {
     running = false;
+    ServerSocket socket = server;
+    if (socket != null) {
+      try {
+        socket.close();
+      } catch (IOException ignored) {
+        // Already closed by serve(); the accept loop is ending.
+      }
+    }
   }
 
   private void handleQuietly(Socket client) {
@@ -87,8 +104,14 @@ public final class GatewayServer {
   }
 
   private void handle(Socket client) throws IOException {
+    client.setSoTimeout(HEAD_READ_TIMEOUT_MILLIS);
     InputStream in = client.getInputStream();
     RequestHead head = readHead(in);
+    client.setSoTimeout(0);
+    String transferEncoding = head.headers().getOrDefault("transfer-encoding", "");
+    if (!transferEncoding.isBlank() && !transferEncoding.equalsIgnoreCase("identity")) {
+      throw new HttpFailure(400, "chunked transfer-encoding unsupported");
+    }
     ParsedHost route = parseRoute(head);
     GatewaySession session = authenticate(head);
     UUID workspaceId = lookup(route);
@@ -126,12 +149,12 @@ public final class GatewayServer {
       token = queryToken(head);
     }
     if (token == null) {
-      throw new HttpFailure(403, "missing session token");
+      throw new HttpFailure(401, "missing session token");
     }
     try {
       return tokens.verify(token);
     } catch (JwtRejectedException failure) {
-      throw new HttpFailure(403, "rejected session token");
+      throw new HttpFailure(401, "rejected session token");
     }
   }
 
@@ -226,6 +249,9 @@ public final class GatewayServer {
     int currentByte;
     while ((currentByte = in.read()) >= 0) {
       raw.write(currentByte);
+      if (raw.size() > MAX_HEAD_BYTES) {
+        throw new HttpFailure(431, "request head too large");
+      }
       if (previous == '\r' && currentByte == '\n') {
         String line = current.toString();
         if (line.isEmpty()) {
@@ -260,16 +286,19 @@ public final class GatewayServer {
   /** Parsed request head. */
   record RequestHead(String method, String target, Map<String, String> headers, byte[] raw) {
     /** Returns the declared body length, or zero. */
-    long contentLength() {
+    long contentLength() throws HttpFailure {
       String value = headers.get("content-length");
       if (value == null) {
         return 0;
       }
       try {
-        long parsed = Long.parseLong(value);
-        return Math.max(0, parsed);
+        long parsed = Long.parseLong(value.strip());
+        if (parsed < 0) {
+          throw new HttpFailure(400, "negative content length");
+        }
+        return parsed;
       } catch (NumberFormatException failure) {
-        return 0;
+        throw new HttpFailure(400, "invalid content length");
       }
     }
   }
