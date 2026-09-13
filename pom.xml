@@ -54,26 +54,14 @@
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <spring-boot.version>4.1.0</spring-boot.version>
-    <!-- Must match spring-boot-dependencies or context startup breaks (YamlProcessor ABI). -->
-    <spring-framework.version>7.0.8</spring-framework.version>
     <postgresql.version>42.7.13</postgresql.version>
     <sqlite-jdbc.version>3.47.2.0</sqlite-jdbc.version>
     <flyway.version>13.6.0</flyway.version>
-    <hikaricp.version>5.1.0</hikaricp.version>
-    <jackson.version>2.17.2</jackson.version>
-    <micrometer.version>1.17.0</micrometer.version>
-    <!-- Must match spring-boot-dependencies or auto-config conditions break at startup. -->
-    <spring-security.version>7.1.0</spring-security.version>
     <nimbus-jose-jwt.version>9.40</nimbus-jose-jwt.version>
-    <protobuf.version>4.28.2</protobuf.version>
-    <grpc.version>1.67.1</grpc.version>
     <junit.version>6.1.3</junit.version>
     <testcontainers.version>1.21.4</testcontainers.version>
-    <jqwik.version>1.9.1</jqwik.version>
     <archunit.version>1.5.0</archunit.version>
     <mockito.version>5.23.0</mockito.version>
-    <spotbugs.version>4.8.6</spotbugs.version>
-    <errorprone.version>2.35.1</errorprone.version>
     <!-- Formatter version tracks the newest release that runs on the build JDK. -->
     <google-java-format.version>1.36.1</google-java-format.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
