@@ -89,6 +89,8 @@ public final class FolderStorage implements WorkspaceStorage {
     Path home = handle.homePath();
     Path staged = home.resolveSibling(home.getFileName() + ".new");
     Path retired = home.resolveSibling(home.getFileName() + ".old");
+    commands.run(List.of("rm", "-rf", staged.toString()));
+    commands.run(List.of("rm", "-rf", retired.toString()));
     commands.run(List.of("mkdir", "-p", staged.toString()));
     commands.run(List.of("cp", "-a", contentsOf(snapshot.snapshotPath()), staged.toString()));
     commands.run(List.of("chmod", "-R", "u+w", staged.toString()));
@@ -141,7 +143,7 @@ public final class FolderStorage implements WorkspaceStorage {
   }
 
   private Path snapsDir(WorkspaceHandle handle) {
-    return handle.homePath().getParent().resolve("snaps");
+    return handle.homePath().getParent().resolve("snaps").resolve(handle.workspaceId().toString());
   }
 
   private static String contentsOf(Path dir) {
