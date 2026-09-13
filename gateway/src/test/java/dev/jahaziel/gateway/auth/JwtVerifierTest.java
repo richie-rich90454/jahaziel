@@ -17,6 +17,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +38,9 @@ class JwtVerifierTest {
     KeyPair pair = generator.generateKeyPair();
     publicKey = (RSAPublicKey) pair.getPublic();
     privateKey = (RSAPrivateKey) pair.getPrivate();
-    verifier = new JwtVerifier(publicKey, "https://code.example.com", "jahaziel-code-server");
+    verifier =
+        new JwtVerifier(
+            publicKey, "https://code.example.com", "jahaziel-code-server", Duration.ofMinutes(15));
     userId = UUID.randomUUID();
     workspaceId = UUID.randomUUID();
   }
@@ -61,6 +64,23 @@ class JwtVerifierTest {
     assertThrows(
         JwtRejectedException.class,
         () -> verifier.verify(token(minutes(10), "https://code.example.com") + "x"));
+  }
+
+  @Test
+  void rejectsOverLifetimeToken() throws Exception {
+    JWTClaimsSet claims =
+        new JWTClaimsSet.Builder()
+            .issuer("https://code.example.com")
+            .subject(userId.toString())
+            .audience("jahaziel-code-server")
+            .expirationTime(minutes(60))
+            .issueTime(minutes(-30))
+            .claim("wid", workspaceId.toString())
+            .claim("scope", "workspace:read")
+            .build();
+    SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
+    jwt.sign(new RSASSASigner(privateKey));
+    assertThrows(JwtRejectedException.class, () -> verifier.verify(jwt.serialize()));
   }
 
   private String token(Date expiry, String issuer) throws Exception {
