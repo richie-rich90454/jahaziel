@@ -16,6 +16,7 @@ import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.node.domain.NodeMetrics;
 import dev.jahaziel.node.domain.NodeState;
 import dev.jahaziel.node.persistence.NodeEntity;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link NodeMapper} with stubbed rows. */
@@ -30,6 +31,8 @@ class NodeMapperTest {
     assertEquals(nodeId, node.id());
     assertEquals(capacity, node.capacity());
     assertEquals(NodeMetrics.zero(), node.metrics());
+    assertEquals(Instant.parse("2026-09-01T00:00:00Z"), node.registeredAt());
+    assertEquals(Instant.parse("2026-09-02T00:00:00Z"), node.lastHeartbeat().orElseThrow());
     NodeEntity saved = NodeMapper.toEntity(node);
     assertEquals("node-a", saved.getNodeId());
     assertEquals("healthy", saved.getState());
@@ -58,6 +61,8 @@ class NodeMapperTest {
     when(row.getMemoryMib()).thenReturn(49152L);
     when(row.getDiskGib()).thenReturn(500L);
     when(row.getCertFingerprint()).thenReturn("sha256:abc");
+    when(row.getRegisteredAt()).thenReturn(Instant.parse("2026-09-01T00:00:00Z"));
+    when(row.getLastHeartbeat()).thenReturn(Instant.parse("2026-09-02T00:00:00Z"));
     return row;
   }
 }
