@@ -24,11 +24,19 @@ class AdmissionControlTest {
 
   @Test
   void admitsSoftFloorUnderPressure() {
-    long started = TOTAL - RESERVED * 3 - 512;
+    long started = TOTAL - RESERVED * 3 - 1536;
     AdmissionDecision decision =
         AdmissionControl.evaluate(TOTAL, started, 2048, RESERVED, RESERVED, RESERVED, 1024, 0.9);
     assertInstanceOf(AdmissionDecision.Admit.class, decision);
     assertEquals(1024, ((AdmissionDecision.Admit) decision).memoryMib());
+  }
+
+  @Test
+  void refusesSoftFloorWithoutAvailability() {
+    long started = TOTAL - RESERVED * 3 - 512;
+    AdmissionDecision decision =
+        AdmissionControl.evaluate(TOTAL, started, 2048, RESERVED, RESERVED, RESERVED, 1024, 0.9);
+    assertInstanceOf(AdmissionDecision.Refuse.class, decision);
   }
 
   @Test
