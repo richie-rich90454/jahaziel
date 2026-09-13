@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 /**
  * Web security. Bearer tokens authenticate the API; browser login uses OIDC against the configured
@@ -66,8 +67,17 @@ public class SecurityConfig {
         .logout(logout -> logout.logoutSuccessUrl("/"))
         .sessionManagement(
             sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-        .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/admin/**"))
+        .csrf(
+            csrf ->
+                csrf.ignoringRequestMatchers(
+                    PathPatternRequestMatcher.withDefaults().matcher("/api/**"),
+                    request -> authorization(request) != null))
         .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
         .build();
+  }
+
+  private static String authorization(jakarta.servlet.http.HttpServletRequest request) {
+    String header = request.getHeader("Authorization");
+    return header != null && header.startsWith("Bearer ") ? header : null;
   }
 }
