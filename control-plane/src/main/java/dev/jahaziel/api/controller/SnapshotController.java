@@ -7,6 +7,9 @@ package dev.jahaziel.api.controller;
 import dev.jahaziel.api.dto.CreateSnapshotRequest;
 import dev.jahaziel.api.dto.SnapshotDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
+import dev.jahaziel.authorization.api.AccessDeniedException;
+import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SnapshotController {
   private final SnapshotService snapshots;
   private final WorkspaceService workspaces;
+  private final AuthorizationService auth;
   private final String appDomain;
 
   /**
@@ -39,14 +43,17 @@ public class SnapshotController {
    *
    * @param snapshots the snapshot service
    * @param workspaces the workspace lookup for restore responses
+   * @param auth the authorization checks
    * @param appDomain the public domain
    */
   public SnapshotController(
       SnapshotService snapshots,
       WorkspaceService workspaces,
+      AuthorizationService auth,
       @Value("${jahaziel.domain}") String appDomain) {
     this.snapshots = snapshots;
     this.workspaces = workspaces;
+    this.auth = auth;
     this.appDomain = appDomain;
   }
 
@@ -54,11 +61,13 @@ public class SnapshotController {
    * Lists a workspace's snapshots newest first.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the snapshot DTOs
    */
   @GetMapping("/workspaces/{id}/snapshots")
-  public List<SnapshotDto> list(@PathVariable UUID id) {
-    return snapshots.list(new WorkspaceId(id)).stream().map(SnapshotDto::from).toList();
+  public List<SnapshotDto> list(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "read");
+    return snapshots.list(workspace).stream().map(SnapshotDto::from).toList();
   }
 
   /**
@@ -75,9 +84,9 @@ public class SnapshotController {
       @PathVariable UUID id,
       @Valid @RequestBody CreateSnapshotRequest request,
       Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
     return SnapshotDto.from(
-        snapshots.create(
-            new WorkspaceId(id), request.tag(), SnapshotKind.MANUAL, principal.getName()));
+        snapshots.create(workspace, request.tag(), SnapshotKind.MANUAL, principal.getName()));
   }
 
   /**
@@ -85,11 +94,28 @@ public class SnapshotController {
    *
    * @param id the workspace identifier
    * @param snapshotId the snapshot identifier
+   * @param principal the acting user
    * @return the workspace DTO
    */
   @PostMapping("/workspaces/{id}/snapshots/{snapshotId}/restore")
-  public WorkspaceDto restore(@PathVariable UUID id, @PathVariable UUID snapshotId) {
-    snapshots.restore(new WorkspaceId(id), new SnapshotId(snapshotId));
-    return WorkspaceDto.from(workspaces.describe(new WorkspaceId(id)), appDomain);
+  public WorkspaceDto restore(
+      @PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
+    snapshots.restore(workspace, new SnapshotId(snapshotId));
+    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
+  }
+
+  private WorkspaceId require(Principal principal, UUID id, String permission) {
+    UserId user;
+    try {
+      user = new UserId(UUID.fromString(principal.getName()));
+    } catch (IllegalArgumentException failure) {
+      throw new IllegalArgumentException("principal is not a user id");
+    }
+    WorkspaceId workspace = new WorkspaceId(id);
+    if (!auth.isAllowed(user, permission, workspace)) {
+      throw new AccessDeniedException(user, permission);
+    }
+    return workspace;
   }
 }
