@@ -18,8 +18,8 @@ import java.util.Objects;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Audit retention. Drops monthly partitions older than the retention window; the drop itself is
- * logged by the caller as an administrative system event. Never row-deletes.
+ * Audit retention. Drops monthly partitions fully older than the retention window; the drop itself
+ * is logged by the caller as an administrative system event. Never row-deletes.
  */
 public final class AuditRetentionJob implements PlatformJob {
   private static final YearMonth FIRST_PARTITION = YearMonth.of(2026, 9);
@@ -64,8 +64,7 @@ public final class AuditRetentionJob implements PlatformJob {
     LocalDate cutoff = LocalDate.now(clock).minusDays(retentionDays);
     List<String> partitions = new ArrayList<>();
     YearMonth month = FIRST_PARTITION;
-    YearMonth last = YearMonth.from(cutoff);
-    while (!month.isAfter(last)) {
+    while (!month.plusMonths(1).atDay(1).isAfter(cutoff)) {
       String suffix = String.format("%04d_%02d", month.getYear(), month.getMonthValue());
       partitions.add("audit_event_" + suffix);
       partitions.add("audit_terminal_" + suffix);
