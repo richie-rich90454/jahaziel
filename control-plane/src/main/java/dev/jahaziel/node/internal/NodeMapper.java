@@ -9,6 +9,7 @@ import dev.jahaziel.node.domain.NodeCapacity;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.node.domain.NodeState;
 import dev.jahaziel.node.persistence.NodeEntity;
+import java.time.Instant;
 
 /**
  * Maps node rows to domain objects and back. Metrics are live-only and never persisted; placements
@@ -52,11 +53,10 @@ public final class NodeMapper {
             row.getName(),
             row.getRegion(),
             new NodeCapacity(row.getCpuCores(), row.getMemoryMib(), row.getDiskGib()),
-            row.getCertFingerprint());
+            row.getCertFingerprint(),
+            row.getRegisteredAt() != null ? row.getRegisteredAt() : Instant.now(),
+            row.getLastHeartbeat());
     replay(node, row.getState());
-    if (row.getLastHeartbeat() != null) {
-      node.recordHeartbeat();
-    }
     return node;
   }
 
