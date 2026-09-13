@@ -22,6 +22,7 @@ import java.util.UUID;
 /** Database-backed port bindings. User lookups scan the owner's workspaces. */
 public final class PortServiceImpl implements PortService {
   private static final Set<Integer> RESERVED = Set.of(22, 25);
+  private static final Set<String> PROTOCOLS = Set.of("http", "https", "tcp");
 
   private final WorkspacePortRepository ports;
   private final UserService users;
@@ -48,6 +49,12 @@ public final class PortServiceImpl implements PortService {
     var workspace = workspaces.get(workspaceId);
     if (!workspace.isOwnedBy(userId)) {
       throw new IllegalArgumentException("workspace is not owned by the user");
+    }
+    if (port < 1 || port > 65535) {
+      throw new IllegalArgumentException("port out of range: " + port);
+    }
+    if (!PROTOCOLS.contains(protocol)) {
+      throw new IllegalArgumentException("unknown protocol: " + protocol);
     }
     if (RESERVED.contains(port)) {
       throw new IllegalArgumentException("port " + port + " is reserved and never exposed");
