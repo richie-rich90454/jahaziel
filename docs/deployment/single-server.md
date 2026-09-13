@@ -73,3 +73,30 @@ Flyway migrates the schema on control-plane start.
 Install `ops/backup/backup.sh` as a daily cron job plus continuous WAL
 archiving. Run `ops/backup/restore-drill.sh` quarterly and record the
 result.
+
+## 7. Fat jar (portable single file)
+
+Build once on any OS with Java 25 and Maven:
+
+```bash
+./mvnw.cmd -B -DskipTests package   # Windows
+./mvnw -B -DskipTests package       # Linux/macOS
+```
+
+Copy `dist/target/jahaziel.jar` plus the launcher for the target OS
+(`jahaziel.sh`, `jahaziel.ps1`, `jahaziel.bat`) into one folder on the
+machine. That folder is the install: first run creates `data/` beside
+the jar (workspaces, images, jail, audit, sync, keys, logs, and
+`jahaziel.db`, a SQLite file that is created once and never cleared).
+
+```bash
+./jahaziel.sh                       # --run=all: API :8080, gateway :8081
+java -jar jahaziel.jar              # bare jar prints help and runs nothing
+java -jar jahaziel.jar --run=all --port=8080 --gateway-port=18081 --data-dir=/srv/jahaziel-data
+```
+
+Only Java 25 is required on the target; no Docker, no Postgres, no
+extra installs. Workspaces run on the zero-install local backend with
+real folders (Firecracker remains available via the split topology on
+Linux). Windows Server and macOS run the same jar; for auto-start use
+Task Scheduler (`jahaziel.ps1`) or launchd (`jahaziel.sh`).
