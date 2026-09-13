@@ -7,6 +7,8 @@ package dev.jahaziel.extension.internal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +50,16 @@ class ExtensionDeciderTest {
   void deniesByDefault() {
     when(policies.listByScope("global", null)).thenReturn(List.of());
     assertEquals(Decision.BLOCK, decider.decide(request("1.2.3")));
+  }
+
+  @Test
+  void workspaceScopeBeatsGlobal() {
+    when(policies.listByScope("global", null)).thenReturn(List.of(doc("block", null)));
+    ExtensionPolicyDoc allow =
+        new ExtensionPolicyDoc(
+            UUID.randomUUID(), "workspace", "ws-1", "publisher.name", "allow", null, Instant.now());
+    when(policies.listByScope(eq("workspace"), any())).thenReturn(List.of(allow));
+    assertEquals(Decision.ALLOW, decider.decide(request("1.2.3")));
   }
 
   @Test
