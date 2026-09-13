@@ -12,7 +12,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.domain.VirtualMachine;
 import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
@@ -44,9 +43,7 @@ class RuntimeServiceImplTest {
   void setUp() {
     backend = new FakeBackend();
     workspaces = mock(WorkspaceService.class);
-    service =
-        new RuntimeServiceImpl(
-            backend, workspaces, new ImageRef("base-image:2026.09"), new NodeId("node-a"));
+    service = new RuntimeServiceImpl(backend, workspaces, new ImageRef("base-image:2026.09"));
     workspaceId = new WorkspaceId(UUID.randomUUID());
   }
 
