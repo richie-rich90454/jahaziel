@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -43,6 +44,7 @@ class AuditSpoolReaderTest {
     Files.writeString(spool, "not json\n");
     WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
     assertThrows(IllegalArgumentException.class, () -> reader.drain(workspace, spool));
+    verify(audit, never()).append(any());
   }
 
   @Test
