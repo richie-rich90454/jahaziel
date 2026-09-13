@@ -11,7 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // Agent is a vsock connection to the node agent.
@@ -23,19 +24,19 @@ type Agent struct {
 
 // Dial connects to the host over vsock.
 func Dial(hostCID, port uint32) (*Agent, error) {
-	fd, err := syscall.Socket(syscall.AF_VSOCK, syscall.SOCK_STREAM, 0)
+	fd, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
 	if err != nil {
 		return nil, err
 	}
-	addr := &syscall.SockaddrVM{CID: hostCID, Port: port}
-	if err := syscall.Connect(fd, addr); err != nil {
-		syscall.Close(fd)
+	addr := &unix.SockaddrVM{CID: hostCID, Port: port}
+	if err := unix.Connect(fd, addr); err != nil {
+		unix.Close(fd)
 		return nil, err
 	}
 	file := os.NewFile(uintptr(fd), "vsock")
 	conn, err := net.FileConn(file)
 	if err != nil {
-		syscall.Close(fd)
+		unix.Close(fd)
 		return nil, err
 	}
 	return &Agent{conn: conn, out: json.NewEncoder(conn), in: bufio.NewScanner(conn)}, nil
@@ -44,6 +45,16 @@ func Dial(hostCID, port uint32) (*Agent, error) {
 // Close closes the connection.
 func (a *Agent) Close() error {
 	return a.conn.Close()
+}
+
+// Scan waits for the next host command line.
+func (a *Agent) Scan() bool {
+	return a.in.Scan()
+}
+
+// Text returns the latest host command line.
+func (a *Agent) Text() string {
+	return a.in.Text()
 }
 
 // envelope is the host protocol frame.
@@ -72,11 +83,11 @@ func (a *Agent) ReportMetrics() error {
 		return err
 	}
 	return a.send("metrics", map[string]any{
-		"mem_total_kb":    metrics.MemTotalKB,
-		"mem_avail_kb":    metrics.MemAvailKB,
-		"cpu_user":        metrics.CPUUser,
-		"cpu_system":      metrics.CPUSystem,
-		"procs":           metrics.Procs,
+		"mem_total_kb": metrics.MemTotalKB,
+		"mem_avail_kb": metrics.MemAvailKB,
+		"cpu_user":     metrics.CPUUser,
+		"cpu_system":   metrics.CPUSystem,
+		"procs":        metrics.Procs,
 	})
 }
 
@@ -132,12 +143,20 @@ func Sample() (Metrics, error) {
 	return metrics, nil
 }
 
-// ListeningPorts returns locally bound TCP ports from /proc/net/tcp.
+// ListeningPorts returns locally bound TCP ports from /proc/net/tcp and tcp6.
 func ListeningPorts() ([]uint16, error) {
-	data, err := os.ReadFile("/proc/net/tcp")
-	if err != nil {
-		return nil, err
+	var ports []uint16
+	for _, table := range []string{"/proc/net/tcp", "/proc/net/tcp6"} {
+		data, err := os.ReadFile(table)
+		if err != nil {
+			return nil, err
+		}
+		ports = append(ports, listening(data)...)
 	}
+	return ports, nil
+}
+
+func listening(data []byte) []uint16 {
 	var ports []uint16
 	for i, line := range strings.Split(string(data), "\n") {
 		if i == 0 {
@@ -157,7 +176,7 @@ func ListeningPorts() ([]uint16, error) {
 		}
 		ports = append(ports, uint16(raw))
 	}
-	return ports, nil
+	return ports
 }
 
 // Handle obeys one lifecycle command line from the host.
@@ -166,8 +185,10 @@ func Handle(line string) error {
 	case "flush":
 		return nil
 	case "shutdown":
-		return fmt.Errorf("host requested shutdown")
+		return errShutdown
 	default:
 		return fmt.Errorf("unknown command: %q", line)
 	}
 }
+
+var errShutdown = fmt.Errorf("host requested shutdown")
