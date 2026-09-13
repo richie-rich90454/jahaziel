@@ -19,13 +19,11 @@ ExecStartPre=/bin/mkdir -p /tmp/jahaziel/workspace /tmp/jahaziel/data
 ExecStartPre=/usr/bin/python3 /usr/local/bin/jahaziel-sync pull
 ExecStart=/opt/jahaziel-code-server/bin/jahaziel-code-server --host 127.0.0.1 --port 8080 --without-connection-token --server-data-dir /tmp/jahaziel/data --extensions-dir /tmp/jahaziel/data/extensions /tmp/jahaziel/workspace
 ExecStop=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
-ExecStartPre=/bin/mkdir -p /tmp/jahaziel/workspace /tmp/jahaziel/data
-ExecStart=/opt/jahaziel-code-server/bin/jahaziel-code-server --host 127.0.0.1 --port 8080 --without-connection-token --server-data-dir /tmp/jahaziel/data --extensions-dir /tmp/jahaziel/data/extensions /tmp/jahaziel/workspace
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes
 ProtectSystem=strict
-PrivateTmp=yes
+PrivateTmp=no
 
 [Install]
 WantedBy=multi-user.target
