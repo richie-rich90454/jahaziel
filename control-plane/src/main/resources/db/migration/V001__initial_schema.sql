@@ -62,6 +62,22 @@ CREATE TABLE workspace_acl (
 );
 
 -- ============================================================
+-- Nodes (declared before virtual machines reference it)
+-- ============================================================
+CREATE TABLE node (
+    node_id          TEXT PRIMARY KEY,
+    name             TEXT NOT NULL,
+    region           TEXT NOT NULL,
+    state            TEXT NOT NULL,
+    cpu_cores        INT NOT NULL,
+    memory_mib       BIGINT NOT NULL,
+    disk_gib         BIGINT NOT NULL,
+    registered_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_heartbeat   TIMESTAMPTZ,
+    cert_fingerprint TEXT NOT NULL
+);
+
+-- ============================================================
 -- Virtual machines
 -- ============================================================
 CREATE TABLE virtual_machine (
@@ -80,22 +96,6 @@ CREATE TABLE virtual_machine (
 CREATE INDEX idx_vm_workspace ON virtual_machine (workspace_id);
 CREATE INDEX idx_vm_node ON virtual_machine (node_id);
 CREATE INDEX idx_vm_state ON virtual_machine (state);
-
--- ============================================================
--- Nodes
--- ============================================================
-CREATE TABLE node (
-    node_id          TEXT PRIMARY KEY,
-    name             TEXT NOT NULL,
-    region           TEXT NOT NULL,
-    state            TEXT NOT NULL,
-    cpu_cores        INT NOT NULL,
-    memory_mib       BIGINT NOT NULL,
-    disk_gib         BIGINT NOT NULL,
-    registered_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_heartbeat   TIMESTAMPTZ,
-    cert_fingerprint TEXT NOT NULL
-);
 
 -- ============================================================
 -- Snapshots
@@ -229,6 +229,11 @@ CREATE TABLE audit_terminal (
 CREATE INDEX idx_audit_terminal_user ON audit_terminal (user_id, timestamp DESC);
 CREATE INDEX idx_audit_terminal_ws ON audit_terminal (workspace_id, timestamp DESC);
 
+CREATE TABLE audit_terminal_2026_09 PARTITION OF audit_terminal
+    FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
+CREATE TABLE audit_terminal_2026_10 PARTITION OF audit_terminal
+    FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+
 -- ============================================================
 -- Audit: process execution (Layer 2)
 -- ============================================================
@@ -251,6 +256,11 @@ CREATE TABLE audit_process (
 
 CREATE INDEX idx_audit_process_ws ON audit_process (workspace_id, timestamp DESC);
 CREATE INDEX idx_audit_process_exe ON audit_process (exe_path, timestamp DESC);
+
+CREATE TABLE audit_process_2026_09 PARTITION OF audit_process
+    FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
+CREATE TABLE audit_process_2026_10 PARTITION OF audit_process
+    FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
 
 -- ============================================================
 -- Resource metrics (rolled up hourly)
