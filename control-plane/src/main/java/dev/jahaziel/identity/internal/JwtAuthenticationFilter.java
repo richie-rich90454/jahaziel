@@ -55,6 +55,17 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (RuntimeException rejected) {
         SecurityContextHolder.clearContext();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setHeader("WWW-Authenticate", "Bearer");
+        response.setContentType("application/json");
+        response
+            .getWriter()
+            .write(
+                "{\"code\":\"AUTH_INVALID\",\"message\":\"Invalid session token\","
+                    + "\"correlationId\":\""
+                    + UUID.randomUUID()
+                    + "\",\"details\":{}}");
+        return;
       }
     }
     chain.doFilter(request, response);
