@@ -38,12 +38,41 @@ public final class DevKeys {
     }
     try {
       Files.createDirectories(keys);
-      KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-      generator.initialize(2048);
-      KeyPair pair = generator.generateKeyPair();
-      writePem(privateKey, "PRIVATE KEY", pair.getPrivate().getEncoded());
-      writePem(publicKey, "PUBLIC KEY", pair.getPublic().getEncoded());
-      return new Keys(privateKey, publicKey);
+      Path lock = keys.resolve(".lock");
+      boolean mine;
+      try {
+        Files.createFile(lock);
+        mine = true;
+      } catch (java.nio.file.FileAlreadyExistsException held) {
+        mine = false;
+      }
+      if (!mine) {
+        for (int attempt = 0; attempt < 100; attempt++) {
+          if (Files.isRegularFile(privateKey) && Files.isRegularFile(publicKey)) {
+            return new Keys(privateKey, publicKey);
+          }
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+        throw new IllegalStateException("key generation is stuck in " + keys);
+      }
+      try {
+        if (Files.isRegularFile(privateKey) && Files.isRegularFile(publicKey)) {
+          return new Keys(privateKey, publicKey);
+        }
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+        writePem(privateKey, "PRIVATE KEY", pair.getPrivate().getEncoded());
+        writePem(publicKey, "PUBLIC KEY", pair.getPublic().getEncoded());
+        return new Keys(privateKey, publicKey);
+      } finally {
+        Files.deleteIfExists(lock);
+      }
     } catch (Exception failure) {
       throw new IllegalStateException("cannot generate session keys in " + keys, failure);
     }
@@ -61,15 +90,30 @@ public final class DevKeys {
     String body = Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(encoded) + "\n";
     String pem = "-----BEGIN " + kind + "-----\n" + body + "-----END " + kind + "-----\n";
     try {
-      Files.writeString(path, pem);
+      Path staged = Files.createTempFile(path.toAbsolutePath().getParent(), "key-", ".pem");
       try {
-        Files.setPosixFilePermissions(
-            path, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
-      } catch (UnsupportedOperationException onWindows) {
-        path.toFile().setReadable(false, false);
-        path.toFile().setReadable(true, true);
-        path.toFile().setWritable(false, false);
-        path.toFile().setWritable(true, true);
+        Files.writeString(staged, pem);
+        try {
+          Files.setPosixFilePermissions(
+              staged, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+        } catch (UnsupportedOperationException onWindows) {
+          staged.toFile().setReadable(false, false);
+          staged.toFile().setReadable(true, true);
+          staged.toFile().setWritable(false, false);
+          staged.toFile().setWritable(true, true);
+        }
+        try {
+          Files.move(
+              staged,
+              path,
+              java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+              java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.nio.file.AtomicMoveNotSupportedException fallback) {
+          Files.move(staged, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+      } catch (IOException | RuntimeException failure) {
+        Files.deleteIfExists(staged);
+        throw failure;
       }
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot write key " + path, failure);
