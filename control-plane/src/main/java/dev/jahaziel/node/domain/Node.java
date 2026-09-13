@@ -35,6 +35,28 @@ public final class Node {
    */
   public Node(
       NodeId id, String name, String region, NodeCapacity capacity, String certFingerprint) {
+    this(id, name, region, capacity, certFingerprint, Instant.now(), null);
+  }
+
+  /**
+   * Rebuilds a node from stored values.
+   *
+   * @param id the node identifier
+   * @param name the human-readable name
+   * @param region the hosting region
+   * @param capacity the total capacity
+   * @param certFingerprint the agent certificate fingerprint
+   * @param registeredAt when the node registered
+   * @param lastHeartbeat the last heartbeat, or null when never seen
+   */
+  public Node(
+      NodeId id,
+      String name,
+      String region,
+      NodeCapacity capacity,
+      String certFingerprint,
+      Instant registeredAt,
+      Instant lastHeartbeat) {
     this.id = Objects.requireNonNull(id, "id");
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("name must not be blank");
@@ -49,7 +71,8 @@ public final class Node {
       throw new IllegalArgumentException("certFingerprint must not be blank");
     }
     this.certFingerprint = certFingerprint;
-    this.registeredAt = Instant.now();
+    this.registeredAt = Objects.requireNonNull(registeredAt, "registeredAt");
+    this.lastHeartbeat = lastHeartbeat;
     this.state = new NodeState.Healthy(Instant.now());
   }
 
