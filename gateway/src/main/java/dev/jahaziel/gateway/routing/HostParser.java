@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.gateway.routing;
 
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -34,11 +35,15 @@ public final class HostParser {
    */
   public ParsedHost parse(String host) {
     Objects.requireNonNull(host, "host");
-    String suffix = "." + publicDomain;
-    if (!host.endsWith(suffix)) {
+    String normalized = host.toLowerCase(Locale.ROOT);
+    if (normalized.endsWith(".")) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
+    String suffix = "." + publicDomain.toLowerCase(Locale.ROOT);
+    if (!normalized.endsWith(suffix)) {
       throw new IllegalArgumentException("host does not belong to " + publicDomain + ": " + host);
     }
-    String label = host.substring(0, host.length() - suffix.length());
+    String label = normalized.substring(0, normalized.length() - suffix.length());
     int dash = label.lastIndexOf('-');
     if (dash <= 0 || dash == label.length() - 1) {
       throw new IllegalArgumentException("host has no user-port form: " + host);
