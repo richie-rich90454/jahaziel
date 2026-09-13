@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.runtime.internal;
 
-import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.spi.ImageRef;
 import dev.jahaziel.spi.NodeBackend;
@@ -40,10 +39,8 @@ public final class RuntimeServiceImpl implements RuntimeService {
    * @param backend the node backend
    * @param workspaces the workspace service
    * @param image the base image reference
-   * @param nodeId the node hosting workspaces
    */
-  public RuntimeServiceImpl(
-      NodeBackend backend, WorkspaceService workspaces, ImageRef image, NodeId nodeId) {
+  public RuntimeServiceImpl(NodeBackend backend, WorkspaceService workspaces, ImageRef image) {
     this.backend = Objects.requireNonNull(backend, "backend");
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.image = Objects.requireNonNull(image, "image");
