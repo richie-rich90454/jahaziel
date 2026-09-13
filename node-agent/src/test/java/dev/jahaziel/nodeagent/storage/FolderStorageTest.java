@@ -81,7 +81,8 @@ class FolderStorageTest {
     WorkspaceHandle handle = handle();
     SnapshotHandle snap = storage.snapshot(handle, new SnapshotTag("daily"));
     assertEquals(
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/daily"), snap.snapshotPath());
+        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/" + workspaceId + "/daily"),
+        snap.snapshotPath());
     verify(commands).run(List.of("mkdir", "-p", snap.snapshotPath().getParent().toString()));
     verify(commands)
         .run(List.of("cp", "-a", handle.homePath() + "/.", snap.snapshotPath().toString()));
@@ -95,13 +96,23 @@ class FolderStorageTest {
     storage.restore(handle, snap);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-    verify(commands, org.mockito.Mockito.times(6)).run(captor.capture());
+    verify(commands, org.mockito.Mockito.times(8)).run(captor.capture());
     List<List<String>> calls = captor.getAllValues();
-    assertEquals("cp", calls.get(1).get(0));
-    assertEquals("mv", calls.get(3).get(0));
-    assertEquals("mv", calls.get(4).get(0));
-    Path retired = handle.homePath().resolveSibling(handle.homePath().getFileName() + ".old");
-    assertEquals(List.of("rm", "-rf", retired.toString()), calls.get(5));
+    assertEquals(List.of("rm", "-rf", stagedOf(handle).toString()), calls.get(0));
+    assertEquals(List.of("rm", "-rf", retiredOf(handle).toString()), calls.get(1));
+    assertEquals("cp", calls.get(3).get(0));
+    assertEquals("mv", calls.get(5).get(0));
+    assertEquals("mv", calls.get(6).get(0));
+    Path retired = retiredOf(handle);
+    assertEquals(List.of("rm", "-rf", retired.toString()), calls.get(7));
+  }
+
+  private static Path stagedOf(WorkspaceHandle handle) {
+    return handle.homePath().resolveSibling(handle.homePath().getFileName() + ".new");
+  }
+
+  private static Path retiredOf(WorkspaceHandle handle) {
+    return handle.homePath().resolveSibling(handle.homePath().getFileName() + ".old");
   }
 
   @Test
