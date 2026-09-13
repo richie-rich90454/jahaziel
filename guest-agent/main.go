@@ -10,6 +10,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 	"time"
 )
 
@@ -19,11 +20,19 @@ func main() {
 	interval := flag.Duration("interval", 10*time.Second, "metrics interval")
 	flag.Parse()
 
-	agent, err := Dial(uint32(*host), uint32(*port))
-	if err != nil {
-		log.Fatalf("vsock dial: %v", err)
+	var agent *Agent
+	for {
+		var err error
+		agent, err = Dial(uint32(*host), uint32(*port))
+		if err == nil {
+			break
+		}
+		log.Printf("vsock dial: %v; retrying", err)
+		time.Sleep(10 * time.Second)
 	}
 	defer agent.Close()
+
+	go obey(agent)
 
 	ticker := time.NewTicker(*interval)
 	defer ticker.Stop()
@@ -48,6 +57,19 @@ func main() {
 					}
 				}
 			}
+		}
+	}
+}
+
+// obey dispatches host lifecycle commands until shutdown or disconnect.
+func obey(agent *Agent) {
+	for agent.Scan() {
+		if err := Handle(agent.Text()); err != nil {
+			if err == errShutdown {
+				log.Print("host requested shutdown")
+				os.Exit(0)
+			}
+			log.Printf("host command: %v", err)
 		}
 	}
 }
