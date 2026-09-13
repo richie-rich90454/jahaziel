@@ -12,6 +12,7 @@ import dev.jahaziel.policy.persistence.PolicyRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Database-backed policies. */
@@ -27,10 +28,15 @@ public final class PolicyServiceImpl implements PolicyService {
     this.policies = Objects.requireNonNull(policies, "policies");
   }
 
+  private static final Set<String> SCOPES = Set.of("global", "user", "workspace");
+
   @Override
   public PolicyDoc create(String scope, String scopeId, String policyJson, String updatedBy) {
-    if (scope == null || scope.isBlank()) {
-      throw new IllegalArgumentException("scope must not be blank");
+    if (!SCOPES.contains(scope)) {
+      throw new IllegalArgumentException("scope must be global, user, or workspace");
+    }
+    if (scope.equals("global") && scopeId != null) {
+      throw new IllegalArgumentException("global scope takes no scope id");
     }
     if (policyJson == null || policyJson.isBlank()) {
       throw new IllegalArgumentException("policyJson must not be blank");
