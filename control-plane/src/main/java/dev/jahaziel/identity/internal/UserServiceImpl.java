@@ -78,7 +78,9 @@ public final class UserServiceImpl implements UserService {
     if (at <= 0) {
       throw new IllegalArgumentException("user email has no local part");
     }
-    return email.substring(0, at).toLowerCase(Locale.ROOT);
+    String local = email.substring(0, at).toLowerCase(Locale.ROOT);
+    String domain = email.substring(at + 1).toLowerCase(Locale.ROOT);
+    return local + "-" + Integer.toUnsignedString(domain.hashCode(), 36);
   }
 
   private AppUserEntity load(UserId id) {
