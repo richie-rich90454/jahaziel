@@ -39,7 +39,8 @@ public final class AuditSpoolReader {
   }
 
   /**
-   * Drains one spool file, deleting it afterwards.
+   * Drains one spool file, deleting it afterwards. Every line is validated before anything is
+   * appended, so a malformed line fails the whole file without ingesting duplicates on retry.
    *
    * @param workspaceId the workspace the file belongs to
    * @param spoolFile the spooled JSON lines file
@@ -54,20 +55,20 @@ public final class AuditSpoolReader {
     } catch (Exception failure) {
       throw new IllegalArgumentException("unreadable spool file: " + spoolFile, failure);
     }
-    int ingested = 0;
-    for (String line : lines) {
-      if (line.isBlank()) {
-        continue;
-      }
-      audit.append(toRecord(workspaceId, line));
-      ingested++;
+    List<AuditRecord> records =
+        lines.stream()
+            .filter(line -> !line.isBlank())
+            .map(line -> toRecord(workspaceId, line))
+            .toList();
+    for (AuditRecord record : records) {
+      audit.append(record);
     }
     try {
       Files.deleteIfExists(spoolFile);
     } catch (Exception failure) {
       throw new IllegalStateException("cannot remove drained spool file: " + spoolFile, failure);
     }
-    return ingested;
+    return records.size();
   }
 
   /**
