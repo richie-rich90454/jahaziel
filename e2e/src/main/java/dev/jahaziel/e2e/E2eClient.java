@@ -149,15 +149,21 @@ public final class E2eClient {
                 + response.body());
       }
       return response.body();
-    } catch (IOException | InterruptedException failure) {
+    } catch (InterruptedException failure) {
       Thread.currentThread().interrupt();
+      throw new IllegalStateException("request failed: " + request.uri(), failure);
+    } catch (IOException failure) {
       throw new IllegalStateException("request failed: " + request.uri(), failure);
     }
   }
 
   private String field(String body, String name) {
     try {
-      return mapper.readTree(body).get(name).asString();
+      var node = mapper.readTree(body).get(name);
+      if (node == null) {
+        throw new IllegalArgumentException("response has no field " + name + ": " + body);
+      }
+      return node.asString();
     } catch (tools.jackson.core.JacksonException failure) {
       throw new IllegalArgumentException("response has no field " + name + ": " + body, failure);
     }
