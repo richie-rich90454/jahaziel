@@ -31,7 +31,7 @@ public class PolicyEntity {
   private String scopeId;
 
   /** Policy document as JSON. */
-  @Column(name = "policy_json", columnDefinition = "jsonb")
+  @Column(name = "policy_json")
   private String policyJson;
 
   /** Last update timestamp. */
