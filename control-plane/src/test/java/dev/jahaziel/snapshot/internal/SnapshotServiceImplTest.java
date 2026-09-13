@@ -70,6 +70,15 @@ class SnapshotServiceImplTest {
   }
 
   @Test
+  void createRejectsDuplicateTag() {
+    SnapshotEntity existing = row("daily", Instant.now());
+    when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(existing));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x"));
+  }
+
+  @Test
   void createRejectsBadInput() {
     assertThrows(
         IllegalArgumentException.class,
