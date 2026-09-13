@@ -42,6 +42,9 @@ public final class PartitionProvisionJob implements PlatformJob {
   @Override
   @Transactional
   public void run(JobContext context) {
+    if (!postgres()) {
+      return;
+    }
     for (String statement : provisionStatements()) {
       entities.createNativeQuery(statement).executeUpdate();
     }
@@ -92,6 +95,30 @@ public final class PartitionProvisionJob implements PlatformJob {
   @Override
   public Duration period() {
     return Duration.ofHours(24);
+  }
+
+  /**
+   * Returns whether the database partitions audit tables. Only Postgres does; SQLite keeps plain
+   * tables. Unknown environments keep the legacy behavior so existing tests and deployments are
+   * unaffected.
+   *
+   * @return true when partition DDL may run
+   */
+  private boolean postgres() {
+    try {
+      Object dialect = entities.getEntityManagerFactory().getProperties().get("hibernate.dialect");
+      if (dialect != null) {
+        return dialect.toString().toLowerCase(java.util.Locale.ROOT).contains("postgres");
+      }
+    } catch (RuntimeException ignored) {
+      // Fall through to the connection check below.
+    }
+    try {
+      java.sql.Connection connection = entities.unwrap(java.sql.Connection.class);
+      return connection == null || connection.getMetaData().getURL().startsWith("jdbc:postgresql:");
+    } catch (Exception ignored) {
+      return true;
+    }
   }
 
   @Override
