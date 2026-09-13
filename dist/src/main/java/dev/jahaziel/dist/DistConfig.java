@@ -107,12 +107,14 @@ public class DistConfig {
       @Value("${jahaziel.dist.gateway-port:8081}") int port,
       @Value("${jahaziel.dist.domain:code.example.com}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
-      @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer) {
+      @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
+      @Value("${jahaziel.dist.gateway-max-ttl-seconds:900}") long maxTtlSeconds) {
     RSAPublicKey key = JwtKeys.loadPublicKey(Path.of(publicKeyFile));
     GatewayServer server =
         new GatewayServer(
             new HostParser(domain),
-            new JwtVerifier(key, issuer, "jahaziel-code-server"),
+            new JwtVerifier(
+                key, issuer, "jahaziel-code-server", java.time.Duration.ofSeconds(maxTtlSeconds)),
             new WorkspaceDirectory(),
             new LoopbackTargetResolver());
     return new SmartLifecycle() {
