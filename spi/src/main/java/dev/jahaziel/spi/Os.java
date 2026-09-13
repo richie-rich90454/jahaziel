@@ -30,7 +30,7 @@ public enum Os {
     if (name.contains("mac") || name.contains("darwin")) {
       return MAC;
     }
-    if (name.contains("nix") || name.contains("nux") || name.contains("aix")) {
+    if (name.contains("nix") || name.contains("nux")) {
       return LINUX;
     }
     return OTHER;
