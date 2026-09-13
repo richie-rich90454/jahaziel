@@ -90,7 +90,7 @@ the jar (workspaces, images, jail, audit, sync, keys, logs, and
 `jahaziel.db`, a SQLite file that is created once and never cleared).
 
 ```bash
-./jahaziel.sh                       # --run=all: API :8080, gateway :8081
+bash jahaziel.sh                    # --run=all: API :8080, gateway :8081
 java -jar jahaziel.jar              # bare jar prints help and runs nothing
 java -jar jahaziel.jar --run=all --port=8080 --gateway-port=18081 --data-dir=/srv/jahaziel-data
 ```
