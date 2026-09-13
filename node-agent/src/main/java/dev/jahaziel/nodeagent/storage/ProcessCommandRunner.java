@@ -22,8 +22,10 @@ public final class ProcessCommandRunner implements CommandRunner {
         throw new StorageException(String.join(" ", command), exit, output);
       }
       return output;
-    } catch (IOException | InterruptedException failure) {
+    } catch (InterruptedException failure) {
       Thread.currentThread().interrupt();
+      throw new StorageException(String.join(" ", command), failure);
+    } catch (IOException failure) {
       throw new StorageException(String.join(" ", command), failure);
     }
   }
@@ -34,8 +36,10 @@ public final class ProcessCommandRunner implements CommandRunner {
     try {
       Process process = new ProcessBuilder(List.of("test", "-e", path.toString())).start();
       return process.waitFor() == 0;
-    } catch (IOException | InterruptedException failure) {
+    } catch (InterruptedException failure) {
       Thread.currentThread().interrupt();
+      return false;
+    } catch (IOException failure) {
       return false;
     }
   }
