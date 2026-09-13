@@ -17,6 +17,11 @@ base-image-builder/work-*/
 *.minisig
 guest-agent/jahaziel-guest-agent
 .env
+*.env
 *.log
 __pycache__/
 *.pyc
+# Fat-jar runtime outputs beside the jar: workspaces, SQLite, keys, logs.
+data/
+*.db
+*.jar
