@@ -37,8 +37,18 @@ public final class DailySnapshotJob implements PlatformJob {
   @Override
   public void run(JobContext context) {
     String tag = "auto-" + TAG.format(context.firedAt());
+    RuntimeException first = null;
     for (var view : workspaces.describeAll()) {
-      snapshots.create(view.workspace().id(), tag, SnapshotKind.AUTO, "system");
+      try {
+        snapshots.create(view.workspace().id(), tag, SnapshotKind.AUTO, "system");
+      } catch (RuntimeException failure) {
+        if (first == null) {
+          first = failure;
+        }
+      }
+    }
+    if (first != null) {
+      throw first;
     }
   }
 
