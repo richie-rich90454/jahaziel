@@ -8,7 +8,10 @@ import dev.jahaziel.platform.api.JobContext;
 import dev.jahaziel.platform.api.JobScope;
 import dev.jahaziel.platform.api.PlatformJob;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
@@ -34,8 +37,17 @@ public final class AuditCollectorJob implements PlatformJob {
 
   @Override
   public void run(JobContext context) {
+    try {
+      Files.createDirectories(stagingDir);
+    } catch (IOException failure) {
+      throw new IllegalStateException("cannot create audit staging dir: " + stagingDir, failure);
+    }
     for (Path spool : AuditSpoolReader.spooled(stagingDir)) {
-      reader.drain(workspaceOf(spool), spool);
+      try {
+        reader.drain(workspaceOf(spool), spool);
+      } catch (IllegalArgumentException bad) {
+        quarantine(spool);
+      }
     }
   }
 
@@ -58,6 +70,15 @@ public final class AuditCollectorJob implements PlatformJob {
       return new WorkspaceId(UUID.fromString(name.substring(0, 36)));
     } catch (IllegalArgumentException failure) {
       throw new IllegalArgumentException("spool file has no workspace prefix: " + spool);
+    }
+  }
+
+  private static void quarantine(Path spool) {
+    Path bad = spool.resolveSibling(spool.getFileName() + ".bad");
+    try {
+      Files.move(spool, bad, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException failure) {
+      throw new IllegalStateException("cannot quarantine spool file: " + spool, failure);
     }
   }
 }
