@@ -150,6 +150,9 @@ public final class NioCommandRunner implements CommandRunner {
           }
           Path target = dest.resolve(relative.toString());
           if (Files.isSymbolicLink(path)) {
+            Files.createDirectories(target.toAbsolutePath().getParent());
+            Files.deleteIfExists(target);
+            Files.createSymbolicLink(target, Files.readSymbolicLink(path));
             continue;
           }
           if (Files.isDirectory(path)) {
@@ -170,7 +173,7 @@ public final class NioCommandRunner implements CommandRunner {
   }
 
   private static void chmod(Path target, String mode) {
-    boolean writable;
+    final boolean writable;
     if (mode.equals("u+w")) {
       writable = true;
     } else if (mode.equals("a-w")) {
@@ -183,44 +186,40 @@ public final class NioCommandRunner implements CommandRunner {
       return;
     }
     try {
-      Set<PosixFilePermission> permissions =
-          Files.getPosixFilePermissions(target, java.nio.file.LinkOption.NOFOLLOW_LINKS);
-      Set<PosixFilePermission> updated = EnumSet.copyOf(permissions);
-      if (writable) {
-        updated.add(PosixFilePermission.OWNER_WRITE);
-      } else {
-        updated.remove(PosixFilePermission.OWNER_WRITE);
-        updated.remove(PosixFilePermission.GROUP_WRITE);
-        updated.remove(PosixFilePermission.OTHERS_WRITE);
-      }
-      final Set<PosixFilePermission> frozen = Set.copyOf(updated);
       Files.walkFileTree(
           target,
           new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-              apply(file, frozen, writable);
+              apply(file, writable);
               return FileVisitResult.CONTINUE;
             }
 
             @Override
             public FileVisitResult postVisitDirectory(Path dir, IOException failure) {
-              apply(dir, frozen, writable);
+              apply(dir, writable);
               return FileVisitResult.CONTINUE;
             }
 
-            private void apply(Path path, Set<PosixFilePermission> wanted, boolean write) {
+            private void apply(Path path, boolean write) {
               try {
-                Files.setPosixFilePermissions(path, wanted);
-              } catch (UnsupportedOperationException fallback) {
-                path.toFile().setWritable(write, false);
-              } catch (IOException ignored) {
+                Set<PosixFilePermission> updated =
+                    EnumSet.copyOf(
+                        Files.getPosixFilePermissions(
+                            path, java.nio.file.LinkOption.NOFOLLOW_LINKS));
+                if (write) {
+                  updated.add(PosixFilePermission.OWNER_WRITE);
+                } else {
+                  updated.remove(PosixFilePermission.OWNER_WRITE);
+                  updated.remove(PosixFilePermission.GROUP_WRITE);
+                  updated.remove(PosixFilePermission.OTHERS_WRITE);
+                }
+                Files.setPosixFilePermissions(path, updated);
+              } catch (UnsupportedOperationException | IOException fallback) {
                 path.toFile().setWritable(write, false);
               }
             }
           });
-    } catch (UnsupportedOperationException fallback) {
-      target.toFile().setWritable(writable, false);
     } catch (IOException failure) {
       throw new StorageException("chmod -R " + mode + " " + target, failure);
     }
