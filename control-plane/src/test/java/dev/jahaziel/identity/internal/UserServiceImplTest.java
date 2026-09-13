@@ -126,7 +126,19 @@ class UserServiceImplTest {
     AppUserEntity row = mock(AppUserEntity.class);
     when(row.getEmail()).thenReturn("Richard@Example.COM");
     when(users.findById(userId.value())).thenReturn(Optional.of(row));
-    assertEquals("richard", service.slug(userId));
+    String slug = service.slug(userId);
+    assertTrue(slug.startsWith("richard-"));
+  }
+
+  @Test
+  void slugDiffersAcrossDomains() {
+    AppUserEntity row = mock(AppUserEntity.class);
+    when(users.findById(userId.value())).thenReturn(Optional.of(row));
+    when(row.getEmail()).thenReturn("user@a.com");
+    String first = service.slug(userId);
+    when(row.getEmail()).thenReturn("user@b.com");
+    String second = service.slug(userId);
+    assertTrue(!first.equals(second));
   }
 
   @Test
