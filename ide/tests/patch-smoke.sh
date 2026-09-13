@@ -26,7 +26,7 @@ fail() {
 }
 
 check_present() {
-  if grep -q "$2" "$UPSTREAM/$1" 2>/dev/null; then
+  if grep -q -e "$2" "$UPSTREAM/$1" 2>/dev/null; then
     pass
   else
     fail "$3 ($1 lacks $2)"
@@ -34,7 +34,7 @@ check_present() {
 }
 
 check_absent() {
-  if grep -q "$2" "$UPSTREAM/$1" 2>/dev/null; then
+  if grep -q -e "$2" "$UPSTREAM/$1" 2>/dev/null; then
     fail "$3 ($1 still has $2)"
   else
     pass
@@ -47,10 +47,15 @@ check_present product.json '"serverDataFolderName": ".jahaziel-code-server"' 000
 check_present product.json '"quality": "stable"' 0001-quality
 check_present product.json 'github.com/example/jahaziel' 0001-links
 check_present product.json '"darwinBundleIdentifier": "com.example.jahaziel-code"' 0001-bundle
+check_present product.json '"win32TunnelServiceMutex": "jahaziel-tunnelservice"' 0001-mutex
+check_present product.json '"linuxIconName": "jahaziel-code"' 0001-icon
 
 # 0002 runtime strings
 check_present src/vs/code/browser/workbench/workbench.ts 'jahaziel-code-reqid' 0002-rebrand
 check_absent src/vs/code/browser/workbench/workbench.ts "from 'jahaziel-code'" 0002-imports
+check_absent src/vs/code/browser/workbench/workbench.ts 'from "jahaziel-code"' 0002-imports-dq
+check_absent src/vs/code/browser/workbench/workbench.ts 'jahaziel-code-remote:' 0002-scheme
+check_absent src/vs/code/browser/workbench/workbench.ts '--jahaziel-code-' 0002-cssvar
 
 # 0003 fonts and manifest
 check_present resources/server/manifest.json '"short_name": "Jahaziel Code"' 0003-manifest
