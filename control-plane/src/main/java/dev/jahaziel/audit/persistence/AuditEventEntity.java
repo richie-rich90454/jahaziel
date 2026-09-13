@@ -54,8 +54,8 @@ public class AuditEventEntity {
   @Column(name = "source_node")
   private String sourceNode;
 
-  /** Event details as JSON. */
-  @Column(name = "details", columnDefinition = "jsonb")
+  /** Event details as JSON text. Plain TEXT on every database; no JSON operators in queries. */
+  @Column(name = "details")
   private String details;
 
   /** Hash of the previous record, null for the first. */
