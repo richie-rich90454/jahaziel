@@ -13,6 +13,6 @@ echo "[$DATE] restore drill against $SANDBOX"
 echo "1. bare-metal host restore:provision $SANDBOX from backup, boot, check health"
 echo "2. single-workspace restore: pick a canary workspace, restore home, diff"
 echo "3. single-snapshot restore: restore one snapshot tag, boot, diff"
-echo "4. point-in-time postgres restore: recover to latest WAL, count audit rows"
+echo "4. postgres restore: recover the latest base backup, count audit rows"
 
 echo "drill complete; append the signed result to docs/operations/restore-drill-log.md"
