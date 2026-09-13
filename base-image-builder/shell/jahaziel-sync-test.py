@@ -23,6 +23,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
+WORKSPACE = "123e4567-e89b-12d3-a456-426614174000"
+
 import importlib.util
 
 _spec = importlib.util.spec_from_file_location("jahaziel_sync", HERE / "jahaziel-sync.py")
@@ -109,7 +111,11 @@ class FakeServer:
 
     def handle(self, conn: socket.socket) -> None:
         hello = recv_frame(conn)
-        if hello.get("workspace") != "ws-1" or hello.get("secret") != self.secret:
+        if (
+            hello.get("v") != 1
+            or hello.get("workspace") != WORKSPACE
+            or hello.get("secret") != self.secret
+        ):
             send_frame(conn, {"ok": False, "error": "denied"})
             return
         send_frame(conn, {"ok": True})
@@ -161,7 +167,7 @@ def check_round_trip() -> None:
 
         conn = sync.connect()
         try:
-            sync.hello(conn, "ws-1", "s3cret")
+            sync.hello(conn, WORKSPACE, "s3cret")
             assert sync.pull(conn, guest) == 2, "pull mirrors both files"
             assert tree(guest) == tree(home), "guest matches host after pull"
             (guest / "src" / "main.py").write_text("print(2)\n", encoding="utf-8")
@@ -173,7 +179,7 @@ def check_round_trip() -> None:
             conn.close()
         conn2 = sync.connect()
         try:
-            sync.hello(conn2, "ws-1", "s3cret")
+            sync.hello(conn2, WORKSPACE, "s3cret")
             assert sync.push(conn2, guest) == 2, "push mirrors two files"
             assert tree(home) == tree(guest), "host matches guest after push"
             assert not (home / "notes.txt").exists(), "deletions propagate"
@@ -196,7 +202,7 @@ def check_auth_denied() -> None:
         conn = sync.connect()
         try:
             try:
-                sync.hello(conn, "ws-1", "wrong")
+                sync.hello(conn, WORKSPACE, "wrong")
             except PermissionError:
                 print("auth_denied ok")
                 return
@@ -222,10 +228,32 @@ def check_traversal_safe() -> None:
     print("traversal_safe ok")
 
 
+def check_run_helpers() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp) / "home"
+        guest = Path(tmp) / "guest"
+        (home).mkdir(parents=True)
+        (home / "a.txt").write_text("a\n", encoding="utf-8")
+        server = FakeServer(home, "s3cret")
+        server.start()
+        import os
+
+        os.environ["JAHAZIEL_SYNC_FAMILY"] = "tcp"
+        os.environ["JAHAZIEL_SYNC_HOST"] = "127.0.0.1"
+        os.environ["JAHAZIEL_SYNC_PORT"] = str(server.port)
+        assert sync.run_pull(WORKSPACE, "s3cret", guest) == 1, "run_pull pulls and acks bye"
+        assert (guest / "a.txt").read_text(encoding="utf-8") == "a\n"
+        (guest / "b.txt").write_text("b\n", encoding="utf-8")
+        assert sync.run_push(WORKSPACE, "s3cret", guest) == 2, "run_push pushes and acks bye"
+        assert (home / "b.txt").read_text(encoding="utf-8") == "b\n"
+    print("run_helpers ok")
+
+
 def main() -> int:
     check_round_trip()
     check_auth_denied()
     check_traversal_safe()
+    check_run_helpers()
     print("jahaziel-sync checks passed")
     return 0
 
