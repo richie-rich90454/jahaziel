@@ -28,6 +28,13 @@ class HostParserTest {
   }
 
   @Test
+  void acceptsUppercaseAndTrailingDot() {
+    ParsedHost parsed = parser.parse("RICHARD-8080.CODE.EXAMPLE.COM.");
+    assertEquals("richard", parsed.userSlug());
+    assertEquals(8080, parsed.port());
+  }
+
+  @Test
   void rejectsForeignAndMalformedHosts() {
     assertThrows(IllegalArgumentException.class, () -> parser.parse("richard-8080.evil.dev"));
     assertThrows(IllegalArgumentException.class, () -> parser.parse("richard.code.example.com"));
