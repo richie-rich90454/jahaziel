@@ -11,6 +11,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +22,7 @@ public final class JwtVerifier {
   private final JWSVerifier verifier;
   private final String issuer;
   private final String audience;
+  private final Duration maxTtl;
 
   /**
    * Creates the verifier.
@@ -28,8 +30,9 @@ public final class JwtVerifier {
    * @param publicKey the control plane JWT public key
    * @param issuer the expected issuer
    * @param audience the expected audience
+   * @param maxTtl the longest accepted token lifetime
    */
-  public JwtVerifier(RSAPublicKey publicKey, String issuer, String audience) {
+  public JwtVerifier(RSAPublicKey publicKey, String issuer, String audience, Duration maxTtl) {
     Objects.requireNonNull(publicKey, "publicKey");
     if (issuer == null || issuer.isBlank()) {
       throw new IllegalArgumentException("issuer must not be blank");
@@ -40,6 +43,7 @@ public final class JwtVerifier {
     this.verifier = new RSASSAVerifier(publicKey);
     this.issuer = issuer;
     this.audience = audience;
+    this.maxTtl = Objects.requireNonNull(maxTtl, "maxTtl");
   }
 
   /**
@@ -76,6 +80,14 @@ public final class JwtVerifier {
     Date expiry = claims.getExpirationTime();
     if (expiry == null || !expiry.after(new Date())) {
       throw new JwtRejectedException("expired or missing expiry");
+    }
+    Date notBefore = claims.getNotBeforeTime();
+    if (notBefore != null && notBefore.after(new Date())) {
+      throw new JwtRejectedException("not yet valid");
+    }
+    Date issuedAt = claims.getIssueTime();
+    if (issuedAt != null && issuedAt.toInstant().plus(maxTtl).isBefore(new Date().toInstant())) {
+      throw new JwtRejectedException("exceeds maximum lifetime");
     }
     return new GatewaySession(uuid(claims, "sub"), uuid(claims, "wid"), scopes(claims));
   }
