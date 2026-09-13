@@ -36,7 +36,11 @@ public final class NodeServiceImpl implements NodeService {
       throw new IllegalArgumentException("Node " + id + " already registered");
     }
     Node node = new Node(id, name, region, capacity, certFingerprint);
-    nodes.save(NodeMapper.toEntity(node));
+    try {
+      nodes.save(NodeMapper.toEntity(node));
+    } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
+      throw new IllegalArgumentException("Node " + id + " already registered");
+    }
     return node;
   }
 
