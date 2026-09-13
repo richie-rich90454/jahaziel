@@ -21,15 +21,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -47,8 +50,13 @@ import tools.jackson.databind.ObjectMapper;
  * in the hello frame.
  *
  * <p>Both directions mirror: files absent from the incoming tree are deleted, so renames and
- * deletions propagate. Pushes are capped at the workspace quota and unpacked atomically per file.
- * Payloads stage through temp files, never RAM.
+ * deletions propagate. Pushes are capped at the workspace quota on uncompressed bytes and unpacked
+ * atomically per file through a sibling temp file plus an atomic move, so a quota abort never
+ * leaves a truncated file behind. Payloads stage through temp files, never RAM. The wire length
+ * prefix itself is capped independently of quota, so an empty tree always converges.
+ *
+ * <p>One workspace transfers at a time: pull and push take a per-workspace lock, so a timer push
+ * racing a stop push (or a pull) serializes instead of interleaving on the live home.
  *
  * <p>Durability contract: the host home is the truth at rest. Guests pull at boot, push every
  * minute and at graceful stop. A snapshot therefore lags the live guest by at most the push
@@ -57,6 +65,7 @@ import tools.jackson.databind.ObjectMapper;
 public final class SyncServer {
   static final int PROTOCOL_VERSION = 1;
   static final int MAX_FRAME_BYTES = 16 * 1024 * 1024;
+  static final long MAX_WIRE_BYTES = 32L << 30;
 
   /** Loopback TCP port; guests arrive through the vsock relay. */
   public static final int LOOPBACK_PORT = 19002;
@@ -67,10 +76,14 @@ public final class SyncServer {
   private final Path stagingDir;
   private final ObjectMapper mapper = new ObjectMapper();
   private final ConcurrentMap<UUID, Entry> entries = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, Object> locks = new ConcurrentHashMap<>();
   private volatile ServerSocket serverSocket;
 
   /** A registered workspace home. */
   record Entry(Path home, long quotaBytes, String secret) {}
+
+  /** An authenticated session: the workspace id plus the entry it presented. */
+  private record Auth(UUID id, Entry entry) {}
 
   /**
    * Creates the server, loading the persisted registry when present.
@@ -139,7 +152,11 @@ public final class SyncServer {
    *
    * @throws IOException when the socket cannot bind
    */
-  public void start() throws IOException {
+  public synchronized void start() throws IOException {
+    if (serverSocket != null) {
+      throw new IllegalStateException("server already started");
+    }
+    sweepStaging();
     ServerSocket socket = new ServerSocket();
     socket.bind(new InetSocketAddress("127.0.0.1", port));
     serverSocket = socket;
@@ -172,6 +189,23 @@ public final class SyncServer {
     }
   }
 
+  private void sweepStaging() throws IOException {
+    Files.createDirectories(stagingDir);
+    try (Stream<Path> orphans = Files.list(stagingDir)) {
+      for (Path orphan :
+          orphans
+              .filter(path -> !Files.isDirectory(path))
+              .filter(
+                  path -> {
+                    String name = path.getFileName().toString();
+                    return name.startsWith("push-") || name.startsWith("pull-");
+                  })
+              .toList()) {
+        Files.deleteIfExists(orphan);
+      }
+    }
+  }
+
   private void acceptLoop() {
     while (true) {
       ServerSocket socket = serverSocket;
@@ -200,8 +234,8 @@ public final class SyncServer {
     DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
     DataOutputStream out = new DataOutputStream(new BufferedOutputStream(client.getOutputStream()));
     Map<String, Object> hello = readFrame(in);
-    Entry entry = authenticate(hello);
-    if (entry == null) {
+    Auth auth = authenticate(hello);
+    if (auth == null) {
       writeFrame(out, Map.of("ok", false, "error", "denied"));
       out.flush();
       return;
@@ -218,8 +252,8 @@ public final class SyncServer {
       String op = Objects.toString(command.get("op"), "");
       try {
         switch (op) {
-          case "pull" -> pull(entry, in, out);
-          case "push" -> push(entry, in, out);
+          case "pull" -> pull(auth, in, out);
+          case "push" -> push(auth, in, out);
           case "bye" -> {
             writeFrame(out, Map.of("ok", true));
             out.flush();
@@ -239,7 +273,7 @@ public final class SyncServer {
     }
   }
 
-  private Entry authenticate(Map<String, Object> hello) {
+  private Auth authenticate(Map<String, Object> hello) {
     if (hello == null || !Integer.valueOf(PROTOCOL_VERSION).equals(number(hello.get("v")))) {
       return null;
     }
@@ -255,39 +289,49 @@ public final class SyncServer {
     }
     byte[] presented = Objects.toString(hello.get("secret"), "").getBytes(StandardCharsets.UTF_8);
     byte[] expected = entry.secret().getBytes(StandardCharsets.UTF_8);
-    return MessageDigest.isEqual(presented, expected) ? entry : null;
+    return MessageDigest.isEqual(presented, expected) ? new Auth(workspaceId, entry) : null;
   }
 
   private static Integer number(Object value) {
     return value instanceof Number number ? number.intValue() : null;
   }
 
-  private void pull(Entry entry, DataInputStream in, DataOutputStream out) throws IOException {
-    Path payload = zipTree(entry.home(), entry.quotaBytes());
-    try {
-      long size = Files.size(payload);
-      out.writeLong(size);
-      try (InputStream staged = Files.newInputStream(payload)) {
-        staged.transferTo(out);
-      }
-      writeFrame(out, Map.of("ok", true, "files", countEntries(payload)));
+  private void pull(Auth auth, DataInputStream in, DataOutputStream out) throws IOException {
+    synchronized (lockFor(auth.id())) {
+      writeFrame(out, Map.of("ready", true));
       out.flush();
-    } finally {
-      Files.deleteIfExists(payload);
+      Path payload = zipTree(auth.entry().home(), auth.entry().quotaBytes());
+      try {
+        long size = Files.size(payload);
+        out.writeLong(size);
+        try (InputStream staged = Files.newInputStream(payload)) {
+          staged.transferTo(out);
+        }
+        writeFrame(out, Map.of("ok", true, "files", countEntries(payload)));
+        out.flush();
+      } finally {
+        Files.deleteIfExists(payload);
+      }
     }
   }
 
-  private void push(Entry entry, DataInputStream in, DataOutputStream out) throws IOException {
-    writeFrame(out, Map.of("ready", true));
-    out.flush();
-    Path payload = stageBlob(in, entry.quotaBytes());
-    try {
-      int files = unzipTree(payload, entry.home(), entry.quotaBytes());
-      writeFrame(out, Map.of("ok", true, "files", files));
+  private void push(Auth auth, DataInputStream in, DataOutputStream out) throws IOException {
+    synchronized (lockFor(auth.id())) {
+      writeFrame(out, Map.of("ready", true));
       out.flush();
-    } finally {
-      Files.deleteIfExists(payload);
+      Path payload = stageBlob(in);
+      try {
+        int files = unzipTree(auth, payload);
+        writeFrame(out, Map.of("ok", true, "files", files));
+        out.flush();
+      } finally {
+        Files.deleteIfExists(payload);
+      }
     }
+  }
+
+  private Object lockFor(UUID workspaceId) {
+    return locks.computeIfAbsent(workspaceId, id -> new Object());
   }
 
   @SuppressWarnings("unchecked")
@@ -311,10 +355,10 @@ public final class SyncServer {
     out.write(body);
   }
 
-  private Path stageBlob(DataInputStream in, long quotaBytes) throws IOException {
+  private Path stageBlob(DataInputStream in) throws IOException {
     long size = in.readLong();
-    if (size < 0 || size > quotaBytes) {
-      throw new SyncException("payload over quota: " + size);
+    if (size < 0 || size > MAX_WIRE_BYTES) {
+      throw new SyncException("payload over wire cap: " + size);
     }
     Files.createDirectories(stagingDir);
     Path staged = Files.createTempFile(stagingDir, "push-", ".zip");
@@ -366,9 +410,12 @@ public final class SyncServer {
     return staged;
   }
 
-  private int unzipTree(Path payload, Path home, long quotaBytes) throws IOException {
+  private int unzipTree(Auth auth, Path payload) throws IOException {
+    Path home = auth.entry().home();
+    long quotaBytes = auth.entry().quotaBytes();
     Files.createDirectories(home);
-    List<String> kept = new ArrayList<>();
+    Path realHome = home.toRealPath();
+    Set<String> kept = new HashSet<>();
     long bytes = 0;
     try (InputStream file = Files.newInputStream(payload);
         ZipInputStream zip = new ZipInputStream(file)) {
@@ -378,13 +425,17 @@ public final class SyncServer {
         if (target == null) {
           continue;
         }
+        if (entry.isDirectory()) {
+          Files.createDirectories(target);
+          continue;
+        }
         Files.createDirectories(target.getParent());
-        try (OutputStream content =
-            Files.newOutputStream(
-                target,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.TRUNCATE_EXISTING)) {
+        if (!target.getParent().toRealPath().startsWith(realHome)) {
+          continue;
+        }
+        Path staged =
+            Files.createTempFile(target.getParent(), target.getFileName().toString(), ".part");
+        try (OutputStream content = Files.newOutputStream(staged, StandardOpenOption.WRITE)) {
           byte[] buffer = new byte[32768];
           int read;
           while ((read = zip.read(buffer)) >= 0) {
@@ -394,30 +445,60 @@ public final class SyncServer {
               throw new SyncException("payload over quota: " + home);
             }
           }
+        } catch (IOException | RuntimeException failure) {
+          Files.deleteIfExists(staged);
+          throw failure;
+        }
+        try {
+          moveAtomically(staged, target);
+        } catch (IOException | RuntimeException failure) {
+          Files.deleteIfExists(staged);
+          throw failure;
         }
         kept.add(posix(home.relativize(target)));
         zip.closeEntry();
       }
     }
+    if (entries.get(auth.id()) != auth.entry()) {
+      throw new SyncException("stale session");
+    }
     mirror(home, kept);
     return kept.size();
+  }
+
+  private static void moveAtomically(Path staged, Path target) throws IOException {
+    try {
+      Files.move(
+          staged, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    } catch (AtomicMoveNotSupportedException fallback) {
+      Files.move(staged, target, StandardCopyOption.REPLACE_EXISTING);
+    }
   }
 
   private int countEntries(Path payload) throws IOException {
     int count = 0;
     try (InputStream file = Files.newInputStream(payload);
         ZipInputStream zip = new ZipInputStream(file)) {
-      while (zip.getNextEntry() != null) {
-        count++;
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null) {
+        if (!entry.isDirectory()) {
+          count++;
+        }
         zip.closeEntry();
       }
     }
     return count;
   }
 
-  private void mirror(Path home, List<String> kept) throws IOException {
+  private void mirror(Path home, Set<String> kept) throws IOException {
     for (Path path : regularFiles(home)) {
       if (!kept.contains(posix(home.relativize(path)))) {
+        Files.deleteIfExists(path);
+      }
+    }
+    try (Stream<Path> walk = Files.walk(home)) {
+      for (Path path :
+          walk.filter(Files::isSymbolicLink).sorted(Comparator.reverseOrder()).toList()) {
         Files.deleteIfExists(path);
       }
     }
@@ -449,11 +530,13 @@ public final class SyncServer {
   }
 
   private static Path resolve(Path home, String name) {
-    String clean = name.replace('\\', '/');
-    if (clean.startsWith("/")) {
+    if (name == null || name.isEmpty() || name.contains("\\")) {
       return null;
     }
-    Path target = home.resolve(clean).normalize();
+    if (name.startsWith("/")) {
+      return null;
+    }
+    Path target = home.resolve(name).normalize();
     return target.startsWith(home) ? target : null;
   }
 
@@ -479,6 +562,7 @@ public final class SyncServer {
               StandardOpenOption.TRUNCATE_EXISTING)) {
         properties.store(file, null);
       }
+      restrict(staged);
       try {
         Files.move(
             staged,
@@ -488,8 +572,20 @@ public final class SyncServer {
       } catch (AtomicMoveNotSupportedException fallback) {
         Files.move(staged, registryFile, StandardCopyOption.REPLACE_EXISTING);
       }
+      restrict(registryFile);
     } catch (IOException failure) {
       throw new SyncException("cannot persist registry", failure);
+    }
+  }
+
+  private static void restrict(Path file) {
+    try {
+      Files.setPosixFilePermissions(
+          file, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+    } catch (UnsupportedOperationException onWindows) {
+      // No POSIX modes; the data dir ACLs are the operator's job.
+    } catch (IOException ignored) {
+      // Best effort; the registry stays readable only by accident, not by promise.
     }
   }
 
@@ -497,6 +593,7 @@ public final class SyncServer {
     if (!Files.isRegularFile(registryFile)) {
       return;
     }
+    restrict(registryFile);
     Properties properties = new Properties();
     try (InputStream file = Files.newInputStream(registryFile)) {
       properties.load(file);
