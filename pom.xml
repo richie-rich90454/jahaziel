@@ -115,6 +115,8 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <exclude>base-image-builder/packages.txt</exclude>
                 <!-- Machine-consumed pins and lists; read verbatim by scripts. -->
                 <exclude>ide/upstream-version.txt</exclude>
+                <!-- Microsoft upstream checkout; keeps its own headers. -->
+                <exclude>ide/upstream/**</exclude>
                 <exclude>ide/extensions-builtin/list.txt</exclude>
                 <exclude>ide/tests/no-network-test/blocklist.txt</exclude>
                 <!-- Spring runtime config; header enforced by the CI tracked-files grep. -->
