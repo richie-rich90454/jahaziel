@@ -7,7 +7,7 @@
 
 # Single-server deployment
 
-Fresh Debian 12 install, one public IPv4, DNS pointed at the host.
+Fresh Ubuntu 24.04 install, one public IPv4, DNS pointed at the host.
 
 ## 1. Base
 
