@@ -116,6 +116,6 @@ public final class NodeMetricsCollector {
     if (one < 0) {
       return new double[] {0, 0, 0};
     }
-    return new double[] {one, one, one};
+    return new double[] {one, 0, 0};
   }
 }
