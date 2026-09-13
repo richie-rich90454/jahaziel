@@ -230,7 +230,7 @@ public class AppConfig {
       @Value("${jahaziel.storage.root}") String storageRoot,
       @Value("${jahaziel.audit.retention-days:30}") int retentionDays,
       @Value("${jahaziel.audit.partition-months-ahead:3}") int monthsAhead,
-      @Value("${jahaziel.audit.staging-dir:/var/lib/jahaziel/audit}") String stagingDir,
+      @Value("${jahaziel.audit.staging-dir:${jahaziel.storage.root}/audit}") String stagingDir,
       @Value("${jahaziel.snapshot.auto-retention-count:30}") int autoRetention,
       @Value("${jahaziel.snapshot.pre-delete-retention-days:90}") int preDeleteDays) {
     InProcessScheduler scheduler = new InProcessScheduler();
