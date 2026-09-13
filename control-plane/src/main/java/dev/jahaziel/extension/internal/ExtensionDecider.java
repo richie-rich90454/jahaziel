@@ -31,11 +31,25 @@ public final class ExtensionDecider implements ExtensionPolicy {
   @Override
   public Decision decide(ExtensionRequest request) {
     Objects.requireNonNull(request, "request");
-    List<ExtensionPolicyDoc> candidates =
-        policies.listByScope("global", null).stream()
-            .filter(doc -> doc.extensionId().equals(request.extensionId()))
-            .filter(doc -> versionMatches(doc.versionConstraint(), request.version()))
-            .toList();
+    String[][] scopes = {
+      {"workspace", request.workspaceId().toString()},
+      {"user", request.userId().toString()},
+      {"global", null}
+    };
+    for (String[] scope : scopes) {
+      List<ExtensionPolicyDoc> candidates =
+          policies.listByScope(scope[0], scope[1]).stream()
+              .filter(doc -> doc.extensionId().equals(request.extensionId()))
+              .filter(doc -> versionMatches(doc.versionConstraint(), request.version()))
+              .toList();
+      if (!candidates.isEmpty()) {
+        return decideScope(candidates);
+      }
+    }
+    return Decision.BLOCK;
+  }
+
+  private static Decision decideScope(List<ExtensionPolicyDoc> candidates) {
     for (ExtensionPolicyDoc doc : candidates) {
       if (doc.action().equals("block")) {
         return Decision.BLOCK;
@@ -63,6 +77,9 @@ public final class ExtensionDecider implements ExtensionPolicy {
   static boolean versionMatches(String constraint, String version) {
     if (constraint == null || constraint.isBlank()) {
       return true;
+    }
+    if (version == null) {
+      return false;
     }
     if (constraint.endsWith(".*")) {
       return version.startsWith(constraint.substring(0, constraint.length() - 2));
