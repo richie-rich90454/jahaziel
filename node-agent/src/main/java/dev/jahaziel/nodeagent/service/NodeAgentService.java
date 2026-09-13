@@ -16,6 +16,7 @@ import dev.jahaziel.spi.WorkspaceHandle;
 import dev.jahaziel.spi.WorkspaceStorage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -96,6 +97,11 @@ public final class NodeAgentService implements NodeAgentOperations {
     Objects.requireNonNull(handle, "handle");
     backend.destroy(handle);
     sync.deregister(handle.workspaceId());
+    if (!keepSnapshots) {
+      for (SnapshotSummary snapshot : listSnapshots(handle)) {
+        storage.deleteSnapshot(snapshot.handle());
+      }
+    }
     audit(handle.workspaceId(), "workspace.destroy", Map.of());
   }
 
@@ -124,18 +130,33 @@ public final class NodeAgentService implements NodeAgentOperations {
   @Override
   public List<SnapshotSummary> listSnapshots(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
-    Path snaps = handle.homePath().getParent().resolve("snaps");
+    Path snaps =
+        handle.homePath().getParent().resolve("snaps").resolve(handle.workspaceId().toString());
+    if (!Files.isDirectory(snaps)) {
+      return List.of();
+    }
     try (Stream<Path> entries = Files.list(snaps)) {
       return entries
+          .filter(Files::isDirectory)
+          .sorted()
           .map(
-              path ->
-                  new SnapshotSummary(
-                      new SnapshotHandle(UUID.randomUUID(), path, Instant.now()),
-                      path.getFileName().toString(),
-                      Instant.now()))
+              path -> {
+                String tag = path.getFileName().toString();
+                UUID id = UUID.nameUUIDFromBytes(tag.getBytes(StandardCharsets.UTF_8));
+                return new SnapshotSummary(
+                    new SnapshotHandle(id, path, modifiedAt(path)), tag, modifiedAt(path));
+              })
           .toList();
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot list snapshots for " + handle.workspaceId(), failure);
+    }
+  }
+
+  private static Instant modifiedAt(Path path) {
+    try {
+      return Files.getLastModifiedTime(path).toInstant();
+    } catch (IOException missing) {
+      return Instant.now();
     }
   }
 
@@ -181,10 +202,19 @@ public final class NodeAgentService implements NodeAgentOperations {
   }
 
   private void audit(UUID workspaceId, String action, Map<String, String> details) {
-    StringBuilder json = new StringBuilder("{\"action\":\"").append(action).append('"');
+    StringBuilder json = new StringBuilder("{\"action\":\"").append(escape(action)).append('"');
     details.forEach(
-        (key, value) -> json.append(",\"").append(key).append("\":\"").append(value).append('"'));
+        (key, value) ->
+            json.append(",\"")
+                .append(escape(key))
+                .append("\":\"")
+                .append(escape(value))
+                .append('"'));
     json.append('}');
     spool.append(workspaceId, json.toString());
+  }
+
+  private static String escape(String value) {
+    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 }
