@@ -8,7 +8,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/out"
 
-sha256sum ./*.tar.zst > SHA256SUMS
+if command -v sha256sum >/dev/null; then
+  sha256sum ./*.tar.zst > SHA256SUMS
+else
+  shasum -a 256 ./*.tar.zst > SHA256SUMS
+fi
 
 if [ -z "${JAHAZIEL_SIGNING_KEY:-}" ]; then
   echo "JAHAZIEL_SIGNING_KEY is not set" >&2
