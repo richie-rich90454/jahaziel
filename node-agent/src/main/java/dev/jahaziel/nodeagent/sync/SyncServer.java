@@ -104,7 +104,9 @@ public final class SyncServer {
     }
     byte[] secret = new byte[32];
     new SecureRandom().nextBytes(secret);
-    entries.put(workspaceId, new Entry(home, quotaBytes, HexFormat.of().formatHex(secret)));
+    entries.put(
+        workspaceId,
+        new Entry(home.toAbsolutePath().normalize(), quotaBytes, HexFormat.of().formatHex(secret)));
     persist();
   }
 
@@ -448,18 +450,18 @@ public final class SyncServer {
 
   private static Path resolve(Path home, String name) {
     String clean = name.replace('\\', '/');
-    if (clean.startsWith("/") || clean.contains("..")) {
+    if (clean.startsWith("/")) {
       return null;
     }
     Path target = home.resolve(clean).normalize();
-    return target.startsWith(home.toAbsolutePath().normalize()) ? target : null;
+    return target.startsWith(home) ? target : null;
   }
 
   private static String posix(Path relative) {
     return relative.toString().replace('\\', '/');
   }
 
-  private void persist() {
+  private synchronized void persist() {
     try {
       Files.createDirectories(stateDir);
       Properties properties = new Properties();
