@@ -38,7 +38,7 @@ public final class AuditServiceImpl implements AuditService {
   }
 
   @Override
-  public AuditRecord append(AuditRecord event) {
+  public synchronized AuditRecord append(AuditRecord event) {
     Objects.requireNonNull(event, "event");
     List<AuditEventEntity> previous = events.findLatest(PageRequest.of(0, 1));
     String prevHash = "genesis";
