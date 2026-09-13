@@ -35,7 +35,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -202,7 +201,10 @@ public class AdminController {
   public List<AuditRecordDto> audit(
       @RequestParam(defaultValue = "100") int limit, Principal principal) {
     requireAdmin(principal);
-    return audit.latest(limit).stream().map(AuditRecordDto::from).toList();
+    if (limit <= 0) {
+      throw new IllegalArgumentException("limit must be positive");
+    }
+    return audit.latest(Math.min(limit, 1000)).stream().map(AuditRecordDto::from).toList();
   }
 
   /**
@@ -223,13 +225,13 @@ public class AdminController {
   }
 
   /**
-   * Stores a policy document.
+   * Stores a policy document. Creates a new document on every call.
    *
    * @param request the document
    * @param principal the acting administrator
    * @return the stored document
    */
-  @PutMapping("/policy")
+  @PostMapping("/policy")
   @ResponseStatus(HttpStatus.CREATED)
   public PolicyDoc putPolicy(@RequestBody CreatePolicyRequest request, Principal principal) {
     UserId admin = requireAdmin(principal);
