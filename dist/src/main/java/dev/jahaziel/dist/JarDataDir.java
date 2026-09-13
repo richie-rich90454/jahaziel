@@ -96,8 +96,10 @@ public final class JarDataDir {
       Files.createDirectories(sync());
       Files.createDirectories(keys());
       Files.createDirectories(logs());
-      if (!Files.exists(db())) {
+      try {
         Files.createFile(db());
+      } catch (java.nio.file.FileAlreadyExistsException concurrentBoot) {
+        // Another process won the cold-boot race; the file is there.
       }
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot prepare data directory " + root, failure);
