@@ -11,14 +11,18 @@ TAG="$(cat upstream-version.txt)"
 
 command -v node >/dev/null || { echo "node 20+ is required; run ops/toolchain/install-toolchain.sh" >&2; exit 1; }
 command -v yarn >/dev/null || { echo "yarn is required; run ops/toolchain/install-toolchain.sh" >&2; exit 1; }
+command -v zstd >/dev/null || { echo "zstd is required for packaging" >&2; exit 1; }
 
 if [ ! -d upstream/.git ]; then
   echo "cloning microsoft/vscode at $TAG"
-  git clone --depth 1 --branch "$TAG" https://github.com/microsoft/vscode.git upstream
+  git clone -c core.autocrlf=false --depth 1 --branch "$TAG" https://github.com/microsoft/vscode.git upstream
 fi
 
-git -C upstream fetch --tags origin
+if ! git -C upstream rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+  git -C upstream fetch --depth 1 origin "tag $TAG"
+fi
 git -C upstream checkout "$TAG"
+git -C upstream reset --hard "$TAG"
 
 for patch in patches/*.patch; do
   if grep -q '^diff --git' "$patch"; then
@@ -37,7 +41,11 @@ cd ..
 mkdir -p out
 rm -f "out/jahaziel-code-server.tar.zst" "out/jahaziel-code-server.tar.zst.sha256"
 tar --use-compress-program="zstd -19" -cf out/jahaziel-code-server.tar.zst \
-  -C . vscode-reh-web-linux-x64
-sha256sum out/jahaziel-code-server.tar.zst > out/jahaziel-code-server.tar.zst.sha256
+  -C upstream vscode-reh-web-linux-x64
+if command -v sha256sum >/dev/null; then
+  sha256sum out/jahaziel-code-server.tar.zst > out/jahaziel-code-server.tar.zst.sha256
+else
+  shasum -a 256 out/jahaziel-code-server.tar.zst > out/jahaziel-code-server.tar.zst.sha256
+fi
 
 echo "Built out/jahaziel-code-server.tar.zst"
