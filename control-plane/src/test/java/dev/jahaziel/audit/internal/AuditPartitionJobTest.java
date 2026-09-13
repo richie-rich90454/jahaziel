@@ -14,10 +14,12 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.platform.api.JobContext;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Query;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** Behavior of the audit partition jobs with a stubbed entity manager. */
@@ -50,5 +52,27 @@ class AuditPartitionJobTest {
         job.provisionStatements()
             .get(0)
             .startsWith("CREATE TABLE IF NOT EXISTS audit_event_2026_11 PARTITION OF audit_event"));
+  }
+
+  @Test
+  void retentionSkipsNonPostgres() {
+    EntityManager entities = mock(EntityManager.class);
+    EntityManagerFactory factory = mock(EntityManagerFactory.class);
+    when(factory.getProperties())
+        .thenReturn(Map.of("hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect"));
+    when(entities.getEntityManagerFactory()).thenReturn(factory);
+    new AuditRetentionJob(entities, 30, clock).run(new JobContext(Instant.now()));
+    verify(entities, times(0)).createNativeQuery(anyString());
+  }
+
+  @Test
+  void provisionSkipsNonPostgres() {
+    EntityManager entities = mock(EntityManager.class);
+    EntityManagerFactory factory = mock(EntityManagerFactory.class);
+    when(factory.getProperties())
+        .thenReturn(Map.of("hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect"));
+    when(entities.getEntityManagerFactory()).thenReturn(factory);
+    new PartitionProvisionJob(entities, 3, clock).run(new JobContext(Instant.now()));
+    verify(entities, times(0)).createNativeQuery(anyString());
   }
 }
