@@ -5,6 +5,8 @@
 package dev.jahaziel.api.controller;
 
 import dev.jahaziel.api.dto.TerminalSessionDto;
+import dev.jahaziel.authorization.api.AccessDeniedException;
+import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
@@ -27,14 +29,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class TerminalController {
   private final TerminalService terminals;
+  private final AuthorizationService auth;
 
   /**
    * Creates the controller.
    *
    * @param terminals the terminal registry
+   * @param auth the authorization checks
    */
-  public TerminalController(TerminalService terminals) {
+  public TerminalController(TerminalService terminals, AuthorizationService auth) {
     this.terminals = terminals;
+    this.auth = auth;
   }
 
   /**
@@ -53,32 +58,44 @@ public class TerminalController {
       @RequestParam(defaultValue = "30") int rows,
       @RequestParam(defaultValue = "120") int cols,
       Principal principal) {
-    return TerminalSessionDto.from(
-        terminals.open(new WorkspaceId(id), userId(principal), rows, cols));
+    WorkspaceId workspace = require(principal, id, "write");
+    return TerminalSessionDto.from(terminals.open(workspace, userId(principal), rows, cols));
   }
 
   /**
    * Lists a workspace's sessions.
    *
    * @param id the workspace identifier
+   * @param principal the acting user
    * @return the session DTOs
    */
   @GetMapping("/workspaces/{id}/terminals")
-  public List<TerminalSessionDto> list(@PathVariable UUID id) {
-    return terminals.listByWorkspace(new WorkspaceId(id)).stream()
-        .map(TerminalSessionDto::from)
-        .toList();
+  public List<TerminalSessionDto> list(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "read");
+    return terminals.listByWorkspace(workspace).stream().map(TerminalSessionDto::from).toList();
   }
 
   /**
    * Closes a session.
    *
    * @param sessionId the session identifier
+   * @param principal the acting user
    */
   @DeleteMapping("/terminals/{sessionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void close(@PathVariable UUID sessionId) {
+  public void close(@PathVariable UUID sessionId, Principal principal) {
+    var session = terminals.get(new TerminalSessionId(sessionId));
+    require(principal, session.workspaceId().value(), "write");
     terminals.close(new TerminalSessionId(sessionId));
+  }
+
+  private WorkspaceId require(Principal principal, UUID id, String permission) {
+    UserId user = userId(principal);
+    WorkspaceId workspace = new WorkspaceId(id);
+    if (!auth.isAllowed(user, permission, workspace)) {
+      throw new AccessDeniedException(user, permission);
+    }
+    return workspace;
   }
 
   private static UserId userId(Principal principal) {
