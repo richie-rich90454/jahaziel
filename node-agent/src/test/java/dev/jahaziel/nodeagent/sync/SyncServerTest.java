@@ -95,6 +95,7 @@ class SyncServerTest {
     try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
       assertEquals(true, session.hello.get("ok"));
       session.send(Map.of("op", "pull"));
+      assertEquals(true, session.frame().get("ready"));
       Map<String, String> pulled = unzip(session.blob(), root.resolve("guest"));
       assertEquals(Map.of("src/main.py", "print(1)\n", "notes.txt", "hello\n"), pulled);
       assertEquals(true, session.frame().get("ok"));
@@ -107,8 +108,21 @@ class SyncServerTest {
   void pullEmptyHome() throws Exception {
     try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
       session.send(Map.of("op", "pull"));
+      assertEquals(true, session.frame().get("ready"));
       assertTrue(unzip(session.blob(), root.resolve("guest")).isEmpty());
       assertEquals(true, session.frame().get("ok"));
+    }
+  }
+
+  @Test
+  void pullOverQuotaIsFramed() throws Exception {
+    write(home.resolve("big.txt"), "x".repeat(4096));
+    server.register(workspaceId, home, 64);
+    try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
+      session.send(Map.of("op", "pull"));
+      assertEquals(true, session.frame().get("ready"));
+      Map<String, Object> reply = session.frame();
+      assertEquals(false, reply.get("ok"));
     }
   }
 
@@ -163,6 +177,45 @@ class SyncServerTest {
       Map<String, Object> reply = session.frame();
       assertEquals(false, reply.get("ok"));
     }
+    assertFalse(Files.exists(home.resolve("big.txt")));
+  }
+
+  @Test
+  void pushSkipsDirectoryEntries() throws Exception {
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    try (ZipOutputStream zip = new ZipOutputStream(buffer)) {
+      zip.putNextEntry(new ZipEntry("sub/"));
+      zip.closeEntry();
+      zip.putNextEntry(new ZipEntry("sub/f.txt"));
+      zip.write("data\n".getBytes(StandardCharsets.UTF_8));
+      zip.closeEntry();
+    }
+    try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
+      session.send(Map.of("op", "push"));
+      assertEquals(true, session.frame().get("ready"));
+      session.blob(buffer.toByteArray());
+      assertEquals(true, session.frame().get("ok"));
+    }
+    assertTrue(Files.isDirectory(home.resolve("sub")));
+    assertEquals("data\n", read(home.resolve("sub/f.txt")));
+  }
+
+  @Test
+  void pushRejectsBackslashNames() throws Exception {
+    try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
+      session.send(Map.of("op", "push"));
+      assertEquals(true, session.frame().get("ready"));
+      session.blob(zip(Map.of("a\\b.txt", "evil", "ok.txt", "ok")));
+      assertEquals(true, session.frame().get("ok"));
+    }
+    assertEquals("ok", read(home.resolve("ok.txt")));
+    assertFalse(Files.exists(home.resolve("a\\b.txt")));
+    assertFalse(Files.exists(home.resolve("a")));
+  }
+
+  @Test
+  void startTwiceThrows() {
+    assertThrows(IllegalStateException.class, server::start);
   }
 
   @Test
