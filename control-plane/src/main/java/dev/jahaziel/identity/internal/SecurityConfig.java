@@ -7,6 +7,7 @@ package dev.jahaziel.identity.internal;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,16 +25,22 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
   private final JwtService tokens;
   private final UserService users;
+  private final boolean oidcEnabled;
 
   /**
    * Creates the configuration.
    *
    * @param tokens the token service
    * @param users the user lookup
+   * @param oidcEnabled false in portable single-file mode without an identity provider
    */
-  public SecurityConfig(JwtService tokens, UserService users) {
+  public SecurityConfig(
+      JwtService tokens,
+      UserService users,
+      @Value("${jahaziel.auth.oidc-enabled:true}") boolean oidcEnabled) {
     this.tokens = Objects.requireNonNull(tokens, "tokens");
     this.users = Objects.requireNonNull(users, "users");
+    this.oidcEnabled = oidcEnabled;
   }
 
   /**
@@ -46,6 +53,9 @@ public class SecurityConfig {
   public SecurityFilterChain chain(HttpSecurity http) throws Exception {
     JwtAuthenticationFilter bearer =
         new JwtAuthenticationFilter(tokens, user -> users.get(user).roles());
+    if (oidcEnabled) {
+      http.oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true));
+    }
     return http.authorizeHttpRequests(
             exchanges ->
                 exchanges
@@ -53,7 +63,6 @@ public class SecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .authenticated())
-        .oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true))
         .logout(logout -> logout.logoutSuccessUrl("/"))
         .sessionManagement(
             sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
