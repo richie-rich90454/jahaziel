@@ -5,6 +5,7 @@
 package dev.jahaziel.node.internal;
 
 import dev.jahaziel.node.api.NodeService;
+import dev.jahaziel.node.domain.NodeState;
 import dev.jahaziel.platform.api.JobContext;
 import dev.jahaziel.platform.api.JobScope;
 import dev.jahaziel.platform.api.PlatformJob;
@@ -39,12 +40,15 @@ public final class HealthCheckJob implements PlatformJob {
   public void run(JobContext context) {
     Instant cutoff = Instant.now(clock).minus(staleAfter);
     for (var node : nodes.list()) {
+      if (node.state() instanceof NodeState.Draining) {
+        continue;
+      }
       boolean stale = node.lastHeartbeat().map(seen -> seen.isBefore(cutoff)).orElse(true);
       if (stale) {
         try {
           nodes.markUnhealthy(node.id(), "no heartbeat for " + staleAfter.getSeconds() + "s");
         } catch (IllegalStateException already) {
-          // Already unhealthy or draining; nothing to do.
+          // Already unhealthy; nothing to do.
         }
       }
     }
