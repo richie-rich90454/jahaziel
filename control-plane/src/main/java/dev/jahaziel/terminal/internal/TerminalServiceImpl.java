@@ -10,6 +10,8 @@ import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -18,6 +20,9 @@ import java.util.concurrent.ConcurrentMap;
 
 /** In-memory terminal sessions. Sessions die with the control plane; PTYs live in the VM. */
 public final class TerminalServiceImpl implements TerminalService {
+  private static final int MAX_SESSIONS = 10_000;
+  private static final Duration IDLE_TTL = Duration.ofHours(24);
+
   private final ConcurrentMap<TerminalSessionId, TerminalSession> sessions =
       new ConcurrentHashMap<>();
 
@@ -27,6 +32,7 @@ public final class TerminalServiceImpl implements TerminalService {
         new TerminalSession(
             new TerminalSessionId(UUID.randomUUID()), workspaceId, userId, rows, cols);
     sessions.put(session.id(), session);
+    evictIdle();
     return session;
   }
 
@@ -57,5 +63,13 @@ public final class TerminalServiceImpl implements TerminalService {
   @Override
   public void activity(TerminalSessionId id) {
     get(id).recordActivity();
+  }
+
+  private void evictIdle() {
+    if (sessions.size() <= MAX_SESSIONS) {
+      return;
+    }
+    Instant cutoff = Instant.now().minus(IDLE_TTL);
+    sessions.entrySet().removeIf(entry -> entry.getValue().lastActivityAt().isBefore(cutoff));
   }
 }
