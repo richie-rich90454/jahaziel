@@ -12,6 +12,7 @@ import dev.jahaziel.gateway.routing.HostParser;
 import dev.jahaziel.gateway.routing.WorkspaceDirectory;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 
 /**
  * Gateway entry point. Wires the parser, verifier, directory, and relay, then serves. The directory
@@ -23,14 +24,17 @@ public final class GatewayMain {
   /**
    * Starts the gateway.
    *
-   * @param args --port, --domain, and --jwt-pub with values
+   * @param args --port, --domain, --jwt-pub, and --max-ttl-seconds with values
    */
   public static void main(String[] args) {
     int port = integer(args, "--port", 8081);
     String domain = string(args, "--domain", "code.example.com");
     Path keyPath = Path.of(string(args, "--jwt-pub", "/etc/jahaziel/tls/jwt.pub"));
+    int maxTtlSeconds = integer(args, "--max-ttl-seconds", 900);
     RSAPublicKey key = JwtKeys.loadPublicKey(keyPath);
-    JwtVerifier verifier = new JwtVerifier(key, "https://code.example.com", "jahaziel-code-server");
+    JwtVerifier verifier =
+        new JwtVerifier(
+            key, "https://" + domain, "jahaziel-code-server", Duration.ofSeconds(maxTtlSeconds));
     GatewayServer server =
         new GatewayServer(
             new HostParser(domain),
