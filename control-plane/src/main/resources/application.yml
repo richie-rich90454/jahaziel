@@ -50,6 +50,10 @@ spring:
 
 jahaziel:
   domain: code.example.com
+  image-ref: base-image:2026.09
+  default-node: node-a
+  auth:
+    oidc-enabled: true
   node-agent:
     transport: unix
     unix-socket: /run/jahaziel/node-agent.sock
@@ -80,6 +84,7 @@ jahaziel:
   audit:
     retention-days: 30
     partition-months-ahead: 3
+    staging-dir: /var/lib/jahaziel/audit
   snapshot:
     auto-retention-count: 30
     pre-delete-retention-days: 90
