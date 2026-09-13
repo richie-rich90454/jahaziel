@@ -24,14 +24,15 @@ table inet jahaziel {
         drop
     }
 
-    # Per-VM rate limits
+    # Aggregate rate limits for the whole VM subnet (shared budget,
+    # not per-VM: per-IP sets land with the metrics feed)
     chain ratelimit {
         type filter hook forward priority 0; policy accept;
 
-        # Outbound rate limit: 200 Mbps per VM
+        # Outbound rate limit: 200 Mbps shared across VMs
         ip saddr 10.100.0.0/16 oifname "eth0" limit rate over 25 mbytes/second drop
 
-        # Per-VM connection limit: 5000 concurrent
+        # Connection limit: 5000 concurrent shared across VMs
         ip saddr 10.100.0.0/16 oifname "eth0" ct count over 5000 drop
     }
 }
