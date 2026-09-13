@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -125,7 +124,7 @@ class AdminControllerTest {
         new PolicyDoc(id, "global", null, "{}", Instant.parse("2026-01-02T03:04:05Z"), "admin");
     when(policies.create(eq("global"), eq(null), eq("{}"), any())).thenReturn(doc);
     mvc.perform(
-            put("/admin/v1/policy")
+            post("/admin/v1/policy")
                 .principal(principal)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"scope\":\"global\",\"scopeId\":null,\"policyJson\":\"{}\"}"))
