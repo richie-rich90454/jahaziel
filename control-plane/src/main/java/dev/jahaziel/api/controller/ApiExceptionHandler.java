@@ -7,6 +7,8 @@ package dev.jahaziel.api.controller;
 import dev.jahaziel.api.dto.ApiError;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.extension.api.ExtensionPolicyNotFoundException;
+import dev.jahaziel.identity.api.DevConnectException;
+import dev.jahaziel.identity.api.LoginRejectedException;
 import dev.jahaziel.identity.api.UserNotFoundException;
 import dev.jahaziel.node.api.NodeNotFoundException;
 import dev.jahaziel.policy.api.PolicyNotFoundException;
@@ -65,6 +67,20 @@ public class ApiExceptionHandler {
         "Forbidden",
         UUID.randomUUID().toString(),
         Map.of("user", failure.userId().value().toString(), "action", failure.action()));
+  }
+
+  /** Maps a refused login to 403. An operator resolves it. */
+  @ExceptionHandler(LoginRejectedException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public ApiError loginRejected(LoginRejectedException failure) {
+    return error("LOGIN_REJECTED", failure.getMessage());
+  }
+
+  /** Maps a failed DevConnect step to 500, naming the target and cause for the operator. */
+  @ExceptionHandler(DevConnectException.class)
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  public ApiError devConnectFailed(DevConnectException failure) {
+    return error("DEVCONNECT_FAILED", failure.getMessage());
   }
 
   /** Maps unreachable node agents to 503. Starts fail safe, never fail open. */
