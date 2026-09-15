@@ -154,10 +154,6 @@ public final class JahazielMain {
     properties.put("spring.autoconfigure.exclude", OAUTH2_CLIENT_AUTO_CONFIG);
     properties.put("DB_USER", "");
     properties.put("DB_PASSWORD", "");
-    properties.put("OIDC_CLIENT_ID", "portable");
-    properties.put("OIDC_CLIENT_SECRET", "portable");
-    properties.put("OIDC_ISSUER_URI", "https://" + parsed.domain());
-    properties.put("jahaziel.auth.oidc-enabled", "false");
     properties.put("jahaziel.storage.root", data.root().toString());
     properties.put("jahaziel.jwt.private-key-file", keys.privateKey().toString());
     properties.put("jahaziel.jwt.public-key-file", keys.publicKey().toString());
