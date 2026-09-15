@@ -47,4 +47,17 @@ class JarDataDirTest {
       System.setProperty("user.dir", home);
     }
   }
+
+  @Test
+  void adjacentBaseTracksTheLauncherJarOrFallsBackToWorkingDirectory() {
+    // Spring Boot 4 launches from a `jar:nested:` URL, so the base must come from
+    // ApplicationHome rather than a hand-parsed code source URI.
+    var source = new org.springframework.boot.system.ApplicationHome(JarDataDir.class).getSource();
+    String base = JarDataDir.adjacentBase();
+    if (source != null && source.getName().endsWith(".jar")) {
+      assertEquals(source.getAbsoluteFile().getParent(), Path.of(base).toString());
+    } else {
+      assertEquals(System.getProperty("user.dir"), base);
+    }
+  }
 }
