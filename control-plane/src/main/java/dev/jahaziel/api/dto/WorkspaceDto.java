@@ -6,6 +6,7 @@ package dev.jahaziel.api.dto;
 
 import dev.jahaziel.workspace.api.WorkspaceView;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ import java.util.UUID;
  * @param createdAt when the workspace was created
  * @param lastActivityAt last state change
  * @param quota the quota view
- * @param urls the entry points
+ * @param ports the registered ports, each with its tokenized public URL
  */
 public record WorkspaceDto(
     UUID workspaceId,
@@ -27,23 +28,19 @@ public record WorkspaceDto(
     Instant createdAt,
     Instant lastActivityAt,
     WorkspaceQuotaDto quota,
-    WorkspaceUrlsDto urls) {
+    List<PortDto> ports) {
   /**
    * Maps a view to a DTO.
    *
    * @param view the view
-   * @param appDomain the public domain, for example {@code code.example.com}
+   * @param ports the workspace's ports
    * @return the DTO
    */
-  public static WorkspaceDto from(WorkspaceView view, String appDomain) {
+  public static WorkspaceDto from(WorkspaceView view, List<PortDto> ports) {
     var workspace = view.workspace();
     var quotaDto =
         new WorkspaceQuotaDto(
             0, workspace.quota().logicalBytes(), 0, workspace.quota().inodeLimit());
-    var urls =
-        new WorkspaceUrlsDto(
-            "wss://" + appDomain + "/ws/ide/" + workspace.id().value(),
-            "wss://" + appDomain + "/ws/terminal/" + workspace.id().value());
     return new WorkspaceDto(
         workspace.id().value(),
         workspace.name(),
@@ -51,6 +48,6 @@ public record WorkspaceDto(
         view.createdAt(),
         view.lastActivityAt(),
         quotaDto,
-        urls);
+        List.copyOf(ports));
   }
 }
