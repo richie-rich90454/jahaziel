@@ -28,6 +28,15 @@ public interface UserService {
   boolean exists(UserId id);
 
   /**
+   * Checks whether the account is active, the per-request kill switch. A missing account is not
+   * active.
+   *
+   * @param id the user identifier
+   * @return true when the account exists and its status is active
+   */
+  boolean isActive(UserId id);
+
+  /**
    * Checks MFA enrollment.
    *
    * @param id the user identifier
