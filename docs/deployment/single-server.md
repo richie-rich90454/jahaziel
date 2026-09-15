@@ -59,19 +59,26 @@ cp control-plane/target/control-plane-exec.jar gateway/target/gateway-exec.jar \
   node-agent/target/node-agent-exec.jar /opt/jahaziel/
 ```
 
-Write `/etc/jahaziel/*.env` (mode 0600) with the database and OIDC settings
-the units load via `EnvironmentFile`:
+Write `/etc/jahaziel/*.env` (mode 0600) with the database and basis-auth
+(DevConnect) settings the units load via `EnvironmentFile`:
 
 ```bash
 cat >/etc/jahaziel/control-plane.env <<'EOF'
 DB_USER=jahaziel-control-plane
 DB_PASSWORD=secret
-OIDC_CLIENT_ID=...
-OIDC_CLIENT_SECRET=...
-OIDC_ISSUER_URI=https://idp.example.com
+BASIS_AUTH_ISSUER=https://idp.example.com
+BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback
+BASIS_CLIENT_ID=jahaziel
+BASIS_CLIENT_SECRET=...
+BASIS_RESOURCE=urn:basis:api:jahaziel
 EOF
 chmod 0600 /etc/jahaziel/*.env
 ```
+
+Login stays off until all five `BASIS_*` values are present. Register the
+same redirect URI byte for byte in basis-auth, and add the resource
+audience to its `OIDC_RESOURCES_JSON`. The alias callback
+`/api/oauth2/bcallback` is registered too, for IdPs configured with it.
 
 Service users (`jahaziel-control-plane`, `jahaziel-node-agent`,
 `jahaziel-gateway`) are created by `ops/toolchain/install-toolchain.sh`.
