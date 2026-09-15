@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.api.controller;
 
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.MetricsDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.authorization.api.AccessDeniedException;
@@ -15,7 +16,6 @@ import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +30,7 @@ public class RuntimeController {
   private final WorkspaceService workspaces;
   private final MetricsService metrics;
   private final AuthorizationService auth;
-  private final String appDomain;
+  private final WorkspaceDtoFactory dtos;
 
   /**
    * Creates the controller.
@@ -39,19 +39,18 @@ public class RuntimeController {
    * @param workspaces the workspace lookup for responses
    * @param metrics the metric rollups
    * @param auth the authorization checks
-   * @param appDomain the public domain
    */
   public RuntimeController(
       RuntimeService runtime,
       WorkspaceService workspaces,
       MetricsService metrics,
       AuthorizationService auth,
-      @Value("${jahaziel.domain}") String appDomain) {
+      WorkspaceDtoFactory dtos) {
     this.runtime = runtime;
     this.workspaces = workspaces;
     this.metrics = metrics;
     this.auth = auth;
-    this.appDomain = appDomain;
+    this.dtos = dtos;
   }
 
   /**
@@ -65,7 +64,7 @@ public class RuntimeController {
   public WorkspaceDto start(@PathVariable UUID id, Principal principal) {
     WorkspaceId workspace = require(principal, id, "write");
     runtime.start(workspace);
-    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
+    return dtos.forUser(userId(principal), workspaces.describe(workspace));
   }
 
   /**
@@ -79,7 +78,7 @@ public class RuntimeController {
   public WorkspaceDto stop(@PathVariable UUID id, Principal principal) {
     WorkspaceId workspace = require(principal, id, "write");
     runtime.stop(workspace);
-    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
+    return dtos.forUser(userId(principal), workspaces.describe(workspace));
   }
 
   /**
@@ -93,7 +92,7 @@ public class RuntimeController {
   public WorkspaceDto restart(@PathVariable UUID id, Principal principal) {
     WorkspaceId workspace = require(principal, id, "write");
     runtime.restart(workspace);
-    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
+    return dtos.forUser(userId(principal), workspaces.describe(workspace));
   }
 
   /**
@@ -110,16 +109,19 @@ public class RuntimeController {
   }
 
   private WorkspaceId require(Principal principal, UUID id, String permission) {
-    UserId user;
-    try {
-      user = new UserId(UUID.fromString(principal.getName()));
-    } catch (IllegalArgumentException failure) {
-      throw new IllegalArgumentException("principal is not a user id");
-    }
+    UserId user = userId(principal);
     WorkspaceId workspace = new WorkspaceId(id);
     if (!auth.isAllowed(user, permission, workspace)) {
       throw new AccessDeniedException(user, permission);
     }
     return workspace;
+  }
+
+  private static UserId userId(Principal principal) {
+    try {
+      return new UserId(UUID.fromString(principal.getName()));
+    } catch (IllegalArgumentException failure) {
+      throw new IllegalArgumentException("principal is not a user id");
+    }
   }
 }
