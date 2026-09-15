@@ -68,15 +68,15 @@ public final class LocalProcessBackend implements NodeBackend {
 
   @Override
   public void stop(RuntimeHandle handle, boolean graceful) {
+    // Idempotent on purpose: a workspace that was never started must still be stoppable, so a
+    // delete of a fresh workspace is not an error.
     Objects.requireNonNull(handle, "handle");
-    requirePrepared(handle.value());
     running.remove(handle.value());
   }
 
   @Override
   public void destroy(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
-    requirePrepared(handle.workspaceId());
     storage.destroy(handle);
     running.remove(handle.workspaceId());
     prepared.remove(handle.workspaceId());
