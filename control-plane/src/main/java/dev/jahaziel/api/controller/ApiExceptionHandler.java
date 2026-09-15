@@ -24,6 +24,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave the
@@ -102,6 +103,13 @@ public class ApiExceptionHandler {
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public ApiError badInput(IllegalArgumentException failure) {
     return error("VALIDATION_FAILED", failure.getMessage());
+  }
+
+  /** Maps an unknown path to 404, not 500: nothing is broken, the route does not exist. */
+  @ExceptionHandler(NoResourceFoundException.class)
+  @ResponseStatus(HttpStatus.NOT_FOUND)
+  public ApiError noResource(NoResourceFoundException failure) {
+    return error("NOT_FOUND", "No such endpoint");
   }
 
   /** Maps bean validation failures to 400. */
