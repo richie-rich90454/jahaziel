@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.api.controller;
 
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.CreateSnapshotRequest;
 import dev.jahaziel.api.dto.SnapshotDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
@@ -19,7 +20,6 @@ import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,7 +36,7 @@ public class SnapshotController {
   private final SnapshotService snapshots;
   private final WorkspaceService workspaces;
   private final AuthorizationService auth;
-  private final String appDomain;
+  private final WorkspaceDtoFactory dtos;
 
   /**
    * Creates the controller.
@@ -44,17 +44,17 @@ public class SnapshotController {
    * @param snapshots the snapshot service
    * @param workspaces the workspace lookup for restore responses
    * @param auth the authorization checks
-   * @param appDomain the public domain
+   * @param dtos the workspace read-model factory
    */
   public SnapshotController(
       SnapshotService snapshots,
       WorkspaceService workspaces,
       AuthorizationService auth,
-      @Value("${jahaziel.domain}") String appDomain) {
+      WorkspaceDtoFactory dtos) {
     this.snapshots = snapshots;
     this.workspaces = workspaces;
     this.auth = auth;
-    this.appDomain = appDomain;
+    this.dtos = dtos;
   }
 
   /**
@@ -102,20 +102,23 @@ public class SnapshotController {
       @PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
     WorkspaceId workspace = require(principal, id, "write");
     snapshots.restore(workspace, new SnapshotId(snapshotId));
-    return WorkspaceDto.from(workspaces.describe(workspace), appDomain);
+    return dtos.forUser(userId(principal), workspaces.describe(workspace));
   }
 
   private WorkspaceId require(Principal principal, UUID id, String permission) {
-    UserId user;
-    try {
-      user = new UserId(UUID.fromString(principal.getName()));
-    } catch (IllegalArgumentException failure) {
-      throw new IllegalArgumentException("principal is not a user id");
-    }
+    UserId user = userId(principal);
     WorkspaceId workspace = new WorkspaceId(id);
     if (!auth.isAllowed(user, permission, workspace)) {
       throw new AccessDeniedException(user, permission);
     }
     return workspace;
+  }
+
+  private static UserId userId(Principal principal) {
+    try {
+      return new UserId(UUID.fromString(principal.getName()));
+    } catch (IllegalArgumentException failure) {
+      throw new IllegalArgumentException("principal is not a user id");
+    }
   }
 }
