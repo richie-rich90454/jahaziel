@@ -35,25 +35,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: false
-  security:
-    oauth2:
-      client:
-        registration:
-          oidc:
-            client-id: ${OIDC_CLIENT_ID}
-            client-secret: ${OIDC_CLIENT_SECRET}
-            scope: openid,profile,email
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-        provider:
-          oidc:
-            issuer-uri: ${OIDC_ISSUER_URI}
 
 jahaziel:
   domain: code.example.com
   image-ref: base-image:2026.09
   default-node: node-a
-  auth:
-    oidc-enabled: true
   node-agent:
     transport: unix
     unix-socket: /run/jahaziel/node-agent.sock
