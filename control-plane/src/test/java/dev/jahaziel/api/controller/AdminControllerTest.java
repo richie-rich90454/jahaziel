@@ -16,12 +16,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.jahaziel.administration.api.AdminService;
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.AppUser;
+import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.monitoring.api.MetricsService;
+import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.node.domain.Node;
 import dev.jahaziel.node.domain.NodeCapacity;
@@ -51,6 +54,7 @@ class AdminControllerTest {
   private AuditService audit;
   private PolicyService policies;
   private MetricsService metrics;
+  private WorkspaceDtoFactory dtos;
 
   private final UserId adminId = new UserId(UUID.randomUUID());
   private final Principal principal = () -> adminId.value().toString();
@@ -65,10 +69,14 @@ class AdminControllerTest {
     audit = mock(AuditService.class);
     policies = mock(PolicyService.class);
     metrics = mock(MetricsService.class);
+    PortService ports = mock(PortService.class);
+    JwtService tokens = mock(JwtService.class);
+    when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
+    dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
     mvc =
         MockMvcBuilders.standaloneSetup(
                 new AdminController(
-                    admin, auth, users, workspaces, nodes, audit, policies, metrics, "code.test"))
+                    admin, auth, users, workspaces, nodes, audit, policies, metrics, dtos))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
     when(auth.isAdmin(adminId)).thenReturn(true);
