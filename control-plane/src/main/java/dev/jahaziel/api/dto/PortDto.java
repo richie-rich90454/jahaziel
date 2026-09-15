@@ -12,7 +12,7 @@ import java.time.Instant;
  *
  * @param port the bound port
  * @param protocol the transport protocol
- * @param url the public URL
+ * @param url the public URL, carrying a workspace-scoped session token; null when none is minted
  * @param registeredAt when the binding was registered
  */
 public record PortDto(int port, String protocol, String url, Instant registeredAt) {
@@ -22,13 +22,14 @@ public record PortDto(int port, String protocol, String url, Instant registeredA
    * @param binding the binding
    * @param userSlug the URL-safe user slug
    * @param appDomain the public domain
+   * @param token the workspace-scoped token, or null to omit the URL
    * @return the DTO
    */
-  public static PortDto from(PortBinding binding, String userSlug, String appDomain) {
-    return new PortDto(
-        binding.port(),
-        binding.protocol(),
-        "https://" + userSlug + "-" + binding.port() + "." + appDomain,
-        binding.registeredAt());
+  public static PortDto from(PortBinding binding, String userSlug, String appDomain, String token) {
+    String url =
+        token == null
+            ? null
+            : "https://" + userSlug + "-" + binding.port() + "." + appDomain + "/?token=" + token;
+    return new PortDto(binding.port(), binding.protocol(), url, binding.registeredAt());
   }
 }
