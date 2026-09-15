@@ -6,7 +6,6 @@ package dev.jahaziel.dist;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -108,18 +107,17 @@ public final class JarDataDir {
 
   static String adjacentBase() {
     try {
-      var location = JarDataDir.class.getProtectionDomain().getCodeSource().getLocation();
-      if (location != null) {
-        Path jar = Path.of(location.toURI());
-        String file = jar.getFileName().toString();
-        if (file.endsWith(".jar")) {
-          Path parent = jar.toAbsolutePath().getParent();
-          if (parent != null) {
-            return parent.toString();
-          }
+      // ApplicationHome understands every launcher URL: plain file:, Spring Boot 3's
+      // jar:file:...!/BOOT-INF/classes!/, and Spring Boot 4's jar:nested: scheme.
+      var source =
+          new org.springframework.boot.system.ApplicationHome(JarDataDir.class).getSource();
+      if (source != null && source.getName().endsWith(".jar")) {
+        var parent = source.getAbsoluteFile().getParentFile();
+        if (parent != null) {
+          return parent.getPath();
         }
       }
-    } catch (SecurityException | URISyntaxException | IllegalArgumentException ignored) {
+    } catch (SecurityException | LinkageError ignored) {
       // Fall through to the working directory below.
     }
     return Objects.requireNonNullElse(System.getProperty("user.dir"), ".");
