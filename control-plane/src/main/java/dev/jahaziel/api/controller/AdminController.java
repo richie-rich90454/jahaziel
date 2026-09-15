@@ -5,6 +5,7 @@
 package dev.jahaziel.api.controller;
 
 import dev.jahaziel.administration.api.AdminService;
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.AdminActionRequest;
 import dev.jahaziel.api.dto.AdminHealthDto;
 import dev.jahaziel.api.dto.AuditRecordDto;
@@ -29,7 +30,6 @@ import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -53,7 +53,7 @@ public class AdminController {
   private final AuditService audit;
   private final PolicyService policies;
   private final MetricsService metrics;
-  private final String appDomain;
+  private final WorkspaceDtoFactory dtos;
 
   /**
    * Creates the controller.
@@ -66,7 +66,7 @@ public class AdminController {
    * @param audit the audit log
    * @param policies the policy store
    * @param metrics the metric rollups
-   * @param appDomain the public domain
+   * @param dtos the workspace read-model factory
    */
   public AdminController(
       AdminService admin,
@@ -77,7 +77,7 @@ public class AdminController {
       AuditService audit,
       PolicyService policies,
       MetricsService metrics,
-      @Value("${jahaziel.domain}") String appDomain) {
+      WorkspaceDtoFactory dtos) {
     this.admin = admin;
     this.auth = auth;
     this.users = users;
@@ -86,7 +86,7 @@ public class AdminController {
     this.audit = audit;
     this.policies = policies;
     this.metrics = metrics;
-    this.appDomain = appDomain;
+    this.dtos = dtos;
   }
 
   /**
@@ -149,7 +149,7 @@ public class AdminController {
   @GetMapping("/workspaces")
   public List<WorkspaceDto> workspaces(Principal principal) {
     requireAdmin(principal);
-    return admin.listWorkspaces().stream().map(view -> WorkspaceDto.from(view, appDomain)).toList();
+    return admin.listWorkspaces().stream().map(dtos::withoutTokens).toList();
   }
 
   /**
