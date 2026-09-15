@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.api.controller;
 
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.CreateWorkspaceRequest;
 import dev.jahaziel.api.dto.UserDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
@@ -40,7 +41,7 @@ public class WorkspaceController {
   private final RuntimeService runtime;
   private final AuthorizationService auth;
   private final UserService users;
-  private final String appDomain;
+  private final WorkspaceDtoFactory dtos;
   private final String defaultNode;
 
   /**
@@ -50,7 +51,7 @@ public class WorkspaceController {
    * @param runtime the runtime lifecycle for stop-before-delete
    * @param auth the authorization checks
    * @param users the user lookup
-   * @param appDomain the public domain
+   * @param dtos the workspace read-model factory
    * @param defaultNode the single node id until the scheduler lands
    */
   public WorkspaceController(
@@ -58,13 +59,13 @@ public class WorkspaceController {
       RuntimeService runtime,
       AuthorizationService auth,
       UserService users,
-      @Value("${jahaziel.domain}") String appDomain,
+      WorkspaceDtoFactory dtos,
       @Value("${jahaziel.default-node:node-a}") String defaultNode) {
     this.workspaces = workspaces;
     this.runtime = runtime;
     this.auth = auth;
     this.users = users;
-    this.appDomain = appDomain;
+    this.dtos = dtos;
     this.defaultNode = defaultNode;
   }
 
@@ -94,8 +95,9 @@ public class WorkspaceController {
    */
   @GetMapping("/me/workspaces")
   public List<WorkspaceDto> listMine(Principal principal) {
-    return workspaces.describeByOwner(userId(principal)).stream()
-        .map(view -> WorkspaceDto.from(view, appDomain))
+    UserId owner = userId(principal);
+    return workspaces.describeByOwner(owner).stream()
+        .map(view -> dtos.forUser(owner, view))
         .toList();
   }
 
@@ -114,7 +116,7 @@ public class WorkspaceController {
     long memory = request.memoryMib() == null ? 2048 : request.memoryMib();
     var workspace =
         workspaces.create(userId(principal), request.name(), vcpu, memory, new NodeId(defaultNode));
-    return WorkspaceDto.from(workspaces.describe(workspace.id()), appDomain);
+    return dtos.forUser(userId(principal), workspaces.describe(workspace.id()));
   }
 
   /**
@@ -126,7 +128,8 @@ public class WorkspaceController {
    */
   @GetMapping("/workspaces/{id}")
   public WorkspaceDto get(@PathVariable UUID id, Principal principal) {
-    return WorkspaceDto.from(workspaces.describe(require(principal, id, "read")), appDomain);
+    UserId owner = userId(principal);
+    return dtos.forUser(owner, workspaces.describe(require(principal, id, "read")));
   }
 
   /**
@@ -163,6 +166,7 @@ public class WorkspaceController {
     return workspace;
   }
 
+  /** Builds the workspace's entry points, each carrying a fresh workspace-scoped token. */
   private static UserId userId(Principal principal) {
     try {
       return new UserId(UUID.fromString(principal.getName()));
