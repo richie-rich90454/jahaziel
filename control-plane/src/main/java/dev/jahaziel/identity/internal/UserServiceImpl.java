@@ -51,6 +51,11 @@ public final class UserServiceImpl implements UserService {
   }
 
   @Override
+  public boolean isActive(UserId id) {
+    return users.findById(id.value()).map(row -> "active".equals(row.getStatus())).orElse(false);
+  }
+
+  @Override
   public boolean isMfaEnabled(UserId id) {
     return load(id).isMfaEnabled();
   }
