@@ -12,8 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
@@ -37,6 +39,10 @@ class PortControllerTest {
 
   private AuthorizationService auth;
 
+  private GatewayRouteService routes;
+
+  private JwtService tokens;
+
   private final Principal principal = () -> UUID.randomUUID().toString();
 
   @BeforeEach
@@ -44,9 +50,12 @@ class PortControllerTest {
     ports = mock(PortService.class);
     users = mock(UserService.class);
     auth = mock(AuthorizationService.class);
+    routes = mock(GatewayRouteService.class);
+    tokens = mock(JwtService.class);
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     mvc =
-        MockMvcBuilders.standaloneSetup(new PortController(ports, users, auth, "code.test"))
+        MockMvcBuilders.standaloneSetup(
+                new PortController(ports, users, auth, routes, tokens, "code.test", 900))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
   }
@@ -59,13 +68,14 @@ class PortControllerTest {
         new PortBinding(user, 8080, workspace, "http", Instant.parse("2026-01-02T03:04:05Z"));
     when(ports.bindingsByWorkspace(new WorkspaceId(workspace))).thenReturn(List.of(binding));
     when(users.slug(new UserId(user))).thenReturn("richard");
+    when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
     mvc.perform(
             get("/api/v1/workspaces/" + workspace + "/ports")
                 .principal(principal)
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].port").value(8080))
-        .andExpect(jsonPath("$[0].url").value("https://richard-8080.code.test"));
+        .andExpect(jsonPath("$[0].url").value("https://richard-8080.code.test/?token=tok"));
   }
 
   @Test
