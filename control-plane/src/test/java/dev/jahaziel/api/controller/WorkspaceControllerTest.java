@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.api.controller;
 
-import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -16,9 +15,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.domain.VirtualMachine;
 import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
@@ -57,6 +59,10 @@ class WorkspaceControllerTest {
 
   private UserService users;
 
+  private PortService ports;
+
+  private JwtService tokens;
+
   private final UserId userId = new UserId(UUID.randomUUID());
   private final Principal principal = () -> userId.value().toString();
 
@@ -67,12 +73,22 @@ class WorkspaceControllerTest {
     runtime = mock(RuntimeService.class);
     auth = mock(AuthorizationService.class);
     users = mock(UserService.class);
+    ports = mock(PortService.class);
+    tokens = mock(JwtService.class);
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
+    when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
+    when(tokens.issue(any(), any(), any(), any())).thenReturn("token");
     var validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();
     mvc =
         MockMvcBuilders.standaloneSetup(
-                new WorkspaceController(workspaces, runtime, auth, users, "code.test", "node-a"))
+                new WorkspaceController(
+                    workspaces,
+                    runtime,
+                    auth,
+                    users,
+                    new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900),
+                    "node-a"))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)
             .build();
@@ -95,7 +111,7 @@ class WorkspaceControllerTest {
     mvc.perform(get("/api/v1/me/workspaces").principal(principal))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("club"))
-        .andExpect(jsonPath("$[0].urls.ide").value(startsWith("wss://")));
+        .andExpect(jsonPath("$[0].ports").isArray());
   }
 
   @Test
