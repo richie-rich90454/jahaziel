@@ -30,7 +30,10 @@ import dev.jahaziel.monitoring.api.MetricsService;
 import dev.jahaziel.monitoring.internal.MetricsServiceImpl;
 import dev.jahaziel.monitoring.internal.ResourceSamplingJob;
 import dev.jahaziel.monitoring.persistence.ResourceMetricRepository;
+import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.networking.internal.GatewayRouteServiceImpl;
+import dev.jahaziel.networking.internal.GatewayRouteSyncJob;
 import dev.jahaziel.networking.internal.PortServiceImpl;
 import dev.jahaziel.networking.persistence.WorkspacePortRepository;
 import dev.jahaziel.node.api.NodeService;
@@ -180,6 +183,28 @@ public class AppConfig {
     return new PortServiceImpl(ports, users, workspaces);
   }
 
+  /** Returns the gateway route reconciler. No registry means the split topology: a no-op. */
+  @Bean
+  public GatewayRouteService gatewayRoutes(
+      java.util.Optional<dev.jahaziel.spi.RouteRegistry> registry,
+      WorkspaceService workspaces,
+      UserService users,
+      PortService ports) {
+    return new GatewayRouteServiceImpl(registry, workspaces, users, ports);
+  }
+
+  /** Returns the workspace read-model factory, which attaches tokenized port URLs. */
+  @Bean
+  public dev.jahaziel.api.WorkspaceDtoFactory workspaceDtos(
+      PortService ports,
+      UserService users,
+      JwtService tokens,
+      @Value("${jahaziel.domain}") String appDomain,
+      @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
+    return new dev.jahaziel.api.WorkspaceDtoFactory(
+        ports, users, tokens, appDomain, tokenTtlSeconds);
+  }
+
   /** Returns metric rollups. */
   @Bean
   public MetricsService metrics(ResourceMetricRepository metrics) {
@@ -224,6 +249,7 @@ public class AppConfig {
       MetricsService metrics,
       NodeService nodes,
       RuntimeService runtime,
+      GatewayRouteService gatewayRoutes,
       Clock clock,
       @Value("${jahaziel.storage.root}") String storageRoot,
       @Value("${jahaziel.audit.retention-days:30}") int retentionDays,
@@ -243,6 +269,7 @@ public class AppConfig {
     scheduler.register(new CleanupJob(workspaces, storageRoot));
     scheduler.register(new CacheWarmJob(storageRoot));
     scheduler.register(new AuditCollectorJob(new AuditSpoolReader(audit), Path.of(stagingDir)));
+    scheduler.register(new GatewayRouteSyncJob(gatewayRoutes));
     return scheduler;
   }
 
