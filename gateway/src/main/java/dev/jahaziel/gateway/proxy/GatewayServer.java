@@ -94,12 +94,20 @@ public final class GatewayServer {
   }
 
   private void handleQuietly(Socket client) {
-    try (client) {
+    // The socket must outlive the error write: closing it in a try-with-resources would drop the
+    // status the client needs.
+    try {
       handle(client);
     } catch (HttpFailure failure) {
       writeError(client, failure);
     } catch (IOException | RuntimeException failure) {
       // Backend died mid-relay or the client went away; nothing useful to send.
+    } finally {
+      try {
+        client.close();
+      } catch (IOException ignored) {
+        // Already gone.
+      }
     }
   }
 
