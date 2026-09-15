@@ -93,12 +93,25 @@ public class DistConfig {
   }
 
   /**
+   * Returns the gateway routing table. One instance per process: the control plane registers routes
+   * into it and the gateway reads them.
+   *
+   * @return the route registry
+   */
+  @Bean
+  public WorkspaceDirectory distRouteRegistry() {
+    return new WorkspaceDirectory();
+  }
+
+  /**
    * Runs the gateway beside the API server. Disabled in bare control-plane mode.
    *
    * @param port the gateway port
    * @param domain the public domain
    * @param publicKeyFile the session public key
    * @param issuer the token issuer
+   * @param jwtTtlSeconds the control plane token lifetime, the gateway's acceptance ceiling
+   * @param routeRegistry the shared routing table
    * @return the lifecycle
    */
   @Bean
@@ -108,14 +121,18 @@ public class DistConfig {
       @Value("${jahaziel.dist.domain:code.example.com}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
       @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
-      @Value("${jahaziel.dist.gateway-max-ttl-seconds:900}") long maxTtlSeconds) {
+      @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,
+      WorkspaceDirectory distRouteRegistry) {
     RSAPublicKey key = JwtKeys.loadPublicKey(Path.of(publicKeyFile));
     GatewayServer server =
         new GatewayServer(
             new HostParser(domain),
             new JwtVerifier(
-                key, issuer, "jahaziel-code-server", java.time.Duration.ofSeconds(maxTtlSeconds)),
-            new WorkspaceDirectory(),
+                key,
+                issuer,
+                "jahaziel-code-server",
+                java.time.Duration.ofSeconds(jwtTtlSeconds + 60)),
+            distRouteRegistry,
             new LoopbackTargetResolver());
     return new SmartLifecycle() {
       private volatile Thread thread;
