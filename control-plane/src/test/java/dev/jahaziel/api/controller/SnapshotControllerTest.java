@@ -14,8 +14,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.domain.VirtualMachine;
 import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
 import dev.jahaziel.runtime.domain.VirtualMachineId;
@@ -49,6 +53,7 @@ class SnapshotControllerTest {
   private SnapshotService snapshots;
   private WorkspaceService workspaces;
   private AuthorizationService auth;
+  private WorkspaceDtoFactory dtos;
 
   private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
   private final Principal principal = () -> UUID.randomUUID().toString();
@@ -58,12 +63,16 @@ class SnapshotControllerTest {
     snapshots = mock(SnapshotService.class);
     workspaces = mock(WorkspaceService.class);
     auth = mock(AuthorizationService.class);
+    PortService ports = mock(PortService.class);
+    JwtService tokens = mock(JwtService.class);
+    UserService users = mock(UserService.class);
+    when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
+    dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     var validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();
     mvc =
-        MockMvcBuilders.standaloneSetup(
-                new SnapshotController(snapshots, workspaces, auth, "code.test"))
+        MockMvcBuilders.standaloneSetup(new SnapshotController(snapshots, workspaces, auth, dtos))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)
             .build();
