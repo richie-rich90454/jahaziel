@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.gateway.routing;
 
+import dev.jahaziel.spi.RouteRegistry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /** In-memory user-port to workspace routing table. */
-public final class WorkspaceDirectory {
+public final class WorkspaceDirectory implements RouteRegistry {
   private final ConcurrentMap<Route, UUID> routes = new ConcurrentHashMap<>();
 
   /**
@@ -21,6 +22,7 @@ public final class WorkspaceDirectory {
    * @param port the workspace port
    * @param workspaceId the serving workspace
    */
+  @Override
   public void register(String userSlug, int port, UUID workspaceId) {
     routes.put(new Route(userSlug, port), Objects.requireNonNull(workspaceId, "workspaceId"));
   }
@@ -31,6 +33,7 @@ public final class WorkspaceDirectory {
    * @param userSlug the URL-safe user slug
    * @param port the workspace port
    */
+  @Override
   public void unregister(String userSlug, int port) {
     routes.remove(new Route(userSlug, port));
   }
