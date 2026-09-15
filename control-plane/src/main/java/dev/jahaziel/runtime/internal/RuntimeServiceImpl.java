@@ -68,7 +68,10 @@ public final class RuntimeServiceImpl implements RuntimeService {
   @Override
   public Workspace stop(WorkspaceId id) {
     Workspace workspace = workspaces.get(id);
-    if (workspace.state() instanceof WorkspaceState.Suspended
+    // Nothing to stop when no runtime was ever started: a requested workspace is already parked,
+    // and suspending then aborting it would be an illegal transition (and break delete).
+    if (workspace.state() instanceof WorkspaceState.Requested
+        || workspace.state() instanceof WorkspaceState.Suspended
         || workspace.state() instanceof WorkspaceState.Destroyed) {
       return workspace;
     }
