@@ -73,6 +73,8 @@ class PortableFeaturesTest {
                     API_PORT,
                     GATEWAY_PORT,
                     "code.example.com",
+                    "/etc/jahaziel/services",
+                    false,
                     false,
                     false),
                 true));
