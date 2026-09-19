@@ -5,6 +5,7 @@
 package dev.jahaziel.dist;
 
 import dev.jahaziel.JahazielApplication;
+import dev.jahaziel.dist.supervisor.ServiceSupervisor;
 import dev.jahaziel.gateway.GatewayMain;
 import dev.jahaziel.nodeagent.audit.AuditSpool;
 import dev.jahaziel.nodeagent.service.LocalProcessBackend;
@@ -13,6 +14,7 @@ import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.nodeagent.sync.SyncServer;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -74,6 +76,13 @@ public final class JahazielMain {
     JarDataDir data = JarDataDir.resolve(parsed.dataDir());
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
     return switch (parsed.mode()) {
+      case SUPERVISOR -> {
+        Path servicesDir = Path.of(parsed.servicesDir());
+        if (parsed.status()) {
+          yield ServiceSupervisor.status(servicesDir, out);
+        }
+        yield ServiceSupervisor.supervise(servicesDir, data.root().resolve("logs"), out);
+      }
       case NODE_AGENT -> runNodeAgent(data, out);
       case GATEWAY -> {
         GatewayMain.main(
@@ -192,12 +201,16 @@ public final class JahazielMain {
           --run=control-plane   API and orchestration only
           --run=node-agent      Local workspace backend and file sync only
           --run=gateway         Host routing and session verification only
+          --run=supervisor      Start the services in --services-dir and keep them running
 
         Options:
           --data-dir=PATH       Data root (default: data/ next to the jar)
           --port=N              Control-plane HTTP port (default: 8080)
           --gateway-port=N      Gateway HTTP port (default: 8081)
           --domain=HOST         Public domain and token issuer (default: code.example.com)
+          --services-dir=PATH   Service files for --run=supervisor
+                                (default: /etc/jahaziel/services)
+          --status              With --run=supervisor, list the services and exit
           --help                Print this help
           --version             Print the version
 
@@ -213,6 +226,8 @@ public final class JahazielMain {
       int port,
       int gatewayPort,
       String domain,
+      String servicesDir,
+      boolean status,
       boolean help,
       boolean version) {
     static Arguments parse(String[] args) {
@@ -221,6 +236,8 @@ public final class JahazielMain {
       int port = 8080;
       int gatewayPort = 8081;
       String domain = "code.example.com";
+      String servicesDir = "/etc/jahaziel/services";
+      boolean status = false;
       boolean help = false;
       boolean version = false;
       List<String> unknown = new ArrayList<>();
@@ -230,6 +247,8 @@ public final class JahazielMain {
           help = true;
         } else if (arg.equals("--version")) {
           version = true;
+        } else if (arg.equals("--status")) {
+          status = true;
         } else if (arg.startsWith("--run=")) {
           mode = mode(arg.substring("--run=".length()));
         } else if (arg.equals("--run")) {
@@ -238,6 +257,10 @@ public final class JahazielMain {
           dataDir = arg.substring("--data-dir=".length());
         } else if (arg.equals("--data-dir")) {
           dataDir = next(args, ++i, "--data-dir");
+        } else if (arg.startsWith("--services-dir=")) {
+          servicesDir = value(arg.substring("--services-dir=".length()), "--services-dir");
+        } else if (arg.equals("--services-dir")) {
+          servicesDir = value(next(args, ++i, "--services-dir"), "--services-dir");
         } else if (arg.startsWith("--port=")) {
           port = number(arg.substring("--port=".length()), "--port");
         } else if (arg.startsWith("--gateway-port=")) {
@@ -252,12 +275,14 @@ public final class JahazielMain {
         throw new IllegalArgumentException("unknown argument: " + unknown.get(0));
       }
       if (help || version || args.length == 0) {
-        return new Arguments(mode, dataDir, port, gatewayPort, domain, help, version);
+        return new Arguments(
+            mode, dataDir, port, gatewayPort, domain, servicesDir, status, help, version);
       }
       if (mode == null) {
         throw new IllegalArgumentException("nothing to run: pass --run=MODE");
       }
-      return new Arguments(mode, dataDir, port, gatewayPort, domain, false, false);
+      return new Arguments(
+          mode, dataDir, port, gatewayPort, domain, servicesDir, status, false, false);
     }
 
     private static Mode mode(String raw) {
@@ -265,7 +290,7 @@ public final class JahazielMain {
         return Mode.valueOf(raw.toUpperCase(java.util.Locale.ROOT).replace('-', '_'));
       } catch (IllegalArgumentException bad) {
         throw new IllegalArgumentException(
-            "unknown mode: " + raw + " (all, control-plane, node-agent, gateway)");
+            "unknown mode: " + raw + " (all, control-plane, node-agent, gateway, supervisor)");
       }
     }
 
@@ -298,6 +323,8 @@ public final class JahazielMain {
 
   /** Runnable roles. */
   enum Mode {
+    /** Supervises the split roles described by our own service files instead of systemd. */
+    SUPERVISOR,
     /** Everything in one process. */
     ALL,
     /** API and orchestration. */
