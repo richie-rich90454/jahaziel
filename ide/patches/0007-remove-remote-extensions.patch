@@ -11,16 +11,16 @@ server on the workspace VM, so there is no local-vs-remote distinction.
 
 Touches:
   - extensions/tunnel-forwarding (deleted)
-  - build extension listings (gulpfile.extensions.js, npm/dirs.js)
+  - build extension listings (gulpfile.extensions.ts, npm/dirs.ts)
   - product.json (tunnelApplicationName)
 
 Verification: patch regression test fails without it and passes with it.
 
 ---
-diff --git a/build/gulpfile.extensions.js b/build/gulpfile.extensions.js
+diff --git a/build/gulpfile.extensions.ts b/build/gulpfile.extensions.ts
 index 4f745ae..679f846 100644
---- a/build/gulpfile.extensions.js
-+++ b/build/gulpfile.extensions.js
+--- a/build/gulpfile.extensions.ts
++++ b/build/gulpfile.extensions.ts
 @@ -59,7 +59,6 @@ const compilations = [
  	'extensions/references-view/tsconfig.json',
  	'extensions/search-result/tsconfig.json',
@@ -29,10 +29,10 @@ index 4f745ae..679f846 100644
  	'extensions/typescript-language-features/test-workspace/tsconfig.json',
  	'extensions/typescript-language-features/web/tsconfig.json',
  	'extensions/typescript-language-features/tsconfig.json',
-diff --git a/build/npm/dirs.js b/build/npm/dirs.js
+diff --git a/build/npm/dirs.ts b/build/npm/dirs.ts
 index b9645e6..5243611 100644
---- a/build/npm/dirs.js
-+++ b/build/npm/dirs.js
+--- a/build/npm/dirs.ts
++++ b/build/npm/dirs.ts
 @@ -40,7 +40,6 @@ const dirs = [
  	'extensions/references-view',
  	'extensions/search-result',
