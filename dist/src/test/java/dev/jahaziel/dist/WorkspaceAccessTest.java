@@ -83,6 +83,8 @@ class WorkspaceAccessTest {
                     API_PORT,
                     GATEWAY_PORT,
                     DOMAIN,
+                    "/etc/jahaziel/services",
+                    false,
                     false,
                     false),
                 true));
