@@ -1,7 +1,9 @@
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
 # Core system
-systemd systemd-sysv systemd-timesyncd
+# No systemd: boot is our own init (see shell/jahaziel-init.sh) and services are
+# supervised by `jahaziel.jar --run=supervisor`. chrony replaces systemd-timesyncd.
+chrony
 bash coreutils findutils grep sed gawk
 util-linux mount umount
 procps psmisc
@@ -40,6 +42,8 @@ rustc cargo
 
 # Container-free isolation helpers
 bubblewrap
+# `reboot`/`poweroff` for the init (systemd-sysv used to provide them)
+busybox
 
 # Timezone, locale
 tzdata
