@@ -5,7 +5,7 @@
 *.ps1 text eol=lf
 *.bat text eol=crlf
 # Machine-parsed files break on CRLF: Python entry points, Spring YAML,
-# protobuf, nftables, systemd units, the Caddyfile, and Maven POMs.
+# protobuf, nftables, service definitions, the Caddyfile, and Maven POMs.
 *.py text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
