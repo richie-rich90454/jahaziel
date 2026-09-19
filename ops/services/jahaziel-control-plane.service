@@ -1,0 +1,25 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# /etc/jahaziel/services/jahaziel-control-plane.service (supervised by jahaziel.jar --run=supervisor)
+[Unit]
+Description=Jahaziel Control Plane
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=jahaziel-control-plane
+Group=jahaziel-control-plane
+EnvironmentFile=/etc/jahaziel/control-plane.env
+ExecStart=/usr/bin/java -jar /opt/jahaziel/control-plane-exec.jar
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/log/jahaziel
+
+[Install]
+WantedBy=multi-user.target
