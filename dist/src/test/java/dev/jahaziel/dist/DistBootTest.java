@@ -52,7 +52,15 @@ class DistBootTest {
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
     JahazielMain.Arguments parsed =
         new JahazielMain.Arguments(
-            JahazielMain.Mode.ALL, data.root().toString(), 0, 0, "code.example.com", false, false);
+            JahazielMain.Mode.ALL,
+            data.root().toString(),
+            0,
+            0,
+            "code.example.com",
+            "/etc/jahaziel/services",
+            false,
+            false,
+            false);
     Map<String, String> properties = JahazielMain.portablePropertyMap(data, keys, parsed, false);
     // The fat jar applies these as system properties; do the same so precedence matches prod.
     for (String key : properties.keySet()) {
