@@ -27,7 +27,7 @@ wildcard hosts to workspaces.
 - `web/` — browser UI wrapper
 - `base-image-builder/` — guest OS image pipeline
 - `docs/` — architecture, deployment, operations, security guides
-- `ops/` — systemd units, firewall rules, proxy config, backup scripts
+- `ops/` — service definitions, firewall rules, proxy config, backup scripts
 - `benchmarks/` — benchmarks backing every shipped optimization
 - `examples/`, `third_party/`
 
