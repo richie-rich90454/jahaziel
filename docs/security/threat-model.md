@@ -27,7 +27,7 @@
 | Integrity of each user's workspace contents | COW snapshots; no writable shared mount; audit log of modifications |
 | Availability of the platform to all users | cgroup limits; admission control; per-user quotas |
 | Integrity of the audit record | Append-only; Merkle chain; separate service account; no `DELETE` role |
-| Confidentiality of credentials and secrets | Environment variables; systemd `EnvironmentFile` at 0600; no secrets in repo |
+| Confidentiality of credentials and secrets | Environment variables; the supervisor reads `EnvironmentFile` at 0600; no secrets in repo |
 | Integrity of the base image and shared caches | SHA-256 on all artifacts; signed manifests; verified on every node-agent startup |
 
 ## Properties not defended
@@ -48,7 +48,7 @@
 | PostgreSQL port 5432 | Localhost | `listen_addresses = 'localhost'`; password auth; role separation |
 | Firecracker API socket | Inside jail | `api.sock` owned by per-VM UID; no network access |
 | Caddy admin API `:2019` | Localhost | `admin off` in production config |
-| systemd journal | Localhost | No user read access |
+| supervisor per-service log files under `data/logs` | Localhost | No user read access |
 
 ## Not yet implemented
 
