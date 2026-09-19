@@ -6,20 +6,40 @@
 
 set -euo pipefail
 
+# Upstream tracks ~98 files under extensions/copilot/test/simulation/cache via Git LFS.
+# The smudge filter blocks on the LFS endpoint (and hangs forever when it is unreachable),
+# and none of those fixtures are needed to build the web client or the server.
+export GIT_LFS_SKIP_SMUDGE=1
+
 cd "$(dirname "$0")"
 TAG="$(cat upstream-version.txt)"
 
-command -v node >/dev/null || { echo "node 20+ is required; run ops/toolchain/install-toolchain.sh" >&2; exit 1; }
-command -v yarn >/dev/null || { echo "yarn is required; run ops/toolchain/install-toolchain.sh" >&2; exit 1; }
+node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+node_minor="$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)"
+if [ "$node_major" -ne 24 ] || [ "$node_minor" -lt 18 ]; then
+  echo "Node.js 24.18.0 or newer is required (upstream .nvmrc pins 24.18.0 and build/npm/preinstall.ts enforces it); found $(node --version 2>/dev/null || echo none)" >&2
+  exit 1
+fi
+command -v npm >/dev/null || { echo "npm is required" >&2; exit 1; }
 command -v zstd >/dev/null || { echo "zstd is required for packaging" >&2; exit 1; }
 
+# This target builds a linux-x64 server. Run it on Linux (or a linux CI agent):
+# the native modules it compiles are platform binaries, they cannot be produced
+# by cross-compiling from macOS or Windows.
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "vscode-reh-web-linux-x64 must be built on Linux; found $(uname -s)" >&2
+  exit 1
+fi
+
+UPSTREAM_URL="${JAHAZIEL_VSCODE_URL:-git@github.com:microsoft/vscode.git}"
+
 if [ ! -d upstream/.git ]; then
-  echo "cloning microsoft/vscode at $TAG"
-  git clone -c core.autocrlf=false --depth 1 --branch "$TAG" https://github.com/microsoft/vscode.git upstream
+  echo "cloning microsoft/vscode at $TAG from $UPSTREAM_URL"
+  git clone -c core.autocrlf=false --depth 1 --branch "$TAG" "$UPSTREAM_URL" upstream
 fi
 
 if ! git -C upstream rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-  git -C upstream fetch --depth 1 origin "tag $TAG"
+  git -C upstream fetch --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG"
 fi
 git -C upstream checkout "$TAG"
 git -C upstream reset --hard "$TAG"
@@ -39,8 +59,10 @@ for patch in patches/*.patch; do
 done
 
 cd upstream
-yarn install --frozen-lockfile
-yarn gulp vscode-reh-web-linux-x64-min
+# Upstream moved off yarn in this line: package-lock.json is the lockfile and
+# build/npm/preinstall.ts aborts if it detects yarn.
+npm ci
+npm run gulp vscode-reh-web-linux-x64-min
 
 cd ..
 mkdir -p out
