@@ -13,7 +13,9 @@ Fresh Ubuntu 24.04 install, one public IPv4, DNS pointed at the host.
 
 ```bash
 sudo ops/toolchain/install-toolchain.sh
-systemctl enable --now postgresql
+# PostgreSQL is the one external service; start it however this host is managed
+# (systemd: `systemctl enable --now postgresql`, otherwise `pg_ctlcluster <ver> main start`).
+sudo -u postgres pg_ctlcluster 16 main start
 ```
 
 Create the database and roles:
@@ -85,9 +87,8 @@ Service users (`jahaziel-control-plane`, `jahaziel-node-agent`,
 Install the units, then enable:
 
 ```bash
-cp ops/systemd/*.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now jahaziel-control-plane jahaziel-node-agent jahaziel-gateway jahaziel-sync-relay
+cp ops/services/*.service /etc/jahaziel/services/
+java -jar /opt/jahaziel/jahaziel.jar --run=supervisor --services-dir /etc/jahaziel/services
 ```
 
 Flyway migrates the schema on control-plane start.
