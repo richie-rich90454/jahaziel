@@ -64,6 +64,8 @@ class DevConnectLoginTest {
                     PORT,
                     PORT + 1,
                     "code.example.com",
+                    "/etc/jahaziel/services",
+                    false,
                     false,
                     false),
                 false));
