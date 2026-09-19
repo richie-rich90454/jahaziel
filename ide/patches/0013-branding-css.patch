@@ -16,10 +16,10 @@ Touches:
 Verification: brand smoke test screenshots the workbench chrome.
 
 ---
-diff --git a/build/gulpfile.reh.js b/build/gulpfile.reh.js
+diff --git a/build/gulpfile.reh.ts b/build/gulpfile.reh.ts
 index e314794..7903e40 100644
---- a/build/gulpfile.reh.js
-+++ b/build/gulpfile.reh.js
+--- a/build/gulpfile.reh.ts
++++ b/build/gulpfile.reh.ts
 @@ -382,7 +382,8 @@ function packageTask(type, platform, arch, sourceFolderName, destinationFolderNa
  				'resources/server/favicon.ico',
  				'resources/server/code-192.png',
