@@ -18,10 +18,14 @@ public enum Os {
   OTHER;
 
   /**
-   * Detects the current OS from {@code os.name}. Never throws; unknown names map to OTHER.
+   * Legacy host probe kept for SPI compatibility. New code must use {@code
+   * dev.jahaziel.platform.Platforms} instead; no new {@code os.name} checks belong outside
+   * that package.
    *
    * @return the current OS family
+   * @deprecated use dev.jahaziel.platform.Platforms
    */
+  @Deprecated
   public static Os current() {
     String name = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
     if (name.contains("win")) {
