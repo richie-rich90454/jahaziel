@@ -7,6 +7,8 @@
 
 # Architecture overview
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 One jar (`target/jahaziel.jar`), one port (11451), one data folder
 (`./data/`). The flat `src/main/java` tree is organized as
 `dev.jahaziel.*` packages:
