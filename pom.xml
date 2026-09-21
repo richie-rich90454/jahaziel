@@ -56,6 +56,7 @@
     <mockito.version>5.23.0</mockito.version>
     <!-- Formatter version tracks the newest release that runs on the build JDK. -->
     <google-java-format.version>1.36.1</google-java-format.version>
+    <jacoco.version>0.8.15</jacoco.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -201,7 +202,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
-          <mainClass>dev.jahaziel.dist.JahazielMain</mainClass>
+          <mainClass>dev.jahaziel.dist.Jahaziel</mainClass>
         </configuration>
         <executions>
           <execution>
@@ -218,6 +219,57 @@
         <configuration>
           <excludedGroups>smoke</excludedGroups>
         </configuration>
+      </plugin>
+      <!-- Coverage: report plus a 100% line/branch gate. Only the exiting
+        launcher is excluded; it cannot run inside a test JVM. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <excludes>
+                    <exclude>dev.jahaziel.dist.Jahaziel</exclude>
+                  </excludes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>1.00</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>1.00</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <!-- Enforces the license header on every file (see CONTRIBUTING.md). -->
       <plugin>
