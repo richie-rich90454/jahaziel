@@ -4,8 +4,8 @@
  */
 package dev.jahaziel.platform.internal;
 
-import dev.jahaziel.platform.api.JobContext;
-import dev.jahaziel.platform.api.PlatformJob;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.PlatformJob;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
