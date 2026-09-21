@@ -100,7 +100,9 @@ class JahazielMainTest {
   }
 
   @Test
-  void launchBootsAndClosesOnOpenLatch(@TempDir Path home) throws Exception {
+  void launchBootsAndClosesOnOpenLatch() throws Exception {
+    Path home = Files.createTempDirectory("launch-test");
+    try {
     String previousUserDir = System.getProperty("user.dir");
     String previousTmpdir = System.getProperty("java.io.tmpdir");
     Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
@@ -131,12 +133,29 @@ class JahazielMainTest {
           .filter(key -> !before.contains(key))
           .toList()
           .forEach(System::clearProperty);
+      deleteBestEffort(home);
     }
   }
 
   private static int freePort() throws java.io.IOException {
     try (ServerSocket socket = new ServerSocket(0)) {
       return socket.getLocalPort();
+    }
+  }
+
+  private static void deleteBestEffort(Path root) {
+    try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+      walk.sorted(java.util.Comparator.reverseOrder())
+          .forEach(
+              path -> {
+                try {
+                  Files.deleteIfExists(path);
+                } catch (Exception ignored) {
+                  // Windows may still hold the boot log; the OS reclaims temp.
+                }
+              });
+    } catch (Exception ignored) {
+      // Best-effort test cleanup.
     }
   }
 
