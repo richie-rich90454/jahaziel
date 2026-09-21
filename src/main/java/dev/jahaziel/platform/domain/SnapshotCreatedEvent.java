@@ -15,7 +15,8 @@ import java.util.UUID;
  * @param snapshotId the snapshot
  * @param occurredAt when the event occurred
  */
-public record SnapshotCreatedEvent(UUID workspaceId, UUID snapshotId, Instant occurredAt) implements DomainEvent {
+public record SnapshotCreatedEvent(UUID workspaceId, UUID snapshotId, Instant occurredAt)
+    implements DomainEvent {
   public SnapshotCreatedEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(snapshotId, "snapshotId");
