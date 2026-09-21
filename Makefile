@@ -40,10 +40,10 @@ smoke: $(JAR)
 	./mvnw -Psmoke verify -Djahaziel.jar=$(abspath $(JAR))
 
 docs:
-	python3 -m http.server 8000 --directory docs
+	npm ci --prefix docs --no-audit --no-fund && npm run docs:dev --prefix docs
 
 docs\:build:
-	@echo "docs:build: $$(find docs -name '*.md' | wc -l) markdown files present, no generator configured"
+	npm run docs:build --prefix docs
 
 release:
 	./mvnw -B -DskipTests package
