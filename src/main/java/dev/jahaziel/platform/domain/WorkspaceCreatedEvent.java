@@ -4,10 +4,9 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * A workspace was created.
@@ -16,7 +15,7 @@ import java.util.Objects;
  * @param ownerId the owning user
  * @param occurredAt when the event occurred
  */
-public record WorkspaceCreatedEvent(WorkspaceId workspaceId, UserId ownerId, Instant occurredAt)
+public record WorkspaceCreatedEvent(UUID workspaceId, UUID ownerId, Instant occurredAt)
     implements DomainEvent {
   public WorkspaceCreatedEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
