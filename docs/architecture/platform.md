@@ -7,6 +7,8 @@
 
 # Platform
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 `dev.jahaziel.platform` is the only package that branches on the OS.
 Everything else talks to its abstractions; callers never read `os.name`.
 
