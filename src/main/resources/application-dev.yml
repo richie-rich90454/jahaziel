@@ -1,0 +1,39 @@
+#
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Local development profile. Active with -Dspring.profiles.active=dev
+# (dev.ps1 dev / make dev). Never use on a real host.
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+server:
+  port: 11451
+
+jahaziel:
+  domain: localhost
+  jwt:
+    issuer: http://localhost:11451
+  workspace:
+    backend: local
+  ide:
+    dir: data/ide
+    version: 1.137.0
+
+# Stub IdP from tools/dev-idp; real BASIS_* values win when set.
+basis:
+  auth-issuer: http://localhost:4444
+  redirect-uri: http://localhost:11451/api/oauth/callback
+  client-id: jahaziel-dev
+  client-secret: dev-secret-change-me
+  resource: urn:basis:api:jahaziel
+
+logging:
+  level:
+    root: INFO
+    dev.jahaziel: DEBUG
+  file:
+    name: data/logs/control-plane.log
