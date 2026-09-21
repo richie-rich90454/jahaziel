@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +42,7 @@ class NodeTest {
 
   @Test
   void assignsAndReleases() {
-    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    UUID workspace = UUID.randomUUID();
     node.assign(workspace);
     assertEquals(Set.of(workspace), node.workspaces());
     node.release(workspace);
@@ -52,11 +51,11 @@ class NodeTest {
 
   @Test
   void duplicateAssignAndUnknownReleaseThrow() {
-    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    UUID workspace = UUID.randomUUID();
     node.assign(workspace);
     assertThrows(IllegalArgumentException.class, () -> node.assign(workspace));
     assertThrows(
-        IllegalArgumentException.class, () -> node.release(new WorkspaceId(UUID.randomUUID())));
+        IllegalArgumentException.class, () -> node.release(UUID.randomUUID()));
   }
 
   @Test
@@ -64,7 +63,7 @@ class NodeTest {
     node.drain();
     assertInstanceOf(NodeState.Draining.class, node.state());
     assertThrows(
-        IllegalStateException.class, () -> node.assign(new WorkspaceId(UUID.randomUUID())));
+        IllegalStateException.class, () -> node.assign(UUID.randomUUID()));
   }
 
   @Test
