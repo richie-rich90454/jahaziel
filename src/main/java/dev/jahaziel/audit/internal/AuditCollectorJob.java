@@ -7,7 +7,6 @@ package dev.jahaziel.audit.internal;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,13 +60,13 @@ public final class AuditCollectorJob implements PlatformJob {
     return JobScope.NODE;
   }
 
-  private static WorkspaceId workspaceOf(Path spool) {
+  private static UUID workspaceOf(Path spool) {
     String name = spool.getFileName().toString();
     if (name.length() < 36) {
       throw new IllegalArgumentException("spool file has no workspace prefix: " + spool);
     }
     try {
-      return new WorkspaceId(UUID.fromString(name.substring(0, 36)));
+      return UUID.fromString(name.substring(0, 36));
     } catch (IllegalArgumentException failure) {
       throw new IllegalArgumentException("spool file has no workspace prefix: " + spool);
     }
