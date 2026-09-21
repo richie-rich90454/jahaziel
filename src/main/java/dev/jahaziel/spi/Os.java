@@ -19,8 +19,8 @@ public enum Os {
 
   /**
    * Legacy host probe kept for SPI compatibility. New code must use {@code
-   * dev.jahaziel.platform.Platforms} instead; no new {@code os.name} checks belong outside
-   * that package.
+   * dev.jahaziel.platform.Platforms} instead; no new {@code os.name} checks belong outside that
+   * package.
    *
    * @return the current OS family
    * @deprecated use dev.jahaziel.platform.Platforms
