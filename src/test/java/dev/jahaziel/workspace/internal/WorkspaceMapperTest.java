@@ -15,7 +15,6 @@ import dev.jahaziel.workspace.domain.VirtualMachine;
 import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
 import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
-import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
@@ -81,7 +80,7 @@ class WorkspaceMapperTest {
     when(grant.getId()).thenReturn(key);
     when(key.getGranteeUserId()).thenReturn(grantee);
     when(key.getPermission()).thenReturn("read");
-    SnapshotId snapshot = new SnapshotId(UUID.randomUUID());
+    UUID snapshot = UUID.randomUUID();
     Workspace workspace =
         WorkspaceMapper.toDomain(row("requested"), List.of(grant), machineRow(), List.of(snapshot));
     assertEquals(List.of(snapshot), workspace.snapshots());
