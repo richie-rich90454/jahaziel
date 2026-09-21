@@ -1,8 +1,0 @@
-{
-  "name": "empty",
-  "description": "Blank workspace with a shell and an editor.",
-  "vcpuCount": 2,
-  "memoryMib": 2048,
-  "ports": [],
-  "setup": []
-}
