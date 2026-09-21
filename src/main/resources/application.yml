@@ -1,0 +1,10 @@
+server:
+  port: 11451
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+jahaziel:
+  data-dir: data
