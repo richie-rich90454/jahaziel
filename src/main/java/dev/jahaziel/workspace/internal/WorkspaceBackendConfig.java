@@ -13,14 +13,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Selects the workspace backend. {@code local} by default; {@code firecracker} on Linux with
- * {@code /dev/kvm}. Primary so it wins over the fail-closed stub in AppConfig.
+ * Selects the workspace backend. {@code local} by default; {@code firecracker} on Linux with {@code
+ * /dev/kvm}. Primary so it wins over the fail-closed stub in AppConfig.
  */
 @Configuration
-@ConditionalOnProperty(
-    name = "jahaziel.dist.enabled",
-    havingValue = "false",
-    matchIfMissing = true)
+@ConditionalOnProperty(name = "jahaziel.dist.enabled", havingValue = "false", matchIfMissing = true)
 public class WorkspaceBackendConfig {
   @Bean
   @Primary
