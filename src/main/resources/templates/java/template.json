@@ -1,0 +1,8 @@
+{
+  "name": "java",
+  "description": "Java 25 workspace with a Maven build.",
+  "vcpuCount": 4,
+  "memoryMib": 8192,
+  "ports": [8080],
+  "setup": ["mvn -q compile"]
+}
