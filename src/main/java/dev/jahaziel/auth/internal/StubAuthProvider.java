@@ -17,7 +17,11 @@ import org.springframework.stereotype.Component;
 public final class StubAuthProvider implements AuthProvider {
   private static final UserIdentity STUB =
       new UserIdentity(
-          "stub-user", "dev@example.com", "Local Dev", List.of("ROLE_USER", "ROLE_ADMIN"), List.of());
+          "stub-user",
+          "dev@example.com",
+          "Local Dev",
+          List.of("ROLE_USER", "ROLE_ADMIN"),
+          List.of());
 
   @Override
   public String name() {
