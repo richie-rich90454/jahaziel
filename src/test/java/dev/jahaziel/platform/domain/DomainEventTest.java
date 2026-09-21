@@ -48,8 +48,7 @@ class DomainEventTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> new SecurityViolationEvent(workspace, "  ", Map.of(), at));
-    assertThrows(
-        IllegalArgumentException.class, () -> new NodeLostEvent("n", "  ", at));
+    assertThrows(IllegalArgumentException.class, () -> new NodeLostEvent("n", "  ", at));
   }
 
   @Test
