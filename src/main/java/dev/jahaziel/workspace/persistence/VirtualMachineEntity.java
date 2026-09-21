@@ -2,7 +2,7 @@
  * Copyright 2026 The Jahaziel Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-package dev.jahaziel.runtime.persistence;
+package dev.jahaziel.workspace.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
