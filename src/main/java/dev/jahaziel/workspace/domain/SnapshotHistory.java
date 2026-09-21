@@ -4,21 +4,21 @@
  */
 package dev.jahaziel.workspace.domain;
 
-import dev.jahaziel.snapshot.domain.SnapshotId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Ordered history of snapshot identifiers of one workspace. */
 public final class SnapshotHistory {
-  private final List<SnapshotId> snapshotIds = new ArrayList<>();
+  private final List<UUID> snapshotIds = new ArrayList<>();
 
   /**
    * Records one snapshot.
    *
    * @param snapshotId the snapshot identifier
    */
-  public void record(SnapshotId snapshotId) {
+  public void record(UUID snapshotId) {
     snapshotIds.add(Objects.requireNonNull(snapshotId, "snapshotId"));
   }
 
@@ -27,7 +27,7 @@ public final class SnapshotHistory {
    *
    * @return a defensive copy
    */
-  public List<SnapshotId> snapshots() {
+  public List<UUID> snapshots() {
     return List.copyOf(snapshotIds);
   }
 }
