@@ -37,7 +37,7 @@ reset:
 	else echo "reset cancelled"; fi
 
 smoke: $(JAR)
-	./mvnw -Psmoke test -Dtest=SmokeTest -Djahaziel.jar=$(abspath $(JAR))
+	./mvnw -Psmoke verify -Djahaziel.jar=$(abspath $(JAR))
 
 docs:
 	python3 -m http.server 8000 --directory docs
