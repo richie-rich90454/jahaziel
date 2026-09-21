@@ -68,16 +68,8 @@ class PortableFeaturesTest {
                 DATA,
                 KEYS,
                 new JahazielMain.Arguments(
-                    JahazielMain.Mode.ALL,
-                    DATA.root().toString(),
-                    API_PORT,
-                    GATEWAY_PORT,
-                    "code.example.com",
-                    "/etc/jahaziel/services",
-                    false,
-                    false,
-                    false),
-                true));
+                    DATA.root().toString(), API_PORT, GATEWAY_PORT, "code.example.com", false,
+                    false, false)));
     for (Map.Entry<String, String> entry : properties.entrySet()) {
       if (System.getProperty(entry.getKey()) == null) {
         touchedProperties.add(entry.getKey());
