@@ -8,9 +8,9 @@ import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.dist.DemoSeeder;
+import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.platform.Platforms;
 import java.io.IOException;
@@ -75,10 +75,20 @@ public class AdminUiController {
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             + "<title>Jahaziel admin</title></head><body>"
             + "<h1>Jahaziel admin</h1>"
-            + "<p>operator: " + caller.value() + "</p>"
-            + "<ul><li>health: ok, nodes " + nodeCount + ", workspaces " + workspaceCount + "</li>"
-            + "<li>backend: " + backend + "</li>"
-            + "<li>reh: " + ide.variant().slug() + "</li></ul>"
+            + "<p>operator: "
+            + caller.value()
+            + "</p>"
+            + "<ul><li>health: ok, nodes "
+            + nodeCount
+            + ", workspaces "
+            + workspaceCount
+            + "</li>"
+            + "<li>backend: "
+            + backend
+            + "</li>"
+            + "<li>reh: "
+            + ide.variant().slug()
+            + "</li></ul>"
             + "<ul><li><a href=\"/admin/v1/health\">health</a></li>"
             + "<li><a href=\"/admin/v1/workspaces\">workspaces</a></li>"
             + "<li><a href=\"/admin/v1/users\">users</a></li>"
@@ -96,12 +106,23 @@ public class AdminUiController {
   @GetMapping(value = "/_admin/diagnostics", produces = MediaType.TEXT_PLAIN_VALUE)
   public ResponseEntity<String> diagnostics(Principal principal) {
     requireAdmin(principal);
-    String body = "status=ok\nnodes=" + nodes.list().size() + "\nworkspaces="
-        + admin.listWorkspaces().size() + "\nbackend=" + backend + "\nreh="
-        + ide.variant().slug() + "\njava=" + System.getProperty("java.version") + "\nhost="
-        + Platforms.hostRehVariant() + "\n";
+    String body =
+        "status=ok\nnodes="
+            + nodes.list().size()
+            + "\nworkspaces="
+            + admin.listWorkspaces().size()
+            + "\nbackend="
+            + backend
+            + "\nreh="
+            + ide.variant().slug()
+            + "\njava="
+            + System.getProperty("java.version")
+            + "\nhost="
+            + Platforms.hostRehVariant()
+            + "\n";
     return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION,
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
             ContentDisposition.attachment().filename("diagnostics.txt").build().toString())
         .contentType(MediaType.TEXT_PLAIN)
         .body(body);
@@ -112,22 +133,26 @@ public class AdminUiController {
   public SseEmitter logs(Principal principal) {
     requireAdmin(principal);
     SseEmitter emitter = new SseEmitter(60_000L);
-    sender.execute(() -> {
-      try {
-        List<String> lines =
-            Files.isRegularFile(logFile) ? Files.readAllLines(logFile) : List.of("no log file");
-        lines.stream().skip(Math.max(0, lines.size() - 200)).forEach(line -> {
+    sender.execute(
+        () -> {
           try {
-            emitter.send(SseEmitter.event().data(line));
-          } catch (IOException ignored) {
-            // Client went away; completing below ends the stream.
+            List<String> lines =
+                Files.isRegularFile(logFile) ? Files.readAllLines(logFile) : List.of("no log file");
+            lines.stream()
+                .skip(Math.max(0, lines.size() - 200))
+                .forEach(
+                    line -> {
+                      try {
+                        emitter.send(SseEmitter.event().data(line));
+                      } catch (IOException ignored) {
+                        // Client went away; completing below ends the stream.
+                      }
+                    });
+            emitter.complete();
+          } catch (IOException failure) {
+            emitter.completeWithError(failure);
           }
         });
-        emitter.complete();
-      } catch (IOException failure) {
-        emitter.completeWithError(failure);
-      }
-    });
     return emitter;
   }
 
