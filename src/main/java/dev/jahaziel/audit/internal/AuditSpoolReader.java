@@ -8,7 +8,6 @@ import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.spi.ActorType;
 import dev.jahaziel.spi.Outcome;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -46,7 +45,7 @@ public final class AuditSpoolReader {
    * @param spoolFile the spooled JSON lines file
    * @return the ingested event count
    */
-  public int drain(WorkspaceId workspaceId, Path spoolFile) {
+  public int drain(UUID workspaceId, Path spoolFile) {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(spoolFile, "spoolFile");
     List<String> lines;
@@ -85,7 +84,7 @@ public final class AuditSpoolReader {
     }
   }
 
-  private AuditRecord toRecord(WorkspaceId workspaceId, String line) {
+  private AuditRecord toRecord(UUID workspaceId, String line) {
     JsonNode json;
     try {
       json = mapper.readTree(line);
@@ -96,10 +95,10 @@ public final class AuditSpoolReader {
     return new AuditRecord(
         UUID.randomUUID(),
         Instant.now(),
-        "guest:" + workspaceId.value(),
+        "guest:" + workspaceId,
         ActorType.NODE,
         action,
-        Optional.of(workspaceId.value().toString()),
+        Optional.of(workspaceId.toString()),
         Optional.of("workspace"),
         Outcome.SUCCESS,
         Optional.empty(),
