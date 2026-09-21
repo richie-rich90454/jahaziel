@@ -231,7 +231,8 @@ class SmokeTest {
     String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
     boolean arm = arch.contains("aarch64") || arch.contains("arm64");
     String sys =
-        os.contains("win") ? "win32"
+        os.contains("win")
+            ? "win32"
             : os.contains("mac") || os.contains("darwin") ? "darwin" : "linux";
     return sys + "-" + (arm ? "arm64" : "x64");
   }
