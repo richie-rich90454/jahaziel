@@ -27,3 +27,4 @@ data/
 *.jar
 PORTING_GUIDE.md
 docs/.vitepress/dist
+docs/.vitepress/cache
