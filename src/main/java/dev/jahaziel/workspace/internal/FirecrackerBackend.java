@@ -20,8 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Firecracker backend. Linux only, requires {@code /dev/kvm}. Selected with
- * {@code jahaziel.workspace.backend=firecracker}; anything else falls back to {@code local}.
+ * Firecracker backend. Linux only, requires {@code /dev/kvm}. Selected with {@code
+ * jahaziel.workspace.backend=firecracker}; anything else falls back to {@code local}.
  */
 public final class FirecrackerBackend implements NodeBackend {
   private static final String BINARY = "/usr/bin/firecracker";
