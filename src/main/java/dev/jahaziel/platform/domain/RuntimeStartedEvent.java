@@ -14,8 +14,7 @@ import java.util.UUID;
  * @param workspaceId the workspace
  * @param occurredAt when the event occurred
  */
-public record RuntimeStartedEvent(UUID workspaceId, Instant occurredAt)
-    implements DomainEvent {
+public record RuntimeStartedEvent(UUID workspaceId, Instant occurredAt) implements DomainEvent {
   public RuntimeStartedEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(occurredAt, "occurredAt");
