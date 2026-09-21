@@ -33,8 +33,10 @@ public final class Platforms {
     boolean arm =
         osArch.toLowerCase(Locale.ROOT).contains("aarch64")
             || osArch.toLowerCase(Locale.ROOT).contains("arm64");
-    String sys = mapOs(osName) == Platform.Os.WINDOWS ? "win32"
-        : mapOs(osName) == Platform.Os.MACOS ? "darwin" : "linux";
+    String sys =
+        mapOs(osName) == Platform.Os.WINDOWS
+            ? "win32"
+            : mapOs(osName) == Platform.Os.MACOS ? "darwin" : "linux";
     return sys + "-" + (arm ? "arm64" : "x64");
   }
 
