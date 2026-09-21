@@ -40,7 +40,6 @@ import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.node.internal.HealthCheckJob;
 import dev.jahaziel.node.internal.NodeServiceImpl;
 import dev.jahaziel.node.persistence.NodeRepository;
-import dev.jahaziel.platform.internal.CleanupJob;
 import dev.jahaziel.platform.internal.InProcessScheduler;
 import dev.jahaziel.policy.api.PolicyService;
 import dev.jahaziel.policy.internal.PolicyServiceImpl;
@@ -49,7 +48,6 @@ import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.internal.RuntimeServiceImpl;
 import dev.jahaziel.runtime.internal.VmIdleCheckJob;
-import dev.jahaziel.runtime.persistence.VirtualMachineRepository;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.internal.DailySnapshotJob;
 import dev.jahaziel.snapshot.internal.SnapshotRetentionJob;
@@ -67,7 +65,9 @@ import dev.jahaziel.storage.internal.CacheWarmJob;
 import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.internal.TerminalServiceImpl;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.internal.CleanupJob;
 import dev.jahaziel.workspace.internal.WorkspaceServiceImpl;
+import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
 import jakarta.persistence.EntityManager;
@@ -122,10 +122,9 @@ public class AppConfig {
       WorkspaceRepository workspaces,
       WorkspaceAclRepository acl,
       VirtualMachineRepository machines,
-      SnapshotRepository snapshots,
       UserService users,
       @Value("${jahaziel.storage.root}") String storageRoot) {
-    return new WorkspaceServiceImpl(workspaces, acl, machines, snapshots, users, storageRoot);
+    return new WorkspaceServiceImpl(workspaces, acl, machines, users, storageRoot);
   }
 
   /**
