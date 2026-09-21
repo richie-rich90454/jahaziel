@@ -13,7 +13,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import dev.jahaziel.audit.api.AuditService;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -30,7 +29,7 @@ class AuditSpoolReaderTest {
     AuditSpoolReader reader = new AuditSpoolReader(audit);
     Path spool = root.resolve("ws.jsonl");
     Files.writeString(spool, "{\"action\":\"login\"}\n\n{\"action\":\"logout\"}\n");
-    int ingested = reader.drain(new WorkspaceId(UUID.randomUUID()), spool);
+    int ingested = reader.drain(UUID.randomUUID(), spool);
     assertEquals(2, ingested);
     verify(audit, times(2)).append(any());
     assertEquals(false, Files.exists(spool));
@@ -42,7 +41,7 @@ class AuditSpoolReaderTest {
     AuditSpoolReader reader = new AuditSpoolReader(audit);
     Path spool = root.resolve("ws.jsonl");
     Files.writeString(spool, "not json\n");
-    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    UUID workspace = UUID.randomUUID();
     assertThrows(IllegalArgumentException.class, () -> reader.drain(workspace, spool));
     verify(audit, never()).append(any());
   }
