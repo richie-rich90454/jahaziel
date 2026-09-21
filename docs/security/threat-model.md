@@ -7,6 +7,13 @@
 
 # Threat model
 
+The single-jar local backend runs workspaces as ordinary host
+processes with no isolation boundary: a workspace can read other
+workspaces' files, observe host processes, and reach the network as
+the server user. Treat the local backend as single-user or mutually
+trusting users only. KVM microVM isolation applies on Linux with the
+Firecracker backend; everything below describes that hardened shape.
+
 ## Adversaries
 
 | ID | Adversary | Capabilities | Primary defense |
