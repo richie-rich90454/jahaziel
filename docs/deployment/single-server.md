@@ -7,6 +7,8 @@
 
 # Single-server deployment
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 One jar plus one `.env` file, serving port 11451.
 
 ## 1. Install
