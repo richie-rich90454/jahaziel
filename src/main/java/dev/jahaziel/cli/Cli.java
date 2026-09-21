@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.jar.JarFile;
 
 /**
- * Offline jar verbs. JahazielMain delegates here first: verbs return an exit code, validated
- * legacy runs return {@link #PASS_THROUGH} so the dispatcher keeps booting Spring.
+ * Offline jar verbs. JahazielMain delegates here first: verbs return an exit code, validated legacy
+ * runs return {@link #PASS_THROUGH} so the dispatcher keeps booting Spring.
  *
  * <p>Wiring (dist owner, 3 lines at the top of {@code JahazielMain.run}):
  *
@@ -191,7 +191,8 @@ public final class Cli {
     Files.writeString(env, body, StandardCharsets.UTF_8);
     Files.createDirectories(jar.resolve("data").resolve("tmp"));
     out.println("jahaziel: wrote " + env + " and created data/");
-    out.println("jahaziel: next: fill BASIS_* vars, run `doctor`, then boot with no args or --demo");
+    out.println(
+        "jahaziel: next: fill BASIS_* vars, run `doctor`, then boot with no args or --demo");
     return 0;
   }
 
@@ -418,8 +419,8 @@ public final class Cli {
     out.println("jahaziel " + version());
     out.println("  version: " + version());
     out.println("  host: " + host);
-    out.println("  java: " + Runtime.version() + " (" + System.getProperty("java.vendor", "?")
-        + ")");
+    out.println(
+        "  java: " + Runtime.version() + " (" + System.getProperty("java.vendor", "?") + ")");
     out.println("  data: " + data.toAbsolutePath().normalize());
     out.println("  port: " + port);
     out.println("  backend: " + backend);
