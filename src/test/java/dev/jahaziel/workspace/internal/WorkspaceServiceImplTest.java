@@ -23,7 +23,6 @@ import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
 import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
 import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
-import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import dev.jahaziel.spi.UserIdentity;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceView;
@@ -47,7 +46,6 @@ class WorkspaceServiceImplTest {
   private WorkspaceRepository workspaces;
   private WorkspaceAclRepository acl;
   private VirtualMachineRepository machines;
-  private SnapshotRepository snapshots;
   private UserService users;
   private WorkspaceServiceImpl service;
   private UserId owner;
@@ -58,10 +56,9 @@ class WorkspaceServiceImplTest {
     workspaces = mock(WorkspaceRepository.class);
     acl = mock(WorkspaceAclRepository.class);
     machines = mock(VirtualMachineRepository.class);
-    snapshots = mock(SnapshotRepository.class);
     users = mock(UserService.class);
     service =
-        new WorkspaceServiceImpl(workspaces, acl, machines, snapshots, users, "/var/lib/jahaziel");
+        new WorkspaceServiceImpl(workspaces, acl, machines, users, "/var/lib/jahaziel");
     owner = new UserId(UUID.randomUUID());
     nodeId = new NodeId("node-a");
   }
@@ -216,7 +213,6 @@ class WorkspaceServiceImplTest {
     when(machine.getVcpuCount()).thenReturn(2);
     when(machine.getMemoryMib()).thenReturn(2048L);
     when(machines.findByWorkspaceId(id.value())).thenReturn(Optional.of(machine));
-    when(snapshots.findByWorkspaceId(id.value())).thenReturn(List.of());
     return row;
   }
 }
