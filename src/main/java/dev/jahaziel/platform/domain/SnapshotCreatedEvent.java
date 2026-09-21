@@ -4,10 +4,9 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.snapshot.domain.SnapshotId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * A snapshot was created.
@@ -16,8 +15,7 @@ import java.util.Objects;
  * @param snapshotId the snapshot
  * @param occurredAt when the event occurred
  */
-public record SnapshotCreatedEvent(
-    WorkspaceId workspaceId, SnapshotId snapshotId, Instant occurredAt) implements DomainEvent {
+public record SnapshotCreatedEvent(UUID workspaceId, UUID snapshotId, Instant occurredAt) implements DomainEvent {
   public SnapshotCreatedEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(snapshotId, "snapshotId");
