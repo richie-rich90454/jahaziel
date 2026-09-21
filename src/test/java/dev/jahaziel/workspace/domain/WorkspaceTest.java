@@ -11,9 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import java.time.Instant;
 import java.util.List;
