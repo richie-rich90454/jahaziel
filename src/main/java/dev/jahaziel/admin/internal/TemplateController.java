@@ -4,8 +4,6 @@
  */
 package dev.jahaziel.admin.internal;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.identity.domain.UserId;
@@ -31,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /** Workspace templates from {@code data/templates/<name>/template.json}. */
 @RestController
