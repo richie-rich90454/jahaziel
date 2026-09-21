@@ -28,3 +28,14 @@ See `docs/ide/patch-manifest.md` for what each patch does and how it is verified
   the full server topology only; the fat jar needs just Java 25.
 - The upstream checkout lives in the gitignored `upstream/` directory; run
   `build.sh` to clone the pinned tag and apply the stack.
+
+## REH variants
+
+Six targets: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`,
+`win32-x64`, `win32-arm64`. `IdeService` selects the variant from
+`jahaziel.reh` (or `-Djahaziel.reh=<variant>`), defaulting to the host OS
+and architecture, then extracts once to `data/ide/<variant>/` guarded by a
+`.extracted-<version>-<variant>` sentinel. Tarballs are SHA-256 verified
+against their `.sha256` sidecar before extraction; a missing sidecar fails
+closed. The gateway relays both plain HTTP and WebSocket upgrades to the
+extracted server's port.
