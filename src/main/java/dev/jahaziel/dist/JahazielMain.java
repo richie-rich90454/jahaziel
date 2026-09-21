@@ -94,8 +94,11 @@ public final class JahazielMain {
       return 0;
     }
     Map<String, String> fileEnv = DotEnv.parse(envFile);
+    if (parsed.demo()) {
+      fileEnv = stripBasisVars(fileEnv);
+    }
     applyDotEnv(fileEnv);
-    reportBasisVars(fileEnv, out);
+    reportBasisVars(fileEnv, out, parsed.demo());
     JarDataDir data = JarDataDir.resolve(parsed.dataDir());
     ensurePortableDirs(data.root());
     ensurePortableDirs(platform.dataDir());
@@ -132,6 +135,12 @@ public final class JahazielMain {
     if (!Files.isRegularFile(marker)) {
       Files.createFile(marker);
     }
+  }
+
+  static Map<String, String> stripBasisVars(Map<String, String> fileEnv) {
+    Map<String, String> kept = new java.util.LinkedHashMap<>(fileEnv);
+    kept.keySet().removeAll(DotEnv.BASIS_VARS);
+    return java.util.Collections.unmodifiableMap(kept);
   }
 
   static void applyDotEnv(Map<String, String> fileEnv) {
@@ -192,7 +201,11 @@ public final class JahazielMain {
     return List.copyOf(missing);
   }
 
-  private static void reportBasisVars(Map<String, String> fileEnv, PrintStream out) {
+  private static void reportBasisVars(Map<String, String> fileEnv, PrintStream out, boolean demo) {
+    if (demo) {
+      out.println("jahaziel: demo mode (stub IdP, BASIS_* ignored)");
+      return;
+    }
     List<String> missing = missingBasisVars(fileEnv);
     if (missing.isEmpty()) {
       out.println("jahaziel: basis-auth configured");
@@ -245,6 +258,10 @@ public final class JahazielMain {
     properties.put("jahaziel.storage.root", data.root().toString());
     properties.put("jahaziel.data-dir", data.root().toString());
     properties.put("jahaziel.templates.dir", data.root().resolve("templates").toString());
+    if (parsed.demo()) {
+      properties.put("jahaziel.auth.provider", "stub");
+      properties.put("jahaziel.demo", "true");
+    }
     properties.put("jahaziel.domain", parsed.domain());
     properties.put("jahaziel.jwt.private-key-file", keys.privateKey().toString());
     properties.put("jahaziel.jwt.public-key-file", keys.publicKey().toString());
