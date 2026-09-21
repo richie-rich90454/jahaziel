@@ -29,8 +29,8 @@ A bare run with no `.env` prints help and runs nothing; run `init` first.
 
 ## Offline verbs
 
-`doctor` (pre-boot checks), `upgrade --to <jar>` / `--check`,
-`backup [--no-secrets]` / `restore <file>`, `logs [--follow]
+`doctor` (pre-boot checks), `upgrade --to &lt;jar&gt;` / `--check`,
+`backup [--no-secrets]` / `restore &lt;file&gt;`, `logs [--follow]
 [--level=LEVEL]`, `support-bundle`, and `--demo` (stub IdP, ignores
 `BASIS_*`) all run without starting the server.
 
