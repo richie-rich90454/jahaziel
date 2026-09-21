@@ -4,6 +4,8 @@
  */
 package dev.jahaziel.runtime.domain;
 
+import dev.jahaziel.workspace.domain.RuntimeMetrics;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
