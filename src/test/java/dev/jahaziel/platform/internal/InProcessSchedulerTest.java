@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.platform.api.JobContext;
-import dev.jahaziel.platform.api.JobScope;
-import dev.jahaziel.platform.api.PlatformJob;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
+import dev.jahaziel.spi.PlatformJob;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
