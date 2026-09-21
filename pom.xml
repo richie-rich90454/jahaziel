@@ -245,6 +245,9 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <exclude>ide/upstream/**</exclude>
                 <exclude>ide/extensions-builtin/list.txt</exclude>
                 <exclude>ide/tests/no-network-test/blocklist.txt</exclude>
+                <!-- Generated docs site and vendored frontend deps. -->
+                <exclude>docs/.vitepress/dist/**</exclude>
+                <exclude>docs/node_modules/**</exclude>
                 <!-- Spring runtime config; header enforced by the CI tracked-files grep. -->
                 <exclude>src/main/resources/application*.yml</exclude>
                 <exclude>src/test/resources/application*.yml</exclude>
