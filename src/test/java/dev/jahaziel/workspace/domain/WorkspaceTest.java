@@ -14,7 +14,6 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.VirtualMachine;
 import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
 import dev.jahaziel.workspace.domain.VirtualMachineId;
-import dev.jahaziel.snapshot.domain.SnapshotId;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -169,7 +168,7 @@ class WorkspaceTest {
     assertTrue(workspace.acl().grants(grantee, "read"));
     workspace.revoke(grantee, "read");
     assertFalse(workspace.acl().grants(grantee, "read"));
-    SnapshotId snapshot = new SnapshotId(UUID.randomUUID());
+    UUID snapshot = UUID.randomUUID();
     workspace.recordSnapshot(snapshot);
     assertEquals(List.of(snapshot), workspace.snapshots());
   }
