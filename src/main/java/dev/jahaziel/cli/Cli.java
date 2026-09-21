@@ -63,15 +63,6 @@ public final class Cli {
   private Cli() {}
 
   /**
-   * Developer entry point. The executable jar uses JahazielMain, which delegates here.
-   *
-   * @param args command line arguments
-   */
-  public static void main(String[] args) {
-    System.exit(dispatch(normalize(args), System.out, System.err));
-  }
-
-  /**
    * Passes arguments through unchanged. Flag-only runs ({@code --demo}, {@code --port}, {@code
    * --data-dir}, ...) fall to {@link #dispatch}, which validates them and returns {@link
    * #PASS_THROUGH} so the dispatcher keeps booting Spring.
