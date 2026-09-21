@@ -11,9 +11,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Seeds {@code data/templates/} from the jar on first run. Bundled {@code template.json} files
- * copy over only when the target is absent, so user edits and custom templates always win and
- * reruns are idempotent.
+ * Seeds {@code data/templates/} from the jar on first run. Bundled {@code template.json} files copy
+ * over only when the target is absent, so user edits and custom templates always win and reruns are
+ * idempotent.
  */
 final class TemplateSeeds {
   /** Templates shipped inside the jar, matching {@code src/main/resources/templates/}. */
