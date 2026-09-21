@@ -298,13 +298,23 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <groups>smoke</groups>
-              <excludedGroups combine.self="override" />
-              <systemPropertyVariables>
-                <jahaziel.jar>${jahaziel.jar}</jahaziel.jar>
-              </systemPropertyVariables>
-            </configuration>
+            <executions>
+              <!-- Fresh jar first: test phase still runs units; smoke runs at verify. -->
+              <execution>
+                <id>smoke</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>smoke</groups>
+                  <excludedGroups combine.self="override" />
+                  <systemPropertyVariables>
+                    <jahaziel.jar>${jahaziel.jar}</jahaziel.jar>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
