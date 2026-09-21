@@ -2,14 +2,9 @@
  * Copyright 2026 The Jahaziel Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-package dev.jahaziel.runtime.domain;
+package dev.jahaziel.workspace.domain;
 
-import dev.jahaziel.terminal.domain.TerminalSession;
-import dev.jahaziel.terminal.domain.TerminalSessionId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /** One virtual machine of a workspace. Tracked here, owned by the node agent. */
@@ -18,7 +13,6 @@ public final class VirtualMachine {
   private final WorkspaceId workspaceId;
   private final VirtualMachineConfiguration config;
   private VirtualMachineState state;
-  private final List<TerminalSession> terminals = new ArrayList<>();
   private RuntimeMetrics metrics = RuntimeMetrics.zero();
 
   /**
@@ -86,40 +80,6 @@ public final class VirtualMachine {
       throw new IllegalStateException("Machine " + id + " cannot stop while " + state);
     }
     state = new VirtualMachineState.Stopped(Instant.now());
-  }
-
-  /**
-   * Attaches a terminal session.
-   *
-   * @param session the session to attach
-   */
-  public void attachTerminal(TerminalSession session) {
-    Objects.requireNonNull(session, "session");
-    if (!(state instanceof VirtualMachineState.Running)) {
-      throw new IllegalStateException("Machine " + id + " cannot attach terminals while " + state);
-    }
-    terminals.add(session);
-  }
-
-  /**
-   * Detaches a terminal session.
-   *
-   * @param sessionId the session identifier
-   */
-  public void detachTerminal(TerminalSessionId sessionId) {
-    boolean removed = terminals.removeIf(session -> session.id().equals(sessionId));
-    if (!removed) {
-      throw new IllegalArgumentException("Unknown terminal session " + sessionId);
-    }
-  }
-
-  /**
-   * Returns the attached terminal sessions.
-   *
-   * @return a defensive copy
-   */
-  public List<TerminalSession> terminals() {
-    return List.copyOf(terminals);
   }
 
   /** Returns the latest resource sample. */
