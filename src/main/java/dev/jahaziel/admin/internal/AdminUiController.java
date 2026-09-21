@@ -7,6 +7,7 @@ package dev.jahaziel.admin.internal;
 import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.dist.DemoSeeder;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.ide.internal.IdeService;
