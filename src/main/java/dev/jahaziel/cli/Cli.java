@@ -72,25 +72,15 @@ public final class Cli {
   }
 
   /**
-   * Fills in dispatcher defaults: {@code --demo} (or bare {@code --port}/{@code --data-dir})
-   * without {@code --run} implies {@code --run=all}.
+   * Passes arguments through unchanged. Flag-only runs ({@code --demo}, {@code --port}, {@code
+   * --data-dir}, ...) fall to {@link #dispatch}, which validates them and returns {@link
+   * #PASS_THROUGH} so the dispatcher keeps booting Spring.
    *
    * @param args the raw arguments
    * @return the normalized arguments
    */
   public static String[] normalize(String[] args) {
-    List<String> normalized = new ArrayList<>(Arrays.asList(args));
-    boolean verb = !normalized.isEmpty() && VERBS.contains(normalized.get(0));
-    boolean run =
-        normalized.stream().anyMatch(arg -> arg.equals("--run") || arg.startsWith("--run="));
-    boolean hint =
-        normalized.contains("--demo")
-            || normalized.stream()
-                .anyMatch(arg -> arg.startsWith("--port=") || arg.startsWith("--data-dir="));
-    if (!verb && !run && hint) {
-      normalized.add("--run=all");
-    }
-    return normalized.toArray(String[]::new);
+    return Arrays.copyOf(args, args.length);
   }
 
   /**
@@ -102,7 +92,18 @@ public final class Cli {
    * @return the exit code, or {@link #PASS_THROUGH} for a validated legacy run
    */
   public static int dispatch(String[] args, PrintStream out, PrintStream err) {
-    if (args.length == 0 || args[0].equals("--help") || args[0].equals("-h")) {
+    if (args.length == 0) {
+      Path jar = jarDir();
+      Path env = jar.resolve(".env");
+      if (Files.isRegularFile(env)) {
+        Map<String, String> merged = merge(parseDotEnv(env), System.getenv());
+        printBanner(out, jar, dataDir(args, jar), port(args, merged), backend(merged), false);
+        return PASS_THROUGH;
+      }
+      out.print(usage());
+      return 0;
+    }
+    if (args[0].equals("--help") || args[0].equals("-h")) {
       out.print(usage());
       return 0;
     }
@@ -155,15 +156,7 @@ public final class Cli {
     Path jar = jarDir();
     Map<String, String> fileEnv = parseDotEnv(jar.resolve(".env"));
     Map<String, String> merged = merge(fileEnv, System.getenv());
-    if (!demo) {
-      List<String> missing = missingVars(merged);
-      if (!missing.isEmpty()) {
-        err.println("jahaziel: missing required env: " + String.join(", ", missing));
-        err.println("jahaziel: fix: run `init`, fill .env, or pass --demo for the stub IdP");
-        return 2;
-      }
-    }
-    printBanner(out, jar, dataDir(args, jar), port(merged), backend(merged), demo);
+    printBanner(out, jar, dataDir(args, jar), port(args, merged), backend(merged), demo);
     return PASS_THROUGH;
   }
 
@@ -208,7 +201,8 @@ public final class Cli {
     Path data = dataDir(args, jar);
     Map<String, String> fileEnv = parseDotEnv(jar.resolve(".env"));
     return Doctor.print(
-        Doctor.run(jar, data, port(merge(fileEnv, System.getenv())), fileEnv, jarFile()), out);
+        Doctor.run(jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
+        out);
   }
 
   private static int upgrade(String[] args, PrintStream out, PrintStream err) throws IOException {
@@ -372,7 +366,7 @@ public final class Cli {
     Path dest = jar.resolve(name);
     ByteArrayOutputStream doctors = new ByteArrayOutputStream();
     Doctor.print(
-        Doctor.run(jar, data, port(merge(fileEnv, System.getenv())), fileEnv, jarFile()),
+        Doctor.run(jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
         new PrintStream(doctors, true, StandardCharsets.UTF_8));
     try (var zip = new java.util.zip.ZipOutputStream(Files.newOutputStream(dest))) {
       entry(zip, ".env.redacted", redact(fileEnv).getBytes(StandardCharsets.UTF_8));
@@ -438,7 +432,10 @@ public final class Cli {
   static String usage() {
     return """
         Usage: java -jar jahaziel.jar COMMAND [options]
-               java -jar jahaziel.jar [--demo] [--run=all] [--port=N] [--data-dir=PATH]
+                java -jar jahaziel.jar [options]
+
+        No-args with a jar-adjacent .env boots the FULL stack (API + node agent +
+        gateway) on 11451. No-args without .env prints this help; run `init` first.
 
         Commands:
           init                  Write .env (BASIS_* placeholders + random secret), mkdir data/
@@ -452,7 +449,6 @@ public final class Cli {
 
         Run:
           --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
-          --run=all             API + node agent + gateway in one process (default with --demo)
           --port=N              API port (default: 11451, or PORT from .env)
           --data-dir=PATH       Data root (default: data/ next to the jar)
           --help                Print this help
@@ -486,7 +482,18 @@ public final class Cli {
     return Collections.unmodifiableMap(merged);
   }
 
-  static int port(Map<String, String> merged) {
+  static int port(String[] args, Map<String, String> merged) {
+    String explicit = flag(args, "--port");
+    if (explicit != null) {
+      try {
+        int value = Integer.parseInt(explicit.strip());
+        if (value >= 1 && value <= 65535) {
+          return value;
+        }
+      } catch (NumberFormatException notANumber) {
+        // Fall through to PORT below; Arguments.parse rejects the flag later.
+      }
+    }
     try {
       int value = Integer.parseInt(merged.getOrDefault("PORT", "").strip());
       if (value >= 1 && value <= 65535) {
