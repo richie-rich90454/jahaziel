@@ -4,10 +4,10 @@
  */
 package dev.jahaziel.snapshot.internal;
 
+import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
-import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import java.time.Duration;
 import java.time.ZoneOffset;
