@@ -78,8 +78,7 @@ class WorkspaceAccessTest {
                 DATA,
                 KEYS,
                 new JahazielMain.Arguments(
-                    DATA.root().toString(), API_PORT, GATEWAY_PORT, DOMAIN, false, false,
-                    false)));
+                    DATA.root().toString(), API_PORT, GATEWAY_PORT, DOMAIN, false, false, false)));
     for (Map.Entry<String, String> entry : properties.entrySet()) {
       if (System.getProperty(entry.getKey()) == null) {
         touchedProperties.add(entry.getKey());
