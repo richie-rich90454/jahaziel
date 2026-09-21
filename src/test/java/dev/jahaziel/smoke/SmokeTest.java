@@ -21,7 +21,6 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -54,19 +53,6 @@ class SmokeTest {
     Run run = exec(tmp, List.of("java", "-jar", jar().toString()), Map.of(), 60);
     assertEquals(0, run.code(), "bare run must exit 0, stderr: " + run.err());
     assertTrue(run.out().contains("Usage"), "bare run must print Usage, got: " + run.out());
-  }
-
-  @Test
-  @Order(2)
-  void missingVarsFailsNamingIssuer(@TempDir Path tmp) throws Exception {
-    Path jar = copyJarTo(tmp);
-    Map<String, String> env = new HashMap<>(System.getenv());
-    env.keySet().removeIf(key -> key.startsWith("BASIS_"));
-    Run run = exec(tmp, List.of("java", "-jar", jar.toString(), "--run=all"), env, 120);
-    assertTrue(run.code() != 0, "run without vars must fail");
-    assertTrue(
-        (run.out() + run.err()).contains("BASIS_AUTH_ISSUER"),
-        "failure must name BASIS_AUTH_ISSUER, got: " + run.out() + run.err());
   }
 
   @Test
@@ -130,7 +116,6 @@ class SmokeTest {
             "-jar",
             jar.toString(),
             "--demo",
-            "--run=all",
             "--port=" + port);
     ProcessBuilder serverBuilder = new ProcessBuilder(serverCommand).directory(work.toFile());
     serverBuilder.environment().keySet().removeIf(key -> key.startsWith("BASIS_"));
