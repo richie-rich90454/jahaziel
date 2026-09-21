@@ -11,10 +11,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
-import dev.jahaziel.runtime.persistence.VirtualMachineEntity;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
+import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
