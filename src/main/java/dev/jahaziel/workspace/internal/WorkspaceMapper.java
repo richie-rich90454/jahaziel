@@ -5,19 +5,19 @@
 package dev.jahaziel.workspace.internal;
 
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
-import dev.jahaziel.runtime.persistence.VirtualMachineEntity;
-import dev.jahaziel.snapshot.domain.SnapshotId;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
 import dev.jahaziel.workspace.domain.WorkspaceState;
+import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceAclEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Maps workspace rows to domain objects and back. Pure static functions; the mapping lives at the
@@ -90,7 +90,7 @@ public final class WorkspaceMapper {
       WorkspaceEntity row,
       List<WorkspaceAclEntity> aclRows,
       VirtualMachineEntity machineRow,
-      List<SnapshotId> snapshotIds) {
+      List<UUID> snapshotIds) {
     VirtualMachine machine =
         new VirtualMachine(
             new VirtualMachineId(machineRow.getVmId()),
@@ -106,7 +106,7 @@ public final class WorkspaceMapper {
     for (WorkspaceAclEntity acl : aclRows) {
       workspace.grant(acl.getId().getGranteeUserId(), acl.getId().getPermission());
     }
-    for (SnapshotId snapshotId : snapshotIds) {
+    for (UUID snapshotId : snapshotIds) {
       workspace.recordSnapshot(snapshotId);
     }
     replay(workspace, row.getState(), row.getStateChangedAt());
