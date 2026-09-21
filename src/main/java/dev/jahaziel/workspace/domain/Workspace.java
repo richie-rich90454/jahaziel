@@ -5,8 +5,6 @@
 package dev.jahaziel.workspace.domain;
 
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.snapshot.domain.SnapshotId;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -96,7 +94,7 @@ public final class Workspace {
    *
    * @return a defensive copy
    */
-  public List<SnapshotId> snapshots() {
+  public List<UUID> snapshots() {
     return snapshots.snapshots();
   }
 
@@ -266,7 +264,7 @@ public final class Workspace {
    *
    * @param snapshotId the snapshot identifier
    */
-  public void recordSnapshot(SnapshotId snapshotId) {
+  public void recordSnapshot(UUID snapshotId) {
     snapshots.record(snapshotId);
   }
 }
