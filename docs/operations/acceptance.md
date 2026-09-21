@@ -12,6 +12,16 @@ checklist below for each of the six OS/arch combos in `docs/plan.md`,
 then records the result with the release commit SHA. The release is
 accepted only when every row passes. No automation stands in for it.
 
+## Candidate under test
+
+- Commit SHA: `dc4a8c0`
+- Artifact: `target/jahaziel.jar`
+  (`SHA-256 F69EECF267C4BEAE4BDF40082D9F3E6095416F9B7DF51246DC5BEE3FAABD5CFB`)
+- Changes since the last acceptance run: first acceptance for the
+  single-jar layout (one pom, flat `src/`, platform abstraction, bare-jar
+  full-stack boot, CLI verbs, smoke gate, template seeds, VitePress site).
+  No previous acceptance recorded.
+
 ## Checklist
 
 1. `java -jar jahaziel.jar init` scaffolds `.env`.
@@ -28,6 +38,11 @@ accepted only when every row passes. No automation stands in for it.
 
 ## Results
 
-| Date | Commit SHA | Combo | REH | Result | Signed off by |
-|---|---|---|---|---|---|
-| — | `0000000` (placeholder: paste the release SHA) | — | — | No acceptance recorded yet. | — |
+| Date | Commit SHA | Artifact SHA-256 (prefix) | Combo | REH | Result | Signed off by |
+|---|---|---|---|---|---|---|
+| — | `dc4a8c0` | `F69EECF2…` | Windows x64 | win32-x64 | untested | — |
+| — | `dc4a8c0` | `F69EECF2…` | macOS arm64 | darwin-arm64 | untested | — |
+| — | `dc4a8c0` | `F69EECF2…` | Linux x64 | linux-x64 | untested | — |
+| — | `dc4a8c0` | `F69EECF2…` | Windows arm64 | win32-arm64 | untested | — |
+| — | `dc4a8c0` | `F69EECF2…` | macOS x64 | darwin-x64 | untested | — |
+| — | `dc4a8c0` | `F69EECF2…` | Linux arm64 | linux-arm64 | untested | — |
