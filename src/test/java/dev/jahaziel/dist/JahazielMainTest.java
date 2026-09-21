@@ -5,15 +5,36 @@
 package dev.jahaziel.dist;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Behavior of {@link JahazielMain} argument handling. No servers start here. */
 class JahazielMainTest {
+  @TempDir private Path emptyDir;
+
+  private String userDir;
+
+  @BeforeEach
+  void pinUserDir() {
+    userDir = System.getProperty("user.dir");
+    System.setProperty("user.dir", emptyDir.toString());
+  }
+
+  @AfterEach
+  void restoreUserDir() {
+    System.setProperty("user.dir", userDir);
+  }
+
   @Test
   void bareJarIsHelpAlias() {
     Output output = run();
@@ -24,32 +45,36 @@ class JahazielMainTest {
   @Test
   void helpAndVersion() {
     assertEquals(0, run("--help").code());
-    assertTrue(run("--help").text().contains("--run=all"));
+    assertTrue(run("--help").text().contains("Usage: java -jar jahaziel.jar"));
+    assertTrue(!run("--help").text().contains("--run=all"));
     assertTrue(run("--version").text().startsWith("jahaziel "));
   }
 
   @Test
-  void rejectsUnknownAndMissingMode() {
+  void rejectsUnknownArgs() {
     assertEquals(2, run("--bogus").code());
-    assertEquals(2, run("--port=9000").code());
-    assertEquals(2, run("--run=bogus").code());
+    assertEquals(2, run("--run=all").code());
     assertEquals(2, run("--run").code());
-    assertEquals(2, run("--port=abc", "--run=all").code());
+    assertEquals(2, run("--services-dir=/tmp").code());
+    assertEquals(2, run("--status").code());
+    assertEquals(2, run("--port=abc").code());
   }
 
   @Test
-  void parsesModes() {
-    assertEquals(
-        JahazielMain.Mode.ALL, JahazielMain.Arguments.parse(new String[] {"--run=all"}).mode());
-    assertEquals(
-        JahazielMain.Mode.CONTROL_PLANE,
-        JahazielMain.Arguments.parse(new String[] {"--run", "control-plane"}).mode());
-    assertEquals(
-        JahazielMain.Mode.NODE_AGENT,
-        JahazielMain.Arguments.parse(new String[] {"--run=node-agent"}).mode());
-    assertEquals(
-        JahazielMain.Mode.GATEWAY,
-        JahazielMain.Arguments.parse(new String[] {"--run=gateway"}).mode());
+  void portFlagWithoutEnvPrintsHelp() {
+    Output output = run("--port=9000");
+    assertEquals(0, output.code());
+    assertTrue(output.text().contains("Usage: java -jar jahaziel.jar"));
+  }
+
+  @Test
+  void argumentDefaults() {
+    JahazielMain.Arguments parsed = JahazielMain.Arguments.parse(new String[0]);
+    assertEquals(11451, parsed.port());
+    assertEquals(8081, parsed.gatewayPort());
+    assertEquals("code.example.com", parsed.domain());
+    assertNull(parsed.dataDir());
+    assertFalse(parsed.demo());
   }
 
   private static Output run(String... args) {
