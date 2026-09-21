@@ -9,10 +9,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import dev.jahaziel.spi.JobContext;
-import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.Workspace;
