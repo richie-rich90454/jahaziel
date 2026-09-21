@@ -6,9 +6,9 @@ package dev.jahaziel.node.internal;
 
 import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.node.domain.NodeState;
-import dev.jahaziel.platform.api.JobContext;
-import dev.jahaziel.platform.api.JobScope;
-import dev.jahaziel.platform.api.PlatformJob;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
+import dev.jahaziel.spi.PlatformJob;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
