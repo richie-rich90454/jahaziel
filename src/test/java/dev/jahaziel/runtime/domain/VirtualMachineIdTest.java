@@ -4,12 +4,11 @@
  */
 package dev.jahaziel.runtime.domain;
 
-import dev.jahaziel.workspace.domain.VirtualMachineId;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
