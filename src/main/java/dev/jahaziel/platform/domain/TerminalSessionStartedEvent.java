@@ -4,10 +4,9 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.terminal.domain.TerminalSessionId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * A terminal session started.
@@ -16,8 +15,7 @@ import java.util.Objects;
  * @param workspaceId the workspace
  * @param occurredAt when the event occurred
  */
-public record TerminalSessionStartedEvent(
-    TerminalSessionId sessionId, WorkspaceId workspaceId, Instant occurredAt)
+public record TerminalSessionStartedEvent(UUID sessionId, UUID workspaceId, Instant occurredAt)
     implements DomainEvent {
   public TerminalSessionStartedEvent {
     Objects.requireNonNull(sessionId, "sessionId");
