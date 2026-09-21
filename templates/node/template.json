@@ -1,0 +1,8 @@
+{
+  "name": "node",
+  "description": "Node.js 24 workspace with npm install on first start.",
+  "vcpuCount": 2,
+  "memoryMib": 4096,
+  "ports": [3000],
+  "setup": ["npm install"]
+}
