@@ -11,8 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Plugin hooks: lifecycle, authentication, gateway routing, administration. Discovered from
- * {@code data/plugins/*.jar} via {@code ServiceLoader}. Every hook defaults to no opinion.
+ * Plugin hooks: lifecycle, authentication, gateway routing, administration. Discovered from {@code
+ * data/plugins/*.jar} via {@code ServiceLoader}. Every hook defaults to no opinion.
  */
 public interface JahazielPlugin {
   /** Returns the plugin name. */
