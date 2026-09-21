@@ -7,6 +7,8 @@
 
 # CLI reference
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 ## init
 
 ```bash
