@@ -5,14 +5,6 @@
 package dev.jahaziel.dist;
 
 import dev.jahaziel.JahazielApplication;
-import dev.jahaziel.dist.supervisor.ServiceSupervisor;
-import dev.jahaziel.gateway.GatewayMain;
-import dev.jahaziel.nodeagent.audit.AuditSpool;
-import dev.jahaziel.nodeagent.service.LocalProcessBackend;
-import dev.jahaziel.nodeagent.service.NodeAgentService;
-import dev.jahaziel.nodeagent.storage.FolderStorage;
-import dev.jahaziel.nodeagent.storage.NioCommandRunner;
-import dev.jahaziel.nodeagent.sync.SyncServer;
 import dev.jahaziel.platform.DotEnv;
 import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
@@ -27,9 +19,10 @@ import java.util.concurrent.CountDownLatch;
 import org.springframework.boot.SpringApplication;
 
 /**
- * Ultra fat jar dispatcher. Bare {@code java -jar jahaziel.jar} prints help; every run goes through
- * {@code --run}. Portable modes default to the jar-adjacent {@code data/} directory and a SQLite
- * file that is created once and never cleared.
+ * Ultra fat jar dispatcher. Bare {@code java -jar jahaziel.jar} with a jar-adjacent {@code .env}
+ * boots the FULL stack (control plane, node agent, and gateway in one process) on 11451; bare
+ * without {@code .env} prints help and runs nothing. Portable boot defaults to the jar-adjacent
+ * {@code data/} directory and a SQLite file that is created once and never cleared.
  */
 public final class JahazielMain {
   /**
@@ -68,7 +61,7 @@ public final class JahazielMain {
         return cli;
       }
       Arguments parsed = Arguments.parse(normalized);
-      if (parsed.help() || args.length == 0) {
+      if (parsed.help()) {
         out.print(help());
         return 0;
       }
@@ -94,57 +87,31 @@ public final class JahazielMain {
     Platform platform = Platforms.detect(parsed.dataDir());
     Files.createDirectories(platform.tempDir());
     System.setProperty("java.io.tmpdir", platform.tempDir().toString());
-    Map<String, String> fileEnv = DotEnv.parse(platform.jarDir().resolve(".env"));
+    Path envFile = platform.jarDir().resolve(".env");
+    if (!Files.isRegularFile(envFile)) {
+      out.print(help());
+      out.println("jahaziel: no .env yet; run `init` first, then start with no args");
+      return 0;
+    }
+    Map<String, String> fileEnv = DotEnv.parse(envFile);
     applyDotEnv(fileEnv);
     reportBasisVars(fileEnv, out);
     JarDataDir data = JarDataDir.resolve(parsed.dataDir());
     ensurePortableDirs(data.root());
     ensurePortableDirs(platform.dataDir());
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
-    return switch (parsed.mode()) {
-      case SUPERVISOR -> {
-        Path servicesDir = Path.of(parsed.servicesDir());
-        if (parsed.status()) {
-          yield ServiceSupervisor.status(servicesDir, out);
-        }
-        yield ServiceSupervisor.supervise(servicesDir, data.root().resolve("logs"), out);
-      }
-      case NODE_AGENT -> runNodeAgent(data, out);
-      case GATEWAY -> {
-        GatewayMain.main(
-            new String[] {
-              "--port",
-              Integer.toString(parsed.gatewayPort()),
-              "--domain",
-              parsed.domain(),
-              "--jwt-pub",
-              keys.publicKey().toString()
-            });
-        yield 0;
-      }
-      case CONTROL_PLANE -> {
-        portableProperties(data, keys, parsed, false, platform);
-        SpringApplication.run(JahazielApplication.class);
-        markInitialized(data.root());
-        out.println("jahaziel control-plane running on :" + parsed.port() + " data=" + data.root());
-        new CountDownLatch(1).await();
-        yield 0;
-      }
-      case ALL -> {
-        portableProperties(data, keys, parsed, true, platform);
-        SpringApplication.run(JahazielApplication.class);
-        markInitialized(data.root());
-        out.println(
-            "jahaziel all running: api=:"
-                + parsed.port()
-                + " gateway=:"
-                + parsed.gatewayPort()
-                + " data="
-                + data.root());
-        new CountDownLatch(1).await();
-        yield 0;
-      }
-    };
+    portableProperties(data, keys, parsed, platform);
+    SpringApplication.run(JahazielApplication.class);
+    markInitialized(data.root());
+    out.println(
+        "jahaziel all running: api=:"
+            + parsed.port()
+            + " gateway=:"
+            + parsed.gatewayPort()
+            + " data="
+            + data.root());
+    new CountDownLatch(1).await();
+    return 0;
   }
 
   static void ensurePortableDirs(Path root) throws java.io.IOException {
@@ -233,47 +200,34 @@ public final class JahazielMain {
     }
   }
 
-  private static int runNodeAgent(JarDataDir data, PrintStream out) throws Exception {
-    var storage = new FolderStorage(new NioCommandRunner(), data.root().toString());
-    var sync = new SyncServer(SyncServer.LOOPBACK_PORT, data.sync());
-    sync.start();
-    var backend = new LocalProcessBackend(storage);
-    var service = new NodeAgentService(backend, storage, new AuditSpool(data.audit()), sync);
-    out.println("jahaziel node-agent (local) ready in " + data.root() + ": " + service);
-    new CountDownLatch(1).await();
-    return 0;
+  static void portableProperties(JarDataDir data, DevKeys.Keys keys, Arguments parsed) {
+    portableProperties(data, keys, parsed, Platforms.detect(parsed.dataDir()));
   }
 
   static void portableProperties(
-      JarDataDir data, DevKeys.Keys keys, Arguments parsed, boolean gateway) {
-    portableProperties(data, keys, parsed, gateway, Platforms.detect(parsed.dataDir()));
-  }
-
-  static void portableProperties(
-      JarDataDir data, DevKeys.Keys keys, Arguments parsed, boolean gateway, Platform platform) {
-    portablePropertyMap(data, keys, parsed, gateway, platform).forEach(JahazielMain::setIfAbsent);
+      JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
+    portablePropertyMap(data, keys, parsed, platform).forEach(JahazielMain::setIfAbsent);
   }
 
   /**
-   * Builds the exact property set portable modes boot with. The fat jar applies it to system
-   * properties; tests feed the same map to the application builder, so both paths boot identically.
+   * Builds the exact property set portable boot uses. The fat jar applies it to system properties;
+   * tests feed the same map to the application builder, so both paths boot identically.
    *
    * @param data the data layout
    * @param keys the session keys
    * @param parsed the dispatcher arguments
-   * @param gateway whether the gateway runs beside the API
    * @return the properties, insertion ordered
    */
   static java.util.Map<String, String> portablePropertyMap(
-      JarDataDir data, DevKeys.Keys keys, Arguments parsed, boolean gateway) {
-    return portablePropertyMap(data, keys, parsed, gateway, Platforms.detect(parsed.dataDir()));
+      JarDataDir data, DevKeys.Keys keys, Arguments parsed) {
+    return portablePropertyMap(data, keys, parsed, Platforms.detect(parsed.dataDir()));
   }
 
   static java.util.Map<String, String> portablePropertyMap(
-      JarDataDir data, DevKeys.Keys keys, Arguments parsed, boolean gateway, Platform platform) {
+      JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
     java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
     properties.put("jahaziel.dist.enabled", "true");
-    properties.put("jahaziel.dist.gateway-enabled", Boolean.toString(gateway));
+    properties.put("jahaziel.dist.gateway-enabled", "true");
     properties.put("jahaziel.dist.gateway-port", Integer.toString(parsed.gatewayPort()));
     properties.put("jahaziel.dist.domain", parsed.domain());
     properties.put("spring.datasource.url", sqliteUrl(data, platform));
@@ -325,25 +279,17 @@ public final class JahazielMain {
 
   static String help() {
     return """
-        Usage: java -jar jahaziel.jar --run=MODE [options]
+        Usage: java -jar jahaziel.jar [options]
 
-        Bare `java -jar jahaziel.jar` prints this help and runs nothing.
-
-        Modes:
-          --run=all             Control plane, node agent, and gateway in one process
-          --run=control-plane   API and orchestration only
-          --run=node-agent      Local workspace backend and file sync only
-          --run=gateway         Host routing and session verification only
-          --run=supervisor      Start the services in --services-dir and keep them running
+        No-args with a jar-adjacent .env boots the FULL stack (API + node agent +
+        gateway) on 11451. No-args without .env prints this help; run `init` first.
 
         Options:
           --data-dir=PATH       Data root (default: data/ next to the jar)
           --port=N              Control-plane HTTP port (default: 11451)
           --gateway-port=N      Gateway HTTP port (default: 8081)
           --domain=HOST         Public domain and token issuer (default: code.example.com)
-          --services-dir=PATH   Service files for --run=supervisor
-                                (default: /etc/jahaziel/services)
-          --status              With --run=supervisor, list the services and exit
+          --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
           --help                Print this help
           --version             Print the version
 
@@ -358,23 +304,19 @@ public final class JahazielMain {
 
   /** Parsed dispatcher arguments. */
   record Arguments(
-      Mode mode,
       String dataDir,
       int port,
       int gatewayPort,
       String domain,
-      String servicesDir,
-      boolean status,
+      boolean demo,
       boolean help,
       boolean version) {
     static Arguments parse(String[] args) {
-      Mode mode = null;
       String dataDir = null;
       int port = DEFAULT_PORT;
       int gatewayPort = 8081;
       String domain = "code.example.com";
-      String servicesDir = "/etc/jahaziel/services";
-      boolean status = false;
+      boolean demo = false;
       boolean help = false;
       boolean version = false;
       List<String> unknown = new ArrayList<>();
@@ -384,20 +326,12 @@ public final class JahazielMain {
           help = true;
         } else if (arg.equals("--version")) {
           version = true;
-        } else if (arg.equals("--status")) {
-          status = true;
-        } else if (arg.startsWith("--run=")) {
-          mode = mode(arg.substring("--run=".length()));
-        } else if (arg.equals("--run")) {
-          mode = mode(next(args, ++i, "--run"));
+        } else if (arg.equals("--demo")) {
+          demo = true;
         } else if (arg.startsWith("--data-dir=")) {
           dataDir = arg.substring("--data-dir=".length());
         } else if (arg.equals("--data-dir")) {
           dataDir = next(args, ++i, "--data-dir");
-        } else if (arg.startsWith("--services-dir=")) {
-          servicesDir = value(arg.substring("--services-dir=".length()), "--services-dir");
-        } else if (arg.equals("--services-dir")) {
-          servicesDir = value(next(args, ++i, "--services-dir"), "--services-dir");
         } else if (arg.startsWith("--port=")) {
           port = number(arg.substring("--port=".length()), "--port");
         } else if (arg.startsWith("--gateway-port=")) {
@@ -411,24 +345,7 @@ public final class JahazielMain {
       if (!unknown.isEmpty()) {
         throw new IllegalArgumentException("unknown argument: " + unknown.get(0));
       }
-      if (help || version || args.length == 0) {
-        return new Arguments(
-            mode, dataDir, port, gatewayPort, domain, servicesDir, status, help, version);
-      }
-      if (mode == null) {
-        throw new IllegalArgumentException("nothing to run: pass --run=MODE");
-      }
-      return new Arguments(
-          mode, dataDir, port, gatewayPort, domain, servicesDir, status, false, false);
-    }
-
-    private static Mode mode(String raw) {
-      try {
-        return Mode.valueOf(raw.toUpperCase(java.util.Locale.ROOT).replace('-', '_'));
-      } catch (IllegalArgumentException bad) {
-        throw new IllegalArgumentException(
-            "unknown mode: " + raw + " (all, control-plane, node-agent, gateway, supervisor)");
-      }
+      return new Arguments(dataDir, port, gatewayPort, domain, demo, help, version);
     }
 
     private static String next(String[] args, int i, String flag) {
@@ -456,19 +373,5 @@ public final class JahazielMain {
       }
       return raw;
     }
-  }
-
-  /** Runnable roles. */
-  enum Mode {
-    /** Supervises the split roles described by our own service files instead of systemd. */
-    SUPERVISOR,
-    /** Everything in one process. */
-    ALL,
-    /** API and orchestration. */
-    CONTROL_PLANE,
-    /** Local workspace backend and file sync. */
-    NODE_AGENT,
-    /** Host routing and session verification. */
-    GATEWAY
   }
 }
