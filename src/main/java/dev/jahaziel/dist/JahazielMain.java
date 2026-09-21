@@ -99,6 +99,7 @@ public final class JahazielMain {
     JarDataDir data = JarDataDir.resolve(parsed.dataDir());
     ensurePortableDirs(data.root());
     ensurePortableDirs(platform.dataDir());
+    TemplateSeeds.copyIfAbsent(data.root().resolve("templates"));
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
     portableProperties(data, keys, parsed, platform);
     SpringApplication.run(JahazielApplication.class);
@@ -243,6 +244,7 @@ public final class JahazielMain {
     properties.put("DB_PASSWORD", "");
     properties.put("jahaziel.storage.root", data.root().toString());
     properties.put("jahaziel.data-dir", data.root().toString());
+    properties.put("jahaziel.templates.dir", data.root().resolve("templates").toString());
     properties.put("jahaziel.domain", parsed.domain());
     properties.put("jahaziel.jwt.private-key-file", keys.privateKey().toString());
     properties.put("jahaziel.jwt.public-key-file", keys.publicKey().toString());
