@@ -2,17 +2,12 @@
  * Copyright 2026 The Jahaziel Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-package dev.jahaziel.runtime.domain;
+package dev.jahaziel.workspace.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.terminal.domain.TerminalSession;
-import dev.jahaziel.terminal.domain.TerminalSessionId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +29,6 @@ class VirtualMachineTest {
   void startsStoppedWithZeroMetrics() {
     assertInstanceOf(VirtualMachineState.Stopped.class, machine.state());
     assertEquals(RuntimeMetrics.zero(), machine.metrics());
-    assertTrue(machine.terminals().isEmpty());
   }
 
   @Test
@@ -76,42 +70,10 @@ class VirtualMachineTest {
   }
 
   @Test
-  void terminalsAttachAndDetach() {
-    machine.boot("vm-1");
-    TerminalSession session = newSession();
-    machine.attachTerminal(session);
-    assertEquals(1, machine.terminals().size());
-    machine.detachTerminal(session.id());
-    assertTrue(machine.terminals().isEmpty());
-  }
-
-  @Test
-  void attachRequiresRunning() {
-    assertThrows(IllegalStateException.class, () -> machine.attachTerminal(newSession()));
-  }
-
-  @Test
-  void detachUnknownSessionThrows() {
-    machine.boot("vm-1");
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> machine.detachTerminal(new TerminalSessionId(UUID.randomUUID())));
-  }
-
-  @Test
   void metricsUpdate() {
     RuntimeMetrics sample = new RuntimeMetrics(42, 1024, 2048, 512);
     machine.updateMetrics(sample);
     assertEquals(sample, machine.metrics());
     assertThrows(NullPointerException.class, () -> machine.updateMetrics(null));
-  }
-
-  private TerminalSession newSession() {
-    return new TerminalSession(
-        new TerminalSessionId(UUID.randomUUID()),
-        workspaceId,
-        new UserId(UUID.randomUUID()),
-        30,
-        120);
   }
 }
