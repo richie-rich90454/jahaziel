@@ -7,6 +7,8 @@
 
 # Error codes
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 Every user-facing error carries a machine-readable code, a handwritten
 message, and a correlation id. Stack traces never leave the server.
 
