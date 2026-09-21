@@ -102,7 +102,6 @@ class JahazielMainTest {
   @Test
   void launchBootsAndClosesOnOpenLatch() throws Exception {
     Path home = Files.createTempDirectory("launch-test");
-    try {
     String previousUserDir = System.getProperty("user.dir");
     String previousTmpdir = System.getProperty("java.io.tmpdir");
     Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
