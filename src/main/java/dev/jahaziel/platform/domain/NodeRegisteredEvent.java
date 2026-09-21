@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.node.domain.NodeId;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -14,7 +13,7 @@ import java.util.Objects;
  * @param nodeId the node
  * @param occurredAt when the event occurred
  */
-public record NodeRegisteredEvent(NodeId nodeId, Instant occurredAt) implements DomainEvent {
+public record NodeRegisteredEvent(String nodeId, Instant occurredAt) implements DomainEvent {
   public NodeRegisteredEvent {
     Objects.requireNonNull(nodeId, "nodeId");
     Objects.requireNonNull(occurredAt, "occurredAt");
