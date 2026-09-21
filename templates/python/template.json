@@ -1,8 +1,0 @@
-{
-  "name": "python",
-  "description": "Python 3 workspace with a virtualenv and pip install.",
-  "vcpuCount": 2,
-  "memoryMib": 4096,
-  "ports": [8000],
-  "setup": ["python3 -m venv .venv", ".venv/bin/pip install -r requirements.txt"]
-}
