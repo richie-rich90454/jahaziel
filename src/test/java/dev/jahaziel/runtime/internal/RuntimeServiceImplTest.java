@@ -13,9 +13,9 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.runtime.api.RuntimeService;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.spi.ImageRef;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.PrepareRequest;
