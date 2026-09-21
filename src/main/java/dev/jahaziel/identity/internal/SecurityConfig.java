@@ -77,7 +77,11 @@ public class SecurityConfig {
               if (demo) {
                 exchanges
                     .requestMatchers(
-                        "/", "/index.html", "/styles.css", "/app.js", "/_admin",
+                        "/",
+                        "/index.html",
+                        "/styles.css",
+                        "/app.js",
+                        "/_admin",
                         "/_admin/diagnostics")
                     .permitAll();
               }
