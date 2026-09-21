@@ -191,8 +191,7 @@ public final class Cli {
     Files.writeString(env, body, StandardCharsets.UTF_8);
     Files.createDirectories(jar.resolve("data").resolve("tmp"));
     out.println("jahaziel: wrote " + env + " and created data/");
-    out.println(
-        "jahaziel: next: fill BASIS_AUTH_ISSUER, run `doctor`, then `--demo` or `--run=all`");
+    out.println("jahaziel: next: fill BASIS_* vars, run `doctor`, then boot with no args or --demo");
     return 0;
   }
 
