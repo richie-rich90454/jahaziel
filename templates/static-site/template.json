@@ -1,8 +1,0 @@
-{
-  "name": "static-site",
-  "description": "Static site workspace served on port 8080.",
-  "vcpuCount": 1,
-  "memoryMib": 1024,
-  "ports": [8080],
-  "setup": []
-}
