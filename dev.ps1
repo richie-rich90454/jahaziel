@@ -85,15 +85,24 @@ function Verb-Smoke {
 }
 
 function Verb-Docs {
-  Write-Output "[i] serving docs/ at http://localhost:8000 (Ctrl+C to stop)"
-  Push-Location (Join-Path $ScriptDir "docs")
-  try { & python -m http.server 8000 }
-  finally { Pop-Location }
+  $docs = Join-Path $ScriptDir "docs"
+  Write-Output "[i] installing docs dependencies (docs/package.json)"
+  & npm ci --prefix $docs --no-audit --no-fund
+  if (($LASTEXITCODE -ne 0)) { exit $LASTEXITCODE }
+  Write-Output "[i] serving VitePress at http://localhost:5173 (Ctrl+C to stop)"
+  & npm run docs:dev --prefix $docs
 }
 
 function Verb-DocsBuild {
-  $files = @(Get-ChildItem -Path (Join-Path $ScriptDir "docs") -Filter *.md -Recurse)
-  Write-Output "[OK] docs:build: $($files.Count) markdown files present, no generator configured"
+  $docs = Join-Path $ScriptDir "docs"
+  if (-not (Test-Path (Join-Path $docs "node_modules"))) {
+    Write-Output "[i] installing docs dependencies (docs/package.json)"
+    & npm ci --prefix $docs --no-audit --no-fund
+    if (($LASTEXITCODE -ne 0)) { exit $LASTEXITCODE }
+  }
+  & npm run docs:build --prefix $docs
+  if (($LASTEXITCODE -ne 0)) { exit $LASTEXITCODE }
+  Write-Output "[OK] docs:build: site in docs/.vitepress/dist/"
 }
 
 function Verb-Release {
