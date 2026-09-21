@@ -59,16 +59,8 @@ class DevConnectLoginTest {
                 DATA,
                 KEYS,
                 new JahazielMain.Arguments(
-                    JahazielMain.Mode.ALL,
-                    DATA.root().toString(),
-                    PORT,
-                    PORT + 1,
-                    "code.example.com",
-                    "/etc/jahaziel/services",
-                    false,
-                    false,
-                    false),
-                false));
+                    DATA.root().toString(), PORT, PORT + 1, "code.example.com", false, false,
+                    false)));
     properties.put("basis.auth-issuer", IDP.issuer());
     properties.put("basis.redirect-uri", base() + "/api/oauth/callback");
     properties.put("basis.client-id", "jahaziel");
