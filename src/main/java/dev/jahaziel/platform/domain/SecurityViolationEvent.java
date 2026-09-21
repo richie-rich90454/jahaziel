@@ -4,10 +4,10 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * A security policy was violated.
@@ -18,7 +18,7 @@ import java.util.Objects;
  * @param occurredAt when the event occurred
  */
 public record SecurityViolationEvent(
-    WorkspaceId workspaceId, String violationType, Map<String, String> details, Instant occurredAt)
+    UUID workspaceId, String violationType, Map<String, String> details, Instant occurredAt)
     implements DomainEvent {
   public SecurityViolationEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
