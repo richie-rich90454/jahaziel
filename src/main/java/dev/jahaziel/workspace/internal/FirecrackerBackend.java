@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.workspace.internal;
 
+import dev.jahaziel.platform.Platform;
+import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.spi.NodeBackend;
-import dev.jahaziel.spi.Os;
 import dev.jahaziel.spi.PrepareRequest;
 import dev.jahaziel.spi.RuntimeHandle;
 import dev.jahaziel.spi.RuntimeRequest;
@@ -35,7 +36,7 @@ public final class FirecrackerBackend implements NodeBackend {
 
   /** Returns true on Linux when {@code /dev/kvm} exists. */
   public static boolean kvmAvailable() {
-    return Os.current() == Os.LINUX && Files.exists(Path.of("/dev/kvm"));
+    return Platforms.detect(null).os() == Platform.Os.LINUX && Files.exists(Path.of("/dev/kvm"));
   }
 
   @Override
