@@ -42,6 +42,7 @@ public class AdminUiController {
   private final IdeService ide;
   private final Path logFile;
   private final String backend;
+  private final boolean demo;
   private final ExecutorService sender = Executors.newCachedThreadPool();
 
   public AdminUiController(
@@ -51,7 +52,8 @@ public class AdminUiController {
       UserService users,
       IdeService ide,
       @Value("${logging.file.name:/var/log/jahaziel/control-plane.log}") String logFile,
-      @Value("${jahaziel.workspace.backend:local}") String backend) {
+      @Value("${jahaziel.workspace.backend:local}") String backend,
+      @Value("${jahaziel.demo:false}") boolean demo) {
     this.admin = admin;
     this.nodes = nodes;
     this.auth = auth;
@@ -59,6 +61,7 @@ public class AdminUiController {
     this.ide = ide;
     this.logFile = Path.of(logFile);
     this.backend = backend;
+    this.demo = demo;
   }
 
   /** Returns the dashboard page. */
@@ -128,6 +131,12 @@ public class AdminUiController {
   }
 
   private UserId requireAdmin(Principal principal) {
+    if (principal == null) {
+      if (demo) {
+        return DemoSeeder.DEMO_USER;
+      }
+      throw new IllegalArgumentException("missing principal");
+    }
     UserId user;
     try {
       user = new UserId(UUID.fromString(principal.getName()));
