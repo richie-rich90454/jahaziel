@@ -8,3 +8,4 @@ spring:
 
 jahaziel:
   data-dir: data
+  domain: code.example.com
