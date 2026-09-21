@@ -41,8 +41,9 @@ public final class Platforms {
   }
 
   /**
-   * Detects the platform from the real JVM properties and the jar location. Unsupported hosts print
-   * the detected values plus the supported combos and exit 1.
+   * Detects the platform from the real JVM properties and the jar location. Unsupported hosts
+   * throw with the detected values plus the supported combos; the jar entry point maps that to
+   * exit 1.
    *
    * @param explicitDataDir the --data-dir value, or null for jar-adjacent
    * @return the platform
@@ -52,12 +53,11 @@ public final class Platforms {
         System.getProperty("os.name", ""),
         System.getProperty("os.arch", ""),
         resolveJarDir(),
-        explicitDataDir,
-        true);
+        explicitDataDir);
   }
 
   /**
-   * Testable detection from explicit values. Throws instead of exiting.
+   * Testable detection from explicit values. Unsupported hosts throw.
    *
    * @param osName the os.name value
    * @param osArch the os.arch value
@@ -66,16 +66,11 @@ public final class Platforms {
    * @return the platform
    */
   public static Platform detect(String osName, String osArch, Path jarDir, String explicitDataDir) {
-    return detect(osName, osArch, jarDir, explicitDataDir, false);
-  }
-
-  private static Platform detect(
-      String osName, String osArch, Path jarDir, String explicitDataDir, boolean exitOnFailure) {
     Objects.requireNonNull(jarDir, "jarDir");
     Platform.Os os = mapOs(osName);
     Platform.Arch arch = mapArch(osArch);
     if (os == null || arch == null) {
-      String message =
+      throw new IllegalStateException(
           "unsupported platform: os.name="
               + osName
               + " os.arch="
@@ -85,13 +80,7 @@ public final class Platforms {
               + " arch="
               + arch
               + "). supported: "
-              + String.join(", ", SUPPORTED_VARIANTS);
-      if (exitOnFailure) {
-        System.err.println("jahaziel: " + message);
-        System.exit(1);
-        throw new IllegalStateException(message);
-      }
-      throw new IllegalStateException(message);
+              + String.join(", ", SUPPORTED_VARIANTS));
     }
     Path dataDir =
         explicitDataDir == null || explicitDataDir.isBlank()
