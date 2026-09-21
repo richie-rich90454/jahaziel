@@ -7,20 +7,18 @@ package dev.jahaziel.workspace.internal;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
-import dev.jahaziel.runtime.persistence.VirtualMachineEntity;
-import dev.jahaziel.runtime.persistence.VirtualMachineRepository;
-import dev.jahaziel.snapshot.domain.SnapshotId;
-import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import dev.jahaziel.spi.StorageUsage;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceView;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
+import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
+import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
@@ -37,7 +35,6 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
   private final WorkspaceRepository workspaces;
   private final WorkspaceAclRepository acl;
   private final VirtualMachineRepository machines;
-  private final SnapshotRepository snapshots;
   private final UserService users;
   private final String storageRoot;
 
@@ -47,7 +44,6 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
    * @param workspaces the workspace rows
    * @param acl the grant rows
    * @param machines the machine rows
-   * @param snapshots the snapshot rows
    * @param users the user lookup
    * @param storageRoot the storage root, for example {@code /var/lib/jahaziel}
    */
@@ -55,13 +51,11 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
       WorkspaceRepository workspaces,
       WorkspaceAclRepository acl,
       VirtualMachineRepository machines,
-      SnapshotRepository snapshots,
       UserService users,
       String storageRoot) {
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.acl = Objects.requireNonNull(acl, "acl");
     this.machines = Objects.requireNonNull(machines, "machines");
-    this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
     this.users = Objects.requireNonNull(users, "users");
     if (storageRoot == null || storageRoot.isBlank()) {
       throw new IllegalArgumentException("storageRoot must not be blank");
@@ -166,11 +160,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
             .findByWorkspaceId(id.value())
             .orElseThrow(
                 () -> new IllegalStateException("Workspace " + id + " has no machine row"));
-    List<SnapshotId> snapshotIds =
-        snapshots.findByWorkspaceId(id.value()).stream()
-            .map(snapshot -> new SnapshotId(snapshot.getSnapshotId()))
-            .toList();
-    return WorkspaceMapper.toDomain(row, grants, machineRow, snapshotIds);
+    return WorkspaceMapper.toDomain(row, grants, machineRow, List.of());
   }
 
   private static void checkName(String name) {
