@@ -4,9 +4,9 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * A workspace runtime stopped.
@@ -14,7 +14,7 @@ import java.util.Objects;
  * @param workspaceId the workspace
  * @param occurredAt when the event occurred
  */
-public record RuntimeStoppedEvent(WorkspaceId workspaceId, Instant occurredAt)
+public record RuntimeStoppedEvent(UUID workspaceId, Instant occurredAt)
     implements DomainEvent {
   public RuntimeStoppedEvent {
     Objects.requireNonNull(workspaceId, "workspaceId");
