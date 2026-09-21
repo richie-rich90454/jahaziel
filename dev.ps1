@@ -81,7 +81,7 @@ function Verb-Reset {
 
 function Verb-Smoke {
   Ensure-Jar
-  exit (Invoke-Mvn @("-Psmoke", "test", "-Dtest=SmokeTest", "-Djahaziel.jar=$Jar"))
+  exit (Invoke-Mvn @("-Psmoke", "verify", "-Djahaziel.jar=$Jar"))
 }
 
 function Verb-Docs {
