@@ -11,7 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +81,63 @@ class JahazielMainTest {
     assertEquals("code.example.com", parsed.domain());
     assertNull(parsed.dataDir());
     assertFalse(parsed.demo());
+  }
+
+  @Test
+  void unsupportedPlatformFails() {
+    String osName = System.getProperty("os.name");
+    String osArch = System.getProperty("os.arch");
+    System.setProperty("os.name", "AmigaOS");
+    System.setProperty("os.arch", "m68k");
+    try {
+      Output output = run("--port=9000");
+      assertEquals(1, output.code());
+      assertTrue(output.text().contains("unsupported platform"));
+    } finally {
+      System.setProperty("os.name", osName);
+      System.setProperty("os.arch", osArch);
+    }
+  }
+
+  @Test
+  void launchBootsAndClosesOnOpenLatch(@TempDir Path home) throws Exception {
+    String previousUserDir = System.getProperty("user.dir");
+    String previousTmpdir = System.getProperty("java.io.tmpdir");
+    Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+    System.setProperty("user.dir", home.toString());
+    try {
+      Files.writeString(home.resolve(".env"), "# test\n", StandardCharsets.UTF_8);
+      JahazielMain.Arguments parsed =
+          new JahazielMain.Arguments(
+              home.resolve("data").toString(),
+              freePort(),
+              freePort(),
+              "code.example.com",
+              false,
+              false,
+              false);
+      int code = JahazielMain.launch(parsed, System.out, new CountDownLatch(0));
+      assertEquals(0, code);
+      assertTrue(Files.isRegularFile(home.resolve("data").resolve("jahaziel.db")));
+      assertTrue(Files.isRegularFile(home.resolve("data").resolve(".initialized")));
+    } finally {
+      System.setProperty("user.dir", previousUserDir);
+      if (previousTmpdir == null) {
+        System.clearProperty("java.io.tmpdir");
+      } else {
+        System.setProperty("java.io.tmpdir", previousTmpdir);
+      }
+      System.getProperties().stringPropertyNames().stream()
+          .filter(key -> !before.contains(key))
+          .toList()
+          .forEach(System::clearProperty);
+    }
+  }
+
+  private static int freePort() throws java.io.IOException {
+    try (ServerSocket socket = new ServerSocket(0)) {
+      return socket.getLocalPort();
+    }
   }
 
   private static Output run(String... args) {
