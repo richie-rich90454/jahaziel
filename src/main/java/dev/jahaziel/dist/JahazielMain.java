@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  * Ultra fat jar dispatcher. Bare {@code java -jar jahaziel.jar} with a jar-adjacent {@code .env}
@@ -42,15 +43,6 @@ public final class JahazielMain {
           "data", "logs", "tmp", "workspaces", "ide", "backups", "dumps", "plugins", "templates");
 
   private JahazielMain() {}
-
-  /**
-   * Starts the dispatcher.
-   *
-   * @param args command line arguments
-   */
-  public static void main(String[] args) {
-    System.exit(run(args, System.out, System.err));
-  }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
     Objects.requireNonNull(args, "args");
@@ -84,6 +76,10 @@ public final class JahazielMain {
   }
 
   private static int launch(Arguments parsed, PrintStream out) throws Exception {
+    return launch(parsed, out, new CountDownLatch(1));
+  }
+
+  static int launch(Arguments parsed, PrintStream out, CountDownLatch stop) throws Exception {
     Platform platform = Platforms.detect(parsed.dataDir());
     Files.createDirectories(platform.tempDir());
     System.setProperty("java.io.tmpdir", platform.tempDir().toString());
@@ -105,17 +101,21 @@ public final class JahazielMain {
     TemplateSeeds.copyIfAbsent(data.root().resolve("templates"));
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
     portableProperties(data, keys, parsed, platform);
-    SpringApplication.run(JahazielApplication.class);
-    markInitialized(data.root());
-    out.println(
-        "jahaziel all running: api=:"
-            + parsed.port()
-            + " gateway=:"
-            + parsed.gatewayPort()
-            + " data="
-            + data.root());
-    new CountDownLatch(1).await();
-    return 0;
+    ConfigurableApplicationContext context = SpringApplication.run(JahazielApplication.class);
+    try {
+      markInitialized(data.root());
+      out.println(
+          "jahaziel all running: api=:"
+              + parsed.port()
+              + " gateway=:"
+              + parsed.gatewayPort()
+              + " data="
+              + data.root());
+      stop.await();
+      return 0;
+    } finally {
+      context.close();
+    }
   }
 
   static void ensurePortableDirs(Path root) throws java.io.IOException {
