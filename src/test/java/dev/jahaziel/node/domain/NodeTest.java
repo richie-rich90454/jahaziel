@@ -54,16 +54,14 @@ class NodeTest {
     UUID workspace = UUID.randomUUID();
     node.assign(workspace);
     assertThrows(IllegalArgumentException.class, () -> node.assign(workspace));
-    assertThrows(
-        IllegalArgumentException.class, () -> node.release(UUID.randomUUID()));
+    assertThrows(IllegalArgumentException.class, () -> node.release(UUID.randomUUID()));
   }
 
   @Test
   void drainingRefusesPlacements() {
     node.drain();
     assertInstanceOf(NodeState.Draining.class, node.state());
-    assertThrows(
-        IllegalStateException.class, () -> node.assign(UUID.randomUUID()));
+    assertThrows(IllegalStateException.class, () -> node.assign(UUID.randomUUID()));
   }
 
   @Test
