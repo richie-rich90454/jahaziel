@@ -22,9 +22,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 /**
- * Default backend. One long-lived child process per workspace, rooted at
- * {@code data/workspaces/<id>/}. No isolation: processes share the control-plane host user.
- * Terminal sessions from the terminal service attach to this process tree.
+ * Default backend. One long-lived child process per workspace, rooted at {@code
+ * data/workspaces/<id>/}. No isolation: processes share the control-plane host user. Terminal
+ * sessions from the terminal service attach to this process tree.
  */
 public final class LocalBackend implements NodeBackend {
   private final Path workspacesDir;
