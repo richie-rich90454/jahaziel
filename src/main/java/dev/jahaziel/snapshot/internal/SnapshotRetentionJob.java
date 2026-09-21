@@ -4,9 +4,9 @@
  */
 package dev.jahaziel.snapshot.internal;
 
-import dev.jahaziel.platform.api.JobContext;
-import dev.jahaziel.platform.api.JobScope;
-import dev.jahaziel.platform.api.PlatformJob;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
+import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
