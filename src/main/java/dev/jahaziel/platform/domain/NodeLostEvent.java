@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.platform.domain;
 
-import dev.jahaziel.node.domain.NodeId;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -15,7 +14,7 @@ import java.util.Objects;
  * @param reason why the node is considered lost
  * @param occurredAt when the event occurred
  */
-public record NodeLostEvent(NodeId nodeId, String reason, Instant occurredAt)
+public record NodeLostEvent(String nodeId, String reason, Instant occurredAt)
     implements DomainEvent {
   public NodeLostEvent {
     Objects.requireNonNull(nodeId, "nodeId");
