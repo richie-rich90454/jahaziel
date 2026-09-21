@@ -1,0 +1,31 @@
+#
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+
+node:
+  id: node-a
+  name: "Primary node"
+  region: "default"
+server:
+  unix_socket:
+    path: /tmp/jahaziel-test/node-agent.sock
+    mode: "0600"
+    owner: jahaziel-node-agent
+    group: jahaziel-node-agent
+firecracker:
+  binary: /usr/local/bin/firecracker
+  jailer_binary: /usr/local/bin/jailer
+  jail_root: /tmp/jahaziel-test/jail
+  kernel_image: /tmp/jahaziel-test/vmlinux
+storage:
+  root: /tmp/jahaziel-test/store
+  workspaces_dir: /tmp/jahaziel-test/store/workspaces
+  images_dir: /tmp/jahaziel-test/store/images
+  audit_staging_dir: /tmp/jahaziel-test/store/audit
+networking:
+  bridge_name: br-jahaziel
+  tap_prefix: tap-
+  subnet: "10.100.0.0/16"
+cgroups:
+  root: /tmp/jahaziel-test/cgroup
