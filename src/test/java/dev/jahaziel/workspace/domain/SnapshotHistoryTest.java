@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.snapshot.domain.SnapshotId;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -23,8 +22,8 @@ class SnapshotHistoryTest {
   @Test
   void recordsInOrder() {
     SnapshotHistory history = new SnapshotHistory();
-    SnapshotId first = new SnapshotId(UUID.randomUUID());
-    SnapshotId second = new SnapshotId(UUID.randomUUID());
+    UUID first = UUID.randomUUID();
+    UUID second = UUID.randomUUID();
     history.record(first);
     history.record(second);
     assertEquals(List.of(first, second), history.snapshots());
