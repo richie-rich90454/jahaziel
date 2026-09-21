@@ -4,12 +4,12 @@
  */
 package dev.jahaziel.node.domain;
 
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /** One host running a node agent. A single-node cluster is a cluster with one member. */
 public final class Node {
@@ -20,7 +20,7 @@ public final class Node {
   private final String certFingerprint;
   private final Instant registeredAt;
   private NodeState state;
-  private final Set<WorkspaceId> workspaces = new HashSet<>();
+  private final Set<UUID> workspaces = new HashSet<>();
   private NodeMetrics metrics = NodeMetrics.zero();
   private Instant lastHeartbeat;
 
@@ -121,7 +121,7 @@ public final class Node {
    *
    * @return a defensive copy
    */
-  public Set<WorkspaceId> workspaces() {
+  public Set<UUID> workspaces() {
     return Set.copyOf(workspaces);
   }
 
@@ -135,7 +135,7 @@ public final class Node {
    *
    * @param workspaceId the workspace to place
    */
-  public void assign(WorkspaceId workspaceId) {
+  public void assign(UUID workspaceId) {
     Objects.requireNonNull(workspaceId, "workspaceId");
     if (state instanceof NodeState.Draining || state instanceof NodeState.Unhealthy) {
       throw new IllegalStateException("Node " + id + " cannot place while " + state);
@@ -150,7 +150,7 @@ public final class Node {
    *
    * @param workspaceId the workspace to remove
    */
-  public void release(WorkspaceId workspaceId) {
+  public void release(UUID workspaceId) {
     if (!workspaces.remove(workspaceId)) {
       throw new IllegalArgumentException("Workspace " + workspaceId + " not placed");
     }
