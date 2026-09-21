@@ -124,16 +124,15 @@ public final class Doctor {
       socket.setReuseAddress(true);
       return new Check("port", true, port + " is free", "");
     } catch (IOException inUse) {
-      return new Check(
-          "port", false, port + " is in use (" + holder(port) + ")", holderFix(port));
+      return new Check("port", false, port + " is in use (" + holder(port) + ")", holderFix(port));
     }
   }
 
   private static String holder(int port) {
     try {
       HttpURLConnection probe =
-          (HttpURLConnection) URI.create("http://127.0.0.1:" + port + "/actuator/health").toURL()
-              .openConnection();
+          (HttpURLConnection)
+              URI.create("http://127.0.0.1:" + port + "/actuator/health").toURL().openConnection();
       probe.setConnectTimeout(2000);
       probe.setReadTimeout(2000);
       int status = probe.getResponseCode();
