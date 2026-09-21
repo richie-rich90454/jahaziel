@@ -19,10 +19,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Remote-extension-host builds. Selects one of six variants, verifies its tarball with SHA-256,
- * and extracts once to {@code data/ide/<variant>/} guarded by a
- * {@code .extracted-<version>-<variant>} sentinel. The gateway relays both plain HTTP and
- * WebSocket upgrades to the extracted server's port.
+ * Remote-extension-host builds. Selects one of six variants, verifies its tarball with SHA-256, and
+ * extracts once to {@code data/ide/<variant>/} guarded by a {@code .extracted-<version>-<variant>}
+ * sentinel. The gateway relays both plain HTTP and WebSocket upgrades to the extracted server's
+ * port.
  */
 @Service
 public final class IdeService {
@@ -84,13 +84,20 @@ public final class IdeService {
     Path tarball = ideDir.resolve("jahaziel-code-server-" + variant.slug() + ".tar.zst");
     if (!Files.isRegularFile(tarball)) {
       throw new IllegalStateException(
-          "REH tarball missing: " + tarball + " (build it with ide/build.sh or fetch the manifest)");
+          "REH tarball missing: "
+              + tarball
+              + " (build it with ide/build.sh or fetch the manifest)");
     }
     verify(tarball);
     try {
       Files.createDirectories(target);
       int exit =
-          new ProcessBuilder("tar", "--use-compress-program=zstd", "-xf", tarball.toString(), "-C",
+          new ProcessBuilder(
+                  "tar",
+                  "--use-compress-program=zstd",
+                  "-xf",
+                  tarball.toString(),
+                  "-C",
                   ideDir.toString())
               .inheritIO()
               .start()
