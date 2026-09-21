@@ -7,6 +7,8 @@
 
 # Workspaces
 
+Last verified against version 0.1.0-SNAPSHOT.
+
 A workspace is one developer's home directory plus its processes,
 reachable through the browser via the IDE and the terminal.
 
