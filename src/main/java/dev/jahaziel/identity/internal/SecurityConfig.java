@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,7 +25,9 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 
 /**
  * Web security. Bearer tokens and DevConnect cookies authenticate the API; the login endpoints are
- * public because they are how a browser proves who it is. Actuator health stays public.
+ * public because they are how a browser proves who it is. Actuator health stays public. Demo mode
+ * additionally opens the workbench shell and the admin dashboard: localhost try-before-configure
+ * with no secrets behind it.
  */
 @Configuration
 @EnableWebSecurity
@@ -32,6 +35,7 @@ public class SecurityConfig {
   private final JwtService tokens;
   private final UserService users;
   private final DevConnectService devconnect;
+  private final boolean demo;
 
   /**
    * Creates the configuration.
@@ -39,11 +43,17 @@ public class SecurityConfig {
    * @param tokens the token service
    * @param users the user lookup
    * @param devconnect the DevConnect login service
+   * @param demo true for the insecure localhost demo mode
    */
-  public SecurityConfig(JwtService tokens, UserService users, DevConnectService devconnect) {
+  public SecurityConfig(
+      JwtService tokens,
+      UserService users,
+      DevConnectService devconnect,
+      @Value("${jahaziel.demo:false}") boolean demo) {
     this.tokens = Objects.requireNonNull(tokens, "tokens");
     this.users = Objects.requireNonNull(users, "users");
     this.devconnect = Objects.requireNonNull(devconnect, "devconnect");
+    this.demo = demo;
   }
 
   /**
@@ -58,14 +68,21 @@ public class SecurityConfig {
     JwtAuthenticationFilter bearer = new JwtAuthenticationFilter(tokens, lookup);
     BffAuthenticationFilter cookies = new BffAuthenticationFilter(devconnect, tokens, users);
     return http.authorizeHttpRequests(
-            exchanges ->
+            exchanges -> {
+              exchanges
+                  .requestMatchers("/actuator/health", "/error")
+                  .permitAll()
+                  .requestMatchers("/api/login", "/api/oauth/callback", "/api/oauth2/bcallback")
+                  .permitAll();
+              if (demo) {
                 exchanges
-                    .requestMatchers("/actuator/health", "/error")
-                    .permitAll()
-                    .requestMatchers("/api/login", "/api/oauth/callback", "/api/oauth2/bcallback")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+                    .requestMatchers(
+                        "/", "/index.html", "/styles.css", "/app.js", "/_admin",
+                        "/_admin/diagnostics")
+                    .permitAll();
+              }
+              exchanges.anyRequest().authenticated();
+            })
         .logout(logout -> logout.logoutSuccessUrl("/"))
         .sessionManagement(
             sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
