@@ -4,11 +4,10 @@
  */
 package dev.jahaziel.runtime.domain;
 
-import dev.jahaziel.workspace.domain.RuntimeMetrics;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import dev.jahaziel.workspace.domain.RuntimeMetrics;
 import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link RuntimeMetrics}. */
