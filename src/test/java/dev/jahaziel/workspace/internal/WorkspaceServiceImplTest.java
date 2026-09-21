@@ -18,18 +18,18 @@ import dev.jahaziel.identity.api.UserNotFoundException;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
-import dev.jahaziel.workspace.domain.VirtualMachine;
-import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
-import dev.jahaziel.workspace.domain.VirtualMachineId;
-import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
-import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.spi.UserIdentity;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceView;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
 import dev.jahaziel.workspace.domain.WorkspaceState;
+import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
+import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
@@ -57,8 +57,7 @@ class WorkspaceServiceImplTest {
     acl = mock(WorkspaceAclRepository.class);
     machines = mock(VirtualMachineRepository.class);
     users = mock(UserService.class);
-    service =
-        new WorkspaceServiceImpl(workspaces, acl, machines, users, "/var/lib/jahaziel");
+    service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/var/lib/jahaziel");
     owner = new UserId(UUID.randomUUID());
     nodeId = new NodeId("node-a");
   }
