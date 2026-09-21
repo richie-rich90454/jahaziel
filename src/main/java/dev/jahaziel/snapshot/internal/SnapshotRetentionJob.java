@@ -4,12 +4,12 @@
  */
 package dev.jahaziel.snapshot.internal;
 
-import dev.jahaziel.spi.JobContext;
-import dev.jahaziel.spi.JobScope;
-import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
+import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import java.time.Clock;
 import java.time.Duration;
