@@ -80,13 +80,13 @@ serves `/actuator/health` on 11451.
 
 Six variants: `vscode-reh-web-{win32,darwin,linux}-{x64,arm64}-min`. Three
 build modes, same run contract: `fat` (default, all six, 1.5–2.5 GB),
-`slim` (`-Djahaziel.reh=<variant>`, ~300–500 MB), `download`
+`slim` (`-Djahaziel.reh=&lt;variant&gt;`, ~300–500 MB), `download`
 (`-Djahaziel.reh=download`, manifest + checksums, fetch to
-`data/ide/<variant>/` on first run). Manual dance: `ide/build.sh --target
-<variant>` per combo → `ide/out/` → `./mvnw package
+`data/ide/&lt;variant&gt;/` on first run). Manual dance: `ide/build.sh --target
+&lt;variant&gt;` per combo → `ide/out/` → `./mvnw package
 -Djahaziel.bundle.ide=ide/out/`. Runtime: `rehVariant()` selects, extract
-once to `data/ide/<variant>/` guarded by
-`.extracted-<version>-<variant>`, launch localhost random port token-less,
+once to `data/ide/&lt;variant&gt;/` guarded by
+`.extracted-&lt;version&gt;-&lt;variant&gt;`, launch localhost random port token-less,
 gateway proxies ws+http, SHA-256 verified. Docs: CONTRIBUTING release
 procedure, `ide/README.md`, `docs/architecture/ide.md`, README Platforms
 table + size note. Done when one jar serves IDE + terminal on all six and
@@ -95,7 +95,7 @@ table + size note. Done when one jar serves IDE + terminal on all six and
 ### Phase 5 — Backends
 
 `local` default on Windows/macOS: child process in
-`data/workspaces/<id>/`, `platform.terminal(cwd)`,
+`data/workspaces/&lt;id&gt;/`, `platform.terminal(cwd)`,
 `ProcessHandle.descendants()` kill, no filesystem isolation.
 `firecracker` Linux-only when `/dev/kvm` exists +
 `jahaziel.workspace.backend=firecracker`. Docs: threat-model disclosure
