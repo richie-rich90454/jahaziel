@@ -4,9 +4,9 @@
  */
 package dev.jahaziel.runtime.internal;
 
-import dev.jahaziel.platform.api.JobContext;
-import dev.jahaziel.platform.api.JobScope;
-import dev.jahaziel.platform.api.PlatformJob;
+import dev.jahaziel.spi.JobContext;
+import dev.jahaziel.spi.JobScope;
+import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceState;
