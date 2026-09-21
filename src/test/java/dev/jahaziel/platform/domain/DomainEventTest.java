@@ -8,11 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.node.domain.NodeId;
-import dev.jahaziel.snapshot.domain.SnapshotId;
-import dev.jahaziel.terminal.domain.TerminalSessionId;
-import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -22,24 +17,23 @@ import org.junit.jupiter.api.Test;
 
 /** Every domain event carries its instant and dispatches exhaustively. */
 class DomainEventTest {
-  private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+  private final UUID workspace = UUID.randomUUID();
   private final Instant at = Instant.now();
 
   @Test
   void allVariantsAreDomainEvents() {
     List<DomainEvent> events =
         List.of(
-            new WorkspaceCreatedEvent(workspace, new UserId(UUID.randomUUID()), at),
+            new WorkspaceCreatedEvent(workspace, UUID.randomUUID(), at),
             new WorkspaceDeletedEvent(workspace, at),
             new RuntimeStartedEvent(workspace, at),
             new RuntimeStoppedEvent(workspace, at),
-            new SnapshotCreatedEvent(workspace, new SnapshotId(UUID.randomUUID()), at),
+            new SnapshotCreatedEvent(workspace, UUID.randomUUID(), at),
             new PolicyChangedEvent("global", "", at),
-            new TerminalSessionStartedEvent(
-                new TerminalSessionId(UUID.randomUUID()), workspace, at),
+            new TerminalSessionStartedEvent(UUID.randomUUID(), workspace, at),
             new SecurityViolationEvent(workspace, "cgroup-escape", Map.of("pid", "9"), at),
-            new NodeRegisteredEvent(new NodeId("node-a"), at),
-            new NodeLostEvent(new NodeId("node-a"), "no heartbeat", at));
+            new NodeRegisteredEvent("node-a", at),
+            new NodeLostEvent("node-a", "no heartbeat", at));
     assertEquals(10, events.size());
     for (DomainEvent event : events) {
       assertEquals(at, event.occurredAt());
@@ -55,7 +49,7 @@ class DomainEventTest {
         IllegalArgumentException.class,
         () -> new SecurityViolationEvent(workspace, "  ", Map.of(), at));
     assertThrows(
-        IllegalArgumentException.class, () -> new NodeLostEvent(new NodeId("n"), "  ", at));
+        IllegalArgumentException.class, () -> new NodeLostEvent("n", "  ", at));
   }
 
   @Test
