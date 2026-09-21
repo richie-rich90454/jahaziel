@@ -7,7 +7,7 @@ package dev.jahaziel.storage.internal;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.jahaziel.platform.api.JobContext;
+import dev.jahaziel.spi.JobContext;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
