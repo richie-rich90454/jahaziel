@@ -12,9 +12,9 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
-import dev.jahaziel.runtime.domain.VirtualMachine;
-import dev.jahaziel.runtime.domain.VirtualMachineConfiguration;
-import dev.jahaziel.runtime.domain.VirtualMachineId;
+import dev.jahaziel.workspace.domain.VirtualMachine;
+import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
+import dev.jahaziel.workspace.domain.VirtualMachineId;
 import dev.jahaziel.spi.UserIdentity;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
