@@ -300,6 +300,7 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <groups>smoke</groups>
+              <excludedGroups combine.self="override" />
               <systemPropertyVariables>
                 <jahaziel.jar>${jahaziel.jar}</jahaziel.jar>
               </systemPropertyVariables>
