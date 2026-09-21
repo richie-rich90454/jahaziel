@@ -30,13 +30,16 @@ public final class PluginLoader {
     if (Files.isDirectory(dir)) {
       try (var jars = Files.list(dir)) {
         List<URL> urls =
-            jars.filter(path -> path.toString().endsWith(".jar")).map(path -> {
-              try {
-                return path.toUri().toURL();
-              } catch (IOException failure) {
-                throw new UncheckedIOException(failure);
-              }
-            }).toList();
+            jars.filter(path -> path.toString().endsWith(".jar"))
+                .map(
+                    path -> {
+                      try {
+                        return path.toUri().toURL();
+                      } catch (IOException failure) {
+                        throw new UncheckedIOException(failure);
+                      }
+                    })
+                .toList();
         if (!urls.isEmpty()) {
           // ponytail: loader intentionally never closed; plugins live for the process lifetime.
           URLClassLoader loader =
