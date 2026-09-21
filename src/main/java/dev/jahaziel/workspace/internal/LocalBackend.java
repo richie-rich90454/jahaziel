@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.workspace.internal;
 
+import dev.jahaziel.platform.Platform;
+import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.spi.NodeBackend;
-import dev.jahaziel.spi.Os;
 import dev.jahaziel.spi.PrepareRequest;
 import dev.jahaziel.spi.RuntimeHandle;
 import dev.jahaziel.spi.RuntimeRequest;
@@ -58,7 +59,7 @@ public final class LocalBackend implements NodeBackend {
     try {
       Files.createDirectories(jail);
       ProcessBuilder builder =
-          Os.current() == Os.WINDOWS
+          Platforms.detect(null).os() == Platform.Os.WINDOWS
               ? new ProcessBuilder("cmd.exe", "/c", "ping", "-t", "127.0.0.1")
               : new ProcessBuilder("sleep", "infinity");
       builder.directory(jail.toFile());
