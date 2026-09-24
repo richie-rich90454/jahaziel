@@ -226,16 +226,23 @@ public final class Doctor {
   }
 
   private static Check tmpDir(Path dataDir) {
-    Path tmp = Path.of(System.getProperty("java.io.tmpdir", "")).toAbsolutePath().normalize();
+    // The launch path forces java.io.tmpdir to <data>/tmp before Spring starts, so diagnose that
+    // directory instead of the ambient JVM property, which the server overrides anyway.
     Path root = dataDir.toAbsolutePath().normalize();
-    if (tmp.startsWith(root)) {
-      return new Check("tmpdir", true, "java.io.tmpdir=" + tmp + " is inside data/", "");
+    Path tmp = root.resolve("tmp");
+    try {
+      Files.createDirectories(tmp);
+    } catch (IOException failure) {
+      return new Check(
+          "tmpdir",
+          false,
+          "cannot create " + tmp + ": " + failure.getMessage(),
+          "fix permissions on " + root);
     }
-    return new Check(
-        "tmpdir",
-        false,
-        "java.io.tmpdir=" + tmp + " is outside " + root,
-        "start with -Djava.io.tmpdir=" + root.resolve("tmp"));
+    if (Files.isWritable(tmp)) {
+      return new Check("tmpdir", true, tmp + " is writable inside data/", "");
+    }
+    return new Check("tmpdir", false, tmp + " is not writable", "fix permissions on " + tmp);
   }
 
   static boolean matchesStray(String commandLine, String needle) {
