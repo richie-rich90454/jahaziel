@@ -218,7 +218,36 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludedGroups>smoke</excludedGroups>
+          <!-- SQLite unpacks its native library once per JVM and Windows locks it; keep the
+            extraction outside per-test temp dirs so @TempDir cleanup never trips over it. -->
+          <systemPropertyVariables>
+            <org.sqlite.tmpdir>${project.build.directory}/sqlite-native</org.sqlite.tmpdir>
+          </systemPropertyVariables>
+          <!-- Lets TestEnv tweak process env vars in tests; composed with the JaCoCo agent
+            below (propertyName) so coverage keeps working. -->
+          <argLine>--add-opens java.base/java.lang=ALL-UNNAMED @{jacocoArgLine}</argLine>
         </configuration>
+      </plugin>
+      <!-- Creates the SQLite native-extraction dir before surefire forks: the driver does
+        not mkdir it, and the first test to open SQLite would otherwise load a broken lib. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>make-sqlite-native-dir</id>
+            <phase>process-test-classes</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.directory}/sqlite-native" />
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <!-- Coverage: report plus a 100% line/branch gate. Only the exiting
         launcher is excluded; it cannot run inside a test JVM. -->
@@ -232,6 +261,9 @@
             <goals>
               <goal>prepare-agent</goal>
             </goals>
+            <configuration>
+              <propertyName>jacocoArgLine</propertyName>
+            </configuration>
           </execution>
           <execution>
             <id>report</id>
@@ -247,12 +279,13 @@
               <goal>check</goal>
             </goals>
             <configuration>
+              <!-- Class-file filter for the analysis input. -->
+              <excludes>
+                <exclude>**/dist/Jahaziel.class</exclude>
+              </excludes>
               <rules>
                 <rule>
                   <element>BUNDLE</element>
-                  <excludes>
-                    <exclude>dev.jahaziel.dist.Jahaziel</exclude>
-                  </excludes>
                   <limits>
                     <limit>
                       <counter>LINE</counter>
