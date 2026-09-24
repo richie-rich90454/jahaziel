@@ -78,7 +78,7 @@ public final class LocalBackend implements NodeBackend {
     if (process == null) {
       return;
     }
-    process.descendants().forEach(ProcessHandle::destroy);
+    process.descendants().forEach(descendant -> descendant.destroy());
     if (graceful) {
       process.destroy();
     } else {
