@@ -86,7 +86,7 @@ public final class FirecrackerBackend implements NodeBackend {
     if (process == null) {
       return;
     }
-    process.descendants().forEach(ProcessHandle::destroy);
+    process.descendants().forEach(descendant -> descendant.destroy());
     if (graceful) {
       process.destroy();
     } else {
