@@ -9,8 +9,12 @@ import dev.jahaziel.platform.DotEnv;
 import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
 import java.io.PrintStream;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -98,6 +102,15 @@ public final class JahazielMain {
     JarDataDir data = JarDataDir.resolve(parsed.dataDir());
     ensurePortableDirs(data.root());
     ensurePortableDirs(platform.dataDir());
+    FileChannel dataLockChannel =
+        FileChannel.open(
+            data.root().resolve(".lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    FileLock dataLock = tryDataLock(dataLockChannel);
+    if (dataLock == null) {
+      dataLockChannel.close();
+      out.println("jahaziel: data directory is locked by another instance: " + data.root());
+      return 1;
+    }
     TemplateSeeds.copyIfAbsent(data.root().resolve("templates"));
     DevKeys.Keys keys = DevKeys.ensure(data.keys());
     portableProperties(data, keys, parsed, platform);
@@ -115,6 +128,23 @@ public final class JahazielMain {
       return 0;
     } finally {
       context.close();
+      dataLock.release();
+      dataLockChannel.close();
+    }
+  }
+
+  /**
+   * Takes the data-directory lock without blocking. Null when another process holds it (or this JVM
+   * already does); the caller refuses to boot so two servers never share one SQLite file.
+   *
+   * @param channel the open lock channel
+   * @return the held lock, or null when it is taken
+   */
+  static FileLock tryDataLock(FileChannel channel) throws java.io.IOException {
+    try {
+      return channel.tryLock();
+    } catch (OverlappingFileLockException alreadyHeld) {
+      return null;
     }
   }
 
@@ -156,10 +186,8 @@ public final class JahazielMain {
       }
     }
     for (String key : DotEnv.BASIS_VARS) {
+      // Every BASIS_VARS entry maps below; basisProperty returns null only for foreign keys.
       String property = basisProperty(key);
-      if (property == null) {
-        continue;
-      }
       String value = System.getenv(key);
       if (value == null) {
         value = System.getProperty(key);
@@ -289,10 +317,18 @@ public final class JahazielMain {
   }
 
   static String version() {
-    String manifest =
-        JahazielMain.class.getPackage() == null
-            ? null
-            : JahazielMain.class.getPackage().getImplementationVersion();
+    return versionOf(JahazielMain.class.getPackage());
+  }
+
+  /**
+   * Renders a package version, falling back when running unpacked. Split out so tests cover both
+   * sides without a manifest build.
+   *
+   * @param pkg the package, null when unknown
+   * @return the version or the development fallback
+   */
+  static String versionOf(Package pkg) {
+    String manifest = pkg == null ? null : pkg.getImplementationVersion();
     return manifest == null ? "0.1.0-SNAPSHOT (development)" : manifest;
   }
 
