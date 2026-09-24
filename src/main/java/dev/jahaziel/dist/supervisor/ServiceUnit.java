@@ -387,7 +387,8 @@ public final class ServiceUnit {
   }
 
   private static long seconds(String value) {
-    if (value == null || value.isBlank()) {
+    // Callers pass getOrDefault(..., "0"), never null; blank means unset.
+    if (value.isBlank()) {
       return 0L;
     }
     Matcher matcher = NAMED_SECONDS.matcher(value.trim());
