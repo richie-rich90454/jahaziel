@@ -50,7 +50,8 @@ class SmokeTest {
   @Test
   @Order(1)
   void bareRunPrintsUsage(@TempDir Path tmp) throws Exception {
-    Run run = exec(tmp, List.of("java", "-jar", jar().toString()), Map.of(), 60);
+    Path jar = copyJarTo(tmp);
+    Run run = exec(tmp, List.of("java", "-jar", jar.toString()), Map.of(), 60);
     assertEquals(0, run.code(), "bare run must exit 0, stderr: " + run.err());
     assertTrue(run.out().contains("Usage"), "bare run must print Usage, got: " + run.out());
   }
@@ -150,6 +151,13 @@ class SmokeTest {
 
       HttpResponse<String> admin = get(http, "http://127.0.0.1:" + port + "/_admin", Map.of());
       assertEquals(200, admin.statusCode(), "/_admin must be 200, body: " + admin.body());
+
+      HttpResponse<String> workspaces =
+          get(http, "http://127.0.0.1:" + port + "/api/workspaces", Map.of());
+      assertEquals(
+          401,
+          workspaces.statusCode(),
+          "/api/workspaces must reject anonymous callers, body: " + workspaces.body());
     } finally {
       server.destroy();
       boolean gone = server.waitFor(KILL_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
