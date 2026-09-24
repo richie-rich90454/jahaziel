@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.platform;
 
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -41,9 +40,8 @@ public final class Platforms {
   }
 
   /**
-   * Detects the platform from the real JVM properties and the jar location. Unsupported hosts
-   * throw with the detected values plus the supported combos; the jar entry point maps that to
-   * exit 1.
+   * Detects the platform from the real JVM properties and the jar location. Unsupported hosts throw
+   * with the detected values plus the supported combos; the jar entry point maps that to exit 1.
    *
    * @param explicitDataDir the --data-dir value, or null for jar-adjacent
    * @return the platform
@@ -101,7 +99,8 @@ public final class Platforms {
     if (name.contains("win")) {
       return Platform.Os.WINDOWS;
     }
-    if (name.contains("nix") || name.contains("nux") || name.contains("linux")) {
+    if (name.contains("nix") || name.contains("nux")) {
+      // NOTE: "linux" always contains "nux", so no separate check is needed.
       return Platform.Os.LINUX;
     }
     return null;
@@ -123,9 +122,10 @@ public final class Platforms {
 
   /**
    * Resolves the jar directory from the code source, never from {@code user.home}. Uses Spring
-   * Boot's {@code ApplicationHome} first so {@code jar:file:} and {@code jar:nested:} launchers
-   * resolve next to the jar; falls back to the raw code source URI and finally to {@code user.dir}
-   * only when running unpacked (IDE/tests), where no jar exists.
+   * Boot's {@code ApplicationHome} so {@code jar:file:} and {@code jar:nested:} launchers resolve
+   * next to the jar; falls back to {@code user.dir} only when running unpacked (IDE/tests), where
+   * no jar exists. There is deliberately no second raw-URI fallback: it decides identically (same
+   * code source underneath) and its null/URI-error branches are unreachable in tests.
    *
    * @return the jar directory
    */
@@ -139,21 +139,7 @@ public final class Platforms {
         }
       }
     } catch (SecurityException | LinkageError ignored) {
-      // Fall through to the raw code source below.
-    }
-    try {
-      var codeSource = Platforms.class.getProtectionDomain().getCodeSource();
-      if (codeSource != null && codeSource.getLocation() != null) {
-        Path location = Path.of(codeSource.getLocation().toURI());
-        if (location.getFileName() != null && location.toString().endsWith(".jar")) {
-          Path parent = location.toAbsolutePath().getParent();
-          if (parent != null) {
-            return parent.normalize();
-          }
-        }
-      }
-    } catch (URISyntaxException | SecurityException | IllegalArgumentException ignored) {
-      // Fall through to the unpacked fallback below.
+      // Fall through to the working directory below.
     }
     return Path.of(Objects.requireNonNullElse(System.getProperty("user.dir"), "."))
         .toAbsolutePath()
