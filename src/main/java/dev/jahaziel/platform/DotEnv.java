@@ -56,7 +56,9 @@ public final class DotEnv {
           continue;
         }
         String key = line.substring(0, equals).trim();
-        if (key.isEmpty() || key.contains(" ") || key.contains("\t")) {
+        // NOTE: key is never empty here: equals > 0 plus the trimmed line means the
+        // substring holds a non-blank first character, so no isEmpty check is needed.
+        if (key.contains(" ") || key.contains("\t")) {
           continue;
         }
         String value = stripInlineComment(line.substring(equals + 1).trim());
