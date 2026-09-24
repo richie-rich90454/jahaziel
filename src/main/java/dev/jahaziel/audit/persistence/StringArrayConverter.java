@@ -104,7 +104,7 @@ public final class StringArrayConverter implements AttributeConverter<String[], 
         throw new IllegalArgumentException("unexpected character: " + row);
       }
     }
-    if (inString || escape) {
+    if (inString) {
       throw new IllegalArgumentException("unterminated string: " + row);
     }
     return values.toArray(new String[0]);
