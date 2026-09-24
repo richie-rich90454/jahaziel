@@ -337,16 +337,32 @@ class DoctorTest {
   }
 
   @Test
-  void tmpdirOutsideData() throws Exception {
+  void tmpdirFailsWhenDataDirIsUnusable() throws Exception {
     Env env = green(root.resolve("jar"));
-    System.setProperty("java.io.tmpdir", root.toString());
+    Path broken = Files.createTempFile(root, "data", ".txt");
     Doctor.Check check =
         CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "tmpdir");
+            Doctor.run(env.jarDir(), broken, env.port(), env.fileEnv(), env.jarFile()), "tmpdir");
     assertTrue(!check.ok());
-    assertTrue(check.detail().contains("is outside "));
-    assertTrue(check.fix().contains("-Djava.io.tmpdir="));
+    assertTrue(check.detail().contains("cannot create "));
+    assertTrue(check.fix().contains(broken.toString()));
+  }
+
+  @Test
+  void tmpdirFailsWhenNotWritable() throws Exception {
+    Env env = green(root.resolve("jar"));
+    Path tmp = env.dataDir().resolve("tmp");
+    try (var files =
+        org.mockito.Mockito.mockStatic(Files.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+      files.when(() -> Files.isWritable(tmp)).thenReturn(false);
+      Doctor.Check check =
+          CliTestSupport.find(
+              Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
+              "tmpdir");
+      assertTrue(!check.ok());
+      assertTrue(check.detail().contains("is not writable"));
+      assertTrue(check.fix().contains(tmp.toString()));
+    }
   }
 
   @Test
