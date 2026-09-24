@@ -13,6 +13,11 @@ export default defineConfig({
       { text: 'Reference', link: '/reference/cli' },
     ],
     sidebar: {
+      '/': [
+        { text: 'About Jahaziel', link: '/' },
+        { text: 'Plan', link: '/plan' },
+        { text: 'Naming', link: '/naming' },
+      ],
       '/guide/': [
         { text: 'Quick start', link: '/guide/quick-start' },
         { text: 'Configuration', link: '/guide/configuration' },
@@ -27,16 +32,40 @@ export default defineConfig({
         { text: 'IDE', link: '/architecture/ide' },
         { text: 'Workspaces', link: '/architecture/workspaces' },
       ],
+      '/ide/': [
+        { text: 'Patch manifest', link: '/ide/patch-manifest' },
+        { text: 'Telemetry audit', link: '/ide/telemetry-audit' },
+      ],
+      '/deployment/': [
+        { text: 'Single-server deployment', link: '/deployment/single-server' },
+      ],
       '/operations/': [
+        { text: 'Overview', link: '/operations/' },
         { text: 'Backup', link: '/operations/backup' },
         { text: 'Reset', link: '/operations/reset' },
         { text: 'Verification', link: '/operations/verification' },
         { text: 'Acceptance', link: '/operations/acceptance' },
+        { text: 'Restore drill log', link: '/operations/restore-drill-log' },
       ],
       '/reference/': [
         { text: 'CLI', link: '/reference/cli' },
         { text: 'Env vars', link: '/reference/env-vars' },
         { text: 'Ports', link: '/reference/ports' },
+        { text: 'Error codes', link: '/reference/errors' },
+      ],
+      '/security/': [
+        { text: 'Threat model', link: '/security/threat-model' },
+      ],
+      '/contributing/': [
+        { text: 'Docs contract', link: '/contributing/docs-contract' },
+        {
+          text: 'Java for application code',
+          link: '/contributing/architecture-decisions/java-for-application-code',
+        },
+        {
+          text: 'No external messaging services',
+          link: '/contributing/architecture-decisions/no-external-messaging-services',
+        },
       ],
     },
     search: { provider: 'local' },
