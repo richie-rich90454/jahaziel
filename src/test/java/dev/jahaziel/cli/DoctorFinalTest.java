@@ -91,26 +91,16 @@ class DoctorFinalTest {
     Files.writeString(ide.resolve(Cli.rehSlug()), "not-a-directory");
     Path tmp = data.resolve("tmp");
     Files.createDirectories(tmp);
-    String before = System.getProperty("java.io.tmpdir");
-    System.setProperty("java.io.tmpdir", tmp.toString());
-    try {
-      Doctor.Check check =
-          CliTestSupport.find(
-              Doctor.run(
-                  jar,
-                  data,
-                  CliTestSupport.freePort(),
-                  Cli.parseDotEnv(jar.resolve(".env")),
-                  jar.resolve("jahaziel.jar")),
-              "reh");
-      assertFalse(check.ok());
-      assertTrue(check.detail().contains("REH tarball missing: "));
-    } finally {
-      if (before == null) {
-        System.clearProperty("java.io.tmpdir");
-      } else {
-        System.setProperty("java.io.tmpdir", before);
-      }
-    }
+    Doctor.Check check =
+        CliTestSupport.find(
+            Doctor.run(
+                jar,
+                data,
+                CliTestSupport.freePort(),
+                Cli.parseDotEnv(jar.resolve(".env")),
+                jar.resolve("jahaziel.jar")),
+            "reh");
+    assertFalse(check.ok());
+    assertTrue(check.detail().contains("REH tarball missing: "));
   }
 }
