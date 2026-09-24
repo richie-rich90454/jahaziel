@@ -74,7 +74,8 @@ public final class JwtVerifier {
       throw new JwtRejectedException("wrong issuer");
     }
     List<String> audiences = claims.getAudience();
-    if (audiences == null || !audiences.contains(audience)) {
+    // getAudience never returns null (absent audiences decode to an empty list).
+    if (!audiences.contains(audience)) {
       throw new JwtRejectedException("wrong audience");
     }
     Date expiry = claims.getExpirationTime();
