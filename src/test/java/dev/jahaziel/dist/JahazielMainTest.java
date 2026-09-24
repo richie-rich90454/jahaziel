@@ -12,13 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.net.ServerSocket;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,6 +122,48 @@ class JahazielMainTest {
       assertEquals(0, code);
       assertTrue(Files.isRegularFile(home.resolve("data").resolve("jahaziel.db")));
       assertTrue(Files.isRegularFile(home.resolve("data").resolve(".initialized")));
+    } finally {
+      System.setProperty("user.dir", previousUserDir);
+      if (previousTmpdir == null) {
+        System.clearProperty("java.io.tmpdir");
+      } else {
+        System.setProperty("java.io.tmpdir", previousTmpdir);
+      }
+      System.getProperties().stringPropertyNames().stream()
+          .filter(key -> !before.contains(key))
+          .toList()
+          .forEach(System::clearProperty);
+      deleteBestEffort(home);
+    }
+  }
+
+  @Test
+  void launchRefusesLockedDataDir() throws Exception {
+    Path home = Files.createTempDirectory("launch-locked-test");
+    String previousUserDir = System.getProperty("user.dir");
+    String previousTmpdir = System.getProperty("java.io.tmpdir");
+    Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+    System.setProperty("user.dir", home.toString());
+    try {
+      Files.writeString(home.resolve(".env"), "# test\n", StandardCharsets.UTF_8);
+      Path data = home.resolve("data");
+      Files.createDirectories(data);
+      try (var channel =
+              FileChannel.open(
+                  data.resolve(".lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+          var held = channel.lock()) {
+        JahazielMain.Arguments parsed =
+            new JahazielMain.Arguments(
+                data.toString(), freePort(), freePort(), "code.example.com", false, false, false);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int code =
+            JahazielMain.launch(
+                parsed,
+                new PrintStream(buffer, true, StandardCharsets.UTF_8),
+                new CountDownLatch(0));
+        assertEquals(1, code);
+        assertTrue(buffer.toString(StandardCharsets.UTF_8).contains("locked by another instance"));
+      }
     } finally {
       System.setProperty("user.dir", previousUserDir);
       if (previousTmpdir == null) {
