@@ -34,14 +34,23 @@ final class TemplateSeeds {
       if (Files.isRegularFile(target)) {
         continue;
       }
-      try (InputStream bundled =
-          TemplateSeeds.class.getResourceAsStream("/templates/" + name + "/template.json")) {
-        if (bundled == null) {
-          continue;
-        }
-        Files.createDirectories(target.getParent());
-        Files.write(target, bundled.readAllBytes());
+      byte[] content = readSeed(name);
+      if (content == null) {
+        continue;
       }
+      Files.createDirectories(target.getParent());
+      Files.write(target, content);
+    }
+  }
+
+  /**
+   * Reads a bundled seed, or null when it is absent from the classpath. The stream variable stays
+   * nullable so the implicit close guard has both outcomes in tests.
+   */
+  private static byte[] readSeed(String name) throws IOException {
+    try (InputStream bundled =
+        TemplateSeeds.class.getResourceAsStream("/templates/" + name + "/template.json")) {
+      return bundled == null ? null : bundled.readAllBytes();
     }
   }
 }
