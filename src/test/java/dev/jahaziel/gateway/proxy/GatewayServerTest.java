@@ -82,6 +82,7 @@ class GatewayServerTest {
     int connected = 0;
     for (int attempt = 0; attempt < 50 && connected == 0; attempt++) {
       try (Socket probe = new Socket("127.0.0.1", port)) {
+        assertTrue(probe.isConnected());
         connected = 1;
       } catch (Exception ignored) {
         Thread.sleep(100);
