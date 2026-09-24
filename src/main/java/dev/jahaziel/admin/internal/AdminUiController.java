@@ -19,8 +19,6 @@ import java.nio.file.Path;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -28,7 +26,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Admin dashboard at {@code /_admin}: overview, health, workspaces, users, logs, config, and a
@@ -44,7 +41,6 @@ public class AdminUiController {
   private final Path logFile;
   private final String backend;
   private final boolean demo;
-  private final ExecutorService sender = Executors.newCachedThreadPool();
 
   public AdminUiController(
       AdminService admin,
@@ -66,7 +62,7 @@ public class AdminUiController {
   }
 
   /** Returns the dashboard page. */
-  @GetMapping(value = "/_admin", produces = MediaType.TEXT_HTML_VALUE)
+  @GetMapping("/_admin")
   public ResponseEntity<String> overview(Principal principal) {
     UserId caller = requireAdmin(principal);
     int nodeCount = nodes.list().size();
@@ -103,7 +99,7 @@ public class AdminUiController {
   }
 
   /** Downloads a diagnostics bundle. */
-  @GetMapping(value = "/_admin/diagnostics", produces = MediaType.TEXT_PLAIN_VALUE)
+  @GetMapping("/_admin/diagnostics")
   public ResponseEntity<String> diagnostics(Principal principal) {
     requireAdmin(principal);
     String body =
@@ -129,31 +125,23 @@ public class AdminUiController {
   }
 
   /** Streams the last 200 log lines as server-sent events. */
-  @GetMapping(value = "/admin/v1/logs/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public SseEmitter logs(Principal principal) {
+  @GetMapping("/admin/v1/logs/stream")
+  public ResponseEntity<String> logs(Principal principal) {
     requireAdmin(principal);
-    SseEmitter emitter = new SseEmitter(60_000L);
-    sender.execute(
-        () -> {
-          try {
-            List<String> lines =
-                Files.isRegularFile(logFile) ? Files.readAllLines(logFile) : List.of("no log file");
-            lines.stream()
-                .skip(Math.max(0, lines.size() - 200))
-                .forEach(
-                    line -> {
-                      try {
-                        emitter.send(SseEmitter.event().data(line));
-                      } catch (IOException ignored) {
-                        // Client went away; completing below ends the stream.
-                      }
-                    });
-            emitter.complete();
-          } catch (IOException failure) {
-            emitter.completeWithError(failure);
-          }
-        });
-    return emitter;
+    List<String> lines;
+    try {
+      lines = Files.readAllLines(logFile);
+    } catch (java.nio.file.NoSuchFileException missing) {
+      lines = List.of("no log file");
+    } catch (IOException unreadable) {
+      lines = List.of("cannot read log " + logFile.getFileName());
+    }
+    List<String> tail = lines.subList(Math.max(0, lines.size() - 200), lines.size());
+    StringBuilder body = new StringBuilder();
+    for (String line : tail) {
+      body.append("data:").append(line.replace("\r", " ").replace("\n", " ")).append("\n\n");
+    }
+    return ResponseEntity.ok().contentType(MediaType.TEXT_EVENT_STREAM).body(body.toString());
   }
 
   private UserId requireAdmin(Principal principal) {
