@@ -55,12 +55,12 @@ public final class PluginLoader {
 
   @PostConstruct
   void start() {
-    plugins.forEach(JahazielPlugin::onStartup);
+    plugins.forEach(plugin -> plugin.onStartup());
   }
 
   @PreDestroy
   void stop() {
-    plugins.forEach(JahazielPlugin::onShutdown);
+    plugins.forEach(plugin -> plugin.onShutdown());
   }
 
   /** Returns the loaded plugins, empty when none exist. */
