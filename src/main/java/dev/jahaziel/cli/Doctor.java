@@ -9,14 +9,18 @@ import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.nio.channels.FileChannel;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Pre-boot environment checks. Eight checks, one line each, exit 0 only when all pass. Pure JDK so
@@ -48,7 +52,7 @@ public final class Doctor {
     checks.add(sqlite(dataDir));
     checks.add(reh(dataDir));
     checks.add(tmpDir(dataDir));
-    checks.add(noStray(jarFile));
+    checks.add(noStray(jarFile, dataDir));
     return List.copyOf(checks);
   }
 
@@ -205,14 +209,14 @@ public final class Doctor {
             "re-fetch the REH tarball and its .sha256");
       }
     }
-    try (var stream = Files.list(dataDir.resolve("ide").resolve(slug))) {
-      boolean sentinel =
-          stream.anyMatch(path -> path.getFileName().toString().startsWith(".extracted-"));
-      if (sentinel) {
-        return new Check("reh", true, slug + " already extracted", "");
+    Path extracted = dataDir.resolve("ide").resolve(slug);
+    java.io.File[] children = extracted.toFile().listFiles();
+    if (children != null) {
+      for (java.io.File child : children) {
+        if (child.getName().startsWith(".extracted-")) {
+          return new Check("reh", true, slug + " already extracted", "");
+        }
       }
-    } catch (IOException absent) {
-      // No extracted directory; fall through to the missing-tarball failure below.
     }
     return new Check(
         "reh",
@@ -234,31 +238,71 @@ public final class Doctor {
         "start with -Djava.io.tmpdir=" + root.resolve("tmp"));
   }
 
-  private static Check noStray(Path jarFile) {
+  static boolean matchesStray(String commandLine, String needle) {
+    String lower = commandLine.toLowerCase(Locale.ROOT);
+    return lower.contains(needle) || lower.contains("jahaziel.jar");
+  }
+
+  /**
+   * Decides whether one process looks like another Jahaziel server. Pure decision split out of
+   * {@link #noStray} so unit tests cover it without spawning processes (Windows never exposes
+   * command lines, so the live scan alone cannot exercise the match on this OS).
+   *
+   * @param process the candidate process
+   * @param needle the lowercase jar path to look for
+   * @param self the current pid, never reported
+   * @return the signal text, or empty when the process is unrelated
+   */
+  static Optional<String> straySignal(ProcessHandle process, String needle, long self) {
+    if (process.pid() == self) {
+      return Optional.empty();
+    }
+    String cmd = process.info().commandLine().orElseGet(() -> process.info().command().orElse(""));
+    if (cmd.isEmpty() || !matchesStray(cmd, needle)) {
+      return Optional.empty();
+    }
+    return Optional.of("pid " + process.pid());
+  }
+
+  private static Check noStray(Path jarFile, Path dataDir) {
     long self = ProcessHandle.current().pid();
     String needle = jarFile.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
-    List<String> strays = new ArrayList<>();
+    List<String> signals = new ArrayList<>();
     ProcessHandle.allProcesses()
-        .filter(process -> process.pid() != self)
-        .forEach(
-            process ->
-                process
-                    .info()
-                    .commandLine()
-                    .ifPresent(
-                        cmd -> {
-                          String lower = cmd.toLowerCase(Locale.ROOT);
-                          if (lower.contains(needle) || lower.contains("jahaziel.jar")) {
-                            strays.add("pid " + process.pid());
-                          }
-                        }));
-    if (strays.isEmpty()) {
+        .forEach(process -> straySignal(process, needle, self).ifPresent(signals::add));
+    if (dataLocked(dataDir)) {
+      signals.add("data lock " + dataDir.resolve(".lock"));
+    }
+    if (signals.isEmpty()) {
       return new Check("stray", true, "no other java process runs this jar", "");
     }
     return new Check(
         "stray",
         false,
-        "stray java process(es) with this jar: " + String.join(", ", strays),
+        "another instance is running (" + String.join(", ", signals) + ")",
         "stop them before starting (kill <pid>) or they will fight over data/jahaziel.db");
+  }
+
+  /**
+   * Probes the data-directory lock without holding it. True when another process holds it (the
+   * running server keeps it for its whole lifetime) or this JVM already does.
+   *
+   * @param dataDir the data root
+   * @return true when the lock is held
+   */
+  static boolean dataLocked(Path dataDir) {
+    Path root = dataDir.toAbsolutePath().normalize();
+    try {
+      Files.createDirectories(root);
+      try (var channel =
+          FileChannel.open(
+              root.resolve(".lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+        return channel.tryLock() == null;
+      }
+    } catch (OverlappingFileLockException alreadyHeld) {
+      return true;
+    } catch (IOException unreadable) {
+      return false;
+    }
   }
 }
