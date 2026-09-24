@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -140,7 +139,7 @@ public final class ServiceSupervisor {
     Set<String> placed = new LinkedHashSet<>();
     Set<String> visiting = new LinkedHashSet<>();
     List<ServiceUnit> sorted = new ArrayList<>(units);
-    sorted.sort(Comparator.comparing(ServiceUnit::name));
+    sorted.sort((first, second) -> first.name().compareTo(second.name()));
     for (ServiceUnit unit : sorted) {
       visit(unit, byName, visiting, placed, ordered);
     }
@@ -175,7 +174,8 @@ public final class ServiceSupervisor {
     return dot > 0 ? dependency.substring(0, dot) : dependency;
   }
 
-  private int run() throws InterruptedException {
+  // Package-visible (not private) so tests can drive and stub the blocking loop.
+  int run() throws InterruptedException {
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown, "jahaziel-supervisor-stop"));
     try {
       Files.createDirectories(logDir);
