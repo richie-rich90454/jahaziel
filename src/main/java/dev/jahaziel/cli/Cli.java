@@ -57,8 +57,6 @@ public final class Cli {
   public static final int DEFAULT_PORT = 11451;
 
   private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-  private static final List<String> VERBS =
-      List.of("init", "doctor", "upgrade", "backup", "restore", "logs", "support-bundle");
 
   private Cli() {}
 
@@ -449,8 +447,18 @@ public final class Cli {
 
   /** Returns the jar version from the manifest, or the development fallback. */
   public static String version() {
-    String manifest =
-        Cli.class.getPackage() == null ? null : Cli.class.getPackage().getImplementationVersion();
+    return versionOf(Cli.class.getPackage());
+  }
+
+  /**
+   * Renders a package version, falling back when running unpacked. Split out so tests cover both
+   * sides without a manifest build.
+   *
+   * @param pkg the package, null when unknown
+   * @return the version or the development fallback
+   */
+  static String versionOf(Package pkg) {
+    String manifest = pkg == null ? null : pkg.getImplementationVersion();
     return manifest == null ? "0.1.0-SNAPSHOT (development)" : manifest;
   }
 
@@ -522,27 +530,13 @@ public final class Cli {
   }
 
   static Path jarDir() {
-    Path file = jarFile();
-    Path parent = file.toAbsolutePath().normalize().getParent();
-    return parent == null ? Path.of(".").toAbsolutePath().normalize() : parent;
+    // ponytail: single resolution shared with Platforms/JarDataDir, so init, doctor,
+    // banner, and launch agree even when the jar lives outside the working dir.
+    return Platforms.resolveJarDir();
   }
 
   static Path jarFile() {
-    try {
-      var source = Cli.class.getProtectionDomain().getCodeSource();
-      if (source != null && source.getLocation() != null) {
-        Path location = Path.of(source.getLocation().toURI());
-        if (location.toString().endsWith(".jar")) {
-          return location.toAbsolutePath().normalize();
-        }
-      }
-    } catch (Exception notAJar) {
-      // Unpacked (IDE/tests): fall through to user.dir below.
-    }
-    return Path.of(System.getProperty("user.dir", "."))
-        .resolve("jahaziel.jar")
-        .toAbsolutePath()
-        .normalize();
+    return jarDir().resolve("jahaziel.jar");
   }
 
   /** Minimal .env parser: CRLF/LF, # comments, export prefix, single/double quotes. */
@@ -590,7 +584,9 @@ public final class Cli {
         String candidate = line.startsWith("export ") ? line.substring(7).strip() : line;
         int equals = candidate.indexOf('=');
         String key = equals > 0 ? candidate.substring(0, equals).strip() : "";
-        if (equals <= 0 || key.isEmpty() || key.contains(" ") || key.contains("\t")) {
+        // NOTE: key is never empty here: equals > 0 plus the stripped line means the
+        // substring holds a non-blank first character, so no isEmpty check is needed.
+        if (equals <= 0 || key.contains(" ") || key.contains("\t")) {
           bad.add(line);
         }
       }
