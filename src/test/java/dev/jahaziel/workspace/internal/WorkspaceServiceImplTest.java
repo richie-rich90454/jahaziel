@@ -159,7 +159,6 @@ class WorkspaceServiceImplTest {
   @Test
   void describeAllMapsEveryRow() {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    Instant at = Instant.now();
     WorkspaceEntity row = stubRows(id, "ready");
     when(workspaces.findAll()).thenReturn(List.of(row));
     List<WorkspaceView> views = service.describeAll();
