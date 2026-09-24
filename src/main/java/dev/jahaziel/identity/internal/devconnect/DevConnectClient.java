@@ -252,7 +252,9 @@ public final class DevConnectClient {
                 JwtValidators.createDefaultWithIssuer(document.issuer()),
                 new JwtClaimValidator<List<String>>(
                     JwtClaimNames.AUD,
-                    audiences -> audiences != null && audiences.contains(props.getClientId()))));
+                    // JwtClaimValidator skips null claims before testing, so audiences is
+                    // never null here.
+                    audiences -> audiences.contains(props.getClientId()))));
         decoder = built;
         decoderJwksUri = document.jwksUri();
       }
