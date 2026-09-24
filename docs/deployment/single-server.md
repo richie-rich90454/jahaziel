@@ -50,7 +50,18 @@ Everything the runtime owns lives under `./data/`:
 | `data/sync/` | file-sync state |
 | `data/keys/` | server keys |
 | `data/logs/` | server logs |
+| `data/plugins/` | installed plugins |
+| `data/templates/` | seeded workspace templates |
+| `data/ide/` | REH tarball and extracted IDE server |
+| `data/tmp/` | the JVM temp dir the server forces at launch |
+| `data/backups/` | scheduled backups |
+| `data/dumps/` | diagnostics dumps |
+| `data/.lock` | instance lock; held while the server runs |
+| `data/.initialized` | first-boot marker |
 | `data/jahaziel.db` | SQLite file, created once, never cleared |
+
+`doctor` reports `tmpdir` as `data/tmp` because the launch path sets
+`java.io.tmpdir` there before Spring starts; nothing else is required.
 
 Back up `./data/` plus `.env`; that is the whole install. See
 `docs/operations/backup.md`.
