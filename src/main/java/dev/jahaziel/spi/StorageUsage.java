@@ -24,5 +24,8 @@ public record StorageUsage(
     if (snapshotBytes < 0) {
       throw new IllegalArgumentException("snapshotBytes must not be negative");
     }
+    if (deduplicatedBytes < 0) {
+      throw new IllegalArgumentException("deduplicatedBytes must not be negative");
+    }
   }
 }
