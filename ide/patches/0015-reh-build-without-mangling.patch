@@ -1,0 +1,37 @@
+From: richie-rich90454 <rjian880@gmail.com>
+Subject: [PATCH 0015/0015] Build the REH without the property mangler
+
+Switches the REH packaging task from compileBuildWithManglingTask to the upstream
+compileBuildWithoutManglingTask.
+
+Upstream 1.137.0's own sources trip its own mangler guard ("Protected fields have
+been made PUBLIC") on files this patch stack never touches, so no REH target can be
+built at this tag with mangling enabled. compile-build-without-mangling is a
+first-class upstream task, and the result is a fully functional server that simply
+keeps its original property names instead of renaming them for size.
+
+Verification: the resulting server boots and serves the workbench.
+
+---
+diff --git a/build/gulpfile.reh.ts b/build/gulpfile.reh.ts
+index 4b819c0d..1e380d38 100644
+--- a/build/gulpfile.reh.ts
++++ b/build/gulpfile.reh.ts
+@@ -22,7 +22,7 @@ import * as fs from 'fs';
+ import glob from 'glob';
+ import { promisify } from 'util';
+ import rceditCallback from 'rcedit';
+-import { compileBuildWithManglingTask } from './gulpfile.compile.ts';
++import { compileBuildWithoutManglingTask } from './gulpfile.compile.ts';
+ import { cleanExtensionsBuildTask, compileNonNativeExtensionsBuildTask, compileNativeExtensionsBuildTask, compileExtensionMediaBuildTask, compileCopilotExtensionBuildTask } from './gulpfile.extensions.ts';
+ import { vscodeWebResourceIncludes, createVSCodeWebFileContentMapper } from './gulpfile.vscode.web.ts';
+ import * as cp from 'child_process';
+@@ -675,7 +675,7 @@ function tweakProductForServerWeb(product: typeof import('../product.json')) {
+ 			task.task(serverTaskCI);
+ 
+ 			const serverTask = task.define(`vscode-${type}${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
+-				compileBuildWithManglingTask,
++				compileBuildWithoutManglingTask,
+ 				cleanExtensionsBuildTask,
+ 				compileNonNativeExtensionsBuildTask,
+ 				compileCopilotExtensionBuildTask,
