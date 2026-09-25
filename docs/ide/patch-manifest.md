@@ -21,35 +21,37 @@ and captured with `git -C ide/upstream diff`. The stack is checked with
 
 ## Rebase status
 
-**The stack is currently behind the pinned tag and does not apply.**
-`ide/upstream-version.txt` pins `1.137.0`, but the patches were authored
-across several upstream versions: patches 0001-0005 apply to `1.94.0`,
-while 0007-0009 target files that only exist in newer trees. Applying
-the stack in order to `1.137.0` fails at 0001.
+**The stack is rebased onto `1.137.0` and applies cleanly.** `ide/tests/patch-smoke.sh`
+reports 33 passed, 0 failed on a patched tree.
 
-Rebasing is required before a tarball can be built. Per-patch state
-against `1.137.0`:
+Notes on the rebase (2026-09-25):
 
-| Patch | State on `1.137.0` | Files to reconcile |
-|---|---|---|
-| 0001 | Conflicts | `product.json` |
-| 0002 | References removed paths | many |
-| 0003 | Conflicts | `manifest.json`, `fonts.ts`, `style.css`, `issueReporter.css` |
-| 0004 | Conflicts | `product.json` |
-| 0005 | References removed paths | many |
-| 0006 | No hunks by design | — |
-| 0007 | References removed paths | `gulpfile.extensions.ts`, `build/npm/dirs.ts` |
-| 0008 | Conflicts | `product.json` |
-| 0009 | References removed paths | many |
-| 0010 | Conflicts | `update.contribution.ts` |
-| 0011 | Applies | — |
-| 0012 | No hunks by design | — |
-| 0013 | Conflicts | `workbench.html` |
-| 0014 | Conflicts | `workbench.html` |
+- 0001 was re-merged by key, keeping 1.137.0's extra keys (`sharedDataFolderName`, the
+  darwin profile UUIDs).
+- 0002 was regenerated with `ide/scripts/rebrand.py` rather than hand-merged; the old
+  capture no longer applied.
+- 0003 keeps the 1.137.0 selectors (`.monaco-workbench.*`, `.issue-reporter-body`) and
+  applies only the font change.
+- 0005 is now intentionally hunk-less: upstream 1.137.0 already removed the AI surfaces it
+  used to delete, so there is nothing left to remove.
+- 0007 and 0009 are captured with `git diff --binary`; without it the icon and image
+  deletions cannot be replayed.
+- 0009 removes the GitHub auth records as whole statements, not line deletions, so brace
+  structure stays valid.
+- Binary and hunk-less patch handling in `ide/build.sh` were both fixed; the allow-list
+  comparison never matched a multi-entry list.
 
-Security-relevant patches (0004 telemetry, 0005 AI, 0007 remote
-extensions, 0010 autoupdate) must be reviewed by two people on rebase,
-so do not resolve them unattended.
+Security-relevant patches (0004 telemetry, 0007 remote extensions, 0010 autoupdate) were
+rebased with the same intent, not re-scoped. Two-approval review still applies to future
+rebases.
+
+### Known upstream build failure at this tag
+
+The gulp `mangler` task aborts with "Protected fields have been made PUBLIC" on an unpatched
+1.137.0 tree. The files it names are untouched by this patch stack, so the failure is
+upstream, not a rebase regression. Workaround: build a target that skips the mangler, or
+patch the mangler's test-file exclusion. Until then no REH tarball can be produced.
+
 
 | Patch | Change | Verification |
 |---|---|---|
