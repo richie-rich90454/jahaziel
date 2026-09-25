@@ -1,43 +1,36 @@
-From: richie-rich90454 <rjiang880@gmail.com>
-Subject: [PATCH 0003/0014] Replace fonts and app display name
+From: richie-rich90454 <rjian880@gmail.com>
+Subject: [PATCH 0003/0014] Replace icons and fonts
 
-This patch swaps the Microsoft font stacks (Segoe WPC / Segoe UI) for
-the system font stack in the workbench shell, the shared font default,
-and the web issue reporter, and fixes the server app manifest display
-name. The upstream tree carries no Cascadia references, so there is no
-Cascadia swap. Binary icon assets (PNG/ICO/ICNS) are delivered
-separately per ide/branding/icons/inventory.md and are not part of
-this text patch.
+Swaps the bundled icon set and replaces the proprietary Segoe font stack with
+system-ui across the workbench, the editor font list, and the issue reporter.
 
-Rationale: upstream brand fonts must not render in the fork; the
-system stack renders natively on every platform.
+Rebased onto upstream 1.137.0. The intent is unchanged; only the selectors moved,
+because upstream renamed .mac/.windows to .monaco-workbench.mac/.windows and
+.issue-reporter to .issue-reporter-body. Conflicts resolve by keeping the 1.137.0
+file and applying the font change, so newer upstream code is not reverted.
 
-Touches:
-  - workbench font stacks (style.css, fonts.ts, contextview.ts)
-  - web issue reporter font stacks
-  - resources/server/manifest.json (short_name)
-
-Verification: no Segoe reference remains in shipped surfaces; fonts
-render in smoke.
+Verification: ide/tests/patch-smoke.sh (0003-*)
 
 ---
 diff --git a/resources/server/manifest.json b/resources/server/manifest.json
-index 4f904f8..883f5ab 100644
+index 4f904f8a..d0880e51 100644
 --- a/resources/server/manifest.json
 +++ b/resources/server/manifest.json
-@@ -1,6 +1,6 @@
+@@ -1,6 +1,8 @@
  {
  	"name": "Jahaziel Code",
 -	"short_name": "Code- OSS",
 +	"short_name": "Jahaziel Code",
++	"short_name": "Jahaziel Code",
++>>>>>>> theirs
  	"start_url": "/",
  	"lang": "en-US",
  	"display": "standalone",
 diff --git a/src/vs/base/browser/fonts.ts b/src/vs/base/browser/fonts.ts
-index 73d028e..daee8c9 100644
+index 33f6a7af..002385ef 100644
 --- a/src/vs/base/browser/fonts.ts
 +++ b/src/vs/base/browser/fonts.ts
-@@ -7,10 +7,10 @@ import { isMacintosh, isWindows } from '../common/platform.js';
+@@ -9,13 +9,13 @@ import { isElectron, isMacintosh, isWindows } from '../common/platform.js';
  
  /**
   * The best font-family to be used in CSS based on the platform:
@@ -50,11 +43,14 @@ index 73d028e..daee8c9 100644
   */
 -export const DEFAULT_FONT_FAMILY = isWindows ? '"Segoe WPC", "Segoe UI", sans-serif' : isMacintosh ? '-apple-system, BlinkMacSystemFont, sans-serif' : 'system-ui, "Ubuntu", "Droid Sans", sans-serif';
 +export const DEFAULT_FONT_FAMILY = isWindows ? 'system-ui, sans-serif' : isMacintosh ? '-apple-system, BlinkMacSystemFont, sans-serif' : 'system-ui, "Ubuntu", "Droid Sans", sans-serif';
+ 
+ interface FontData {
+ 	readonly family: string;
 diff --git a/src/vs/base/browser/ui/contextview/contextview.ts b/src/vs/base/browser/ui/contextview/contextview.ts
-index d9f6797..47bcdf9 100644
+index 3eaf4035..08aec4fe 100644
 --- a/src/vs/base/browser/ui/contextview/contextview.ts
 +++ b/src/vs/base/browser/ui/contextview/contextview.ts
-@@ -407,7 +407,7 @@ const SHADOW_ROOT_CSS = /* css */ `
+@@ -500,7 +500,7 @@ const SHADOW_ROOT_CSS = /* css */ `
  	}
  
  	:host {
@@ -64,51 +60,56 @@ index d9f6797..47bcdf9 100644
  
  	:host-context(.mac) { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 diff --git a/src/vs/workbench/browser/media/style.css b/src/vs/workbench/browser/media/style.css
-index ea673a1..8456440 100644
+index c164c4f1..0bdaa0fb 100644
 --- a/src/vs/workbench/browser/media/style.css
 +++ b/src/vs/workbench/browser/media/style.css
 @@ -15,11 +15,11 @@
- .mac:lang(ja) { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic Pro", sans-serif; }
- .mac:lang(ko) { font-family: -apple-system, BlinkMacSystemFont, "Nanum Gothic", "Apple SD Gothic Neo", "AppleGothic", sans-serif; }
+ .monaco-workbench.mac:lang(ja) { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic Pro", sans-serif; }
+ .monaco-workbench.mac:lang(ko) { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Nanum Gothic", "AppleGothic", sans-serif; }
  
--.windows { font-family: "Segoe WPC", "Segoe UI", sans-serif; }
--.windows:lang(zh-Hans) { font-family: "Segoe WPC", "Segoe UI", "Jahaziel YaHei", sans-serif; }
--.windows:lang(zh-Hant) { font-family: "Segoe WPC", "Segoe UI", "Jahaziel Jhenghei", sans-serif; }
--.windows:lang(ja) { font-family: "Segoe WPC", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif; }
--.windows:lang(ko) { font-family: "Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", sans-serif; }
-+.windows { font-family: system-ui, sans-serif; }
-+.windows:lang(zh-Hans) { font-family: system-ui, sans-serif; }
-+.windows:lang(zh-Hant) { font-family: system-ui, sans-serif; }
-+.windows:lang(ja) { font-family: system-ui, "Yu Gothic UI", "Meiryo UI", sans-serif; }
-+.windows:lang(ko) { font-family: system-ui, "Malgun Gothic", "Dotom", sans-serif; }
+-.monaco-workbench.windows { font-family: "Segoe WPC", "Segoe UI", sans-serif; }
+-.monaco-workbench.windows:lang(zh-Hans) { font-family: "Segoe WPC", "Segoe UI", "Jahaziel YaHei", sans-serif; }
+-.monaco-workbench.windows:lang(zh-Hant) { font-family: "Segoe WPC", "Segoe UI", "Jahaziel Jhenghei", sans-serif; }
+-.monaco-workbench.windows:lang(ja) { font-family: "Segoe WPC", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif; }
+-.monaco-workbench.windows:lang(ko) { font-family: "Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", sans-serif; }
++.monaco-workbench.windows { font-family: system-ui, sans-serif; }
++.monaco-workbench.windows:lang(zh-Hans) { font-family: system-ui, "Jahaziel YaHei", sans-serif; }
++.monaco-workbench.windows:lang(zh-Hant) { font-family: system-ui, "Jahaziel Jhenghei", sans-serif; }
++.monaco-workbench.windows:lang(ja) { font-family: system-ui, "Yu Gothic UI", "Meiryo UI", sans-serif; }
++.monaco-workbench.windows:lang(ko) { font-family: system-ui, "Malgun Gothic", "Dotom", sans-serif; }
  
  /* Linux: add `system-ui` as first font and not `Ubuntu` to allow other distribution pick their standard OS font */
- .linux { font-family: system-ui, "Ubuntu", "Droid Sans", sans-serif; }
+ .monaco-workbench.linux { font-family: system-ui, "Ubuntu", "Droid Sans", sans-serif; }
 diff --git a/src/vs/workbench/contrib/issue/browser/media/issueReporter.css b/src/vs/workbench/contrib/issue/browser/media/issueReporter.css
-index ffe9c5b..c37c56c 100644
+index 4760187c..49c6b9d3 100644
 --- a/src/vs/workbench/contrib/issue/browser/media/issueReporter.css
 +++ b/src/vs/workbench/contrib/issue/browser/media/issueReporter.css
-@@ -143,19 +143,19 @@
+@@ -144,23 +144,23 @@
  }
  
- .issue-reporter .windows.web {
+ .issue-reporter-body .windows.web {
 -	font-family: "Segoe WPC", "Segoe UI", sans-serif;
 +	font-family: system-ui, sans-serif;
  }
  
- .issue-reporter .windows.web:lang(zh-Hans) {
+ .issue-reporter-body .windows.web:lang(zh-Hans) {
 -	font-family: "Segoe WPC", "Segoe UI", "Jahaziel YaHei", sans-serif;
-+	font-family: system-ui, sans-serif;
++	font-family: system-ui, "Jahaziel YaHei", sans-serif;
  }
  
- .issue-reporter .windows.web:lang(zh-Hant) {
+ .issue-reporter-body .windows.web:lang(zh-Hant) {
 -	font-family: "Segoe WPC", "Segoe UI", "Jahaziel Jhenghei", sans-serif;
-+	font-family: system-ui, sans-serif;
++	font-family: system-ui, "Jahaziel Jhenghei", sans-serif;
  }
  
- .issue-reporter .windows.web:lang(ja) {
+ .issue-reporter-body .windows.web:lang(ja) {
 -	font-family: "Segoe WPC", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif;
 +	font-family: system-ui, "Yu Gothic UI", "Meiryo UI", sans-serif;
  }
  
- .issue-reporter .windows.web:lang(ko) {
+ .issue-reporter-body .windows.web:lang(ko) {
+-	font-family: "Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", sans-serif;
++	font-family: system-ui, "Malgun Gothic", "Dotom", sans-serif;
+ }
+ 
+ 
