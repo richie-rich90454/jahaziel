@@ -11,6 +11,8 @@ target/
 node_modules/
 ide/out/
 ide/upstream/
+# Project-local build toolchain (pinned Node, MSBuild wrappers); fetched by ide/build.sh.
+ide/toolchain/
 base-image-builder/work-*/
 *.ext4.zst
 *.sha256

@@ -22,6 +22,15 @@ export PATH
 cd "$(dirname "$0")"
 TAG="$(cat upstream-version.txt)"
 
+# Prefer the project-local Node pinned under ide/toolchain, so a build never depends on a
+# globally installed toolchain. Fall back to whatever Node is on PATH.
+if [ -x toolchain/node/node.exe ]; then
+  PATH="$PWD/toolchain/node:$PATH"
+elif [ -x toolchain/node/bin/node ]; then
+  PATH="$PWD/toolchain/node/bin:$PATH"
+fi
+export PATH
+
 node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 node_minor="$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)"
 if [ "$node_major" -ne 24 ] || [ "$node_minor" -lt 18 ]; then
@@ -84,7 +93,15 @@ done
 
 cd upstream
 if [ ! -d node_modules ]; then
-  npm ci
+  # Install without lifecycle scripts first: the native modules are compiled separately by
+  # ide/scripts/native-build.mjs, which does not need Visual Studio's optional
+  # Spectre-mitigated libraries component. A plain `npm ci` fails on hosts without it.
+  npm ci --ignore-scripts
+  node build/npm/preinstall.ts || true
+  node build/npm/postinstall.ts || true
+  cd ..
+  node scripts/native-build.mjs upstream
+  cd upstream
 fi
 npm run gulp "vscode-reh-web-$slug-min"
 
