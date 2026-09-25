@@ -58,8 +58,11 @@ fi
 if ! git -C upstream rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   git -C upstream fetch --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG"
 fi
-git -C upstream checkout "$TAG"
+# Reset before checkout: a previous failed run can leave unmerged index entries,
+# and `git checkout` refuses to switch while those are present.
 git -C upstream reset --hard "$TAG"
+git -C upstream checkout -f "$TAG"
+git -C upstream clean -qfd
 
 ALLOW_EMPTY="0006-remove-live-share.patch 0012-server-runtime-config.patch"
 
