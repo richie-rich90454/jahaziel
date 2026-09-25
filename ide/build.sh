@@ -67,14 +67,18 @@ git -C upstream clean -qfd
 ALLOW_EMPTY="0005-remove-ai-features.patch 0006-remove-live-share.patch 0012-server-runtime-config.patch"
 
 for patch in patches/*.patch; do
+  name=$(basename "$patch")
   if grep -q '^diff --git' "$patch"; then
     echo "Applying $patch"
     git -C upstream apply --3way "../$patch" || exit 1
-  elif [ " $ALLOW_EMPTY " = " $(basename "$patch") " ]; then
-    echo "Skipping $patch: intentionally hunk-less (see patch header)"
   else
-    echo "ERROR: $patch has no hunks and is not allow-listed" >&2
-    exit 1
+    case " $ALLOW_EMPTY " in
+      *" $name "*) echo "Skipping $patch: intentionally hunk-less (see patch header)" ;;
+      *)
+        echo "ERROR: $patch has no hunks and is not allow-listed" >&2
+        exit 1
+        ;;
+    esac
   fi
 done
 
