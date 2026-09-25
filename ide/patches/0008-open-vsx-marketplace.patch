@@ -1,44 +1,29 @@
-From: richie-rich90454 <rjiang880@gmail.com>
-Subject: [PATCH 0008/0014] Point the marketplace at Open VSX
+From: richie-rich90454 <rjian880@gmail.com>
+Subject: [PATCH 0008/0014] Open VSX marketplace
 
-This patch changes product.json extensionsGallery to Open VSX.
+Points the extension gallery at Open VSX so no Microsoft marketplace endpoint is
+reachable, including the Live Share entry (0006 has no OSS code to remove).
 
-Rationale: the Microsoft marketplace is proprietary Terms of Service.
-Open VSX serves every extension we need.
+Rebased onto upstream 1.137.0; same extensionsGallery block, added ahead of
+builtInExtensionsEnabledWithAutoUpdates.
 
-Touches:
-  - product.json (extensionsGallery)
-
-Target extensionsGallery:
-  {
-    "serviceUrl": "https://open-vsx.org/vscode/gallery",
-    "itemUrl": "https://open-vsx.org/vscode/item",
-    "resourceUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension",
-    "extensionUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension"
-  }
-
-Consequences: Microsoft-only extensions (C#, Live Share, Copilot Chat,
-Remote-*) are unavailable. The gallery URL is a policy field, so an
-enterprise mirror needs no rebuild.
-
-Diff: authored on the upstream checkout (see build.sh).
-Verification: install-from-Open-VSX smoke test.
+Verification: ide/tests/patch-smoke.sh (0008-gallery)
 
 ---
 diff --git a/product.json b/product.json
-index 0402527..19bf504 100644
+index 23f81339..34b3c8eb 100644
 --- a/product.json
 +++ b/product.json
-@@ -32,6 +32,12 @@
- 	"reportIssueUrl": "https://github.com/example/jahaziel/issues/new",
- 	"nodejsRepository": "https://nodejs.org",
- 	"urlProtocol": "jahaziel-code",
+@@ -242,6 +242,12 @@
+ 			"type": "light"
+ 		}
+ 	],
 +	"extensionsGallery": {
 +		"serviceUrl": "https://open-vsx.org/vscode/gallery",
 +		"itemUrl": "https://open-vsx.org/vscode/item",
 +		"resourceUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension",
 +		"extensionUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/extension"
 +	},
- 	"webviewContentExternalBaseUrlTemplate": "https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/",
- 	"builtInExtensions": [
- 		{
+ 	"builtInExtensionsEnabledWithAutoUpdates": [
+ 		"GitHub.copilot-chat"
+ 	],
