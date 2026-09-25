@@ -23,6 +23,7 @@ import sys
 
 MAPPING = [
     ("github.com/microsoft/vscode", "github.com/example/jahaziel"),
+    ("vscode-reqid", "jahaziel-code-reqid"),
     ("Microsoft Visual Studio Code", "Jahaziel Code"),
     ("Microsoft VS Code", "Jahaziel Code"),
     ("Visual Studio Code", "Jahaziel Code"),
@@ -40,7 +41,10 @@ MAPPING = [
 WORD_MAPPING = [
     (r"\bMicrosoft\b", "Jahaziel"),
     (r"\bVS Code\b", "Jahaziel Code"),
-    (r"\bvscode\b", "jahaziel-code"),
+    # A bare `vscode` word is deliberately NOT rewritten: in TypeScript it is a real
+    # identifier (for example `IElectronWebUtils.vscode`), and replacing it produced
+    # syntactically invalid source. Brand text that needs changing goes through the
+    # explicit compound mappings above or the quoted-string rules in SKIP_LINE.
 ]
 
 TEXT_SUFFIXES = {".ts", ".js", ".json", ".html", ".css", ".xml", ".yml", ".yaml"}
