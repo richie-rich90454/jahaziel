@@ -159,21 +159,30 @@ for (const dir of buildable) {
   }
   let ok = true
   for (const project of projects) {
-    const built = spawnSync(
-      msbuild,
-      [
-        join(buildDir, project),
-        '/t:Build',
-        '/p:Configuration=Release',
-        '/p:Platform=x64',
-        '/p:SpectreMitigation=false',
-        '/nologo',
-        '/v:minimal',
-      ],
-      // Run from the module directory: some binding.gyp actions use paths relative to it
-      // (for example sqlite3's unpack_sqlite_dep runs './extract.js').
-      { cwd: dir, encoding: 'utf8', env },
-    )
+    const baseArgs = [
+      join(buildDir, project),
+      '/t:Build',
+      '/p:Configuration=Release',
+      '/p:Platform=x64',
+      '/p:SpectreMitigation=false',
+      '/nologo',
+      '/v:minimal',
+    ]
+    let built = spawnSync(msbuild, baseArgs, { cwd: dir, encoding: 'utf8', env })
+    // A few vendored parsers (tree-sitter) require C++20 while node-gyp defaults to an
+    // older standard, and V8's headers hard-error on it. Retry those with the newer
+    // standard instead of patching every binding.gyp.
+    if (built.status !== 0 && /C\+\+20 or later required/.test((built.stdout || '') + (built.stderr || ''))) {
+      // tree-sitter's project carries both "-std:c++20" and a later "/std:c++17", so the
+      // older standard wins. CL is appended after AdditionalOptions by cl.exe, which makes
+      // it the only reliable place to force the newer standard; override the project
+      // property as well for projects that set one.
+      built = spawnSync(msbuild, [...baseArgs, '/p:LanguageStandard=stdcpp20'], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { ...env, CL: `/std:c++20 ${env.CL ?? ''}`.trim() },
+      })
+    }
     if (built.status !== 0) {
       ok = false
       console.error(`  FAIL ${name}: MSBuild failed for ${project}`)
