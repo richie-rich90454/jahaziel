@@ -11,6 +11,14 @@ set -euo pipefail
 # and none of those fixtures are needed to build the web client or the server.
 export GIT_LFS_SKIP_SMUDGE=1
 
+# The npm launcher ships as a shell script whose shebang resolves `bash` through PATH. On
+# Windows a WSL `bash.exe` stub often shadows the real shell, and npm then dies with
+# "No such file or directory". Putting the running shell's own directory first makes
+# `env bash` resolve to a real bash. Harmless everywhere else.
+shell_dir=$(dirname "$(command -v sh)")
+PATH="$shell_dir:$PATH"
+export PATH
+
 cd "$(dirname "$0")"
 TAG="$(cat upstream-version.txt)"
 
@@ -20,16 +28,25 @@ if [ "$node_major" -ne 24 ] || [ "$node_minor" -lt 18 ]; then
   echo "Node.js 24.18.0 or newer is required (upstream .nvmrc pins 24.18.0 and build/npm/preinstall.ts enforces it); found $(node --version 2>/dev/null || echo none)" >&2
   exit 1
 fi
-command -v npm >/dev/null || { echo "npm is required" >&2; exit 1; }
-command -v zstd >/dev/null || { echo "zstd is required for packaging" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "npm is required for packaging" >&2; exit 1; }
+command -v zstd >/dev/null 2>&1 || { echo "zstd is required for packaging" >&2; exit 1; }
 
-# This target builds a linux-x64 server. Run it on Linux (or a linux CI agent):
-# the native modules it compiles are platform binaries, they cannot be produced
-# by cross-compiling from macOS or Windows.
-if [ "$(uname -s)" != "Linux" ]; then
-  echo "vscode-reh-web-linux-x64 must be built on Linux; found $(uname -s)" >&2
-  exit 1
-fi
+# The REH server compiles native modules for its own platform, so each host builds its own
+# variant. The slug matches IdeService.Variant and the tarball name the runtime looks for.
+case "$(uname -s)" in
+  Linux) reh_os=linux ;;
+  Darwin) reh_os=darwin ;;
+  MINGW* | MSYS* | CYGWIN* | Windows_NT) reh_os=win32 ;;
+  *) echo "unsupported build host: $(uname -s); build each REH variant on its own platform" >&2; exit 1 ;;
+esac
+case "$(node -p 'process.arch')" in
+  x64) reh_arch=x64 ;;
+  arm64) reh_arch=arm64 ;;
+  *) echo "unsupported architecture: $(node -p 'process.arch')" >&2; exit 1 ;;
+esac
+slug="$reh_os-$reh_arch"
+package="vscode-reh-web-$slug"
+tarball="jahaziel-code-server-$slug.tar.zst"
 
 UPSTREAM_URL="${JAHAZIEL_VSCODE_URL:-git@github.com:microsoft/vscode.git}"
 
@@ -50,7 +67,7 @@ for patch in patches/*.patch; do
   if grep -q '^diff --git' "$patch"; then
     echo "Applying $patch"
     git -C upstream apply --3way "../$patch" || exit 1
-  elif [[ " $ALLOW_EMPTY " == *" $(basename "$patch") "* ]]; then
+  elif [ " $ALLOW_EMPTY " = " $(basename "$patch") " ]; then
     echo "Skipping $patch: intentionally hunk-less (see patch header)"
   else
     echo "ERROR: $patch has no hunks and is not allow-listed" >&2
@@ -59,20 +76,29 @@ for patch in patches/*.patch; do
 done
 
 cd upstream
-# Upstream moved off yarn in this line: package-lock.json is the lockfile and
-# build/npm/preinstall.ts aborts if it detects yarn.
-npm ci
-npm run gulp vscode-reh-web-linux-x64-min
+if [ ! -d node_modules ]; then
+  npm ci
+fi
+npm run gulp "vscode-reh-web-$slug-min"
 
 cd ..
+# The runtime extracts the tarball into data/ide/ and expects the variant slug as the
+# top-level directory, so stage the build under that name before packing.
+rm -rf "out/$slug"
+cp -R "upstream/out/$package" "out/$slug"
 mkdir -p out
-rm -f "out/jahaziel-code-server.tar.zst" "out/SHA256SUMS"
-tar --use-compress-program="zstd -19" -cf out/jahaziel-code-server.tar.zst \
-  -C . vscode-reh-web-linux-x64
-if command -v sha256sum >/dev/null; then
-  sha256sum out/jahaziel-code-server.tar.zst > out/SHA256SUMS
+rm -f "out/$tarball" "out/$tarball.sha256"
+tar --use-compress-program="zstd -19" -cf "out/$tarball" -C out "$slug"
+rm -rf "out/$slug"
+
+# The runtime verifies each tarball against its own .sha256 sidecar; a missing sidecar
+# fails closed, so always write one next to the artifact.
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd out && sha256sum "$tarball" >"$tarball.sha256")
 else
-  shasum -a 256 out/jahaziel-code-server.tar.zst > out/SHA256SUMS
+  (cd out && shasum -a 256 "$tarball" >"$tarball.sha256")
 fi
 
-echo "Built out/jahaziel-code-server.tar.zst"
+echo
+echo "Built out/$tarball"
+echo "Install it with: cp out/$tarball out/$tarball.sha256 <jar-dir>/data/ide/"
