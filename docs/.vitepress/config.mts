@@ -33,6 +33,7 @@ export default defineConfig({
         { text: 'Workspaces', link: '/architecture/workspaces' },
       ],
       '/ide/': [
+        { text: 'Building the IDE server', link: '/ide/building-the-ide-server' },
         { text: 'Patch manifest', link: '/ide/patch-manifest' },
         { text: 'Telemetry audit', link: '/ide/telemetry-audit' },
       ],
@@ -65,6 +66,10 @@ export default defineConfig({
         {
           text: 'No external messaging services',
           link: '/contributing/architecture-decisions/no-external-messaging-services',
+        },
+        {
+          text: 'VS Code OSS stays the IDE server base',
+          link: '/contributing/architecture-decisions/ide-server-base',
         },
       ],
     },
