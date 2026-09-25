@@ -10,6 +10,7 @@ target/
 .DS_Store
 node_modules/
 ide/out/
+ide/vscode-reh-web-*/
 ide/upstream/
 # Project-local build toolchain (pinned Node, MSBuild wrappers); fetched by ide/build.sh.
 ide/toolchain/
