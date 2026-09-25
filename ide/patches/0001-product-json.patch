@@ -1,57 +1,42 @@
-From: richie-rich90454 <rjiang880@gmail.com>
+From: jahaziel build <build@jahaziel.local>
 Subject: [PATCH 0001/0014] Rebrand product.json
 
-This patch rebrands the application metadata in product.json.
+Rebrands the application metadata in product.json. Rebased onto upstream
+1.137.0: the key set gained sharedDataFolderName, quality, and the darwin
+profile UUIDs since this patch was first authored, and those keys are kept.
 
-Rationale: the fork ships as Jahaziel Code with its own protocol, data
-folders, bundle identifiers, license, and issue tracker.
+Target values:
+  nameShort/nameLong          Jahaziel Code
+  applicationName             jahaziel-code
+  dataFolderName              .jahaziel-code
+  serverApplicationName       jahaziel-code-server
+  serverDataFolderName        .jahaziel-code-server
+  urlProtocol                 jahaziel-code
+  win32*                      Jahaziel Code / JahazielCode / Jahaziel.Code
+  darwinBundleIdentifier      com.example.jahaziel-code
+  linuxIconName               jahaziel-code
+  licenseUrl/serverLicenseUrl/reportIssueUrl  github.com/example/jahaziel
+  quality                     stable
 
-Touches:
-  - product.json (all nameShort, nameLong, applicationName, dataFolderName,
-    urlProtocol, serverApplicationName, serverDataFolderName, win32*,
-    darwinBundleIdentifier, licenseName, licenseUrl, reportIssueUrl fields)
-
-Target product.json:
-  {
-    "nameShort": "Jahaziel Code",
-    "nameLong": "Jahaziel Code",
-    "applicationName": "jahaziel-code",
-    "dataFolderName": ".jahaziel-code",
-    "urlProtocol": "jahaziel-code",
-    "serverApplicationName": "jahaziel-code-server",
-    "serverDataFolderName": ".jahaziel-code-server",
-    "win32MutexName": "jahazielcode",
-    "win32DirName": "Jahaziel Code",
-    "win32NameVersion": "Jahaziel Code",
-    "win32RegValueName": "JahazielCode",
-    "win32AppUserModelId": "Jahaziel.Code",
-    "win32ShellNameShort": "Jahaziel Code",
-    "darwinBundleIdentifier": "com.example.jahaziel-code",
-    "licenseName": "MIT",
-    "licenseUrl": "https://github.com/example/jahaziel/blob/main/LICENSE",
-    "reportIssueUrl": "https://github.com/example/jahaziel/issues/new",
-    "quality": "stable"
-  }
-
-Diff: authored on the upstream checkout (see build.sh).
-Verification: smoke test opens with Jahaziel Code branding.
+Verification: ide/tests/patch-smoke.sh (0001-*)
 
 ---
 diff --git a/product.json b/product.json
-index 5f64fab..b62894b 100644
+index 47016c08..ce1b16e6 100644
 --- a/product.json
 +++ b/product.json
-@@ -1,35 +1,36 @@
+@@ -1,39 +1,40 @@
  {
 -	"nameShort": "Code - OSS",
 -	"nameLong": "Code - OSS",
 -	"applicationName": "code-oss",
 -	"dataFolderName": ".vscode-oss",
--	"win32MutexName": "vscodeoss",
 +	"nameShort": "Jahaziel Code",
 +	"nameLong": "Jahaziel Code",
 +	"applicationName": "jahaziel-code",
 +	"dataFolderName": ".jahaziel-code",
+ 	"sharedDataFolderName": ".vscode-oss-shared",
+-	"win32MutexName": "vscodeoss",
 +	"win32MutexName": "jahazielcode",
  	"licenseName": "MIT",
 -	"licenseUrl": "https://github.com/microsoft/vscode/blob/main/LICENSE.txt",
@@ -70,31 +55,38 @@ index 5f64fab..b62894b 100644
 -	"win32DirName": "Microsoft Code OSS",
 -	"win32NameVersion": "Microsoft Code OSS",
 -	"win32RegValueName": "CodeOSS",
+-	"win32x64AppId": "{{D77B7E06-80BA-4137-BCF4-654B95CCEBC5}",
+-	"win32arm64AppId": "{{D1ACE434-89C5-48D1-88D3-E2991DF85475}",
+-	"win32x64UserAppId": "{{CC6B787D-37A0-49E8-AE24-8559A032BE0C}",
+-	"win32arm64UserAppId": "{{3AEBF0C8-F733-4AD4-BADE-FDB816D53D7B}",
+-	"win32AppUserModelId": "Microsoft.CodeOSS",
+-	"win32ShellNameShort": "C&ode - OSS",
+-	"win32TunnelServiceMutex": "vscodeoss-tunnelservice",
+-	"win32TunnelMutex": "vscodeoss-tunnel",
+-	"darwinBundleIdentifier": "com.visualstudio.code.oss",
 +	"win32DirName": "Jahaziel Code",
 +	"win32NameVersion": "Jahaziel Code",
 +	"win32RegValueName": "JahazielCode",
- 	"win32x64AppId": "{{D77B7E06-80BA-4137-BCF4-654B95CCEBC5}",
- 	"win32arm64AppId": "{{D1ACE434-89C5-48D1-88D3-E2991DF85475}",
- 	"win32x64UserAppId": "{{CC6B787D-37A0-49E8-AE24-8559A032BE0C}",
- 	"win32arm64UserAppId": "{{3AEBF0C8-F733-4AD4-BADE-FDB816D53D7B}",
--	"win32AppUserModelId": "Microsoft.CodeOSS",
--	"win32ShellNameShort": "C&ode - OSS",
++	"win32x64AppId": "{{D77B7E06-80BA-4137-BCF4-654B95CCEBC5}}",
++	"win32arm64AppId": "{{D1ACE434-89C5-48D1-88D3-E2991DF85475}}",
++	"win32x64UserAppId": "{{CC6B787D-37A0-49E8-AE24-8559A032BE0C}}",
++	"win32arm64UserAppId": "{{3AEBF0C8-F733-4AD4-BADE-FDB816D53D7B}}",
 +	"win32AppUserModelId": "Jahaziel.Code",
 +	"win32ShellNameShort": "Jahaziel Code",
--	"win32TunnelServiceMutex": "vscodeoss-tunnelservice",
 +	"win32TunnelServiceMutex": "jahaziel-tunnelservice",
--	"win32TunnelMutex": "vscodeoss-tunnel",
 +	"win32TunnelMutex": "jahaziel-tunnel",
--	"darwinBundleIdentifier": "com.visualstudio.code.oss",
 +	"darwinBundleIdentifier": "com.example.jahaziel-code",
+ 	"darwinProfileUUID": "47827DD9-4734-49A0-AF80-7E19B11495CC",
+ 	"darwinProfilePayloadUUID": "CF808BE7-53F3-46C6-A7E2-7EDB98A5E959",
 -	"linuxIconName": "code-oss",
 +	"linuxIconName": "jahaziel-code",
  	"licenseFileName": "LICENSE.txt",
 -	"reportIssueUrl": "https://github.com/microsoft/vscode/issues/new",
 +	"reportIssueUrl": "https://github.com/example/jahaziel/issues/new",
- 	"nodejsRepository": "https://nodejs.org",
+ 	"nodejsArtifactFeed": "",
+ 	"electronArtifactFeed": "",
 -	"urlProtocol": "code-oss",
 +	"urlProtocol": "jahaziel-code",
+ 	"agentsTelemetryAppName": "agents",
  	"webviewContentExternalBaseUrlTemplate": "https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/",
  	"builtInExtensions": [
- 		{
