@@ -5,6 +5,7 @@
 package dev.jahaziel.nodeagent.storage;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -33,14 +34,8 @@ public final class ProcessCommandRunner implements CommandRunner {
   @Override
   public boolean exists(Path path) {
     Objects.requireNonNull(path, "path");
-    try {
-      Process process = new ProcessBuilder(List.of("test", "-e", path.toString())).start();
-      return process.waitFor() == 0;
-    } catch (InterruptedException failure) {
-      Thread.currentThread().interrupt();
-      return false;
-    } catch (IOException failure) {
-      return false;
-    }
+    // `test -e` is a shell builtin, not an executable, so ProcessBuilder cannot run it
+    // portably; on Windows it always failed. Files.exists is the same check natively.
+    return Files.exists(path);
   }
 }
