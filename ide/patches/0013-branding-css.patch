@@ -1,26 +1,8 @@
-From: richie-rich90454 <rjiang880@gmail.com>
-Subject: [PATCH 0013/0014] Apply brand theme tokens
-
-This patch ships the Jahaziel brand colors as CSS overrides with the
-web client: a new resources/server/jahaziel-branding.css carrying the
-tokens from ide/branding/branding.css, a stylesheet link in the web
-client shell, and the packaging listing so the file lands in the
-server output and is served under /static. No core theme files are
-modified.
-
-Touches:
-  - resources/server/jahaziel-branding.css (new)
-  - web client shell (stylesheet link)
-  - server packaging (resource listing)
-
-Verification: brand smoke test screenshots the workbench chrome.
-
----
 diff --git a/build/gulpfile.reh.ts b/build/gulpfile.reh.ts
-index e314794..7903e40 100644
+index f0968a51..4b819c0d 100644
 --- a/build/gulpfile.reh.ts
 +++ b/build/gulpfile.reh.ts
-@@ -382,7 +382,8 @@ function packageTask(type, platform, arch, sourceFolderName, destinationFolderNa
+@@ -462,7 +462,8 @@ function packageTask(type: string, platform: string, arch: string, sourceFolderN
  				'resources/server/favicon.ico',
  				'resources/server/code-192.png',
  				'resources/server/code-512.png',
@@ -32,7 +14,7 @@ index e314794..7903e40 100644
  
 diff --git a/resources/server/jahaziel-branding.css b/resources/server/jahaziel-branding.css
 new file mode 100644
-index 0000000..943e9c0
+index 00000000..943e9c03
 --- /dev/null
 +++ b/resources/server/jahaziel-branding.css
 @@ -0,0 +1,11 @@
@@ -48,13 +30,14 @@ index 0000000..943e9c0
 +    --jahaziel-foreground: #0f172a;
 +}
 diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
-index a4e9516..681de2d 100644
+index dada9ce8..f61b2939 100644
 --- a/src/vs/code/browser/workbench/workbench.html
 +++ b/src/vs/code/browser/workbench/workbench.html
-@@ -26,6 +26,7 @@
+@@ -27,6 +27,8 @@
  		<link rel="icon" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/favicon.ico" type="image/x-icon" />
  		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
- 		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
+ 		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.css">
++		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
 +		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
  
  	</head>
