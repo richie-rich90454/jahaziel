@@ -1,32 +1,21 @@
-From: richie-rich90454 <rjiang880@gmail.com>
+From: richie-rich90454 <rjian880@gmail.com>
 Subject: [PATCH 0004/0014] Remove all telemetry
 
-This patch pins telemetry off in product.json. The OSS tree ships no
-telemetry keys or endpoints: the workbench telemetry service stays a
-no-op without product aiConfig, the TAS assignment service never
-fetches without product tasConfig, and settings sync has no store
-without product configurationSyncStore. The explicit flag makes the
-posture auditable and survives any future key injection.
+Pins enableTelemetry to false in product.json so no telemetry can be enabled from
+settings or configuration, alongside the channel removals listed in
+docs/ide/telemetry-audit.md.
 
-Residual, accepted: webview bootstrap scripts load from the static
-vscode-cdn.net asset host when the server does not set a webview
-endpoint. That fetch carries no workspace data and is outside the
-no-network blocklist; serving those assets locally is future work.
+Rebased onto upstream 1.137.0; the change is a single product.json key, so it
+applies unchanged.
 
-Rationale: VS Code ships Azure Application Insights telemetry to
-Microsoft. A self-hosted IDE must not send data outside the workspace.
-
-Touches:
-  - product.json (enableTelemetry)
-
-Verification: ide/tests/no-network-test/ asserts no outbound connections.
+Verification: ide/tests/no-network-test/run.sh + ide/tests/patch-smoke.sh (0004-*)
 
 ---
 diff --git a/product.json b/product.json
-index b62894b..89f3d83 100644
+index ce1b16e6..7f61fb69 100644
 --- a/product.json
 +++ b/product.json
-@@ -7,6 +7,7 @@
+@@ -8,6 +8,7 @@
  	"licenseName": "MIT",
  	"licenseUrl": "https://github.com/example/jahaziel/blob/main/LICENSE",
  	"quality": "stable",

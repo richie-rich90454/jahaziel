@@ -64,7 +64,7 @@ git -C upstream reset --hard "$TAG"
 git -C upstream checkout -f "$TAG"
 git -C upstream clean -qfd
 
-ALLOW_EMPTY="0006-remove-live-share.patch 0012-server-runtime-config.patch"
+ALLOW_EMPTY="0005-remove-ai-features.patch 0006-remove-live-share.patch 0012-server-runtime-config.patch"
 
 for patch in patches/*.patch; do
   if grep -q '^diff --git' "$patch"; then
