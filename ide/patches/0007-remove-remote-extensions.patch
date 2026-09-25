@@ -1,49 +1,53 @@
-From: richie-rich90454 <rjiang880@gmail.com>
+From: richie-rich90454 <rjian880@gmail.com>
 Subject: [PATCH 0007/0014] Remove remote extensions
 
-This patch deletes the tunnel-forwarding extension with its build
-listings and renames the tunnel application. Remote-SSH,
-Remote-Containers, and Remote-WSL ship no code in the OSS tree
-(marketplace extensions only); patch 0008 makes them uninstallable.
+Removes the tunnel-forwarding extension and drops it from the extension build
+lists, and renames tunnelApplicationName to jahaziel-tunnel so the binary and
+process names match the product.
 
-Rationale: the entire IDE is remote already. The browser connects to a
-server on the workspace VM, so there is no local-vs-remote distinction.
+Rebased onto upstream 1.137.0. Same effect as the previous capture: the extension
+tree is deleted, the two build-list references are removed, and product.json is
+renamed. The old capture no longer applied because upstream moved the build files.
 
-Touches:
-  - extensions/tunnel-forwarding (deleted)
-  - build extension listings (gulpfile.extensions.ts, npm/dirs.ts)
-  - product.json (tunnelApplicationName)
-
-Verification: patch regression test fails without it and passes with it.
+Verification: ide/tests/patch-smoke.sh (0007-*, 0009-*)
 
 ---
 diff --git a/build/gulpfile.extensions.ts b/build/gulpfile.extensions.ts
-index 4f745ae..679f846 100644
+index dafca7f2..3d4711ea 100644
 --- a/build/gulpfile.extensions.ts
 +++ b/build/gulpfile.extensions.ts
-@@ -59,7 +59,6 @@ const compilations = [
+@@ -83,7 +83,6 @@ const compilations = [
  	'extensions/references-view/tsconfig.json',
  	'extensions/search-result/tsconfig.json',
  	'extensions/simple-browser/tsconfig.json',
 -	'extensions/tunnel-forwarding/tsconfig.json',
- 	'extensions/typescript-language-features/test-workspace/tsconfig.json',
  	'extensions/typescript-language-features/web/tsconfig.json',
  	'extensions/typescript-language-features/tsconfig.json',
+ 	'extensions/vscode-api-tests/tsconfig.json',
 diff --git a/build/npm/dirs.ts b/build/npm/dirs.ts
-index b9645e6..5243611 100644
+index 7bc33635..5b47ade2 100644
 --- a/build/npm/dirs.ts
 +++ b/build/npm/dirs.ts
-@@ -40,7 +40,6 @@ const dirs = [
+@@ -46,7 +46,6 @@ export const dirs = [
  	'extensions/references-view',
  	'extensions/search-result',
  	'extensions/simple-browser',
 -	'extensions/tunnel-forwarding',
+ 	'extensions/terminal-suggest',
  	'extensions/typescript-language-features',
  	'extensions/vscode-api-tests',
- 	'extensions/vscode-colorize-tests',
+diff --git a/extensions/tunnel-forwarding/.npmrc b/extensions/tunnel-forwarding/.npmrc
+deleted file mode 100644
+index efe23342..00000000
+--- a/extensions/tunnel-forwarding/.npmrc
++++ /dev/null
+@@ -1,3 +0,0 @@
+-legacy-peer-deps="true"
+-timeout=180000
+-min-release-age="1"
 diff --git a/extensions/tunnel-forwarding/.vscode/launch.json b/extensions/tunnel-forwarding/.vscode/launch.json
 deleted file mode 100644
-index d3fabaa..0000000
+index d3fabaa1..00000000
 --- a/extensions/tunnel-forwarding/.vscode/launch.json
 +++ /dev/null
 @@ -1,15 +0,0 @@
@@ -64,232 +68,89 @@ index d3fabaa..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/.vscodeignore b/extensions/tunnel-forwarding/.vscodeignore
 deleted file mode 100644
-index 360fcfd..0000000
+index 2b483a58..00000000
 --- a/extensions/tunnel-forwarding/.vscodeignore
 +++ /dev/null
-@@ -1,5 +0,0 @@
+@@ -1,6 +0,0 @@
 -src/**
--tsconfig.json
+-tsconfig*.json
+-**/*.tsbuildinfo
 -out/**
--extension.webpack.config.js
+-esbuild*.mts
 -package-lock.json
-diff --git a/extensions/tunnel-forwarding/extension.webpack.config.js b/extensions/tunnel-forwarding/extension.webpack.config.js
+diff --git a/extensions/tunnel-forwarding/esbuild.mts b/extensions/tunnel-forwarding/esbuild.mts
 deleted file mode 100644
-index b474e65..0000000
---- a/extensions/tunnel-forwarding/extension.webpack.config.js
+index 2b75ca70..00000000
+--- a/extensions/tunnel-forwarding/esbuild.mts
 +++ /dev/null
-@@ -1,20 +0,0 @@
+@@ -1,18 +0,0 @@
 -/*---------------------------------------------------------------------------------------------
 - *  Copyright (c) Microsoft Corporation. All rights reserved.
 - *  Licensed under the MIT License. See License.txt in the project root for license information.
 - *--------------------------------------------------------------------------------------------*/
+-import * as path from 'node:path';
+-import { run } from '../esbuild-extension-common.mts';
 -
--//@ts-check
+-const srcDir = path.join(import.meta.dirname, 'src');
+-const outDir = path.join(import.meta.dirname, 'dist');
 -
--'use strict';
--
--const withDefaults = require('../shared.webpack.config');
--
--module.exports = withDefaults({
--	context: __dirname,
--	entry: {
--		extension: './src/extension.ts',
+-run({
+-	platform: 'node',
+-	entryPoints: {
+-		'extension': path.join(srcDir, 'extension.ts'),
 -	},
--	resolve: {
--		mainFields: ['module', 'main']
--	}
--});
+-	srcDir,
+-	outdir: outDir,
+-}, process.argv);
 diff --git a/extensions/tunnel-forwarding/media/icon.png b/extensions/tunnel-forwarding/media/icon.png
 deleted file mode 100644
-index 2c90d30a1f054c51157a1bb4497e79e41d10eda4..0000000000000000000000000000000000000000
-GIT binary patch
-literal 0
-HcmV?d00001
-
-literal 7191
-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
-Mm#*rS=-|Wt2f~m<<^TWy
-
+index 2c90d30a..00000000
+Binary files a/extensions/tunnel-forwarding/media/icon.png and /dev/null differ
 diff --git a/extensions/tunnel-forwarding/package-lock.json b/extensions/tunnel-forwarding/package-lock.json
 deleted file mode 100644
-index 57accdc..0000000
+index 74d911e3..00000000
 --- a/extensions/tunnel-forwarding/package-lock.json
 +++ /dev/null
-@@ -1,34 +0,0 @@
+@@ -1,36 +0,0 @@
 -{
 -  "name": "tunnel-forwarding",
--  "version": "1.0.0",
+-  "version": "10.0.0",
 -  "lockfileVersion": 3,
 -  "requires": true,
 -  "packages": {
 -    "": {
 -      "name": "tunnel-forwarding",
--      "version": "1.0.0",
+-      "version": "10.0.0",
 -      "license": "MIT",
 -      "devDependencies": {
--        "@types/node": "20.x"
+-        "@types/node": "24.x"
 -      },
 -      "engines": {
 -        "vscode": "^1.82.0"
 -      }
 -    },
 -    "node_modules/@types/node": {
--      "version": "20.11.24",
--      "resolved": "https://registry.npmjs.org/@types/node/-/node-20.11.24.tgz",
--      "integrity": "sha512-Kza43ewS3xoLgCEpQrsT+xRo/EJej1y0kVYGiLFE1NEODXGzTfwiC6tXTLMQskn1X4/Rjlh0MQUvx9W+L9long==",
+-      "version": "24.12.4",
+-      "resolved": "https://registry.npmjs.org/@types/node/-/node-24.12.4.tgz",
+-      "integrity": "sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==",
 -      "dev": true,
+-      "license": "MIT",
 -      "dependencies": {
--        "undici-types": "~5.26.4"
+-        "undici-types": "~7.16.0"
 -      }
 -    },
 -    "node_modules/undici-types": {
--      "version": "5.26.5",
--      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-5.26.5.tgz",
--      "integrity": "sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==",
--      "dev": true
+-      "version": "7.16.0",
+-      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-7.16.0.tgz",
+-      "integrity": "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==",
+-      "dev": true,
+-      "license": "MIT"
 -    }
 -  }
 -}
 diff --git a/extensions/tunnel-forwarding/package.json b/extensions/tunnel-forwarding/package.json
 deleted file mode 100644
-index 315baa0..0000000
+index f49181e6..00000000
 --- a/extensions/tunnel-forwarding/package.json
 +++ /dev/null
 @@ -1,59 +0,0 @@
@@ -297,7 +158,7 @@ index 315baa0..0000000
 -  "name": "tunnel-forwarding",
 -  "displayName": "%displayName%",
 -  "description": "%description%",
--  "version": "1.0.0",
+-  "version": "10.0.0",
 -  "publisher": "vscode",
 -  "license": "MIT",
 -  "engines": {
@@ -339,7 +200,7 @@ index 315baa0..0000000
 -    "watch": "gulp watch-extension:tunnel-forwarding"
 -  },
 -  "devDependencies": {
--    "@types/node": "20.x"
+-    "@types/node": "24.x"
 -  },
 -  "prettier": {
 -    "printWidth": 100,
@@ -354,7 +215,7 @@ index 315baa0..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/package.nls.json b/extensions/tunnel-forwarding/package.nls.json
 deleted file mode 100644
-index 1102147..0000000
+index 1102147e..00000000
 --- a/extensions/tunnel-forwarding/package.nls.json
 +++ /dev/null
 @@ -1,7 +0,0 @@
@@ -367,7 +228,7 @@ index 1102147..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/src/deferredPromise.ts b/extensions/tunnel-forwarding/src/deferredPromise.ts
 deleted file mode 100644
-index 54b0737..0000000
+index 54b0737f..00000000
 --- a/extensions/tunnel-forwarding/src/deferredPromise.ts
 +++ /dev/null
 @@ -1,62 +0,0 @@
@@ -435,10 +296,10 @@ index 54b0737..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/src/extension.ts b/extensions/tunnel-forwarding/src/extension.ts
 deleted file mode 100644
-index 299c728..0000000
+index 2f71999b..00000000
 --- a/extensions/tunnel-forwarding/src/extension.ts
 +++ /dev/null
-@@ -1,331 +0,0 @@
+@@ -1,343 +0,0 @@
 -/*---------------------------------------------------------------------------------------------
 - *  Copyright (c) Microsoft Corporation. All rights reserved.
 - *  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -462,13 +323,25 @@ index 299c728..0000000
 - */
 -const CLEANUP_TIMEOUT = 10_000;
 -
--const cliPath = process.env.VSCODE_FORWARDING_IS_DEV
--	? path.join(__dirname, '../../../cli/target/debug/code')
--	: path.join(
--		vscode.env.appRoot,
--		process.platform === 'darwin' ? 'bin' : '../../bin',
--		vscode.env.appQuality === 'stable' ? 'code-tunnel' : 'code-tunnel-insiders',
--	) + (process.platform === 'win32' ? '.exe' : '');
+-const versionFolder = vscode.env.appCommit?.substring(0, 10);
+-let cliPath: string;
+-if (process.env.VSCODE_FORWARDING_IS_DEV) {
+-	cliPath = path.join(__dirname, '../../../cli/target/debug/code');
+-} else {
+-	let binPath: string;
+-	if (process.platform === 'darwin') {
+-		binPath = 'bin';
+-	} else if (process.platform === 'win32' && versionFolder && vscode.env.appRoot.includes(versionFolder)) {
+-		binPath = '../../../bin';
+-	} else {
+-		binPath = '../../bin';
+-	}
+-
+-	const cliName = vscode.env.appQuality === 'stable' ? 'code-tunnel' : 'code-tunnel-insiders';
+-	const extension = process.platform === 'win32' ? '.exe' : '';
+-
+-	cliPath = path.join(vscode.env.appRoot, binPath, cliName) + extension;
+-}
 -
 -class Tunnel implements vscode.Tunnel {
 -	private readonly disposeEmitter = new vscode.EventEmitter<void>();
@@ -772,7 +645,7 @@ index 299c728..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/src/split.ts b/extensions/tunnel-forwarding/src/split.ts
 deleted file mode 100644
-index 33ad055..0000000
+index 33ad055a..00000000
 --- a/extensions/tunnel-forwarding/src/split.ts
 +++ /dev/null
 @@ -1,51 +0,0 @@
@@ -829,15 +702,18 @@ index 33ad055..0000000
 -}
 diff --git a/extensions/tunnel-forwarding/tsconfig.json b/extensions/tunnel-forwarding/tsconfig.json
 deleted file mode 100644
-index 4769a9f..0000000
+index 0f6ad665..00000000
 --- a/extensions/tunnel-forwarding/tsconfig.json
 +++ /dev/null
-@@ -1,16 +0,0 @@
+@@ -1,19 +0,0 @@
 -{
 -	"extends": "../tsconfig.base.json",
 -	"compilerOptions": {
+-		"rootDir": "./src",
 -		"outDir": "./out",
--		"downlevelIteration": true,
+-		"typeRoots": [
+-			"./node_modules/@types"
+-		],
 -		"types": [
 -			"node"
 -		]
@@ -850,10 +726,10 @@ index 4769a9f..0000000
 -	]
 -}
 diff --git a/product.json b/product.json
-index 89f3d83..0402527 100644
+index 7f61fb69..23f81339 100644
 --- a/product.json
 +++ b/product.json
-@@ -14,7 +14,7 @@
+@@ -15,7 +15,7 @@
  	"serverLicensePrompt": "",
  	"serverApplicationName": "jahaziel-code-server",
  	"serverDataFolderName": ".jahaziel-code-server",
