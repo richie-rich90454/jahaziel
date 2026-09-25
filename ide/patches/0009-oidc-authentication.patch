@@ -1,11 +1,9 @@
 diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
-index f61b2939..9fdb2e8d 100644
 --- a/src/vs/code/browser/workbench/workbench.html
 +++ b/src/vs/code/browser/workbench/workbench.html
-@@ -28,6 +28,17 @@
+@@ -28,4 +28,16 @@
  		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
  		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.css">
- 		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
 +		<style>
 +			body { overscroll-behavior-y: none; }
 +			.jahaziel-touch { -webkit-tap-highlight-color: transparent; }
@@ -17,7 +15,7 @@ index f61b2939..9fdb2e8d 100644
 +				.monaco-workbench .part.sidebar { max-width: 40vw; }
 +			}
 +		</style>
- 		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
++		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
  
  	</head>
 @@ -48,4 +59,31 @@
