@@ -73,6 +73,11 @@ git -C upstream reset --hard "$TAG"
 git -C upstream checkout -f "$TAG"
 git -C upstream clean -qfd
 
+# Extensions stripped from the product. They are removed here rather than in a patch
+# because their sources are tens of thousands of third-party files, which would make
+# the patch enormous for no benefit.
+rm -rf upstream/extensions/copilot upstream/extensions/media-preview upstream/extensions/simple-browser
+
 ALLOW_EMPTY="0005-remove-ai-features.patch 0006-remove-live-share.patch 0012-server-runtime-config.patch"
 
 for patch in patches/*.patch; do
@@ -92,24 +97,21 @@ for patch in patches/*.patch; do
 done
 
 cd upstream
-if [ ! -d node_modules ]; then
-  # Install without lifecycle scripts first: the native modules are compiled separately by
-  # ide/scripts/native-build.mjs, which does not need Visual Studio's optional
-  # Spectre-mitigated libraries component. A plain `npm ci` fails on hosts without it.
-  npm ci --ignore-scripts
-  node build/npm/preinstall.ts || true
-  node build/npm/postinstall.ts || true
-  cd ..
-  node scripts/native-build.mjs upstream
-  cd upstream
-fi
+# Upstream's own postinstall.ts cannot be used: it runs lifecycle scripts, so the first
+# native module it hits aborts the whole thing and leaves every later directory
+# uninstalled. install-deps.mjs reads the same directory list from build/npm/dirs.ts but
+# installs with --ignore-scripts, skipping directories this fork has removed.
+node scripts/install-deps.mjs upstream
+# Three separate dependency trees hold native modules, and all three must be compiled.
+for tree in upstream upstream/remote upstream/build; do
+  [ -d "$tree/node_modules" ] || continue
+  node scripts/native-build.mjs "$tree" || exit 1
+done
 npm run gulp "vscode-reh-web-$slug-min"
 
-cd ..
-# The runtime extracts the tarball into data/ide/ and expects the variant slug as the
-# top-level directory, so stage the build under that name before packing.
+# The packaging task writes to the repository root, not to upstream/out/.
 rm -rf "out/$slug"
-cp -R "upstream/out/$package" "out/$slug"
+cp -R "$package" "out/$slug"
 mkdir -p out
 rm -f "out/$tarball" "out/$tarball.sha256"
 tar --use-compress-program="zstd -19" -cf "out/$tarball" -C out "$slug"

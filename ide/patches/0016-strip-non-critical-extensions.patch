@@ -1,0 +1,41 @@
+diff --git a/build/gulpfile.reh.ts b/build/gulpfile.reh.ts
+index 1e380d38..497ba609 100644
+--- a/build/gulpfile.reh.ts
++++ b/build/gulpfile.reh.ts
+@@ -537,7 +537,9 @@ function packageTask(type: string, platform: string, arch: string, sourceFolderN
+ function hasAuthenticodeSignature(filePath: string): Promise<boolean> {
+ 	return new Promise((resolve, reject) => {
+ 		const proc = cp.spawn('signtool.exe', ['verify', '/pa', filePath]);
+-		proc.on('error', reject);
++		// signtool.exe is absent on machines without the Windows SDK, and an unverifiable
++		// signature is by definition not one we produced, so treat it as unsigned.
++		proc.on('error', () => resolve(false));
+ 		proc.on('exit', code => resolve(code === 0));
+ 	});
+ }
+@@ -607,11 +609,8 @@ function patchWin32DependenciesTask(destinationFolderName: string) {
+ 
+ function prepareCopilotRipgrepShimTaskREH(platform: string, arch: string, destinationFolderName: string) {
+ 	return async () => {
+-		const outputDir = path.join(BUILD_ROOT, destinationFolderName);
+-		const nodeModulesDir = path.join(outputDir, 'node_modules');
+-
+-		const builtInCopilotExtensionDir = path.join(outputDir, 'extensions', 'copilot');
+-		prepareBuiltInCopilotRipgrepShim(platform, arch, builtInCopilotExtensionDir, nodeModulesDir);
++		// Jahaziel ships no AI features, so the built-in Copilot extension is stripped
++		// and there is no SDK to materialize a ripgrep shim from.
+ 	};
+ }
+ 
+diff --git a/build/lib/extensions.ts b/build/lib/extensions.ts
+index 6a54fbe9..c174bf12 100644
+--- a/build/lib/extensions.ts
++++ b/build/lib/extensions.ts
+@@ -634,7 +634,6 @@ const esbuildMediaScripts: { script: string; tsconfig: string }[] = [
+ 	{ script: 'markdown-math/esbuild.notebook.mts', tsconfig: 'markdown-math/notebook/tsconfig.json' },
+ 	{ script: 'mermaid-markdown-features/esbuild.webview.mts', tsconfig: 'mermaid-markdown-features/preview-src/tsconfig.json' },
+ 	{ script: 'notebook-renderers/esbuild.notebook.mts', tsconfig: 'notebook-renderers/tsconfig.json' },
+-	{ script: 'simple-browser/esbuild.webview.mts', tsconfig: 'simple-browser/preview-src/tsconfig.json' },
+ ];
+ 
+ export function buildExtensionMedia(isWatch: boolean, outputRoot?: string): Promise<void> {
