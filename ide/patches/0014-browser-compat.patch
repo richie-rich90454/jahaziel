@@ -1,33 +1,25 @@
-From: richie-rich90454 <rjiang880@gmail.com>
-Subject: [PATCH 0014/0014] Browser compatibility for tablets and evergreen
+From: richie-rich90454 <rjian880@gmail.com>
+Subject: [PATCH 0014/0014] Browser compatibility
 
-This patch hardens the web client shell for tablets and evergreen
-browsers: an inline bootstrap script sets a viewport-height variable
-and feature-detected touch/iPadOS hooks with graceful degradation,
-and shell styles tune overscroll, tap highlight, touch action, and
-sidebar widths for tablet portrait and landscape. iPadOS hardware
-keyboards work through the native key pipeline; the body hooks let
-operators target tablet rules without scripts.
+Tablet and touch hardening for the browser workbench: a viewport-height custom
+property, overscroll suppression, tap-highlight removal, touch-action handling,
+and coarse-pointer sidebar sizing, plus iPadOS detection. Every hook is
+feature-detected and degrades gracefully.
 
-Never uses: :has() selector, <dialog> element, popover attribute, CSS
-nesting, untranspiled class fields, top-level await, or untranspiled
-optional chaining.
+Rebased onto upstream 1.137.0. The style block and hardening script are inserted
+into the current markup; the old capture referenced the pre-module script tags
+that upstream has since replaced.
 
-Touches:
-  - web client shell (inline styles and bootstrap script)
-
-Diff: authored on the upstream checkout (see build.sh).
-Verification: browser matrix suite across Safari 16+, iOS/iPadOS 16+,
-Chrome 110+, Firefox 110+, Edge 110+.
+Verification: ide/tests/browser/ matrix, manual per release
 
 ---
 diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
-index 681de2d..b2e45d9 100644
+index f61b2939..9fdb2e8d 100644
 --- a/src/vs/code/browser/workbench/workbench.html
 +++ b/src/vs/code/browser/workbench/workbench.html
-@@ -26,6 +26,17 @@
- 		<link rel="icon" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/favicon.ico" type="image/x-icon" />
+@@ -28,6 +28,17 @@
  		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
+ 		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.css">
  		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.css">
 +		<style>
 +			body { overscroll-behavior-y: none; }
@@ -43,10 +35,10 @@ index 681de2d..b2e45d9 100644
  		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
  
  	</head>
-@@ -68,4 +79,30 @@
- 	<script src="{{WORKBENCH_NLS_URL}}"></script>
- 	<script src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/workbench/workbench.web.main.internal.js"></script>
- 	<script src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.js"></script>
+@@ -48,4 +59,31 @@
+ 	<!-- attempt to load NLS messages in case non-english -->
+ 	<script type="module" src="{{WORKBENCH_NLS_URL}}"></script>
+ 	<script type="module" src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.js"></script>
 +	<script>
 +		// Jahaziel tablet hardening: viewport height variable, coarse-pointer
 +		// and iPadOS hooks, all feature-detected with graceful degradation.
@@ -73,4 +65,5 @@ index 681de2d..b2e45d9 100644
 +			} catch (e) { /* stay usable without navigator details */ }
 +		})();
 +	</script>
++>>>>>>> theirs
  </html>

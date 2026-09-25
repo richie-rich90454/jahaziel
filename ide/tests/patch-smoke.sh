@@ -108,7 +108,13 @@ else
   fail "0013 branding css missing"
 fi
 check_present src/vs/code/browser/workbench/workbench.html 'jahaziel-branding.css' 0013-link
-check_present build/gulpfile.reh.js 'jahaziel-branding.css' 0013-packaging
+# Upstream renamed the REH gulpfile from build/gulpfile.reh.js to build/gulpfile.reh.ts
+# when the build moved to TypeScript; accept whichever this tree ships.
+if [ -f "$UPSTREAM/build/gulpfile.reh.ts" ]; then
+  check_present build/gulpfile.reh.ts 'jahaziel-branding.css' 0013-packaging
+else
+  check_present build/gulpfile.reh.js 'jahaziel-branding.css' 0013-packaging
+fi
 
 # 0014 tablet hardening
 check_present src/vs/code/browser/workbench/workbench.html 'Jahaziel tablet hardening' 0014-script
