@@ -88,6 +88,48 @@ class RuntimeServiceImplTest {
   }
 
   @Test
+  void startFailureParksWorkspaceAsFailedWithReason() {
+    backend.startFailure = new IllegalStateException("disk gone");
+    var workspace = realWorkspace();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    assertThrows(IllegalStateException.class, () -> service.start(workspaceId));
+    assertInstanceOf(WorkspaceState.Failed.class, workspace.state());
+    assertEquals("disk gone", ((WorkspaceState.Failed) workspace.state()).reason());
+    verify(progress).clear(workspaceId);
+    verify(workspaces, times(2)).save(workspace);
+  }
+
+  @Test
+  void startFailureWithoutMessageFallsBackToClassName() {
+    backend.startFailure = new IllegalStateException();
+    var workspace = realWorkspace();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    assertThrows(IllegalStateException.class, () -> service.start(workspaceId));
+    assertEquals("IllegalStateException", ((WorkspaceState.Failed) workspace.state()).reason());
+  }
+
+  @Test
+  void startFailureWithBlankMessageFallsBackToClassName() {
+    backend.startFailure = new IllegalStateException("  ");
+    var workspace = realWorkspace();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    assertThrows(IllegalStateException.class, () -> service.start(workspaceId));
+    assertEquals("IllegalStateException", ((WorkspaceState.Failed) workspace.state()).reason());
+  }
+
+  @Test
+  void startOnDestroyedKeepsDestroyedState() {
+    var workspace = realWorkspace();
+    workspace.destroy();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    assertThrows(
+        dev.jahaziel.workspace.domain.IllegalWorkspaceStateException.class,
+        () -> service.start(workspaceId));
+    assertInstanceOf(WorkspaceState.Destroyed.class, workspace.state());
+    verify(workspaces, never()).save(any());
+  }
+
+  @Test
   void stopSuspendsRunning() {
     var workspace = realWorkspace();
     workspace.prepare();
@@ -378,6 +420,7 @@ class RuntimeServiceImplTest {
     int prepares;
     int starts;
     int stops;
+    RuntimeException startFailure;
 
     @Override
     public String name() {
@@ -392,6 +435,9 @@ class RuntimeServiceImplTest {
 
     @Override
     public RuntimeHandle start(RuntimeRequest request) {
+      if (startFailure != null) {
+        throw startFailure;
+      }
       starts++;
       return new RuntimeHandle(UUID.randomUUID());
     }

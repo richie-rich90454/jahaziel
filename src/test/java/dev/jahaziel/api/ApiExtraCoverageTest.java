@@ -115,6 +115,38 @@ class ApiExtraCoverageTest {
   }
 
   @Test
+  void workspaceDtoCarriesFailureReason() {
+    var ports = mock(dev.jahaziel.networking.api.PortService.class);
+    var users = mock(UserService.class);
+    var tokens = mock(JwtService.class);
+    WorkspaceDtoFactory f =
+        new WorkspaceDtoFactory(
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
+    UserId owner = new UserId(UUID.randomUUID());
+    var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+    WorkspaceDtoFactoryTestHelper.setup(ws, owner);
+    when(ws.state())
+        .thenReturn(
+            new dev.jahaziel.workspace.domain.WorkspaceState.Failed(Instant.now(), "disk gone"));
+    var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+    when(view.workspace()).thenReturn(ws);
+    when(ports.bindingsByWorkspace(ws.id())).thenReturn(List.of());
+    WorkspaceDto failed = f.forUser(owner, view);
+    assertEquals("failed", failed.state());
+    assertEquals("disk gone", failed.stateReason());
+    when(ws.state())
+        .thenReturn(new dev.jahaziel.workspace.domain.WorkspaceState.Ready(Instant.now()));
+    WorkspaceDto ready = f.withoutTokens(view);
+    assertEquals("ready", ready.state());
+    assertTrue(ready.stateReason() == null);
+  }
+
+  @Test
   void exceptionHandlerCoversAll() {
     ApiExceptionHandler h = new ApiExceptionHandler();
     UserId u = new UserId(UUID.randomUUID());

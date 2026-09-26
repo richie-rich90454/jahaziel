@@ -16,5 +16,6 @@ Last verified against version 0.1.0-SNAPSHOT.
 5. Run `java -jar jahaziel.jar doctor` — expect `9/9`.
 6. Run `java -jar jahaziel.jar` — open `http://localhost:11451`.
 
-See [configuration](./configuration.md) for every variable and
+See [using Jahaziel](./using-jahaziel.md) for the workbench buttons and states,
+[configuration](./configuration.md) for every variable and
 [demo mode](./demo-mode.md) for the zero-config path.

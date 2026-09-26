@@ -20,6 +20,7 @@ export default defineConfig({
       ],
       '/guide/': [
         { text: 'Quick start', link: '/guide/quick-start' },
+        { text: 'Using Jahaziel', link: '/guide/using-jahaziel' },
         { text: 'Configuration', link: '/guide/configuration' },
         { text: 'Platforms', link: '/guide/platforms' },
         { text: 'Demo mode', link: '/guide/demo-mode' },

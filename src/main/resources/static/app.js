@@ -141,9 +141,12 @@ function progressView(workspace) {
     const meta = document.createElement("p");
     meta.className = "meta";
     meta.append(
-      document.createTextNode("Starting — waiting for the first progress report for "),
+      document.createTextNode(
+        "No live boot is reporting — the server restarted mid-boot, or the last boot died before"
+          + " reporting. Press Retry start below. Last state change "
+      ),
       elapsedNode(workspace.lastActivityAt),
-      document.createTextNode(".")
+      document.createTextNode(" ago.")
     );
     wrap.append(meta);
     return wrap;
@@ -286,6 +289,9 @@ function renderActions(item, workspace) {
     spinner.setAttribute("aria-hidden", "true");
     starting.append(spinner, document.createTextNode("Starting…"));
     actions.append(starting);
+    if (!workspace.bootPhase) {
+      actions.append(actionButton("Retry start", "primary", () => postStart(id)));
+    }
     actions.append(actionButton("Cancel", null, () => postStop(id)));
   } else if (state === "ready" || state === "active" || state === "idle") {
     actions.append(actionButton("Stop", null, () => postStop(id)));
@@ -316,6 +322,13 @@ function renderCard(workspace) {
 
   if (TRANSITIONAL.has(workspace.state)) {
     item.append(progressView(workspace));
+  }
+
+  if (workspace.state === "failed" && workspace.stateReason) {
+    const reason = document.createElement("p");
+    reason.className = "failure";
+    reason.textContent = "Failed: " + workspace.stateReason;
+    item.append(reason);
   }
 
   renderPorts(item, workspace);

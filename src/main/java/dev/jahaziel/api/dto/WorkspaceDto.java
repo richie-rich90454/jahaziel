@@ -5,6 +5,7 @@
 package dev.jahaziel.api.dto;
 
 import dev.jahaziel.workspace.api.WorkspaceView;
+import dev.jahaziel.workspace.domain.WorkspaceState;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import java.util.UUID;
  * @param workspaceId the workspace identifier
  * @param name the workspace name
  * @param state the lowercase lifecycle state
+ * @param stateReason why the workspace failed, null unless failed
  * @param createdAt when the workspace was created
  * @param lastActivityAt when the workspace entered its current state
  * @param bootPhase the live boot sub-step while starting, null otherwise
@@ -27,6 +29,7 @@ public record WorkspaceDto(
     UUID workspaceId,
     String name,
     String state,
+    String stateReason,
     Instant createdAt,
     Instant lastActivityAt,
     String bootPhase,
@@ -52,6 +55,7 @@ public record WorkspaceDto(
         workspace.id().value(),
         workspace.name(),
         workspace.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
+        workspace.state() instanceof WorkspaceState.Failed failed ? failed.reason() : null,
         view.createdAt(),
         view.lastActivityAt(),
         bootPhase,

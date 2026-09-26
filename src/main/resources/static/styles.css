@@ -288,6 +288,11 @@ body {
 .meta-note {
   display: block;
 }
+.failure {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--bad);
+}
 .ports {
   list-style: none;
   display: flex;

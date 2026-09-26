@@ -77,6 +77,31 @@ public final class RuntimeServiceImpl implements RuntimeService {
 
   @Override
   public Workspace start(WorkspaceId id) {
+    try {
+      return doStart(id);
+    } catch (RuntimeException failure) {
+      abortToFailed(id, failure);
+      throw failure;
+    }
+  }
+
+  /**
+   * Parks a workspace whose boot threw, so the failure is visible with its reason instead of
+   * leaving the workspace in a transitional state no retry can explain. The original exception
+   * still propagates to the caller.
+   */
+  private void abortToFailed(WorkspaceId id, RuntimeException failure) {
+    progress.clear(id);
+    Workspace current = workspaces.get(id);
+    if (current.state() instanceof WorkspaceState.Destroyed) {
+      return;
+    }
+    String reason = failure.getMessage();
+    current.fail(reason == null || reason.isBlank() ? failure.getClass().getSimpleName() : reason);
+    workspaces.save(current);
+  }
+
+  private Workspace doStart(WorkspaceId id) {
     Workspace workspace = workspaces.get(id);
     if (workspace.state() instanceof WorkspaceState.Requested) {
       progress.report(id, BootPhase.PREPARING);
