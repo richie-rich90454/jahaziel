@@ -60,17 +60,19 @@ public final class WorkspaceDtoFactory {
   /**
    * Builds the view for its owner, with a tokenized URL per port.
    *
-   * @param owner the acting user
+   * @param actingUser the acting user, the token subject
    * @param view the workspace view
    * @return the DTO
    */
-  public WorkspaceDto forUser(UserId owner, WorkspaceView view) {
-    String slug = users.slug(owner);
+  public WorkspaceDto forUser(UserId actingUser, WorkspaceView view) {
+    // The route is registered under the workspace owner's slug, so the URL must use it too:
+    // the acting user may differ on shared workspaces.
+    String slug = users.slug(view.workspace().owner());
     List<PortDto> entries =
         ports.bindingsByWorkspace(view.workspace().id()).stream()
             .map(
                 binding ->
-                    PortDto.from(binding, slug, endpoint, token(owner, view, binding.port())))
+                    PortDto.from(binding, slug, endpoint, token(actingUser, view, binding.port())))
             .toList();
     return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
   }

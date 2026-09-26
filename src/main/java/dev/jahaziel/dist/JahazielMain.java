@@ -56,7 +56,7 @@ public final class JahazielMain {
       if (cli != dev.jahaziel.cli.Cli.PASS_THROUGH) {
         return cli;
       }
-      Arguments parsed = Arguments.parse(normalized);
+      Arguments parsed = Arguments.parse(normalized, mergedEnv());
       if (parsed.help()) {
         out.print(help());
         return 0;
@@ -81,6 +81,15 @@ public final class JahazielMain {
 
   private static int launch(Arguments parsed, PrintStream out) throws Exception {
     return launch(parsed, out, new CountDownLatch(1));
+  }
+
+  /**
+   * Returns the effective environment for boot knobs: the jar-adjacent {@code .env} under the real
+   * environment. Missing files yield just the real environment.
+   */
+  static Map<String, String> mergedEnv() {
+    Path envFile = Platforms.detect(null).jarDir().resolve(".env");
+    return DotEnv.withRealEnvWins(DotEnv.parse(envFile), System.getenv());
   }
 
   static int launch(Arguments parsed, PrintStream out, CountDownLatch stop) throws Exception {
@@ -343,10 +352,12 @@ public final class JahazielMain {
 
         Options:
           --data-dir=PATH       Data root (default: data/ next to the jar)
-          --port=N              Control-plane HTTP port (default: 11451)
+          --port=N              Control-plane HTTP port (default: 11451, or PORT from .env)
           --gateway-port=N      Legacy standalone gateway socket (default: off;
-                                workspace traffic relays on the API port instead)
-          --domain=HOST         Public domain and token issuer (default: code.example.com)
+                                workspace traffic relays on the API port instead;
+                                or JAHAZIEL_GATEWAY_PORT from .env)
+          --domain=HOST         Public domain and token issuer (default: localhost,
+                                or JAHAZIEL_DOMAIN from .env)
           --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
           --help                Print this help
           --version             Print the version
@@ -370,10 +381,23 @@ public final class JahazielMain {
       boolean help,
       boolean version) {
     static Arguments parse(String[] args) {
+      return parse(args, Map.of());
+    }
+
+    /**
+     * Parses flags with environment fallback, so every boot knob is settable from {@code .env}. An
+     * explicit flag always wins; otherwise the matching variable (real environment first, then
+     * {@code .env}) applies; otherwise the default holds.
+     *
+     * @param args the command line
+     * @param env the effective environment, {@code .env} under the real environment
+     * @return the arguments
+     */
+    static Arguments parse(String[] args, Map<String, String> env) {
       String dataDir = null;
-      int port = DEFAULT_PORT;
-      int gatewayPort = 8081;
-      String domain = "code.example.com";
+      Integer port = null;
+      Integer gatewayPort = null;
+      String domain = null;
       boolean demo = false;
       boolean help = false;
       boolean version = false;
@@ -403,7 +427,36 @@ public final class JahazielMain {
       if (!unknown.isEmpty()) {
         throw new IllegalArgumentException("unknown argument: " + unknown.get(0));
       }
-      return new Arguments(dataDir, port, gatewayPort, domain, demo, help, version);
+      return new Arguments(
+          dataDir,
+          port != null ? port : portFrom(env.get("PORT"), DEFAULT_PORT),
+          gatewayPort != null ? gatewayPort : portFrom(env.get("JAHAZIEL_GATEWAY_PORT"), 8081),
+          domain != null ? domain : domainFrom(env.get("JAHAZIEL_DOMAIN")),
+          demo,
+          help,
+          version);
+    }
+
+    private static int portFrom(String raw, int fallback) {
+      if (raw == null) {
+        return fallback;
+      }
+      try {
+        int value = Integer.parseInt(raw.strip());
+        if (value >= 1 && value <= 65535) {
+          return value;
+        }
+      } catch (NumberFormatException notANumber) {
+        // Fall through to the default below.
+      }
+      return fallback;
+    }
+
+    private static String domainFrom(String raw) {
+      if (raw == null || raw.isBlank()) {
+        return "localhost";
+      }
+      return raw.strip();
     }
 
     private static String next(String[] args, int i, String flag) {

@@ -51,6 +51,7 @@ workspace as `suspended`. Nothing is deleted.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `No live boot is reporting` on a `preparing`/`booting` card | The server restarted mid-boot (live progress is in-memory), or the boot died before reporting | Press **Retry start** |
+| Open IDE link won't open / points at a wrong domain | The link encodes the public domain and API port at boot time | Browsers resolve `*.localhost` to loopback, so the `localhost` default just works. For LAN/server runs set `JAHAZIEL_DOMAIN` (or `--domain`) to a domain with DNS, restart the jar, and use a freshly minted link — old links keep the old domain |
 | Card reads `failed` with a `Failed: …` reason | The boot threw; the reason names the cause and survives restarts | Press **Restart**; if it repeats, read the reason — it names the cause |
 | Start spins, then `failed: IDE server exited during startup (exit=…)` | The IDE process died instantly; the card quotes the tail of its log | Read the full IDE log (below) — it holds the crash output — then Restart |
 | Start spins, then the card is `failed: IDE server did not listen in time` | The IDE process exited or never bound its port within 30 s | Check the IDE log (below), then Restart |

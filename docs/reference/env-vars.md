@@ -17,6 +17,8 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `BASIS_CLIENT_SECRET` | Client secret (`basis.client-secret`) |
 | `BASIS_RESOURCE` | Audience (`basis.resource`) |
 | `PORT` | API port when `--port` is absent |
+| `JAHAZIEL_GATEWAY_PORT` | Legacy standalone gateway socket when `--gateway-port` is absent |
+| `JAHAZIEL_DOMAIN` | Public domain and token issuer when `--domain` is absent (`localhost` by default) |
 | `JAHAZIEL_LOG_LEVEL` | Root log level |
 | `JAHAZIEL_DEMO` | Legacy demo flag (prefer `--demo`) |
 | `JAHAZIEL_BACKEND` | `local` or `firecracker` |

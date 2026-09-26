@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.AfterEach;
@@ -79,9 +80,43 @@ class JahazielMainTest {
     JahazielMain.Arguments parsed = JahazielMain.Arguments.parse(new String[0]);
     assertEquals(11451, parsed.port());
     assertEquals(8081, parsed.gatewayPort());
-    assertEquals("code.example.com", parsed.domain());
+    assertEquals("localhost", parsed.domain());
     assertNull(parsed.dataDir());
     assertFalse(parsed.demo());
+  }
+
+  @Test
+  void argumentEnvFallback() {
+    Map<String, String> env =
+        Map.of("PORT", "9001", "JAHAZIEL_GATEWAY_PORT", "9002", "JAHAZIEL_DOMAIN", "lan.test");
+    JahazielMain.Arguments parsed = JahazielMain.Arguments.parse(new String[0], env);
+    assertEquals(9001, parsed.port());
+    assertEquals(9002, parsed.gatewayPort());
+    assertEquals("lan.test", parsed.domain());
+  }
+
+  @Test
+  void argumentFlagsBeatEnv() {
+    Map<String, String> env =
+        Map.of("PORT", "9001", "JAHAZIEL_GATEWAY_PORT", "9002", "JAHAZIEL_DOMAIN", "lan.test");
+    JahazielMain.Arguments parsed =
+        JahazielMain.Arguments.parse(
+            new String[] {"--port=9003", "--gateway-port=9004", "--domain=flag.test"}, env);
+    assertEquals(9003, parsed.port());
+    assertEquals(9004, parsed.gatewayPort());
+    assertEquals("flag.test", parsed.domain());
+  }
+
+  @Test
+  void argumentInvalidEnvFallsBackToDefaults() {
+    Map<String, String> env =
+        Map.of("PORT", "bogus", "JAHAZIEL_GATEWAY_PORT", "0", "JAHAZIEL_DOMAIN", "  ");
+    JahazielMain.Arguments parsed = JahazielMain.Arguments.parse(new String[0], env);
+    assertEquals(11451, parsed.port());
+    assertEquals(8081, parsed.gatewayPort());
+    assertEquals("localhost", parsed.domain());
+    Map<String, String> huge = Map.of("PORT", "99999");
+    assertEquals(11451, JahazielMain.Arguments.parse(new String[0], huge).port());
   }
 
   @Test

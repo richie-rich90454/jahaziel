@@ -123,7 +123,7 @@ public class DistConfig {
   public FilterRegistrationBean<GatewayRelayFilter> gatewayRelayFilter(
       @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
-      @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
+      @Value("${jahaziel.jwt.issuer:https://localhost}") String issuer,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,
       WorkspaceDirectory distRouteRegistry,
       dev.jahaziel.identity.api.JwtService sessions) {
@@ -162,7 +162,7 @@ public class DistConfig {
       @Value("${jahaziel.dist.gateway-port:8081}") int port,
       @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
-      @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
+      @Value("${jahaziel.jwt.issuer:https://localhost}") String issuer,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,
       WorkspaceDirectory distRouteRegistry) {
     RSAPublicKey key = JwtKeys.loadPublicKey(Path.of(publicKeyFile));

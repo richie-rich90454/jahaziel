@@ -20,7 +20,8 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `BASIS_CLIENT_SECRET` | — | Confidential client secret (`init` generates one) |
 | `BASIS_RESOURCE` | — | API audience |
 | `PORT` | `11451` | API port (`--port` overrides) |
-| `JAHAZIEL_DOMAIN` | `code.example.com` | Public domain for gateway URLs (`localhost` for local runs; browsers resolve `*.localhost` to loopback) |
+| `JAHAZIEL_GATEWAY_PORT` | `8081` | Legacy standalone gateway socket (`--gateway-port` overrides; off unless enabled) |
+| `JAHAZIEL_DOMAIN` | `localhost` | Public domain for gateway URLs and token issuer (`--domain` overrides; browsers resolve `*.localhost` to loopback, so local runs need no setup; set a real domain with DNS for LAN/server runs) |
 | `JAHAZIEL_LOG_LEVEL` | `INFO` | Root log level |
 | `JAHAZIEL_DEMO` | `false` | Legacy demo flag (prefer `--demo`) |
 | `JAHAZIEL_BACKEND` | `local` | `local` or `firecracker` (Linux with `/dev/kvm`) |

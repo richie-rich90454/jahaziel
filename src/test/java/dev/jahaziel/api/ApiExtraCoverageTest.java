@@ -147,6 +147,33 @@ class ApiExtraCoverageTest {
   }
 
   @Test
+  void workspaceDtoUrlUsesOwnerSlugForSharedViews() {
+    var ports = mock(dev.jahaziel.networking.api.PortService.class);
+    var users = mock(UserService.class);
+    var tokens = mock(JwtService.class);
+    WorkspaceDtoFactory f =
+        new WorkspaceDtoFactory(
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("http", "localhost", 11451),
+            new BootProgressService(),
+            900);
+    UserId viewer = new UserId(UUID.randomUUID());
+    UserId owner = new UserId(UUID.randomUUID());
+    var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+    WorkspaceDtoFactoryTestHelper.setup(ws, owner);
+    var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+    when(view.workspace()).thenReturn(ws);
+    when(users.slug(owner)).thenReturn("owner-slug");
+    PortBinding b = new PortBinding(owner.value(), 50326, ws.id().value(), "http", Instant.now());
+    when(ports.bindingsByWorkspace(ws.id())).thenReturn(List.of(b));
+    when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
+    WorkspaceDto dto = f.forUser(viewer, view);
+    assertEquals("http://owner-slug-50326.localhost:11451/?token=tok", dto.ports().get(0).url());
+  }
+
+  @Test
   void exceptionHandlerCoversAll() {
     ApiExceptionHandler h = new ApiExceptionHandler();
     UserId u = new UserId(UUID.randomUUID());

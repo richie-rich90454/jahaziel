@@ -172,6 +172,7 @@ public final class Cli {
         BASIS_CLIENT_SECRET=%s
         BASIS_RESOURCE=urn:basis:api:jahaziel
         PORT=11451
+        JAHAZIEL_GATEWAY_PORT=8081
         JAHAZIEL_DOMAIN=localhost
         JAHAZIEL_LOG_LEVEL=INFO
         JAHAZIEL_DEMO=false
@@ -475,6 +476,10 @@ public final class Cli {
         Run:
           --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
           --port=N              API port (default: 11451, or PORT from .env)
+          --gateway-port=N      Legacy standalone gateway socket (default: 8081, or
+                                JAHAZIEL_GATEWAY_PORT from .env; off unless enabled)
+          --domain=HOST         Public domain and token issuer (default: localhost,
+                                or JAHAZIEL_DOMAIN from .env)
           --data-dir=PATH       Data root (default: data/ next to the jar)
           --help                Print this help
           --version             Print the version

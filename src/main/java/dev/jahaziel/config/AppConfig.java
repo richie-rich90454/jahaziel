@@ -204,13 +204,20 @@ public class AppConfig {
     return new GatewayRouteServiceImpl(registry, workspaces, users, ports);
   }
 
-  /** Returns the public gateway address behind which workspace ports are served. */
+  /**
+   * Returns the public gateway address behind which workspace ports are served. The URL names a
+   * listener that actually relays workspace hosts: the standalone socket gateway when it is
+   * enabled, otherwise the application port, whose relay filter always serves them.
+   */
   @Bean
   public dev.jahaziel.networking.api.GatewayEndpoint gatewayEndpoint(
       @Value("${jahaziel.gateway.public-scheme:http}") String scheme,
       @Value("${jahaziel.domain}") String domain,
-      @Value("${jahaziel.dist.gateway-port:8081}") int port) {
-    return new dev.jahaziel.networking.api.GatewayEndpoint(scheme, domain, port);
+      @Value("${jahaziel.dist.gateway-enabled:false}") boolean gatewayEnabled,
+      @Value("${jahaziel.dist.gateway-port:8081}") int gatewayPort,
+      @Value("${server.port:11451}") int serverPort) {
+    return new dev.jahaziel.networking.api.GatewayEndpoint(
+        scheme, domain, gatewayEnabled ? gatewayPort : serverPort);
   }
 
   /** Returns the live boot-phase reports. */
