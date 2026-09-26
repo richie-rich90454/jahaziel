@@ -79,6 +79,9 @@ class WorkspaceAccessTest {
                 KEYS,
                 new JahazielMain.Arguments(
                     DATA.root().toString(), API_PORT, GATEWAY_PORT, DOMAIN, false, false, false)));
+    // This test drives the standalone socket gateway directly, so it opts back into the
+    // listener that portable boots leave off (workspace traffic normally relays on :API).
+    properties.put("jahaziel.dist.gateway-enabled", "true");
     for (Map.Entry<String, String> entry : properties.entrySet()) {
       if (System.getProperty(entry.getKey()) == null) {
         touchedProperties.add(entry.getKey());

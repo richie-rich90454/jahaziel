@@ -269,7 +269,9 @@ public final class JahazielMain {
       JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
     java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
     properties.put("jahaziel.dist.enabled", "true");
-    properties.put("jahaziel.dist.gateway-enabled", "true");
+    // The standalone socket gateway is opt-in legacy: workspace traffic is served on the
+    // application port by the relay filter, so a second listener stays off unless asked for.
+    properties.put("jahaziel.dist.gateway-enabled", "false");
     properties.put("jahaziel.dist.gateway-port", Integer.toString(parsed.gatewayPort()));
     properties.put("jahaziel.dist.domain", parsed.domain());
     properties.put("spring.datasource.url", sqliteUrl(data, platform));

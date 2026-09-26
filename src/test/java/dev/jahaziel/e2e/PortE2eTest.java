@@ -7,6 +7,12 @@ package dev.jahaziel.e2e;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +72,34 @@ class PortE2eTest extends E2eBase {
             "{\"port\":18081,\"protocol\":\"http\"}");
     assertEquals(400, again.status(), again.body());
     assertTrue(again.body().contains("VALIDATION_FAILED"), again.body());
+  }
+
+  @Test
+  void workspaceHostRelaysOnTheApplicationPort() throws Exception {
+    String id = createWorkspace(userToken(), uniqueName("relay"));
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
+    HttpServer backend = dummyBackend("relay-marker");
+    int backendPort = backend.getAddress().getPort();
+    try {
+      E2eResponse registered =
+          post(
+              "/api/v1/workspaces/" + id + "/ports",
+              userToken(),
+              "{\"port\":" + backendPort + ",\"protocol\":\"http\"}");
+      assertEquals(201, registered.status(), registered.body());
+      String url = bodyJson(registered).get("url").asString();
+      URI parsed = URI.create(url);
+      String token = parsed.getRawQuery().replace("token=", "");
+      String raw =
+          rawGet(
+              parsed.getHost(),
+              "/?token=" + token,
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+      assertTrue(raw.contains(" 200 "), raw);
+      assertTrue(raw.contains("relay-marker"), raw);
+    } finally {
+      backend.stop(0);
+    }
   }
 
   @Test
@@ -131,5 +165,38 @@ class PortE2eTest extends E2eBase {
                 userToken(),
                 "{\"port\":18084,\"protocol\":\"http\"}")
             .status());
+  }
+
+  private static HttpServer dummyBackend(String marker) throws Exception {
+    HttpServer server =
+        HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          byte[] body = marker.getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    server.start();
+    return server;
+  }
+
+  /** Raw socket GET to the application port with a chosen Host header. */
+  private String rawGet(String host, String target, String userAgent) throws Exception {
+    try (Socket socket = new Socket("127.0.0.1", port)) {
+      socket.setSoTimeout(10_000);
+      String request =
+          "GET "
+              + target
+              + " HTTP/1.1\r\nHost: "
+              + host
+              + "\r\nUser-Agent: "
+              + userAgent
+              + "\r\nConnection: close\r\n\r\n";
+      socket.getOutputStream().write(request.getBytes(StandardCharsets.US_ASCII));
+      socket.getOutputStream().flush();
+      return new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    }
   }
 }

@@ -5,6 +5,7 @@
 package dev.jahaziel.gateway.proxy;
 
 import dev.jahaziel.gateway.auth.GatewaySession;
+import dev.jahaziel.gateway.auth.GatewayTokens;
 import dev.jahaziel.gateway.auth.JwtRejectedException;
 import dev.jahaziel.gateway.auth.JwtVerifier;
 import dev.jahaziel.gateway.routing.HostParser;
@@ -152,10 +153,7 @@ public final class GatewayServer {
   }
 
   private GatewaySession authenticate(RequestHead head) throws HttpFailure {
-    String token = bearer(head);
-    if (token == null) {
-      token = queryToken(head);
-    }
+    String token = GatewayTokens.firstToken(head.headers(), head.target());
     if (token == null) {
       throw new HttpFailure(401, "missing session token");
     }
@@ -178,29 +176,6 @@ public final class GatewayServer {
     }
   }
 
-  private static String bearer(RequestHead head) {
-    String authorization = head.headers().get("authorization");
-    if (authorization != null && authorization.startsWith("Bearer ")) {
-      return authorization.substring("Bearer ".length()).trim();
-    }
-    return null;
-  }
-
-  private static String queryToken(RequestHead head) {
-    String target = head.target();
-    int query = target.indexOf('?');
-    if (query < 0) {
-      return null;
-    }
-    for (String pair : target.substring(query + 1).split("&")) {
-      int equals = pair.indexOf('=');
-      if (equals > 0 && pair.substring(0, equals).equals("token")) {
-        return pair.substring(equals + 1);
-      }
-    }
-    return null;
-  }
-
   private static void forwardRequest(RequestHead head, InputStream in, Socket upstream)
       throws IOException {
     OutputStream out = upstream.getOutputStream();
@@ -218,7 +193,7 @@ public final class GatewayServer {
     out.flush();
   }
 
-  private static void relay(InputStream in, OutputStream out) throws IOException {
+  static void relay(InputStream in, OutputStream out) throws IOException {
     byte[] buffer = new byte[32768];
     int read;
     while ((read = in.read(buffer)) >= 0) {

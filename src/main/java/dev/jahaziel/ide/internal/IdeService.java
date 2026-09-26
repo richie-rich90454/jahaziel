@@ -91,7 +91,7 @@ public final class IdeService {
       int exit =
           new ProcessBuilder(
                   "tar",
-                  "--use-compress-program=zstd",
+                  "--use-compress-program=zstd -d",
                   "-xf",
                   tarball.toString(),
                   "-C",

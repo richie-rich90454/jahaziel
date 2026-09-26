@@ -6,6 +6,7 @@ package dev.jahaziel.dist;
 
 import dev.jahaziel.gateway.auth.JwtKeys;
 import dev.jahaziel.gateway.auth.JwtVerifier;
+import dev.jahaziel.gateway.proxy.GatewayRelayFilter;
 import dev.jahaziel.gateway.proxy.GatewayServer;
 import dev.jahaziel.gateway.proxy.LoopbackTargetResolver;
 import dev.jahaziel.gateway.routing.HostParser;
@@ -22,10 +23,12 @@ import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
 
 /**
  * Portable single-process wiring. Active only when the fat jar sets {@code
@@ -101,6 +104,45 @@ public class DistConfig {
   @Bean
   public WorkspaceDirectory distRouteRegistry() {
     return new WorkspaceDirectory();
+  }
+
+  /**
+   * Relays workspace traffic on the application port, so browsers use a single origin. Runs before
+   * Spring Security: workspace hosts are authenticated by session token here and never reach the
+   * API chain; every other host passes through untouched.
+   *
+   * @param domain the public domain
+   * @param publicKeyFile the session public key
+   * @param issuer the token issuer
+   * @param jwtTtlSeconds the control plane token lifetime, the gateway's acceptance ceiling
+   * @param routeRegistry the shared routing table
+   * @param sessions the session minter, for cookie refresh
+   * @return the registration
+   */
+  @Bean
+  public FilterRegistrationBean<GatewayRelayFilter> gatewayRelayFilter(
+      @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
+      @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
+      @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
+      @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,
+      WorkspaceDirectory distRouteRegistry,
+      dev.jahaziel.identity.api.JwtService sessions) {
+    RSAPublicKey key = JwtKeys.loadPublicKey(Path.of(publicKeyFile));
+    GatewayRelayFilter filter =
+        new GatewayRelayFilter(
+            new HostParser(domain),
+            new JwtVerifier(
+                key,
+                issuer,
+                "jahaziel-code-server",
+                java.time.Duration.ofSeconds(jwtTtlSeconds + 60)),
+            distRouteRegistry,
+            new LoopbackTargetResolver(),
+            sessions,
+            java.time.Duration.ofSeconds(jwtTtlSeconds));
+    FilterRegistrationBean<GatewayRelayFilter> registration = new FilterRegistrationBean<>(filter);
+    registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    return registration;
   }
 
   /**
