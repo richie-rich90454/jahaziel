@@ -10,18 +10,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jahaziel</title>
+<meta name="theme-color" content="#1e40af">
+<meta name="description" content="Jahaziel workbench: workspaces, ports, and browser IDE sessions.">
+<title>Jahaziel workbench</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<header>
+<header class="topbar">
+<div class="brand">
+<img class="brand-mark" src="/icons/favicon-32.png" alt="" width="32" height="32">
+<div>
 <h1>Jahaziel workbench</h1>
+<p class="live"><span id="live-dot" class="live-dot" aria-hidden="true"></span><span id="updated">Connecting…</span></p>
+</div>
+</div>
 <p id="user">Not logged in. <a href="/api/login">Log in</a>.</p>
 </header>
 <main>
+<div id="toasts" class="toasts" aria-live="polite"></div>
 <section>
+<div class="section-head">
 <h2>Workspaces</h2>
-<button id="create" type="button">New workspace</button>
+<form id="create-form" class="create-form">
+<label class="visually-hidden" for="new-name">Workspace name</label>
+<input id="new-name" name="name" type="text" placeholder="Workspace name" autocomplete="off" maxlength="64">
+<button id="create" type="submit" class="btn btn-primary">New workspace</button>
+</form>
+</div>
 <ul id="workspaces"></ul>
 </section>
 </main>

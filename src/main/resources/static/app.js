@@ -2,15 +2,293 @@
  * Copyright 2026 The Jahaziel Authors
  * SPDX-License-Identifier: Apache-2.0
  */
+"use strict";
+
+const POLL_MS = 3000;
+const TICK_MS = 1000;
+const STAGES = ["requested", "preparing", "booting", "ready"];
+const TRANSITIONAL = new Set(["preparing", "booting"]);
+
 async function api(path, options) {
-  const response = await fetch(path, options);
-  if (!response.ok) {
-    throw new Error(response.status + " " + path);
+  let response;
+  try {
+    response = await fetch(path, options);
+  } catch (failure) {
+    throw new Error("Network unreachable: " + failure.message);
   }
   if (response.status === 204) {
     return null;
   }
-  return response.json();
+  let body = null;
+  try {
+    body = await response.json();
+  } catch (ignored) {
+    /* non-JSON error body */
+  }
+  if (!response.ok) {
+    const detail =
+      body && body.message && body.message !== "Unexpected error"
+        ? body.message
+        : "Request failed";
+    const code = body && body.code ? body.code + ": " : "";
+    throw new Error(response.status + " " + code + detail);
+  }
+  return body;
+}
+
+function toast(message, kind) {
+  const region = document.getElementById("toasts");
+  const note = document.createElement("div");
+  note.className = "toast" + (kind === "error" ? " toast-error" : "");
+  note.setAttribute("role", kind === "error" ? "alert" : "status");
+  const text = document.createElement("span");
+  text.textContent = message;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "Dismiss");
+  close.textContent = "×";
+  close.addEventListener("click", () => note.remove());
+  note.append(text, close);
+  region.append(note);
+  window.setTimeout(() => note.remove(), 8000);
+}
+
+function elapsedSince(iso) {
+  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+  if (seconds < 60) {
+    return seconds + "s";
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return minutes + "m " + (seconds % 60) + "s";
+  }
+  return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m";
+}
+
+function stateBadge(state) {
+  const badge = document.createElement("span");
+  badge.className = "badge badge-" + state;
+  badge.textContent = state;
+  return badge;
+}
+
+function stepper(state) {
+  const steps = document.createElement("ol");
+  steps.className = "stepper";
+  steps.setAttribute("aria-label", "Boot progress");
+  const reached = STAGES.indexOf(state);
+  const terminal = reached < 0 && state !== "active" && state !== "idle";
+  STAGES.forEach((stage, index) => {
+    const step = document.createElement("li");
+    const current = !terminal && index === reached;
+    const complete =
+      !terminal && (reached < 0 || index < reached || state === "active" || state === "idle");
+    step.className = "step" + (current ? " step-current" : "") + (complete ? " step-done" : "");
+    step.setAttribute("aria-current", current ? "step" : "false");
+    const dot = document.createElement("span");
+    dot.className = "step-dot";
+    dot.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "step-label";
+    label.textContent = stage;
+    step.append(dot, label);
+    steps.append(step);
+  });
+  return steps;
+}
+
+function loadingBar(label) {
+  const wrap = document.createElement("div");
+  wrap.className = "loading";
+  wrap.setAttribute("role", "progressbar");
+  wrap.setAttribute("aria-label", label);
+  const bar = document.createElement("div");
+  bar.className = "loading-bar";
+  bar.setAttribute("aria-hidden", "true");
+  wrap.append(bar);
+  return wrap;
+}
+
+function actionButton(label, kind, handler, disabled) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn" + (kind ? " btn-" + kind : "");
+  button.textContent = label;
+  button.disabled = !!disabled;
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await handler();
+      await render();
+    } catch (failure) {
+      toast(failure.message, "error");
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+
+async function postStart(id) {
+  await api("/api/v1/workspaces/" + id + "/start", { method: "POST" });
+  toast("Start requested — watching boot progress.");
+}
+
+async function postStop(id) {
+  await api("/api/v1/workspaces/" + id + "/stop", { method: "POST" });
+}
+
+async function postRestart(id) {
+  await api("/api/v1/workspaces/" + id + "/restart", { method: "POST" });
+  toast("Restart requested — watching boot progress.");
+}
+
+async function deleteWorkspace(id, name) {
+  if (!window.confirm('Delete workspace "' + name + '"? Home files are kept.')) {
+    return;
+  }
+  await api("/api/v1/workspaces/" + id + "?confirm=true", { method: "DELETE" });
+}
+
+function renderPorts(item, workspace) {
+  const ports = workspace.ports || [];
+  if (ports.length === 0) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent =
+      workspace.state === "ready" || workspace.state === "active"
+        ? "IDE is starting — its link appears here when the port registers."
+        : "No ports registered. Start the workspace to open it in the browser.";
+    item.append(hint);
+    return;
+  }
+  const first = ports.find((entry) => entry.url);
+  if (first) {
+    const open = document.createElement("a");
+    open.className = "btn btn-primary";
+    open.href = first.url;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.textContent = "Open IDE";
+    item.append(open);
+  }
+  const list = document.createElement("ul");
+  list.className = "ports";
+  for (const entry of ports) {
+    const row = document.createElement("li");
+    if (entry.url) {
+      const link = document.createElement("a");
+      link.href = entry.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = ":" + entry.port;
+      row.append(link);
+    } else {
+      row.textContent = ":" + entry.port + " (no URL)";
+    }
+    list.append(row);
+  }
+  item.append(list);
+}
+
+function renderActions(item, workspace) {
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const id = workspace.workspaceId;
+  const state = workspace.state;
+  if (state === "requested") {
+    actions.append(actionButton("Start", "primary", () => postStart(id)));
+  } else if (TRANSITIONAL.has(state)) {
+    const starting = document.createElement("button");
+    starting.type = "button";
+    starting.className = "btn btn-primary";
+    starting.disabled = true;
+    const spinner = document.createElement("span");
+    spinner.className = "spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    starting.append(spinner, document.createTextNode("Starting…"));
+    actions.append(starting);
+    actions.append(actionButton("Cancel", null, () => postStop(id)));
+  } else if (state === "ready" || state === "active" || state === "idle") {
+    actions.append(actionButton("Stop", null, () => postStop(id)));
+    actions.append(actionButton("Restart", null, () => postRestart(id)));
+  } else if (state === "suspended" || state === "failed") {
+    actions.append(actionButton("Restart", "primary", () => postRestart(id)));
+  }
+  actions.append(
+    actionButton("Delete", "danger", () => deleteWorkspace(id, workspace.name))
+  );
+  if (actions.hasChildNodes()) {
+    item.append(actions);
+  }
+}
+
+function renderCard(workspace) {
+  const item = document.createElement("li");
+  item.className = "card";
+  const head = document.createElement("div");
+  head.className = "card-head";
+  const title = document.createElement("strong");
+  title.className = "card-title";
+  title.textContent = workspace.name;
+  head.append(title, stateBadge(workspace.state));
+  item.append(head);
+
+  item.append(stepper(workspace.state));
+
+  if (TRANSITIONAL.has(workspace.state)) {
+    item.append(loadingBar("Workspace " + workspace.state));
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    const label = document.createTextNode("In " + workspace.state + " for ");
+    const elapsed = document.createElement("span");
+    elapsed.dataset.elapsed = workspace.lastActivityAt;
+    elapsed.textContent = elapsedSince(workspace.lastActivityAt);
+    meta.append(label, elapsed);
+    if (workspace.state === "booting") {
+      const note = document.createElement("span");
+      note.className = "meta-note";
+      note.textContent = " — first boot extracts the IDE runtime, allow a minute.";
+      meta.append(note);
+    }
+    item.append(meta);
+  }
+
+  renderPorts(item, workspace);
+  renderActions(item, workspace);
+  return item;
+}
+
+async function render() {
+  const list = document.getElementById("workspaces");
+  const workspaces = await api("/api/v1/me/workspaces");
+  list.replaceChildren();
+  if (workspaces.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = "No workspaces yet — create one to get started.";
+    list.append(empty);
+  }
+  let dot = document.getElementById("live-dot");
+  for (const workspace of workspaces) {
+    list.append(renderCard(workspace));
+  }
+  dot.classList.toggle("live-on", true);
+  document.getElementById("updated").dataset.stamp = new Date().toISOString();
+}
+
+function tickElapsed() {
+  const now = Date.now();
+  document.querySelectorAll("[data-elapsed]").forEach((node) => {
+    const millis = now - Date.parse(node.dataset.elapsed);
+    const seconds = Math.max(0, Math.floor(millis / 1000));
+    node.textContent = seconds < 60 ? seconds + "s" : Math.floor(seconds / 60) + "m " + (seconds % 60) + "s";
+  });
+  const updated = document.getElementById("updated");
+  if (updated.dataset.stamp) {
+    const seconds = Math.max(0, Math.floor((now - Date.parse(updated.dataset.stamp)) / 1000));
+    updated.textContent = "Updated " + seconds + "s ago";
+  }
 }
 
 async function main() {
@@ -20,54 +298,11 @@ async function main() {
     return;
   }
   document.getElementById("user").textContent = user.displayName + " <" + user.email + ">";
-  const list = document.getElementById("workspaces");
-  const render = async () => {
-    list.replaceChildren();
-    const workspaces = await api("/api/v1/me/workspaces");
-    for (const workspace of workspaces) {
-      const item = document.createElement("li");
-      const title = document.createElement("strong");
-      title.textContent = workspace.name + " (" + workspace.state + ")";
-      item.append(title);
-
-      if (workspace.ports.length === 0) {
-        const hint = document.createElement("p");
-        hint.textContent = "No ports registered. Register one to open it in the browser.";
-        item.append(hint);
-      }
-      for (const entry of workspace.ports) {
-        const link = document.createElement("a");
-        link.href = entry.url;
-        const label = ":" + entry.port;
-        link.textContent = label;
-        link.target = "_blank";
-        item.append(" ", link);
-      }
-
-      const start = document.createElement("button");
-      start.type = "button";
-      start.textContent = "Start";
-      start.addEventListener("click", async () => {
-        await api("/api/v1/workspaces/" + workspace.workspaceId + "/start", { method: "POST" });
-        await render();
-      });
-
-      const del = document.createElement("button");
-      del.type = "button";
-      del.textContent = "Delete";
-      del.addEventListener("click", async () => {
-        await api("/api/v1/workspaces/" + workspace.workspaceId + "?confirm=true", {
-          method: "DELETE",
-        });
-        await render();
-      });
-      item.append(" ", start, " ", del);
-      list.append(item);
-    }
-  };
-  document.getElementById("create").addEventListener("click", async () => {
-    const name = window.prompt("Workspace name:");
-    if (name === null || name === "") {
+  const create = async () => {
+    const input = document.getElementById("new-name");
+    const name = input.value.trim();
+    if (name === "") {
+      toast("Give the workspace a name first.", "error");
       return;
     }
     await api("/api/v1/workspaces", {
@@ -75,13 +310,38 @@ async function main() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name }),
     });
+    input.value = "";
     await render();
+  };
+  document.getElementById("create-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await create();
+    } catch (failure) {
+      toast(failure.message, "error");
+    }
   });
-  await render();
+  const loop = async () => {
+    try {
+      await render();
+    } catch (failure) {
+      toast(failure.message, "error");
+    }
+  };
+  await loop();
+  window.setInterval(() => {
+    if (!document.hidden) {
+      loop();
+    }
+  }, POLL_MS);
+  window.setInterval(tickElapsed, TICK_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      loop();
+    }
+  });
 }
 
 main().catch((failure) => {
-  const banner = document.createElement("p");
-  banner.textContent = "Failed to load: " + failure.message;
-  document.body.prepend(banner);
+  toast("Failed to load: " + failure.message, "error");
 });
