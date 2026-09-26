@@ -379,6 +379,56 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
   </build>
 
   <profiles>
+    <!--
+      Distributable fat jar: bundles the REH tarball built by ide/build.sh into
+      the jar, so `init` can stage it and any directory becomes runnable with no
+      extra downloads. Fails closed when the tarball is absent; unit runs stay
+      slim and fast without this profile.
+    -->
+    <profile>
+      <id>bundled-ide</id>
+      <build>
+        <resources>
+          <resource>
+            <directory>ide/out</directory>
+            <targetPath>ide</targetPath>
+            <includes>
+              <include>jahaziel-code-server-*.tar.zst</include>
+              <include>jahaziel-code-server-*.tar.zst.sha256</include>
+            </includes>
+          </resource>
+        </resources>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+              <execution>
+                <id>require-ide-tarball</id>
+                <phase>validate</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <fail message="bundled-ide needs ide/out/jahaziel-code-server-SLUG.tar.zst: run sh ide/build.sh first">
+                      <condition>
+                        <resourcecount count="0" when="equal">
+                          <fileset
+                            dir="ide/out"
+                            includes="jahaziel-code-server-*.tar.zst" />
+                        </resourcecount>
+                      </condition>
+                    </fail>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>smoke</id>
       <properties>

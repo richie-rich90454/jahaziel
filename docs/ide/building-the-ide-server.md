@@ -68,3 +68,16 @@ The first boot extracts the tarball to `data/ide/<slug>/` and writes a
   `WindowsApps` on `PATH`.
 - `doctor` expects the `win32` variant, because the local backend runs
   the IDE on the same host.
+
+## Distributable fat jar
+
+`mvn package -Pbundled-ide` embeds `ide/out/jahaziel-code-server-*.tar.zst`
+(plus its `.sha256`) into the jar, so `init` stages it into `data/ide/`
+and any directory becomes runnable with no extra download: drop the jar,
+`init`, fill `.env`, `doctor`, serve. The profile fails closed when the
+tarball is absent — run `sh ide/build.sh` first. Unit runs stay slim:
+without the profile nothing is bundled and no test slows down.
+
+Always build distributables with `clean`. IDE background compilers write
+class files into `target/` that incremental Maven builds can repackage
+unchecked; a stale class once shipped an unbootable jar.

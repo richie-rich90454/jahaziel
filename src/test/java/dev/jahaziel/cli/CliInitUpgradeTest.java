@@ -9,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.cli.CliTestSupport.Output;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -59,6 +61,57 @@ class CliInitUpgradeTest {
     assertTrue(!Files.exists(jar.resolve("data").resolve("keys").resolve("jwt.key")));
     assertTrue(output.out().contains("jahaziel: wrote " + env));
     assertTrue(output.out().contains("run `doctor`"));
+  }
+
+  @Test
+  void stageBundledRehSkipsWithoutRuntime() throws Exception {
+    // Slim dev jars carry no runtime; profile builds do (and prove staging by hand).
+    org.junit.jupiter.api.Assumptions.assumeFalse(bundledRuntimePresent());
+    Path ide = jar.resolve("no-bundle-ide");
+    assertTrue(Cli.stageBundledReh(ide) == null);
+    assertTrue(!Files.exists(ide));
+  }
+
+  private static boolean bundledRuntimePresent() {
+    String name = "jahaziel-code-server-" + Cli.rehSlug() + ".tar.zst";
+    return Cli.class.getResource("/ide/" + name) != null;
+  }
+
+  @Test
+  void copyStagedCopiesBothFilesOnce() throws Exception {
+    Path ide = Files.createDirectory(jar.resolve("copy-ide"));
+    byte[] archive = "archive-bytes".getBytes(StandardCharsets.UTF_8);
+    byte[] checksum = "checksum-bytes".getBytes(StandardCharsets.UTF_8);
+    Path tarball =
+        Cli.copyStaged(
+            ide,
+            "jahaziel-code-server-test.tar.zst",
+            new ByteArrayInputStream(archive),
+            new ByteArrayInputStream(checksum));
+    assertEquals(ide.resolve("jahaziel-code-server-test.tar.zst"), tarball);
+    assertTrue(java.util.Arrays.equals(
+        archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
+    assertTrue(java.util.Arrays.equals(
+        checksum, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst.sha256"))));
+    Path again =
+        Cli.copyStaged(
+            ide,
+            "jahaziel-code-server-test.tar.zst",
+            new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8)),
+            new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8)));
+    assertEquals(tarball, again);
+    assertTrue(java.util.Arrays.equals(
+        archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
+  }
+
+  @Test
+  void copyStagedRequiresBothStreams() throws Exception {
+    Path ide = Files.createDirectory(jar.resolve("copy-partial-ide"));
+    InputStream present = new ByteArrayInputStream("x".getBytes(StandardCharsets.UTF_8));
+    assertTrue(Cli.copyStaged(ide, "a.tar.zst", null, present) == null);
+    assertTrue(Cli.copyStaged(ide, "a.tar.zst", present, null) == null);
+    assertTrue(Cli.copyStaged(ide, "a.tar.zst", null, null) == null);
+    assertTrue(!Files.exists(ide.resolve("a.tar.zst")));
   }
 
   @Test
