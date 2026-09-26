@@ -18,7 +18,10 @@ import dev.jahaziel.terminal.api.TerminalNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,6 +35,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
   /** Maps missing workspaces to 404. */
   @ExceptionHandler(WorkspaceNotFoundException.class)
   @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -109,7 +114,10 @@ public class ApiExceptionHandler {
   @ExceptionHandler(NoResourceFoundException.class)
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public ApiError noResource(NoResourceFoundException failure) {
-    return error("NOT_FOUND", "No such endpoint");
+    String path = Objects.requireNonNullElse(failure.getResourcePath(), "");
+    log.warn("no route for {} {}", failure.getHttpMethod(), path);
+    return new ApiError(
+        "NOT_FOUND", "No such endpoint", UUID.randomUUID().toString(), Map.of("path", path));
   }
 
   /** Maps bean validation failures to 400. */

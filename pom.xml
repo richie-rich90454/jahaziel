@@ -331,6 +331,8 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <!-- REH build outputs (packaging dir, tarballs, checksums). -->
                 <exclude>ide/out/**</exclude>
                 <exclude>ide/vscode-reh-web-*/**</exclude>
+                <!-- Local run scratch (jar copy, real .env, extracted IDE). -->
+                <exclude>testing/**</exclude>
                 <exclude>ide/extensions-builtin/list.txt</exclude>
                 <exclude>ide/tests/no-network-test/blocklist.txt</exclude>
                 <!-- Generated docs site and vendored frontend deps. -->

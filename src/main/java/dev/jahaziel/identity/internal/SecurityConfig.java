@@ -81,6 +81,10 @@ public class SecurityConfig {
                         "/index.html",
                         "/styles.css",
                         "/app.js",
+                        "/favicon.ico",
+                        "/favicon.svg",
+                        "/icons/**",
+                        "/site.webmanifest",
                         "/_admin",
                         "/_admin/diagnostics")
                     .permitAll();
