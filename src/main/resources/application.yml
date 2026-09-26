@@ -5,6 +5,13 @@ server:
 spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
+  jpa:
+    # Each repository call runs in its own short transaction and releases the
+    # single SQLite connection immediately. Leaving this on (the default) pins
+    # the connection for the whole HTTP request, so one long call (first boot
+    # extracts a 108MB IDE and waits for its port) starves every other request
+    # into 30s pool-timeout 500s.
+    open-in-view: false
 
 jahaziel:
   data-dir: data

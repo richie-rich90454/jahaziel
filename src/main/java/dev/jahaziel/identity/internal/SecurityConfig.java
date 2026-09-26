@@ -73,6 +73,11 @@ public class SecurityConfig {
                   .requestMatchers("/actuator/health", "/error")
                   .permitAll()
                   .requestMatchers("/api/login", "/api/oauth/callback", "/api/oauth2/bcallback")
+                  .permitAll()
+                  // Public brand assets: browsers fetch these cookieless (manifest,
+                  // favicon, PWA icons), so gating them behind auth only produces
+                  // console 401s. They carry no secrets.
+                  .requestMatchers("/favicon.ico", "/favicon.svg", "/icons/**", "/site.webmanifest")
                   .permitAll();
               if (demo) {
                 exchanges
@@ -81,10 +86,6 @@ public class SecurityConfig {
                         "/index.html",
                         "/styles.css",
                         "/app.js",
-                        "/favicon.ico",
-                        "/favicon.svg",
-                        "/icons/**",
-                        "/site.webmanifest",
                         "/_admin",
                         "/_admin/diagnostics")
                     .permitAll();
