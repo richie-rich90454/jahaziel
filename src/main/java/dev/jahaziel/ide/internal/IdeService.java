@@ -63,7 +63,10 @@ public final class IdeService {
       @Value("${jahaziel.ide.dir:data/ide}") String ideDir,
       @Value("${jahaziel.ide.version:1.137.0}") String version,
       @Value("${jahaziel.reh:}") String configuredVariant) {
-    this.ideDir = Path.of(Objects.requireNonNull(ideDir, "ideDir"));
+    // Absolute: the IDE child process runs with the workspace home as its working directory,
+    // so every path handed to it (node binary, server-main.js) must not depend on the JVM's own
+    // working directory. Relative config still works: it resolves against the launch directory.
+    this.ideDir = Path.of(Objects.requireNonNull(ideDir, "ideDir")).toAbsolutePath().normalize();
     this.version = Objects.requireNonNull(version, "version");
     this.configuredVariant = configuredVariant;
   }

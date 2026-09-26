@@ -97,4 +97,18 @@ class IdeExtraCoverageTest {
     assertThrows(NullPointerException.class, () -> new IdeService(null, "v", ""));
     assertThrows(NullPointerException.class, () -> new IdeService("d", null, ""));
   }
+
+  @Test
+  void ensureExtractedResolvesRelativeIdeDirAbsolutely() throws Exception {
+    // The IDE child runs with the workspace home as its cwd, so a relative ide dir must come
+    // back absolute or node resolves server-main.js against the wrong directory.
+    Path rel = Path.of("target/ide-rel-test");
+    Path target = rel.resolve("linux-x64");
+    Files.createDirectories(target);
+    Files.write(target.resolve(".extracted-1.0-linux-x64"), new byte[0]);
+    IdeService svc = new IdeService(rel.toString(), "1.0", "linux-x64");
+    Path extracted = svc.ensureExtracted();
+    assertTrue(extracted.isAbsolute());
+    assertEquals(target.toAbsolutePath().normalize(), extracted);
+  }
 }
