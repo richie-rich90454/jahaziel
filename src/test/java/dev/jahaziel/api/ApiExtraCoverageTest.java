@@ -141,7 +141,18 @@ class ApiExtraCoverageTest {
     assertEquals("VALIDATION_FAILED", h.badInput(new IllegalArgumentException("bad")).code());
     assertEquals(
         "NOT_FOUND",
-        h.noResource(new NoResourceFoundException(HttpMethod.GET, "/missing", "gone")).code());
+        h.noResource(new NoResourceFoundException(HttpMethod.GET, "/missing", "gone"), null)
+            .code());
+    jakarta.servlet.http.HttpServletRequest request =
+        mock(jakarta.servlet.http.HttpServletRequest.class);
+    when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+    when(request.getHeader("Host")).thenReturn("localhost:11451");
+    when(request.getHeader("User-Agent")).thenReturn("test-agent");
+    assertEquals(
+        "gone",
+        h.noResource(new NoResourceFoundException(HttpMethod.GET, "/missing", "gone"), request)
+            .details()
+            .get("path"));
     assertEquals(
         "VALIDATION_FAILED",
         h.invalidBody(mock(org.springframework.web.bind.MethodArgumentNotValidException.class))

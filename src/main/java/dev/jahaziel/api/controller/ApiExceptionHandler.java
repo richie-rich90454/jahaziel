@@ -17,6 +17,7 @@ import dev.jahaziel.snapshot.api.SnapshotNotFoundException;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -113,9 +114,18 @@ public class ApiExceptionHandler {
   /** Maps an unknown path to 404, not 500: nothing is broken, the route does not exist. */
   @ExceptionHandler(NoResourceFoundException.class)
   @ResponseStatus(HttpStatus.NOT_FOUND)
-  public ApiError noResource(NoResourceFoundException failure) {
+  public ApiError noResource(NoResourceFoundException failure, HttpServletRequest request) {
     String path = Objects.requireNonNullElse(failure.getResourcePath(), "");
-    log.warn("no route for {} {}", failure.getHttpMethod(), path);
+    String remote = request == null ? "-" : request.getRemoteAddr();
+    String host = request == null ? "-" : String.valueOf(request.getHeader("Host"));
+    String agent = request == null ? "-" : String.valueOf(request.getHeader("User-Agent"));
+    log.warn(
+        "no route for {} {} from {} host={} agent={}",
+        failure.getHttpMethod(),
+        path,
+        remote,
+        host,
+        agent);
     return new ApiError(
         "NOT_FOUND", "No such endpoint", UUID.randomUUID().toString(), Map.of("path", path));
   }
