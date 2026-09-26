@@ -89,10 +89,12 @@ class CliInitUpgradeTest {
             new ByteArrayInputStream(archive),
             new ByteArrayInputStream(checksum));
     assertEquals(ide.resolve("jahaziel-code-server-test.tar.zst"), tarball);
-    assertTrue(java.util.Arrays.equals(
-        archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
-    assertTrue(java.util.Arrays.equals(
-        checksum, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst.sha256"))));
+    assertTrue(
+        java.util.Arrays.equals(
+            archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
+    assertTrue(
+        java.util.Arrays.equals(
+            checksum, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst.sha256"))));
     Path again =
         Cli.copyStaged(
             ide,
@@ -100,8 +102,9 @@ class CliInitUpgradeTest {
             new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8)),
             new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8)));
     assertEquals(tarball, again);
-    assertTrue(java.util.Arrays.equals(
-        archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
+    assertTrue(
+        java.util.Arrays.equals(
+            archive, Files.readAllBytes(ide.resolve("jahaziel-code-server-test.tar.zst"))));
   }
 
   @Test

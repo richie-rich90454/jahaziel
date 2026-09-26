@@ -189,8 +189,8 @@ public final class Cli {
   }
 
   /**
-   * Stages the REH tarball bundled in the jar into the data dir, so a fresh directory is
-   * runnable with no extra download. Slim jars carry no runtime and this is a no-op.
+   * Stages the REH tarball bundled in the jar into the data dir, so a fresh directory is runnable
+   * with no extra download. Slim jars carry no runtime and this is a no-op.
    *
    * @param ideDir the data {@code ide} directory
    * @return the staged tarball, or null when this jar bundles no runtime
