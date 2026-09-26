@@ -19,7 +19,7 @@
 // Usage: node ide/scripts/native-build.mjs [upstream-dir]
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 const upstream = resolve(process.argv[2] ?? 'ide/upstream')
@@ -170,18 +170,28 @@ for (const dir of buildable) {
     ]
     let built = spawnSync(msbuild, baseArgs, { cwd: dir, encoding: 'utf8', env })
     // A few vendored parsers (tree-sitter) require C++20 while node-gyp defaults to an
-    // older standard, and V8's headers hard-error on it. Retry those with the newer
-    // standard instead of patching every binding.gyp.
+    // older standard, and V8's headers hard-error on it. The generated project pins
+    // `/std:c++17` in AdditionalOptions, which beats both the LanguageStandard property
+    // and the CL environment (both lose to an explicit command-line flag), so rewrite
+    // the pin in the generated project itself and rebuild. This edits node-gyp output,
+    // not sources, exactly like /p:SpectreMitigation=false does.
     if (built.status !== 0 && /C\+\+20 or later required/.test((built.stdout || '') + (built.stderr || ''))) {
-      // tree-sitter's project carries both "-std:c++20" and a later "/std:c++17", so the
-      // older standard wins. CL is appended after AdditionalOptions by cl.exe, which makes
-      // it the only reliable place to force the newer standard; override the project
-      // property as well for projects that set one.
-      built = spawnSync(msbuild, [...baseArgs, '/p:LanguageStandard=stdcpp20'], {
-        cwd: dir,
-        encoding: 'utf8',
-        env: { ...env, CL: `/std:c++20 ${env.CL ?? ''}`.trim() },
-      })
+      // The first attempt leaves half-compiled objects behind, and the incremental
+      // linker refuses to mix them with the rebuilt ones (LNK1103), so start over
+      // from a clean configure before rebuilding with the raised standard.
+      rmSync(buildDir, { recursive: true, force: true })
+      const reconfigured = nodeGyp(['configure'], dir)
+      if (reconfigured.status === 0) {
+        for (const project of projects) {
+          const projectFile = join(buildDir, project)
+          const text = readFileSync(projectFile, 'utf8')
+          if (text.includes('/std:c++17')) {
+            writeFileSync(projectFile, text.replaceAll('/std:c++17', '/std:c++20'))
+            console.log(`  note ${name}: raised pinned C++ standard to C++20 in ${project}`)
+          }
+        }
+        built = spawnSync(msbuild, baseArgs, { cwd: dir, encoding: 'utf8', env })
+      }
     }
     if (built.status !== 0) {
       ok = false

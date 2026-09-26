@@ -120,5 +120,35 @@ fi
 check_present src/vs/code/browser/workbench/workbench.html 'Jahaziel tablet hardening' 0014-script
 check_present src/vs/code/browser/workbench/workbench.html 'jahaziel-touch' 0014-style
 
+# 0015 REH build without identifier mangling (upstream mangle breaks at 1.137.0)
+check_present build/gulpfile.reh.ts 'compileBuildWithoutManglingTask' 0015-no-mangle
+
+# 0016 stripped non-critical extensions (Tier 1: copilot, media-preview, simple-browser)
+if [ -d "$UPSTREAM/extensions/copilot" ]; then
+  fail "0016 copilot still present"
+else
+  pass
+fi
+if [ -d "$UPSTREAM/extensions/media-preview" ]; then
+  fail "0016 media-preview still present"
+else
+  pass
+fi
+if [ -d "$UPSTREAM/extensions/simple-browser" ]; then
+  fail "0016 simple-browser still present"
+else
+  pass
+fi
+check_absent build/lib/extensions.ts 'simple-browser/esbuild' 0016-no-simple-esbuild
+check_present build/gulpfile.reh.ts 'ships no AI features' 0016-no-shim
+
+# 0017 stripped auth extensions (also asserted by the 0009 dir checks above)
+check_absent build/gulpfile.extensions.ts 'github-authentication/tsconfig' 0017-no-auth-compilations
+check_absent build/npm/dirs.ts 'microsoft-authentication' 0017-no-auth-dirs
+
+# 0018 minify-safe regex escapes (upstream literals trip esbuild's non-ASCII check)
+check_present src/vs/workbench/contrib/chat/browser/chatGoalSummaryService.ts 'u2014' 0018-em-dash-escape
+check_present src/vs/workbench/contrib/terminalContrib/chatAgentTools/browser/tools/monitoring/outputMonitor.ts 'u203a' 0018-chevron-escapes
+
 echo "patch smoke: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

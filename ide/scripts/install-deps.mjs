@@ -42,7 +42,12 @@ for (const dir of wanted) {
   if (!existsSync(join(path, 'package.json'))) {
     continue
   }
-  if (existsSync(join(path, 'node_modules'))) {
+  // A present node_modules is not enough: an earlier failed install (upstream's
+  // postinstall dying on the first native module, for example) leaves a partial
+  // tree behind that silently breaks the build much later. npm records every
+  // successful install in node_modules/.package-lock.json, so only a tree with
+  // that marker counts as installed.
+  if (existsSync(join(path, 'node_modules', '.package-lock.json'))) {
     skipped++
     continue
   }

@@ -1,0 +1,28 @@
+diff --git a/src/vs/workbench/contrib/chat/browser/chatGoalSummaryService.ts b/src/vs/workbench/contrib/chat/browser/chatGoalSummaryService.ts
+--- a/src/vs/workbench/contrib/chat/browser/chatGoalSummaryService.ts
++++ b/src/vs/workbench/contrib/chat/browser/chatGoalSummaryService.ts
+@@ -145,7 +145,9 @@
+ 	// Strip surrounding quotes and any leading "Goal:" the model may have added.
+ 	s = s.replace(/^["'`]+|["'`]+$/g, '');
+-	s = s.replace(/^\s*goal\s*[:\-—]\s*/i, '');
++	// Spell the em dash as an escape: a literal non-ASCII character here survives
++	// esbuild minification and trips the build's non-ASCII output check upstream.
++	s = s.replace(/^\s*goal\s*[:\-\u2014]\s*/i, '');
+ 	s = s.replace(/\s+/g, ' ').trim();
+ 	// The summary model occasionally declines to summarize (e.g. content
+ 	// filtering) and replies with a refusal like "Sorry, I can't assist with
+ 	// that.". That is a refusal, not a goal, so suppress the banner entirely
+diff --git a/src/vs/workbench/contrib/terminalContrib/chatAgentTools/browser/tools/monitoring/outputMonitor.ts b/src/vs/workbench/contrib/terminalContrib/chatAgentTools/browser/tools/monitoring/outputMonitor.ts
+--- a/src/vs/workbench/contrib/terminalContrib/chatAgentTools/browser/tools/monitoring/outputMonitor.ts
++++ b/src/vs/workbench/contrib/terminalContrib/chatAgentTools/browser/tools/monitoring/outputMonitor.ts
+@@ -703,7 +703,9 @@
+ 		// Examples:
+ 		//   "? Do you want to install jsdom? <chevron>"  (prompts)
+ 		//   "? Pick a color <chevron> "                  (enquirer)
+ 		// allow-any-unicode-next-line
+-		/^(?:\s|\x1b\[[0-9;]*m)*\?.*[›❯▸▶]\s*$/,
++		// Spell the chevrons as escapes: literals survive esbuild minification
++		// and trip the build's non-ASCII output check upstream.
++		/^(?:\s|\x1b\[[0-9;]*m)*\?.*[\u203a\u276f\u25b8\u25b6]\s*$/,
+ 	].some(e => e.test(cursorLine));
+ }

@@ -77,14 +77,32 @@ git -C upstream clean -qfd
 # because their sources are tens of thousands of third-party files, which would make
 # the patch enormous for no benefit.
 rm -rf upstream/extensions/copilot upstream/extensions/media-preview upstream/extensions/simple-browser
+for stripped in copilot media-preview simple-browser; do
+  if [ -e "upstream/extensions/$stripped" ]; then
+    echo "ERROR: could not remove upstream/extensions/$stripped" >&2
+    exit 1
+  fi
+done
 
 ALLOW_EMPTY="0005-remove-ai-features.patch 0006-remove-live-share.patch 0012-server-runtime-config.patch"
+
+# Git for Windows ships a system-level `* text=auto`, so the checkout holds CRLF line
+# endings while the patch files use LF. Without cr-at-eol every hunk fails on context
+# mismatch. Idempotent, and harmless on hosts whose checkouts are already LF.
+git -C upstream config core.whitespace cr-at-eol
 
 for patch in patches/*.patch; do
   name=$(basename "$patch")
   if grep -q '^diff --git' "$patch"; then
     echo "Applying $patch"
-    git -C upstream apply --3way "../$patch" || exit 1
+    # --exclude keeps `git apply --3way` from resurrecting the stripped extensions:
+    # when a pre-image blob is present, a 3-way merge recreates an rm-deleted file
+    # instead of failing, which would drag Microsoft's Copilot sources back into the tree.
+    git -C upstream apply --3way \
+      --exclude='extensions/copilot/*' \
+      --exclude='extensions/media-preview/*' \
+      --exclude='extensions/simple-browser/*' \
+      "../$patch" || exit 1
   else
     case " $ALLOW_EMPTY " in
       *" $name "*) echo "Skipping $patch: intentionally hunk-less (see patch header)" ;;
@@ -101,18 +119,21 @@ cd upstream
 # native module it hits aborts the whole thing and leaves every later directory
 # uninstalled. install-deps.mjs reads the same directory list from build/npm/dirs.ts but
 # installs with --ignore-scripts, skipping directories this fork has removed.
-node scripts/install-deps.mjs upstream
+node ../scripts/install-deps.mjs .
 # Three separate dependency trees hold native modules, and all three must be compiled.
-for tree in upstream upstream/remote upstream/build; do
+# Paths are relative to the checkout, which is the current directory here.
+for tree in . ./remote ./build; do
   [ -d "$tree/node_modules" ] || continue
-  node scripts/native-build.mjs "$tree" || exit 1
+  node ../scripts/native-build.mjs "$tree" || exit 1
 done
 npm run gulp "vscode-reh-web-$slug-min"
+cd ..
 
-# The packaging task writes to the repository root, not to upstream/out/.
+# The packaging task writes to the repository root, not to upstream/out/, so stage the
+# build under the variant slug before packing.
+mkdir -p out
 rm -rf "out/$slug"
 cp -R "$package" "out/$slug"
-mkdir -p out
 rm -f "out/$tarball" "out/$tarball.sha256"
 tar --use-compress-program="zstd -19" -cf "out/$tarball" -C out "$slug"
 rm -rf "out/$slug"

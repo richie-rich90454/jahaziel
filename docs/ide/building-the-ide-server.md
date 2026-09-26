@@ -24,7 +24,7 @@ runtime by copying two files into `data/ide/`.
 | `npm` | Ships with Node |
 | `zstd` | Required to pack the tarball |
 | `git` | Clones and patches the upstream checkout |
-| A C++ toolchain | Compiles upstream native modules; on Windows this needs Visual Studio with the **Spectre-mitigated libraries** component, otherwise `npm ci` fails with `MSB8040` |
+| A C++ toolchain | Compiles upstream native modules; on Windows this needs Visual Studio, but **not** the optional Spectre-mitigated libraries component — `ide/scripts/native-build.mjs` builds with `/p:SpectreMitigation=false`, which also fixes `MSB8040` and the missing `delayimp.lib` link error |
 
 ## What the script does
 
@@ -32,9 +32,17 @@ runtime by copying two files into `data/ide/`.
 2. Detects the host variant (`win32-x64`, `linux-x64`, `darwin-arm64`, …).
    Each host builds only its own variant: upstream compiles native
    modules per platform and cannot cross-compile them.
-3. Clones or resets `ide/upstream/` to the tag in `ide/upstream-version.txt`.
+3. Clones or resets `ide/upstream/` to the tag in `ide/upstream-version.txt`,
+   deletes the stripped extensions (`copilot`, `media-preview`,
+   `simple-browser`), and sets `core.whitespace=cr-at-eol` so LF patches
+   apply to the CRLF checkout Git for Windows produces.
 4. Applies `ide/patches/*.patch` in order, failing closed on any conflict.
-5. Installs dependencies on first run and runs
+5. Installs per-directory dependencies with `ide/scripts/install-deps.mjs`
+   (upstream's postinstall cannot be used: it runs lifecycle scripts, so the
+   first native module aborts it and leaves the rest uninstalled), compiles
+   the native modules of all three dependency trees
+   (`upstream`, `upstream/remote`, `upstream/build`) with
+   `ide/scripts/native-build.mjs`, and runs
    `npm run gulp vscode-reh-web-<slug>-min`.
 6. Packs the build as `ide/out/jahaziel-code-server-<slug>.tar.zst` plus a
    matching `.sha256` sidecar.

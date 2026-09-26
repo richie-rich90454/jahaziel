@@ -1,55 +1,3 @@
-diff --git a/src/vs/code/browser/workbench/workbench.html b/src/vs/code/browser/workbench/workbench.html
---- a/src/vs/code/browser/workbench/workbench.html
-+++ b/src/vs/code/browser/workbench/workbench.html
-@@ -28,4 +28,16 @@
- 		<link rel="manifest" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/manifest.json" crossorigin="use-credentials" />
- 		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.css">
-+		<style>
-+			body { overscroll-behavior-y: none; }
-+			.jahaziel-touch { -webkit-tap-highlight-color: transparent; }
-+			.jahaziel-touch .monaco-workbench { touch-action: manipulation; }
-+			@media (max-width: 820px) and (orientation: portrait) {
-+				.monaco-workbench .part.sidebar { max-width: 85vw; }
-+			}
-+			@media (min-width: 821px) and (orientation: landscape) and (pointer: coarse) {
-+				.monaco-workbench .part.sidebar { max-width: 40vw; }
-+			}
-+		</style>
-+		<link rel="stylesheet" href="{{WORKBENCH_WEB_BASE_URL}}/resources/server/jahaziel-branding.css">
- 
- 	</head>
-@@ -48,4 +59,31 @@
- 	<!-- attempt to load NLS messages in case non-english -->
- 	<script type="module" src="{{WORKBENCH_NLS_URL}}"></script>
- 	<script type="module" src="{{WORKBENCH_WEB_BASE_URL}}/out/vs/code/browser/workbench/workbench.js"></script>
-+	<script>
-+		// Jahaziel tablet hardening: viewport height variable, coarse-pointer
-+		// and iPadOS hooks, all feature-detected with graceful degradation.
-+		(function () {
-+			function setViewportVar() {
-+				var vh = window.innerHeight * 0.01;
-+				document.documentElement.style.setProperty('--jahaziel-vh', vh + 'px');
-+			}
-+			if (typeof window.addEventListener === 'function') {
-+				window.addEventListener('resize', setViewportVar);
-+				window.addEventListener('orientationchange', setViewportVar);
-+			}
-+			setViewportVar();
-+			try {
-+				if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-+					document.body.classList.add('jahaziel-touch');
-+				}
-+			} catch (e) { /* stay usable without matchMedia */ }
-+			try {
-+				var isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-+				if (isIPadOS) {
-+					document.body.classList.add('jahaziel-ipados');
-+				}
-+			} catch (e) { /* stay usable without navigator details */ }
-+		})();
-+	</script>
-+>>>>>>> theirs
- </html>
 diff --git a/src/vs/code/browser/workbench/workbench.ts b/src/vs/code/browser/workbench/workbench.ts
 index 647095c9..50d045e0 100644
 --- a/src/vs/code/browser/workbench/workbench.ts
@@ -74,7 +22,7 @@ index 647095c9..50d045e0 100644
  		return record;
  	}
  
-@@ -328,17 +315,6 @@ class LocalStorageURLCallbackProvider extends Disposable implements IURLCallback
+@@ -328,17 +315,12 @@ class LocalStorageURLCallbackProvider extends Disposable implements IURLCallback
  			}
  		}
  
@@ -89,6 +37,12 @@ index 647095c9..50d045e0 100644
 -			this.startListening();
 -		}
 -
++		const key = `vscode-web.url-callbacks[${id}]`;
++		localStorage.removeItem(key);
++
++		this.pendingCallbacks.add(id);
++		this.startListening();
++
  		return URI.parse(mainWindow.location.href).with({ path: this._callbackRoute, query: queryParams.join('&') });
  	}
  
