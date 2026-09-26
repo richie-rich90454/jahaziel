@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.ide.internal.IdeServerService;
+import dev.jahaziel.ide.internal.IdeServerService.BootPhase;
 import dev.jahaziel.ide.internal.RehNotInstalledException;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.PortBinding;
@@ -54,6 +56,7 @@ class RuntimeServiceImplTest {
   private WorkspaceService workspaces;
   private IdeServerService ideServers;
   private PortService ports;
+  private BootProgressService progress;
   private RuntimeService service;
   private WorkspaceId workspaceId;
 
@@ -65,9 +68,10 @@ class RuntimeServiceImplTest {
     workspaces = mock(WorkspaceService.class);
     ideServers = mock(IdeServerService.class);
     ports = mock(PortService.class);
+    progress = mock(BootProgressService.class);
     service =
         new RuntimeServiceImpl(
-            backend, workspaces, new ImageRef("base-image:2026.09"), ideServers, ports);
+            backend, workspaces, new ImageRef("base-image:2026.09"), ideServers, ports, progress);
     workspaceId = new WorkspaceId(UUID.randomUUID());
   }
 
@@ -159,7 +163,7 @@ class RuntimeServiceImplTest {
   void startFreshLaunchesIdeBindsPortAndMarksReady() throws Exception {
     Path home = Files.createDirectory(tmp.resolve("fresh-home"));
     LocalProcessBackend local = localBackend(home);
-    when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19871);
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19871);
     when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
     var workspace = realWorkspace();
     when(workspaces.get(workspaceId)).thenReturn(workspace);
@@ -169,13 +173,16 @@ class RuntimeServiceImplTest {
     assertTrue(local.isRunning(workspaceId.value()));
     verify(ports).registerPort(workspace.owner(), 19871, workspaceId, "http");
     verify(workspaces, times(3)).save(workspace);
+    verify(progress).report(workspaceId, BootPhase.PREPARING);
+    verify(progress).report(workspaceId, BootPhase.REGISTERING);
+    verify(progress).report(workspaceId, BootPhase.READY);
   }
 
   @Test
   void startHealsInterruptedBoot() throws Exception {
     Path home = Files.createDirectory(tmp.resolve("heal-home"));
     LocalProcessBackend local = localBackend(home);
-    when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19872);
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19872);
     when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
     var workspace = realWorkspace();
     workspace.prepare();
@@ -189,7 +196,7 @@ class RuntimeServiceImplTest {
     for (String drive : List.of("booting", "ready", "active")) {
       Path home = Files.createDirectory(tmp.resolve(drive + "-home"));
       LocalProcessBackend local = localBackend(home);
-      when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19873);
+      when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19873);
       when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
       var workspace = realWorkspace();
       workspace.prepare();
@@ -242,7 +249,7 @@ class RuntimeServiceImplTest {
   void startSkipsBackendRestartWhenAlreadyRunning() throws Exception {
     Path home = Files.createDirectory(tmp.resolve("rerun-home"));
     LocalProcessBackend local = localBackend(home);
-    when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19874);
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19874);
     when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
     var workspace = realWorkspace();
     when(workspaces.get(workspaceId)).thenReturn(workspace);
@@ -250,7 +257,7 @@ class RuntimeServiceImplTest {
     localService.start(workspaceId);
     var again = localService.start(workspaceId);
     assertInstanceOf(WorkspaceState.Ready.class, again.state());
-    verify(ideServers, times(2)).ensureRunning(workspaceId, home);
+    verify(ideServers, times(2)).ensureRunning(eq(workspaceId), eq(home), any());
   }
 
   @Test
@@ -260,7 +267,7 @@ class RuntimeServiceImplTest {
     var workspace = realWorkspace();
     try (var listener = new ServerSocket(0)) {
       int port = listener.getLocalPort();
-      when(ideServers.ensureRunning(workspaceId, home)).thenReturn(port);
+      when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(port);
       when(ports.bindingsByWorkspace(workspaceId))
           .thenReturn(
               List.of(
@@ -283,7 +290,7 @@ class RuntimeServiceImplTest {
     Path home = Files.createDirectory(tmp.resolve("clean-home"));
     LocalProcessBackend local = localBackend(home);
     var workspace = realWorkspace();
-    when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19875);
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19875);
     when(ports.bindingsByWorkspace(workspaceId))
         .thenReturn(
             List.of(
@@ -305,13 +312,14 @@ class RuntimeServiceImplTest {
     when(workspaces.get(workspaceId)).thenReturn(workspace);
     service.stop(workspaceId);
     verify(ideServers).stop(workspaceId);
+    verify(progress).clear(workspaceId);
   }
 
   @Test
   void resumeEnsuresIdeOnLocalBackend() throws Exception {
     Path home = Files.createDirectory(tmp.resolve("resume-home"));
     LocalProcessBackend local = localBackend(home);
-    when(ideServers.ensureRunning(workspaceId, home)).thenReturn(19877);
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any())).thenReturn(19877);
     when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
     var workspace = realWorkspace();
     workspace.prepare();
@@ -322,7 +330,7 @@ class RuntimeServiceImplTest {
     when(workspaces.get(workspaceId)).thenReturn(workspace);
     var resumed = localService(local).resume(workspaceId);
     assertInstanceOf(WorkspaceState.Active.class, resumed.state());
-    verify(ideServers).ensureRunning(workspaceId, home);
+    verify(ideServers).ensureRunning(eq(workspaceId), eq(home), any());
     verify(ports).registerPort(workspace.owner(), 19877, workspaceId, "http");
   }
 
@@ -330,7 +338,7 @@ class RuntimeServiceImplTest {
   void startDegradesWithoutInstalledReh() throws Exception {
     Path home = Files.createDirectory(tmp.resolve("no-reh-home"));
     LocalProcessBackend local = localBackend(home);
-    when(ideServers.ensureRunning(workspaceId, home))
+    when(ideServers.ensureRunning(eq(workspaceId), eq(home), any()))
         .thenThrow(new RehNotInstalledException(home.resolve("missing.tar.zst")));
     when(ports.bindingsByWorkspace(workspaceId)).thenReturn(List.of());
     var workspace = realWorkspace();
@@ -342,7 +350,7 @@ class RuntimeServiceImplTest {
 
   private RuntimeService localService(LocalProcessBackend local) {
     return new RuntimeServiceImpl(
-        local, workspaces, new ImageRef("base-image:2026.09"), ideServers, ports);
+        local, workspaces, new ImageRef("base-image:2026.09"), ideServers, ports, progress);
   }
 
   private LocalProcessBackend localBackend(Path home) throws Exception {

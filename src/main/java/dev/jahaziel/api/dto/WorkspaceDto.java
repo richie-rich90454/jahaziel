@@ -17,7 +17,9 @@ import java.util.UUID;
  * @param name the workspace name
  * @param state the lowercase lifecycle state
  * @param createdAt when the workspace was created
- * @param lastActivityAt last state change
+ * @param lastActivityAt when the workspace entered its current state
+ * @param bootPhase the live boot sub-step while starting, null otherwise
+ * @param bootPhaseAt when the current boot sub-step started, null when bootPhase is null
  * @param quota the quota view
  * @param ports the registered ports, each with its tokenized public URL
  */
@@ -27,6 +29,8 @@ public record WorkspaceDto(
     String state,
     Instant createdAt,
     Instant lastActivityAt,
+    String bootPhase,
+    Instant bootPhaseAt,
     WorkspaceQuotaDto quota,
     List<PortDto> ports) {
   /**
@@ -34,9 +38,12 @@ public record WorkspaceDto(
    *
    * @param view the view
    * @param ports the workspace's ports
+   * @param bootPhase the live boot sub-step while starting, null otherwise
+   * @param bootPhaseAt when the current boot sub-step started, null when bootPhase is null
    * @return the DTO
    */
-  public static WorkspaceDto from(WorkspaceView view, List<PortDto> ports) {
+  public static WorkspaceDto from(
+      WorkspaceView view, List<PortDto> ports, String bootPhase, Instant bootPhaseAt) {
     var workspace = view.workspace();
     var quotaDto =
         new WorkspaceQuotaDto(
@@ -47,6 +54,8 @@ public record WorkspaceDto(
         workspace.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
         view.createdAt(),
         view.lastActivityAt(),
+        bootPhase,
+        bootPhaseAt,
         quotaDto,
         List.copyOf(ports));
   }

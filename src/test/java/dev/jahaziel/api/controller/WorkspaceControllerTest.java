@@ -23,6 +23,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.api.RuntimeService;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.spi.StorageUsage;
 import dev.jahaziel.spi.UserIdentity;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
@@ -89,7 +90,12 @@ class WorkspaceControllerTest {
                     auth,
                     users,
                     new WorkspaceDtoFactory(
-                        ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900),
+                        ports,
+                        users,
+                        tokens,
+                        new GatewayEndpoint("https", "code.test", 443),
+                        new BootProgressService(),
+                        900),
                     "node-a"))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)

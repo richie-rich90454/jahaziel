@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.jahaziel.ide.internal.IdeServerService.BootPhase;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -237,6 +238,44 @@ class IdeServerServiceTest {
       verify(process).destroyForcibly();
       service.shutdownAll();
     }
+  }
+
+  @Test
+  void ensureRunningReportsPhasesInOrder() throws Exception {
+    Path serverDir = Files.createDirectory(tmp.resolve("ide-phases"));
+    List<BootPhase> reported = new java.util.concurrent.CopyOnWriteArrayList<>();
+    Process process = mock(Process.class);
+    when(process.isAlive()).thenReturn(true);
+    try (ServerSocket listener = new ServerSocket(0)) {
+      int port = heldPort(listener);
+      IdeServerService service =
+          new IdeServerService(
+              ideReturning(serverDir),
+              (argv, dir) -> process,
+              () -> port,
+              Duration.ofSeconds(5),
+              Duration.ofMillis(5));
+      Path home = Files.createDirectory(tmp.resolve("home-phases"));
+      WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+      assertEquals(port, service.ensureRunning(id, home, reported::add));
+      assertEquals(List.of(BootPhase.EXTRACTING, BootPhase.SPAWNING, BootPhase.WAITING), reported);
+    }
+  }
+
+  @Test
+  void ensureRunningListenerIsRequired() throws Exception {
+    Path serverDir = Files.createDirectory(tmp.resolve("ide-listener"));
+    IdeServerService service =
+        new IdeServerService(
+            ideReturning(serverDir),
+            (argv, dir) -> mock(Process.class),
+            () -> 19860,
+            Duration.ofSeconds(5),
+            Duration.ofMillis(5));
+    Path home = Files.createDirectory(tmp.resolve("home-listener"));
+    assertThrows(
+        NullPointerException.class,
+        () -> service.ensureRunning(new WorkspaceId(UUID.randomUUID()), home, null));
   }
 
   @Test

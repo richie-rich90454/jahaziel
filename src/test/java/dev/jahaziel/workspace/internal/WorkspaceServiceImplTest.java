@@ -177,6 +177,18 @@ class WorkspaceServiceImplTest {
   }
 
   @Test
+  void saveBumpsTimestampOnlyOnStateChange() {
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    WorkspaceEntity row = stubRows(id, "active");
+    Workspace workspace = service.get(id);
+    service.save(workspace);
+    verify(row, org.mockito.Mockito.never()).setStateChangedAt(org.mockito.ArgumentMatchers.any());
+    workspace.suspend();
+    service.save(workspace);
+    verify(row).setStateChangedAt(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
   void saveMissingThrows() {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
     when(workspaces.findById(id.value())).thenReturn(Optional.empty());

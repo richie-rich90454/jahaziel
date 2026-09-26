@@ -11,9 +11,12 @@ import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.workspace.api.WorkspaceView;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -26,6 +29,7 @@ public final class WorkspaceDtoFactory {
   private final UserService users;
   private final JwtService tokens;
   private final GatewayEndpoint endpoint;
+  private final BootProgressService progress;
   private final long tokenTtlSeconds;
 
   /**
@@ -35,6 +39,7 @@ public final class WorkspaceDtoFactory {
    * @param users the user lookup, for URL slugs
    * @param tokens the session token issuer
    * @param endpoint the public gateway address
+   * @param progress the live boot-phase reports
    * @param tokenTtlSeconds the gateway token lifetime
    */
   public WorkspaceDtoFactory(
@@ -42,11 +47,13 @@ public final class WorkspaceDtoFactory {
       UserService users,
       JwtService tokens,
       GatewayEndpoint endpoint,
+      BootProgressService progress,
       long tokenTtlSeconds) {
     this.ports = Objects.requireNonNull(ports, "ports");
     this.users = Objects.requireNonNull(users, "users");
     this.tokens = Objects.requireNonNull(tokens, "tokens");
     this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+    this.progress = Objects.requireNonNull(progress, "progress");
     this.tokenTtlSeconds = tokenTtlSeconds;
   }
 
@@ -65,7 +72,7 @@ public final class WorkspaceDtoFactory {
                 binding ->
                     PortDto.from(binding, slug, endpoint, token(owner, view, binding.port())))
             .toList();
-    return WorkspaceDto.from(view, entries);
+    return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
   }
 
   /**
@@ -80,7 +87,21 @@ public final class WorkspaceDtoFactory {
         ports.bindingsByWorkspace(view.workspace().id()).stream()
             .map(binding -> PortDto.from(binding, slug, endpoint, null))
             .toList();
-    return WorkspaceDto.from(view, entries);
+    return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
+  }
+
+  private String bootPhase(WorkspaceView view) {
+    return progress
+        .snapshot(view.workspace().id())
+        .map(report -> report.phase().name().toLowerCase(Locale.ROOT))
+        .orElse(null);
+  }
+
+  private Instant bootPhaseAt(WorkspaceView view) {
+    return progress
+        .snapshot(view.workspace().id())
+        .map(BootProgressService.Progress::updatedAt)
+        .orElse(null);
   }
 
   private String token(UserId owner, WorkspaceView view, int port) {

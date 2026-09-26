@@ -125,8 +125,14 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
   public void save(Workspace workspace) {
     Objects.requireNonNull(workspace, "workspace");
     WorkspaceEntity row = rowOf(workspace.id());
-    row.setState(WorkspaceMapper.stateToString(workspace.state()));
-    row.setStateChangedAt(Instant.now());
+    String state = WorkspaceMapper.stateToString(workspace.state());
+    // The timestamp means "entered the current state at". Bumping it on every save turned
+    // the UI's state-age display into "time since last write", which jumps on every
+    // unrelated write and lies after quiet stretches.
+    if (!state.equals(row.getState())) {
+      row.setState(state);
+      row.setStateChangedAt(Instant.now());
+    }
     row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
     row.setInodeQuota(workspace.quota().inodeLimit());
     workspaces.save(row);

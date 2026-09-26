@@ -8,6 +8,26 @@ const POLL_MS = 3000;
 const TICK_MS = 1000;
 const STAGES = ["requested", "preparing", "booting", "ready"];
 const TRANSITIONAL = new Set(["preparing", "booting"]);
+// Ordered boot sub-steps reported live by the backend; the bar position is the
+// index into this list, never an estimate. Declaration order is progress order.
+const BOOT_STEPS = [
+  "requested",
+  "preparing",
+  "extracting",
+  "spawning",
+  "waiting",
+  "registering",
+  "ready",
+];
+const BOOT_LABELS = {
+  requested: "Requested",
+  preparing: "Preparing workspace",
+  extracting: "Extracting IDE runtime",
+  spawning: "Spawning IDE server",
+  waiting: "Waiting for IDE port",
+  registering: "Registering gateway route",
+  ready: "Ready",
+};
 
 async function api(path, options) {
   let response;
@@ -108,6 +128,64 @@ function loadingBar(label) {
   bar.setAttribute("aria-hidden", "true");
   wrap.append(bar);
   return wrap;
+}
+
+function progressView(workspace) {
+  const phase = workspace.bootPhase || null;
+  const phaseAt = workspace.bootPhaseAt || null;
+  const known = phase !== null && BOOT_STEPS.includes(phase);
+  const wrap = document.createElement("div");
+  wrap.className = "progress";
+  if (!known) {
+    wrap.append(loadingBar("Workspace " + workspace.state));
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    meta.append(
+      document.createTextNode("Starting — waiting for the first progress report for "),
+      elapsedNode(workspace.lastActivityAt),
+      document.createTextNode(".")
+    );
+    wrap.append(meta);
+    return wrap;
+  }
+  const index = BOOT_STEPS.indexOf(phase);
+  const percent = Math.round(((index + 1) / BOOT_STEPS.length) * 100);
+  const bar = document.createElement("div");
+  bar.className = "progress-track";
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  bar.setAttribute("aria-valuenow", String(percent));
+  bar.setAttribute("aria-label", BOOT_LABELS[phase] || phase);
+  const fill = document.createElement("div");
+  fill.className = "progress-fill";
+  fill.style.width = percent + "%";
+  bar.append(fill);
+  wrap.append(bar);
+  const meta = document.createElement("p");
+  meta.className = "meta";
+  meta.append(
+    document.createTextNode(
+      (BOOT_LABELS[phase] || phase) + " — step " + (index + 1) + " of " + BOOT_STEPS.length + ", "
+    ),
+    elapsedNode(phaseAt || workspace.lastActivityAt),
+    document.createTextNode(" in this step.")
+  );
+  if (phase === "extracting") {
+    const note = document.createElement("span");
+    note.className = "meta-note";
+    note.textContent = " First boot unpacks the IDE runtime, allow a minute.";
+    meta.append(note);
+  }
+  wrap.append(meta);
+  return wrap;
+}
+
+function elapsedNode(iso) {
+  const elapsed = document.createElement("span");
+  elapsed.dataset.elapsed = iso;
+  elapsed.textContent = elapsedSince(iso);
+  return elapsed;
 }
 
 function actionButton(label, kind, handler, disabled) {
@@ -237,21 +315,7 @@ function renderCard(workspace) {
   item.append(stepper(workspace.state));
 
   if (TRANSITIONAL.has(workspace.state)) {
-    item.append(loadingBar("Workspace " + workspace.state));
-    const meta = document.createElement("p");
-    meta.className = "meta";
-    const label = document.createTextNode("In " + workspace.state + " for ");
-    const elapsed = document.createElement("span");
-    elapsed.dataset.elapsed = workspace.lastActivityAt;
-    elapsed.textContent = elapsedSince(workspace.lastActivityAt);
-    meta.append(label, elapsed);
-    if (workspace.state === "booting") {
-      const note = document.createElement("span");
-      note.className = "meta-note";
-      note.textContent = " — first boot extracts the IDE runtime, allow a minute.";
-      meta.append(note);
-    }
-    item.append(meta);
+    item.append(progressView(workspace));
   }
 
   renderPorts(item, workspace);

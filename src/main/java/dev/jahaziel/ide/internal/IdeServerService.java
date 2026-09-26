@@ -25,6 +25,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * the caller rebinds the gateway route.
  */
 public final class IdeServerService {
+  /** Ordered boot sub-steps. Declaration order is the progress order. */
+  public enum BootPhase {
+    PREPARING,
+    EXTRACTING,
+    SPAWNING,
+    WAITING,
+    REGISTERING,
+    READY
+  }
+
   /** Starts an OS process; the production starter shells out, tests substitute a fake. */
   @FunctionalInterface
   public interface ProcessStarter {
@@ -95,8 +105,24 @@ public final class IdeServerService {
    * @return the loopback port serving the IDE
    */
   public int ensureRunning(WorkspaceId id, Path home) {
+    return ensureRunning(id, home, phase -> {});
+  }
+
+  /**
+   * Returns the IDE port for a workspace, spawning the server when needed and reporting each
+   * sub-step to the listener so callers can surface real boot progress.
+   *
+   * @param id the workspace
+   * @param home the workspace home directory, used as the server working directory
+   * @param progress receives EXTRACTING, SPAWNING, then WAITING in order; never called when an
+   *     already-running server is reused
+   * @return the loopback port serving the IDE
+   */
+  public int ensureRunning(
+      WorkspaceId id, Path home, java.util.function.Consumer<BootPhase> progress) {
     Objects.requireNonNull(id, "id");
     Objects.requireNonNull(home, "home");
+    Objects.requireNonNull(progress, "progress");
     RunningServer existing = servers.get(id.value());
     if (existing != null) {
       if (existing.process().isAlive()) {
@@ -104,6 +130,7 @@ public final class IdeServerService {
       }
       servers.remove(id.value(), existing);
     }
+    progress.accept(BootPhase.EXTRACTING);
     Path serverDir = ide.ensureExtracted();
     int port;
     try {
@@ -114,6 +141,7 @@ public final class IdeServerService {
     Path logFile = home.resolve(".jahaziel-ide");
     Process process;
     try {
+      progress.accept(BootPhase.SPAWNING);
       process =
           starter.start(
               List.of(
@@ -130,6 +158,7 @@ public final class IdeServerService {
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot start IDE server", failure);
     }
+    progress.accept(BootPhase.WAITING);
     waitForPort(port, process);
     servers.put(id.value(), new RunningServer(port, process));
     return port;

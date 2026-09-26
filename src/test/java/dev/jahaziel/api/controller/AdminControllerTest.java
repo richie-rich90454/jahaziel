@@ -32,6 +32,7 @@ import dev.jahaziel.node.domain.NodeCapacity;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.policy.api.PolicyDoc;
 import dev.jahaziel.policy.api.PolicyService;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import java.security.Principal;
 import java.time.Instant;
@@ -75,7 +76,12 @@ class AdminControllerTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     mvc =
         MockMvcBuilders.standaloneSetup(
                 new AdminController(

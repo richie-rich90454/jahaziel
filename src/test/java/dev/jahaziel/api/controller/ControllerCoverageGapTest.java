@@ -16,6 +16,7 @@ import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.workspace.api.WorkspaceService;
@@ -37,6 +38,7 @@ class ControllerCoverageGapTest {
             mock(UserService.class),
             mock(JwtService.class),
             new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
             900);
     SnapshotController controller = new SnapshotController(snapshots, workspaces, auth, dtos);
     UUID id = UUID.randomUUID();

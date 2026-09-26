@@ -5,6 +5,7 @@
 package dev.jahaziel.runtime.internal;
 
 import dev.jahaziel.ide.internal.IdeServerService;
+import dev.jahaziel.ide.internal.IdeServerService.BootPhase;
 import dev.jahaziel.ide.internal.RehNotInstalledException;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
@@ -47,6 +48,7 @@ public final class RuntimeServiceImpl implements RuntimeService {
   private final ImageRef image;
   private final IdeServerService ideServers;
   private final PortService ports;
+  private final BootProgressService progress;
 
   /**
    * Creates the service.
@@ -56,24 +58,28 @@ public final class RuntimeServiceImpl implements RuntimeService {
    * @param image the base image reference
    * @param ideServers the per-workspace IDE servers
    * @param ports the gateway port bindings
+   * @param progress the live boot-phase reports
    */
   public RuntimeServiceImpl(
       NodeBackend backend,
       WorkspaceService workspaces,
       ImageRef image,
       IdeServerService ideServers,
-      PortService ports) {
+      PortService ports,
+      BootProgressService progress) {
     this.backend = Objects.requireNonNull(backend, "backend");
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.image = Objects.requireNonNull(image, "image");
     this.ideServers = Objects.requireNonNull(ideServers, "ideServers");
     this.ports = Objects.requireNonNull(ports, "ports");
+    this.progress = Objects.requireNonNull(progress, "progress");
   }
 
   @Override
   public Workspace start(WorkspaceId id) {
     Workspace workspace = workspaces.get(id);
     if (workspace.state() instanceof WorkspaceState.Requested) {
+      progress.report(id, BootPhase.PREPARING);
       backend.prepare(prepareRequest(workspace));
       workspace.prepare();
       workspaces.save(workspace);
@@ -82,6 +88,7 @@ public final class RuntimeServiceImpl implements RuntimeService {
       workspaces.save(workspace);
     } else if (backend instanceof LocalProcessBackend
         && workspace.state() instanceof WorkspaceState.Preparing) {
+      progress.report(id, BootPhase.PREPARING);
       backend.prepare(prepareRequest(workspace));
       bootBackend(workspace);
       workspace.boot();
@@ -106,6 +113,7 @@ public final class RuntimeServiceImpl implements RuntimeService {
   @Override
   public Workspace stop(WorkspaceId id) {
     ideServers.stop(id);
+    progress.clear(id);
     Workspace workspace = workspaces.get(id);
     // Nothing to stop when no runtime was ever started: a requested workspace is already parked,
     // and suspending then aborting it would be an illegal transition (and break delete).
@@ -197,11 +205,14 @@ public final class RuntimeServiceImpl implements RuntimeService {
   private Workspace finishBoot(Workspace workspace, WorkspaceHandle handle) {
     int port;
     try {
-      port = ideServers.ensureRunning(workspace.id(), handle.homePath());
+      port =
+          ideServers.ensureRunning(
+              workspace.id(), handle.homePath(), phase -> progress.report(workspace.id(), phase));
     } catch (RehNotInstalledException missing) {
       log.warn("workspace {} booted without IDE: {}", workspace.id(), missing.getMessage());
       return workspace;
     }
+    progress.report(workspace.id(), BootPhase.REGISTERING);
     removeDeadBindings(workspace);
     boolean bound =
         ports.bindingsByWorkspace(workspace.id()).stream()
@@ -213,6 +224,7 @@ public final class RuntimeServiceImpl implements RuntimeService {
       workspace.markReady();
       workspaces.save(workspace);
     }
+    progress.report(workspace.id(), BootPhase.READY);
     return workspace;
   }
 

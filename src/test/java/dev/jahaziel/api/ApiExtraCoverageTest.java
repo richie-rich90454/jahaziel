@@ -41,6 +41,7 @@ import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import java.security.Principal;
 import java.time.Duration;
 import java.time.Instant;
@@ -76,9 +77,10 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var users = mock(UserService.class);
     var tokens = mock(JwtService.class);
+    var progress = new BootProgressService();
     WorkspaceDtoFactory f =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), progress, 900);
     UserId owner = new UserId(UUID.randomUUID());
     var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
     WorkspaceDtoFactoryTestHelper.setup(ws, owner);
@@ -92,11 +94,24 @@ class ApiExtraCoverageTest {
     assertEquals(1, dto.ports().size());
     WorkspaceDto admin = f.withoutTokens(view);
     assertTrue(admin.ports().get(0).url() == null);
+    assertTrue(dto.bootPhase() == null);
+    assertTrue(dto.bootPhaseAt() == null);
+    progress.report(ws.id(), dev.jahaziel.ide.internal.IdeServerService.BootPhase.SPAWNING);
+    WorkspaceDto live = f.forUser(owner, view);
+    assertEquals("spawning", live.bootPhase());
+    assertTrue(live.bootPhaseAt() != null);
+    WorkspaceDto liveAdmin = f.withoutTokens(view);
+    assertEquals("spawning", liveAdmin.bootPhase());
     assertThrows(
         NullPointerException.class,
         () ->
             new WorkspaceDtoFactory(
-                null, users, tokens, new GatewayEndpoint("http", "d", 8081), 1));
+                null,
+                users,
+                tokens,
+                new GatewayEndpoint("http", "d", 8081),
+                new BootProgressService(),
+                1));
   }
 
   @Test
@@ -206,7 +221,12 @@ class ApiExtraCoverageTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     var dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     WorkspaceController c =
         new WorkspaceController(workspaces, runtime, auth, users, dtos, "node-a");
     UserId u = new UserId(UUID.randomUUID());
@@ -262,7 +282,12 @@ class ApiExtraCoverageTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     var dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     RuntimeController c = new RuntimeController(runtime, workspaces, metrics, auth, dtos);
     UserId u = new UserId(UUID.randomUUID());
     UUID wid = UUID.randomUUID();
@@ -300,7 +325,12 @@ class ApiExtraCoverageTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     var dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     SnapshotController sc = new SnapshotController(snapshots, workspaces, auth, dtos);
     UserId u = new UserId(UUID.randomUUID());
     UUID wid = UUID.randomUUID();
@@ -399,7 +429,12 @@ class ApiExtraCoverageTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     var dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     AdminController c =
         new AdminController(admin, auth, users, workspaces, nodes, audit, policies, metrics, dtos);
     UserId adminId = new UserId(UUID.randomUUID());

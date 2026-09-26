@@ -21,6 +21,7 @@ import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
@@ -70,7 +71,12 @@ class SnapshotControllerTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     dtos =
         new WorkspaceDtoFactory(
-            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
+            ports,
+            users,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            new BootProgressService(),
+            900);
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     var validator = new LocalValidatorFactoryBean();
     validator.afterPropertiesSet();

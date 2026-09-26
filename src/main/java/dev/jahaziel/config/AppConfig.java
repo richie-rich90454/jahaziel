@@ -157,8 +157,10 @@ public class AppConfig {
       WorkspaceService workspaces,
       @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef,
       IdeServerService ideServers,
-      PortService ports) {
-    return new RuntimeServiceImpl(backend, workspaces, new ImageRef(imageRef), ideServers, ports);
+      PortService ports,
+      dev.jahaziel.runtime.internal.BootProgressService progress) {
+    return new RuntimeServiceImpl(
+        backend, workspaces, new ImageRef(imageRef), ideServers, ports, progress);
   }
 
   /** Returns nodes. */
@@ -211,6 +213,12 @@ public class AppConfig {
     return new dev.jahaziel.networking.api.GatewayEndpoint(scheme, domain, port);
   }
 
+  /** Returns the live boot-phase reports. */
+  @Bean
+  public dev.jahaziel.runtime.internal.BootProgressService bootProgress() {
+    return new dev.jahaziel.runtime.internal.BootProgressService();
+  }
+
   /** Returns the workspace read-model factory, which attaches tokenized port URLs. */
   @Bean
   public dev.jahaziel.api.WorkspaceDtoFactory workspaceDtos(
@@ -218,9 +226,10 @@ public class AppConfig {
       UserService users,
       JwtService tokens,
       dev.jahaziel.networking.api.GatewayEndpoint endpoint,
+      dev.jahaziel.runtime.internal.BootProgressService progress,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
     return new dev.jahaziel.api.WorkspaceDtoFactory(
-        ports, users, tokens, endpoint, tokenTtlSeconds);
+        ports, users, tokens, endpoint, progress, tokenTtlSeconds);
   }
 
   /** Returns metric rollups. */
