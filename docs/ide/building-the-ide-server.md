@@ -81,3 +81,14 @@ without the profile nothing is bundled and no test slows down.
 Always build distributables with `clean`. IDE background compilers write
 class files into `target/` that incremental Maven builds can repackage
 unchecked; a stale class once shipped an unbootable jar.
+
+Two packaging pitfalls are now enforced by the build itself, so they cannot
+recur silently:
+
+- A profile `<resources>` list *replaces* the Super POM default instead of
+  merging. The `bundled-ide` profile therefore repeats `src/main/resources`
+  explicitly; without that the jar ships with no web UI at all.
+- `spring-boot-starter-parent` already binds `repackage`; do not add another
+  `repackage` execution or the jar is repackaged twice. The profile also
+  verifies the finished jar contains both `BOOT-INF/classes/static/index.html`
+  and the REH tarball, failing the build otherwise.

@@ -197,20 +197,15 @@
   <build>
     <finalName>jahaziel</finalName>
     <plugins>
-      <!-- Single executable jar; entry point verified in dist module. -->
+      <!-- Single executable jar; entry point verified in dist module. Repackage itself
+        comes from spring-boot-starter-parent; do NOT add a second repackage execution
+        here, or the jar is repackaged twice. -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
           <mainClass>dev.jahaziel.dist.Jahaziel</mainClass>
         </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>repackage</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <!-- Smoke is opt-in (-Psmoke): black-box jar boots stay out of unit runs. -->
       <plugin>
@@ -391,6 +386,12 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
       <id>bundled-ide</id>
       <build>
         <resources>
+          <!-- The default (src/main/resources) must be repeated here: a profile
+            <resources> list replaces the Super POM default instead of merging,
+            and without this the jar ships with no static UI at all. -->
+          <resource>
+            <directory>src/main/resources</directory>
+          </resource>
           <resource>
             <directory>ide/out</directory>
             <targetPath>ide</targetPath>
@@ -420,6 +421,41 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                           <fileset
                             dir="ide/out"
                             includes="jahaziel-code-server-*.tar.zst" />
+                        </resourcecount>
+                      </condition>
+                    </fail>
+                  </target>
+                </configuration>
+              </execution>
+              <execution>
+                <id>verify-bundled-contents</id>
+                <!-- Bound to package, after spring-boot:repackage (same-phase executions
+                  run in declaration order, and this profile merges after the base build):
+                  fail closed when the jar lacks the UI or the runtime. A profile
+                  <resources> list replaces the Super POM default instead of merging,
+                  which once shipped a jar with no static files; this check makes that
+                  class of mistake impossible to miss. -->
+                <phase>package</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <fail message="bundled jar is missing BOOT-INF/classes/static/index.html">
+                      <condition>
+                        <resourcecount count="0" when="equal">
+                          <zipfileset
+                            src="${project.build.directory}/${project.build.finalName}.jar"
+                            includes="BOOT-INF/classes/static/index.html" />
+                        </resourcecount>
+                      </condition>
+                    </fail>
+                    <fail message="bundled jar is missing the REH tarball under BOOT-INF/classes/ide/">
+                      <condition>
+                        <resourcecount count="0" when="equal">
+                          <zipfileset
+                            src="${project.build.directory}/${project.build.finalName}.jar"
+                            includes="BOOT-INF/classes/ide/jahaziel-code-server-*.tar.zst" />
                         </resourcecount>
                       </condition>
                     </fail>
