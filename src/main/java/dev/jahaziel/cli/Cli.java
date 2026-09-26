@@ -429,7 +429,7 @@ public final class Cli {
 
         Commands:
           init                  Write .env (BASIS_* placeholders + random secret), mkdir data/
-          doctor                8 pre-boot checks, one line each; exit 0 when all pass
+          doctor                9 pre-boot checks, one line each; exit 0 when all pass
           upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)
           upgrade --check       Print the running version
           backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/

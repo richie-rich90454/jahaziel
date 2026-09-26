@@ -344,7 +344,8 @@ public final class JahazielMain {
         Options:
           --data-dir=PATH       Data root (default: data/ next to the jar)
           --port=N              Control-plane HTTP port (default: 11451)
-          --gateway-port=N      Gateway HTTP port (default: 8081)
+          --gateway-port=N      Legacy standalone gateway socket (default: off;
+                                workspace traffic relays on the API port instead)
           --domain=HOST         Public domain and token issuer (default: code.example.com)
           --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
           --help                Print this help
