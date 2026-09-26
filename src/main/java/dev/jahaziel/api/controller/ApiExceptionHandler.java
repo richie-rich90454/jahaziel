@@ -145,11 +145,13 @@ public class ApiExceptionHandler {
     return error("VALIDATION_FAILED", "Request body is invalid");
   }
 
-  /** Maps everything else to 500 without leaking detail. */
+  /** Maps everything else to 500 without leaking detail. The trace id links to the log. */
   @ExceptionHandler(Exception.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ApiError unexpected(Exception failure) {
-    return error("INTERNAL_ERROR", "Unexpected error");
+    String trace = UUID.randomUUID().toString();
+    log.error("unhandled error {}", trace, failure);
+    return new ApiError("INTERNAL_ERROR", "Unexpected error", trace, Map.of());
   }
 
   private static ApiError error(String code, String message) {
