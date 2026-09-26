@@ -119,13 +119,21 @@ public class ApiExceptionHandler {
     String remote = request == null ? "-" : request.getRemoteAddr();
     String host = request == null ? "-" : String.valueOf(request.getHeader("Host"));
     String agent = request == null ? "-" : String.valueOf(request.getHeader("User-Agent"));
+    String rawTarget =
+        request == null
+            ? "-"
+            : request.getRequestURI()
+                + (request.getQueryString() == null ? "" : "?" + request.getQueryString());
+    String accept = request == null ? "-" : String.valueOf(request.getHeader("Accept"));
     log.warn(
-        "no route for {} {} from {} host={} agent={}",
+        "no route for {} {} (raw {}) from {} host={} agent={} accept={}",
         failure.getHttpMethod(),
         path,
+        rawTarget,
         remote,
         host,
-        agent);
+        agent,
+        accept);
     return new ApiError(
         "NOT_FOUND", "No such endpoint", UUID.randomUUID().toString(), Map.of("path", path));
   }

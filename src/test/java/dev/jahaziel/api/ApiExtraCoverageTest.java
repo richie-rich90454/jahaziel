@@ -153,6 +153,12 @@ class ApiExtraCoverageTest {
         h.noResource(new NoResourceFoundException(HttpMethod.GET, "/missing", "gone"), request)
             .details()
             .get("path"));
+    when(request.getQueryString()).thenReturn("a=1");
+    assertEquals(
+        "gone",
+        h.noResource(new NoResourceFoundException(HttpMethod.GET, "/missing", "gone"), request)
+            .details()
+            .get("path"));
     assertEquals(
         "VALIDATION_FAILED",
         h.invalidBody(mock(org.springframework.web.bind.MethodArgumentNotValidException.class))
