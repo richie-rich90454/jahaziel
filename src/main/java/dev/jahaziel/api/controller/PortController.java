@@ -11,6 +11,7 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
@@ -19,6 +20,7 @@ import jakarta.validation.Valid;
 import java.security.Principal;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -43,7 +45,7 @@ public class PortController {
   private final AuthorizationService auth;
   private final GatewayRouteService routes;
   private final JwtService tokens;
-  private final String appDomain;
+  private final GatewayEndpoint endpoint;
   private final long tokenTtlSeconds;
 
   /**
@@ -54,7 +56,7 @@ public class PortController {
    * @param auth the authorization checks
    * @param routes the gateway route reconciler
    * @param tokens the session token issuer
-   * @param appDomain the public domain
+   * @param endpoint the public gateway address
    * @param tokenTtlSeconds the gateway token lifetime
    */
   public PortController(
@@ -63,14 +65,14 @@ public class PortController {
       AuthorizationService auth,
       GatewayRouteService routes,
       JwtService tokens,
-      @Value("${jahaziel.domain}") String appDomain,
+      GatewayEndpoint endpoint,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
     this.ports = ports;
     this.users = users;
     this.auth = auth;
     this.routes = routes;
     this.tokens = tokens;
-    this.appDomain = appDomain;
+    this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
     this.tokenTtlSeconds = tokenTtlSeconds;
   }
 
@@ -107,7 +109,7 @@ public class PortController {
     PortBinding binding = ports.registerPort(user, request.port(), workspace, request.protocol());
     routes.reconcile();
     return PortDto.from(
-        binding, users.slug(user), appDomain, token(user, workspace, binding.port()));
+        binding, users.slug(user), endpoint, token(user, workspace, binding.port()));
   }
 
   /**
@@ -136,7 +138,7 @@ public class PortController {
               return PortDto.from(
                   binding,
                   users.slug(portOwner),
-                  appDomain,
+                  endpoint,
                   token(portOwner, workspace, binding.port()));
             })
         .toList();

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.monitoring.api.HourlyRollup;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.node.domain.Node;
 import dev.jahaziel.node.domain.NodeCapacity;
@@ -94,11 +95,15 @@ class ApiDtoTest {
   void portIncludesTokenizedUrlOnlyWithToken() {
     PortBinding binding =
         new PortBinding(UUID.randomUUID(), 8080, UUID.randomUUID(), "http", Instant.now());
-    PortDto withToken = PortDto.from(binding, "richard", "code.example.com", "tok");
+    PortDto withToken =
+        PortDto.from(
+            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), "tok");
     assertEquals(8080, withToken.port());
     assertEquals("http", withToken.protocol());
     assertEquals("https://richard-8080.code.example.com/?token=tok", withToken.url());
-    PortDto withoutToken = PortDto.from(binding, "richard", "code.example.com", null);
+    PortDto withoutToken =
+        PortDto.from(
+            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), null);
     assertNull(withoutToken.url());
     assertEquals(binding.registeredAt(), withoutToken.registeredAt());
   }

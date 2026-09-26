@@ -87,20 +87,106 @@ class DoctorTest {
   @Test
   void allGreen() throws Exception {
     Env env = green(root.resolve("jar"));
-    List<Doctor.Check> checks =
-        Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
-    assertEquals(8, checks.size());
-    for (Doctor.Check check : checks) {
-      assertTrue(check.ok());
+    String savedPath = System.getenv("PATH");
+    Path bin = Files.createDirectory(root.resolve("allgreen-bin"));
+    Files.createFile(bin.resolve("tar.exe"));
+    Files.createFile(bin.resolve("zstd.exe"));
+    dev.jahaziel.platform.TestEnv.set("PATH", bin.toString());
+    try {
+      List<Doctor.Check> checks =
+          Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
+      assertEquals(9, checks.size());
+      for (Doctor.Check check : checks) {
+        assertTrue(check.ok());
+      }
+      String text = print(checks);
+      assertTrue(text.contains("doctor: 9/9 checks passed"));
+      for (Doctor.Check check : checks) {
+        assertTrue(text.contains("doctor: [ok] " + check.name() + " - "));
+      }
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      int code = Doctor.print(checks, new PrintStream(buffer, true, StandardCharsets.UTF_8));
+      assertEquals(0, code);
+    } finally {
+      if (savedPath == null) {
+        dev.jahaziel.platform.TestEnv.clear("PATH");
+      } else {
+        dev.jahaziel.platform.TestEnv.set("PATH", savedPath);
+      }
     }
-    String text = print(checks);
-    assertTrue(text.contains("doctor: 8/8 checks passed"));
-    for (Doctor.Check check : checks) {
-      assertTrue(text.contains("doctor: [ok] " + check.name() + " - "));
+  }
+
+  @Test
+  void toolsCheckPassesWhenBothPresent() throws Exception {
+    Path bin = Files.createDirectory(root.resolve("tools-bin"));
+    Files.createFile(bin.resolve("tar.exe"));
+    Files.createFile(bin.resolve("zstd.exe"));
+    Doctor.Check check = Doctor.tools(bin.toString(), true);
+    assertTrue(check.ok());
+    assertEquals("tools", check.name());
+  }
+
+  @Test
+  void toolsCheckNamesMissingCommands() throws Exception {
+    Path bin = Files.createDirectory(root.resolve("tools-partial-bin"));
+    Files.createFile(bin.resolve("tar.exe"));
+    Doctor.Check check = Doctor.tools(bin.toString(), true);
+    assertTrue(!check.ok());
+    assertTrue(check.detail().contains("zstd"));
+    assertTrue(check.fix().contains("zstd"));
+    Path bin2 = Files.createDirectory(root.resolve("tools-partial-bin2"));
+    Files.createFile(bin2.resolve("zstd.exe"));
+    Doctor.Check check2 = Doctor.tools(bin2.toString(), true);
+    assertTrue(!check2.ok());
+    assertTrue(check2.detail().contains("tar"));
+  }
+
+  @Test
+  void toolsCheckFailsOnBlankPath() {
+    assertTrue(!Doctor.tools(null, true).ok());
+    assertTrue(!Doctor.tools("   ", true).ok());
+  }
+
+  @Test
+  void toolsCheckReadsOsFromSystemProperties() throws Exception {
+    String osName = System.getProperty("os.name");
+    String osArch = System.getProperty("os.arch");
+    try {
+      System.setProperty("os.name", "Linux");
+      System.setProperty("os.arch", "amd64");
+      Path bin = Files.createDirectory(root.resolve("tools-linux-bin"));
+      Files.createFile(bin.resolve("tar"));
+      Files.createFile(bin.resolve("zstd"));
+      assertTrue(Doctor.tools(bin.toString()).ok());
+    } finally {
+      restoreProperty("os.name", osName);
+      restoreProperty("os.arch", osArch);
     }
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    int code = Doctor.print(checks, new PrintStream(buffer, true, StandardCharsets.UTF_8));
-    assertEquals(0, code);
+  }
+
+  private static void restoreProperty(String key, String value) {
+    if (value == null) {
+      System.clearProperty(key);
+    } else {
+      System.setProperty(key, value);
+    }
+  }
+
+  @Test
+  void commandAvailableSkipsBlankSegments() throws Exception {
+    Path bin = Files.createDirectory(root.resolve("tools-segments-bin"));
+    Files.createFile(bin.resolve("tar.exe"));
+    String pathValue = java.io.File.pathSeparator + bin;
+    assertTrue(Doctor.commandAvailable("tar", pathValue, true));
+    assertTrue(!Doctor.commandAvailable("zstd", pathValue, true));
+  }
+
+  @Test
+  void commandAvailableChecksExecutablesOffWindows() throws Exception {
+    Path bin = Files.createDirectory(root.resolve("tools-posix-bin"));
+    Files.createFile(bin.resolve("tar"));
+    assertTrue(Doctor.commandAvailable("tar", bin.toString(), false));
+    assertTrue(!Doctor.commandAvailable("zstd", bin.toString(), false));
   }
 
   @Test

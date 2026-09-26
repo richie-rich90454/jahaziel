@@ -22,13 +22,13 @@ class RuntimeE2eTest extends E2eBase {
   }
 
   @Test
-  void startTwiceConflicts() throws Exception {
+  void startTwiceConvergesWithoutConflict() throws Exception {
     String id = createWorkspace(userToken(), uniqueName("twice"));
 
     assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
     E2eResponse again = post("/api/v1/workspaces/" + id + "/start", userToken(), null);
-    assertEquals(409, again.status(), again.body());
-    assertTrue(again.body().contains("STATE_CONFLICT"), again.body());
+    assertEquals(200, again.status(), again.body());
+    assertTrue(again.body().contains("\"state\":\"booting\""), again.body());
   }
 
   @Test

@@ -31,3 +31,5 @@ data/
 PORTING_GUIDE.md
 docs/.vitepress/dist
 docs/.vitepress/cache
+# Local run scratch (jar copy, real .env, extracted IDE).
+testing/

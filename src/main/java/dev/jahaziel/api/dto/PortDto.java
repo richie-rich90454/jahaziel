@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.api.dto;
 
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
 import java.time.Instant;
 
@@ -21,15 +22,13 @@ public record PortDto(int port, String protocol, String url, Instant registeredA
    *
    * @param binding the binding
    * @param userSlug the URL-safe user slug
-   * @param appDomain the public domain
+   * @param endpoint the public gateway address
    * @param token the workspace-scoped token, or null to omit the URL
    * @return the DTO
    */
-  public static PortDto from(PortBinding binding, String userSlug, String appDomain, String token) {
-    String url =
-        token == null
-            ? null
-            : "https://" + userSlug + "-" + binding.port() + "." + appDomain + "/?token=" + token;
+  public static PortDto from(
+      PortBinding binding, String userSlug, GatewayEndpoint endpoint, String token) {
+    String url = token == null ? null : endpoint.url(userSlug, binding.port(), token);
     return new PortDto(binding.port(), binding.protocol(), url, binding.registeredAt());
   }
 }

@@ -72,6 +72,8 @@ class IdeExtraCoverageTest {
     Files.createDirectories(ide2);
     IdeService missing = new IdeService(ide2.toString(), "1.0", "linux-x64");
     assertThrows(IllegalStateException.class, missing::ensureExtracted);
+    assertThrows(
+        dev.jahaziel.ide.internal.RehNotInstalledException.class, missing::ensureExtracted);
   }
 
   @Test

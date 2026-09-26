@@ -137,7 +137,9 @@ class WorkspaceAccessTest {
                 "{\"port\":" + backendPort + ",\"protocol\":\"http\"}"));
     String url = port.get("url").asString();
     assertTrue(
-        url.startsWith("https://" + slug + "-" + backendPort + "." + DOMAIN + "/?token="), url);
+        url.startsWith(
+            "http://" + slug + "-" + backendPort + "." + DOMAIN + ":" + GATEWAY_PORT + "/?token="),
+        url);
 
     URI parsed = URI.create(url);
     String token = queryToken(parsed.getRawQuery());

@@ -9,6 +9,7 @@ import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.api.WorkspaceView;
 import java.time.Duration;
@@ -24,7 +25,7 @@ public final class WorkspaceDtoFactory {
   private final PortService ports;
   private final UserService users;
   private final JwtService tokens;
-  private final String appDomain;
+  private final GatewayEndpoint endpoint;
   private final long tokenTtlSeconds;
 
   /**
@@ -33,19 +34,19 @@ public final class WorkspaceDtoFactory {
    * @param ports the port bindings
    * @param users the user lookup, for URL slugs
    * @param tokens the session token issuer
-   * @param appDomain the public domain
+   * @param endpoint the public gateway address
    * @param tokenTtlSeconds the gateway token lifetime
    */
   public WorkspaceDtoFactory(
       PortService ports,
       UserService users,
       JwtService tokens,
-      String appDomain,
+      GatewayEndpoint endpoint,
       long tokenTtlSeconds) {
     this.ports = Objects.requireNonNull(ports, "ports");
     this.users = Objects.requireNonNull(users, "users");
     this.tokens = Objects.requireNonNull(tokens, "tokens");
-    this.appDomain = Objects.requireNonNull(appDomain, "appDomain");
+    this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
     this.tokenTtlSeconds = tokenTtlSeconds;
   }
 
@@ -62,7 +63,7 @@ public final class WorkspaceDtoFactory {
         ports.bindingsByWorkspace(view.workspace().id()).stream()
             .map(
                 binding ->
-                    PortDto.from(binding, slug, appDomain, token(owner, view, binding.port())))
+                    PortDto.from(binding, slug, endpoint, token(owner, view, binding.port())))
             .toList();
     return WorkspaceDto.from(view, entries);
   }
@@ -77,7 +78,7 @@ public final class WorkspaceDtoFactory {
     String slug = users.slug(view.workspace().owner());
     List<PortDto> entries =
         ports.bindingsByWorkspace(view.workspace().id()).stream()
-            .map(binding -> PortDto.from(binding, slug, appDomain, null))
+            .map(binding -> PortDto.from(binding, slug, endpoint, null))
             .toList();
     return WorkspaceDto.from(view, entries);
   }

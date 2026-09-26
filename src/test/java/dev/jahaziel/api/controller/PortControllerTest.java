@@ -15,6 +15,7 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
@@ -55,7 +56,14 @@ class PortControllerTest {
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     mvc =
         MockMvcBuilders.standaloneSetup(
-                new PortController(ports, users, auth, routes, tokens, "code.test", 900))
+                new PortController(
+                    ports,
+                    users,
+                    auth,
+                    routes,
+                    tokens,
+                    new GatewayEndpoint("https", "code.test", 443),
+                    900))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
   }

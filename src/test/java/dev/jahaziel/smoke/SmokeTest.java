@@ -98,7 +98,7 @@ class SmokeTest {
         List.of("java", "-Djava.io.tmpdir=" + dataTmp, "-jar", jar.toString(), "doctor");
     Run pass = exec(tmp, command, env, 120);
     assertEquals(0, pass.code(), "doctor must exit 0 when set up: " + pass.out());
-    assertTrue(pass.out().contains("8/8"), "doctor must report 8/8, got: " + pass.out());
+    assertTrue(pass.out().contains("9/9"), "doctor must report 9/9, got: " + pass.out());
   }
 
   @Test

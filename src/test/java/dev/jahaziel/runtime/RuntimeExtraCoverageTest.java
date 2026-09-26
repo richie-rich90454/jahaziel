@@ -40,7 +40,13 @@ class RuntimeExtraCoverageTest {
   void stopReturnsEarlyForRequestedAndDestroyed() {
     NodeBackend backend = mock(NodeBackend.class);
     WorkspaceService ws = mock(WorkspaceService.class);
-    RuntimeServiceImpl svc = new RuntimeServiceImpl(backend, ws, new ImageRef("b:1"));
+    RuntimeServiceImpl svc =
+        new RuntimeServiceImpl(
+            backend,
+            ws,
+            new ImageRef("b:1"),
+            mock(dev.jahaziel.ide.internal.IdeServerService.class),
+            mock(dev.jahaziel.networking.api.PortService.class));
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
     Workspace requested = fresh(id);
     when(ws.get(id)).thenReturn(requested);
@@ -63,7 +69,13 @@ class RuntimeExtraCoverageTest {
   void stopAbortsBootWhenSuspendFails() {
     NodeBackend backend = mock(NodeBackend.class);
     WorkspaceService ws = mock(WorkspaceService.class);
-    RuntimeServiceImpl svc = new RuntimeServiceImpl(backend, ws, new ImageRef("b:1"));
+    RuntimeServiceImpl svc =
+        new RuntimeServiceImpl(
+            backend,
+            ws,
+            new ImageRef("b:1"),
+            mock(dev.jahaziel.ide.internal.IdeServerService.class),
+            mock(dev.jahaziel.networking.api.PortService.class));
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
     Workspace booting = fresh(id);
     booting.prepare();
@@ -79,10 +91,49 @@ class RuntimeExtraCoverageTest {
     WorkspaceService ws = mock(WorkspaceService.class);
     NodeBackend b = mock(NodeBackend.class);
     org.junit.jupiter.api.Assertions.assertThrows(
-        NullPointerException.class, () -> new RuntimeServiceImpl(null, ws, new ImageRef("b:1")));
+        NullPointerException.class,
+        () ->
+            new RuntimeServiceImpl(
+                null,
+                ws,
+                new ImageRef("b:1"),
+                mock(dev.jahaziel.ide.internal.IdeServerService.class),
+                mock(dev.jahaziel.networking.api.PortService.class)));
     org.junit.jupiter.api.Assertions.assertThrows(
-        NullPointerException.class, () -> new RuntimeServiceImpl(b, null, new ImageRef("b:1")));
+        NullPointerException.class,
+        () ->
+            new RuntimeServiceImpl(
+                b,
+                null,
+                new ImageRef("b:1"),
+                mock(dev.jahaziel.ide.internal.IdeServerService.class),
+                mock(dev.jahaziel.networking.api.PortService.class)));
     org.junit.jupiter.api.Assertions.assertThrows(
-        NullPointerException.class, () -> new RuntimeServiceImpl(b, ws, null));
+        NullPointerException.class,
+        () ->
+            new RuntimeServiceImpl(
+                b,
+                ws,
+                null,
+                mock(dev.jahaziel.ide.internal.IdeServerService.class),
+                mock(dev.jahaziel.networking.api.PortService.class)));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        NullPointerException.class,
+        () ->
+            new RuntimeServiceImpl(
+                b,
+                ws,
+                new ImageRef("b:1"),
+                null,
+                mock(dev.jahaziel.networking.api.PortService.class)));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        NullPointerException.class,
+        () ->
+            new RuntimeServiceImpl(
+                b,
+                ws,
+                new ImageRef("b:1"),
+                mock(dev.jahaziel.ide.internal.IdeServerService.class),
+                null));
   }
 }

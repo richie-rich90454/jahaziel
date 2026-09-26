@@ -39,6 +39,7 @@ import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
 import java.security.Principal;
 import java.time.Duration;
@@ -60,8 +61,13 @@ class ApiExtraCoverageTest {
   void portDtoAndMetricsDto() {
     PortBinding b =
         new PortBinding(UUID.randomUUID(), 8080, UUID.randomUUID(), "http", Instant.now());
-    assertTrue(PortDto.from(b, "slug", "code.test", null).url() == null);
-    assertTrue(PortDto.from(b, "slug", "code.test", "tok").url().contains("tok"));
+    assertTrue(
+        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), null).url()
+            == null);
+    assertTrue(
+        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), "tok")
+            .url()
+            .contains("tok"));
     assertEquals(0, MetricsDto.zero().cpuUsagePercent());
   }
 
@@ -70,7 +76,9 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var users = mock(UserService.class);
     var tokens = mock(JwtService.class);
-    WorkspaceDtoFactory f = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    WorkspaceDtoFactory f =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     UserId owner = new UserId(UUID.randomUUID());
     var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
     WorkspaceDtoFactoryTestHelper.setup(ws, owner);
@@ -85,7 +93,10 @@ class ApiExtraCoverageTest {
     WorkspaceDto admin = f.withoutTokens(view);
     assertTrue(admin.ports().get(0).url() == null);
     assertThrows(
-        NullPointerException.class, () -> new WorkspaceDtoFactory(null, users, tokens, "d", 1));
+        NullPointerException.class,
+        () ->
+            new WorkspaceDtoFactory(
+                null, users, tokens, new GatewayEndpoint("http", "d", 8081), 1));
   }
 
   @Test
@@ -176,7 +187,9 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var tokens = mock(JwtService.class);
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
-    var dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    var dtos =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     WorkspaceController c =
         new WorkspaceController(workspaces, runtime, auth, users, dtos, "node-a");
     UserId u = new UserId(UUID.randomUUID());
@@ -230,7 +243,9 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var tokens = mock(JwtService.class);
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
-    var dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    var dtos =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     RuntimeController c = new RuntimeController(runtime, workspaces, metrics, auth, dtos);
     UserId u = new UserId(UUID.randomUUID());
     UUID wid = UUID.randomUUID();
@@ -266,7 +281,9 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var tokens = mock(JwtService.class);
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
-    var dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    var dtos =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     SnapshotController sc = new SnapshotController(snapshots, workspaces, auth, dtos);
     UserId u = new UserId(UUID.randomUUID());
     UUID wid = UUID.randomUUID();
@@ -324,7 +341,15 @@ class ApiExtraCoverageTest {
     var auth = mock(dev.jahaziel.authorization.api.AuthorizationService.class);
     var routes = mock(dev.jahaziel.networking.api.GatewayRouteService.class);
     var tokens = mock(JwtService.class);
-    PortController c = new PortController(ports, users, auth, routes, tokens, "code.test", 900);
+    PortController c =
+        new PortController(
+            ports,
+            users,
+            auth,
+            routes,
+            tokens,
+            new GatewayEndpoint("https", "code.test", 443),
+            900);
     UserId u = new UserId(UUID.randomUUID());
     UUID wid = UUID.randomUUID();
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
@@ -355,7 +380,9 @@ class ApiExtraCoverageTest {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var tokens = mock(JwtService.class);
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
-    var dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    var dtos =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     AdminController c =
         new AdminController(admin, auth, users, workspaces, nodes, audit, policies, metrics, dtos);
     UserId adminId = new UserId(UUID.randomUUID());

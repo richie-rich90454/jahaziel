@@ -14,6 +14,7 @@ import dev.jahaziel.api.dto.CreateSnapshotRequest;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.terminal.api.TerminalService;
@@ -32,7 +33,11 @@ class ControllerCoverageGapTest {
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
     WorkspaceDtoFactory dtos =
         new WorkspaceDtoFactory(
-            ports, mock(UserService.class), mock(JwtService.class), "code.test", 900);
+            ports,
+            mock(UserService.class),
+            mock(JwtService.class),
+            new GatewayEndpoint("https", "code.test", 443),
+            900);
     SnapshotController controller = new SnapshotController(snapshots, workspaces, auth, dtos);
     UUID id = UUID.randomUUID();
     assertThrows(IllegalArgumentException.class, () -> controller.list(id, () -> "nope"));

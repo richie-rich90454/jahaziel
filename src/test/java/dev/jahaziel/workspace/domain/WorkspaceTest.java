@@ -85,6 +85,14 @@ class WorkspaceTest {
   }
 
   @Test
+  void prepareRejectsNonRequested() {
+    workspace.prepare();
+    assertThrows(IllegalWorkspaceStateException.class, workspace::prepare);
+    workspace.boot();
+    assertThrows(IllegalWorkspaceStateException.class, workspace::prepare);
+  }
+
+  @Test
   void walksToActive() {
     workspace.prepare();
     assertInstanceOf(WorkspaceState.Preparing.class, workspace.state());

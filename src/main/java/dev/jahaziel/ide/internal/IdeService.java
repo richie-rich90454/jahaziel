@@ -83,10 +83,7 @@ public final class IdeService {
     }
     Path tarball = ideDir.resolve("jahaziel-code-server-" + variant.slug() + ".tar.zst");
     if (!Files.isRegularFile(tarball)) {
-      throw new IllegalStateException(
-          "REH tarball missing: "
-              + tarball
-              + " (build it with ide/build.sh or fetch the manifest)");
+      throw new RehNotInstalledException(tarball);
     }
     verify(tarball);
     try {

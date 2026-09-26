@@ -4,6 +4,9 @@
  */
 package dev.jahaziel.cli;
 
+import dev.jahaziel.platform.Platform;
+import dev.jahaziel.platform.Platforms;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.HttpURLConnection;
@@ -23,7 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Pre-boot environment checks. Eight checks, one line each, exit 0 only when all pass. Pure JDK so
+ * Pre-boot environment checks. Nine checks, one line each, exit 0 only when all pass. Pure JDK so
  * the jar can diagnose itself before Spring starts.
  */
 public final class Doctor {
@@ -33,7 +36,7 @@ public final class Doctor {
   public record Check(String name, boolean ok, String detail, String fix) {}
 
   /**
-   * Runs all eight checks.
+   * Runs all nine checks.
    *
    * @param jarDir the directory holding the jar and .env
    * @param dataDir the data root
@@ -51,6 +54,7 @@ public final class Doctor {
     checks.add(portFree(port));
     checks.add(sqlite(dataDir));
     checks.add(reh(dataDir));
+    checks.add(tools());
     checks.add(tmpDir(dataDir));
     checks.add(noStray(jarFile, dataDir));
     return List.copyOf(checks);
@@ -223,6 +227,60 @@ public final class Doctor {
         false,
         "REH tarball missing: " + tarball,
         "build it with ide/build.sh or fetch the manifest for " + slug);
+  }
+
+  /**
+   * Checks the external tools REH extraction shells out to. Runs on the ambient PATH because that
+   * is what the extraction subprocess inherits.
+   */
+  private static Check tools() {
+    return tools(System.getenv("PATH"));
+  }
+
+  static Check tools(String pathValue) {
+    boolean windows = Platforms.detect(null).os() == Platform.Os.WINDOWS;
+    return tools(pathValue, windows);
+  }
+
+  static Check tools(String pathValue, boolean windows) {
+    List<String> missing = new ArrayList<>();
+    if (!commandAvailable("tar", pathValue, windows)) {
+      missing.add("tar");
+    }
+    if (!commandAvailable("zstd", pathValue, windows)) {
+      missing.add("zstd");
+    }
+    if (missing.isEmpty()) {
+      return new Check("tools", true, "tar and zstd resolve on PATH", "");
+    }
+    return new Check(
+        "tools",
+        false,
+        "missing on PATH: " + String.join(", ", missing),
+        "install zstd and launch from a shell where tar and zstd resolve"
+            + " (ide/build.sh already needs both)");
+  }
+
+  static boolean commandAvailable(String command, String pathValue, boolean windows) {
+    if (pathValue == null || pathValue.isBlank()) {
+      return false;
+    }
+    for (String dir : pathValue.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+      if (dir.isBlank()) {
+        continue;
+      }
+      if (windows) {
+        for (String candidate :
+            List.of(command, command + ".exe", command + ".cmd", command + ".bat")) {
+          if (Files.isRegularFile(Path.of(dir, candidate))) {
+            return true;
+          }
+        }
+      } else if (Files.isExecutable(Path.of(dir, command))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static Check tmpDir(Path dataDir) {

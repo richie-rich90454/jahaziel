@@ -171,6 +171,7 @@ public final class Cli {
         BASIS_CLIENT_SECRET=%s
         BASIS_RESOURCE=urn:basis:api:jahaziel
         PORT=11451
+        JAHAZIEL_DOMAIN=localhost
         JAHAZIEL_LOG_LEVEL=INFO
         JAHAZIEL_DEMO=false
         JAHAZIEL_BACKEND=local

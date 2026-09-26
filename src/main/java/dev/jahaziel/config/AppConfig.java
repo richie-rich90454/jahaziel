@@ -19,6 +19,8 @@ import dev.jahaziel.authorization.internal.AuthorizationServiceImpl;
 import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.extension.internal.ExtensionPolicyServiceImpl;
 import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
+import dev.jahaziel.ide.internal.IdeServerService;
+import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.internal.JwtServiceImpl;
@@ -142,13 +144,21 @@ public class AppConfig {
     return new UnreachableStorage();
   }
 
+  /** Returns the per-workspace IDE servers. */
+  @Bean(destroyMethod = "shutdownAll")
+  public IdeServerService ideServers(IdeService ide) {
+    return new IdeServerService(ide);
+  }
+
   /** Returns runtime lifecycle orchestration. */
   @Bean
   public RuntimeService runtime(
       NodeBackend backend,
       WorkspaceService workspaces,
-      @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef) {
-    return new RuntimeServiceImpl(backend, workspaces, new ImageRef(imageRef));
+      @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef,
+      IdeServerService ideServers,
+      PortService ports) {
+    return new RuntimeServiceImpl(backend, workspaces, new ImageRef(imageRef), ideServers, ports);
   }
 
   /** Returns nodes. */
@@ -192,16 +202,25 @@ public class AppConfig {
     return new GatewayRouteServiceImpl(registry, workspaces, users, ports);
   }
 
+  /** Returns the public gateway address behind which workspace ports are served. */
+  @Bean
+  public dev.jahaziel.networking.api.GatewayEndpoint gatewayEndpoint(
+      @Value("${jahaziel.gateway.public-scheme:http}") String scheme,
+      @Value("${jahaziel.domain}") String domain,
+      @Value("${jahaziel.dist.gateway-port:8081}") int port) {
+    return new dev.jahaziel.networking.api.GatewayEndpoint(scheme, domain, port);
+  }
+
   /** Returns the workspace read-model factory, which attaches tokenized port URLs. */
   @Bean
   public dev.jahaziel.api.WorkspaceDtoFactory workspaceDtos(
       PortService ports,
       UserService users,
       JwtService tokens,
-      @Value("${jahaziel.domain}") String appDomain,
+      dev.jahaziel.networking.api.GatewayEndpoint endpoint,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
     return new dev.jahaziel.api.WorkspaceDtoFactory(
-        ports, users, tokens, appDomain, tokenTtlSeconds);
+        ports, users, tokens, endpoint, tokenTtlSeconds);
   }
 
   /** Returns metric rollups. */

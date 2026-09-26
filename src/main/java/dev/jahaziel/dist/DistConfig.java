@@ -118,7 +118,7 @@ public class DistConfig {
   @ConditionalOnProperty(name = "jahaziel.dist.gateway-enabled", havingValue = "true")
   public SmartLifecycle distGateway(
       @Value("${jahaziel.dist.gateway-port:8081}") int port,
-      @Value("${jahaziel.dist.domain:code.example.com}") String domain,
+      @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
       @Value("${jahaziel.jwt.issuer:https://code.example.com}") String issuer,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,

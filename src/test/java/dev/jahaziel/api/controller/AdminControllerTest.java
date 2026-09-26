@@ -24,6 +24,7 @@ import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.monitoring.api.MetricsService;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.node.domain.Node;
@@ -72,7 +73,9 @@ class AdminControllerTest {
     PortService ports = mock(PortService.class);
     JwtService tokens = mock(JwtService.class);
     when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
-    dtos = new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900);
+    dtos =
+        new WorkspaceDtoFactory(
+            ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900);
     mvc =
         MockMvcBuilders.standaloneSetup(
                 new AdminController(

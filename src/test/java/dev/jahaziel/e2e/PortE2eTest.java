@@ -23,7 +23,9 @@ class PortE2eTest extends E2eBase {
             "{\"port\":18080,\"protocol\":\"http\"}");
     assertEquals(201, registered.status(), registered.body());
     assertTrue(registered.body().contains("\"port\":18080"), registered.body());
-    assertTrue(registered.body().contains("-18080." + DOMAIN + "/?token="), registered.body());
+    assertTrue(
+        registered.body().contains("-18080." + DOMAIN + ":" + GATEWAY_PORT + "/?token="),
+        registered.body());
 
     E2eResponse listed = get("/api/v1/workspaces/" + id + "/ports", userToken());
     assertEquals(200, listed.status(), listed.body());

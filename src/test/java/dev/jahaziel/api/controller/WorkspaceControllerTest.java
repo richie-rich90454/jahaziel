@@ -20,6 +20,7 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.spi.StorageUsage;
@@ -87,7 +88,8 @@ class WorkspaceControllerTest {
                     runtime,
                     auth,
                     users,
-                    new WorkspaceDtoFactory(ports, users, tokens, "code.test", 900),
+                    new WorkspaceDtoFactory(
+                        ports, users, tokens, new GatewayEndpoint("https", "code.test", 443), 900),
                     "node-a"))
             .setControllerAdvice(new ApiExceptionHandler())
             .setValidator(validator)
