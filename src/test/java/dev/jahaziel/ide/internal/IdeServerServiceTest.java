@@ -161,6 +161,30 @@ class IdeServerServiceTest {
   }
 
   @Test
+  void ensureRunningExitErrorCarriesIdeLogTail() throws Exception {
+    Path serverDir = Files.createDirectory(tmp.resolve("ide-log"));
+    Process exited = mock(Process.class);
+    when(exited.isAlive()).thenReturn(false);
+    when(exited.exitValue()).thenReturn(3);
+    IdeServerService service =
+        new IdeServerService(
+            ideReturning(serverDir),
+            (argv, dir) -> exited,
+            () -> 19854,
+            Duration.ofSeconds(5),
+            Duration.ofMillis(5));
+    Path home = Files.createDirectory(tmp.resolve("home-log"));
+    Path logDir = Files.createDirectory(home.resolve(".jahaziel-ide"));
+    Files.writeString(logDir.resolve("server.log"), "line one\nboom happened\n");
+    IllegalStateException failure =
+        assertThrows(
+            IllegalStateException.class,
+            () -> service.ensureRunning(new WorkspaceId(UUID.randomUUID()), home));
+    assertTrue(failure.getMessage().contains("exit=3"));
+    assertTrue(failure.getMessage().contains("boom happened"));
+  }
+
+  @Test
   void ensureRunningFailsWhenServerExitsEarly() {
     Process exited = mock(Process.class);
     when(exited.isAlive()).thenReturn(false);

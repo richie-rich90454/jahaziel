@@ -40,6 +40,7 @@ public final class WorkspaceMapper {
     row.setOwnerUserId(workspace.owner().value());
     row.setName(workspace.name());
     row.setState(stateToString(workspace.state()));
+    row.setStateReason(stateReasonOf(workspace.state()));
     row.setStateChangedAt(Instant.now());
     row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
     row.setInodeQuota(workspace.quota().inodeLimit());
@@ -77,8 +78,8 @@ public final class WorkspaceMapper {
   }
 
   /**
-   * Rebuilds a workspace from its rows. Failure reasons are not stored, so restored failures record
-   * that the reason was not recorded.
+   * Rebuilds a workspace from its rows. A stored failure reason survives the round trip; rows
+   * written before reasons were stored fall back to recording that it was not recorded.
    *
    * @param row the workspace row
    * @param aclRows the grant rows
@@ -109,8 +110,22 @@ public final class WorkspaceMapper {
     for (UUID snapshotId : snapshotIds) {
       workspace.recordSnapshot(snapshotId);
     }
-    replay(workspace, row.getState(), row.getStateChangedAt());
+    replay(workspace, row.getState(), row.getStateChangedAt(), row.getStateReason());
     return workspace;
+  }
+
+  /**
+   * Returns the storable failure reason for a state: the reason while failed, null otherwise, so
+   * leaving failed clears the stored reason.
+   *
+   * @param state the state
+   * @return the reason or null
+   */
+  public static String stateReasonOf(WorkspaceState state) {
+    if (state instanceof WorkspaceState.Failed failed) {
+      return failed.reason();
+    }
+    return null;
   }
 
   /**
@@ -150,7 +165,7 @@ public final class WorkspaceMapper {
     throw new IllegalArgumentException("Unknown state " + state);
   }
 
-  private static void replay(Workspace workspace, String state, Instant at) {
+  private static void replay(Workspace workspace, String state, Instant at, String reason) {
     switch (state) {
       case "requested" -> {}
       case "preparing" -> workspace.prepare();
@@ -178,7 +193,7 @@ public final class WorkspaceMapper {
       }
       case "failed" -> {
         start(workspace);
-        workspace.fail("not recorded");
+        workspace.fail(reason == null ? "not recorded" : reason);
       }
       default ->
           throw new IllegalStateException(

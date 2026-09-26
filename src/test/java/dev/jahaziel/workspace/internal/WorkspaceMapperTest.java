@@ -73,6 +73,34 @@ class WorkspaceMapperTest {
   }
 
   @Test
+  void toDomainRestoresStoredFailureReason() {
+    WorkspaceEntity failed = row("failed");
+    when(failed.getStateReason()).thenReturn("disk gone");
+    WorkspaceState.Failed state =
+        assertInstanceOf(
+            WorkspaceState.Failed.class,
+            WorkspaceMapper.toDomain(failed, List.of(), machineRow(), List.of()).state());
+    assertEquals("disk gone", state.reason());
+  }
+
+  @Test
+  void toEntityStoresFailureReason() {
+    Workspace workspace = newWorkspace();
+    workspace.prepare();
+    workspace.boot();
+    workspace.fail("disk gone");
+    WorkspaceEntity row = WorkspaceMapper.toEntity(workspace, "/home", "/jail");
+    assertEquals("failed", row.getState());
+    assertEquals("disk gone", row.getStateReason());
+  }
+
+  @Test
+  void stateReasonOfIsNullOutsideFailed() {
+    assertEquals(null, WorkspaceMapper.stateReasonOf(new WorkspaceState.Ready(at)));
+    assertEquals("x", WorkspaceMapper.stateReasonOf(new WorkspaceState.Failed(at, "x")));
+  }
+
+  @Test
   void toDomainFoldsGrantsAndSnapshots() {
     WorkspaceAclEntity grant = mock(WorkspaceAclEntity.class);
     WorkspaceAclEntity.Id key = mock(WorkspaceAclEntity.Id.class);

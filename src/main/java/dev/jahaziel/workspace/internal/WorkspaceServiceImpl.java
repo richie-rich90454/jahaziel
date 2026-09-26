@@ -133,6 +133,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
       row.setState(state);
       row.setStateChangedAt(Instant.now());
     }
+    row.setStateReason(WorkspaceMapper.stateReasonOf(workspace.state()));
     row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
     row.setInodeQuota(workspace.quota().inodeLimit());
     workspaces.save(row);

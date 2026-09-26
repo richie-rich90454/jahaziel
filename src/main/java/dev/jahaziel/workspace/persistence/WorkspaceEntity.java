@@ -34,6 +34,10 @@ public class WorkspaceEntity {
   @Column(name = "state")
   private String state;
 
+  /** Failure reason, set only while failed. */
+  @Column(name = "state_reason")
+  private String stateReason;
+
   /** Last state transition timestamp. */
   @Column(name = "state_changed_at")
   private Instant stateChangedAt;
@@ -95,6 +99,16 @@ public class WorkspaceEntity {
   /** Sets the lifecycle state. */
   public void setState(String state) {
     this.state = state;
+  }
+
+  /** Gets the failure reason, null unless failed. */
+  public String getStateReason() {
+    return stateReason;
+  }
+
+  /** Sets the failure reason. */
+  public void setStateReason(String stateReason) {
+    this.stateReason = stateReason;
   }
 
   /** Gets the last state transition timestamp. */

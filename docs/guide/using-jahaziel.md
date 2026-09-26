@@ -51,7 +51,8 @@ workspace as `suspended`. Nothing is deleted.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `No live boot is reporting` on a `preparing`/`booting` card | The server restarted mid-boot (live progress is in-memory), or the boot died before reporting | Press **Retry start** |
-| Card reads `failed` with a `Failed: …` reason | The boot threw; the reason is recorded on the card | Press **Restart**; if it repeats, read the reason — it names the cause |
+| Card reads `failed` with a `Failed: …` reason | The boot threw; the reason names the cause and survives restarts | Press **Restart**; if it repeats, read the reason — it names the cause |
+| Start spins, then `failed: IDE server exited during startup (exit=…)` | The IDE process died instantly; the card quotes the tail of its log | Read the full IDE log (below) — it holds the crash output — then Restart |
 | Start spins, then the card is `failed: IDE server did not listen in time` | The IDE process exited or never bound its port within 30 s | Check the IDE log (below), then Restart |
 | Start spins, then `failed: REH tarball missing …` | The IDE runtime was never staged next to the jar | Run the jar from its folder, or rebuild with the `bundled-ide` profile |
 | `doctor` is not `9/9` | Environment prerequisite missing | Fix what doctor names, then start the jar |

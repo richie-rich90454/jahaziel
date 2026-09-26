@@ -159,7 +159,7 @@ public final class IdeServerService {
       throw new UncheckedIOException("cannot start IDE server", failure);
     }
     progress.accept(BootPhase.WAITING);
-    waitForPort(port, process);
+    waitForPort(port, process, home.resolve(".jahaziel-ide").resolve("server.log"));
     servers.put(id.value(), new RunningServer(port, process));
     return port;
   }
@@ -183,11 +183,17 @@ public final class IdeServerService {
     servers.clear();
   }
 
-  private void waitForPort(int port, Process process) {
+  private void waitForPort(int port, Process process, Path logFile) {
     Instant deadline = Instant.now().plus(startTimeout);
     while (true) {
       if (!process.isAlive()) {
-        throw new IllegalStateException("IDE server exited during startup");
+        throw new IllegalStateException(
+            "IDE server exited during startup (exit="
+                + process.exitValue()
+                + ", log "
+                + logFile
+                + "): "
+                + logTail(logFile));
       }
       try (Socket probe = new Socket()) {
         probe.connect(new InetSocketAddress("127.0.0.1", port), (int) pollInterval.toMillis());
@@ -199,6 +205,21 @@ public final class IdeServerService {
         }
         java.util.concurrent.locks.LockSupport.parkNanos(pollInterval.toNanos());
       }
+    }
+  }
+
+  /**
+   * Returns the tail of the IDE log for a startup failure, capped so the failure reason stays
+   * readable on the workbench card.
+   */
+  private static String logTail(Path logFile) {
+    try {
+      List<String> lines = Files.readAllLines(logFile);
+      List<String> tail = lines.subList(Math.max(0, lines.size() - 5), lines.size());
+      String text = String.join(" | ", tail).trim();
+      return text.substring(Math.max(0, text.length() - 400));
+    } catch (IOException | RuntimeException unreadable) {
+      return "unreadable";
     }
   }
 
