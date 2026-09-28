@@ -98,6 +98,17 @@ class PortServiceImplTest {
   }
 
   @Test
+  void unregistersWorkspacePortsWithoutOwnerLookup() {
+    WorkspacePortEntity row = mock(WorkspacePortEntity.class);
+    when(ports.findByIdWorkspaceId(workspaceId.value())).thenReturn(List.of(row));
+    service.unregisterWorkspacePorts(workspaceId);
+    verify(ports).delete(row);
+    when(ports.findByIdWorkspaceId(workspaceId.value())).thenReturn(List.of());
+    service.unregisterWorkspacePorts(workspaceId);
+    verify(ports).delete(row);
+  }
+
+  @Test
   void lookupFindsWorkspace() {
     WorkspacePortEntity row = mock(WorkspacePortEntity.class);
     WorkspacePortEntity.Id key = mock(WorkspacePortEntity.Id.class);

@@ -48,7 +48,7 @@ public class WorkspaceController {
    * Creates the controller.
    *
    * @param workspaces the workspace service
-   * @param runtime the runtime lifecycle for stop-before-delete
+   * @param runtime the runtime lifecycle for destroy-before-delete
    * @param auth the authorization checks
    * @param users the user lookup
    * @param dtos the workspace read-model factory
@@ -150,7 +150,7 @@ public class WorkspaceController {
     }
     WorkspaceId workspace = require(principal, id, "admin");
     try {
-      runtime.stop(workspace);
+      runtime.destroy(workspace);
     } catch (NodeAgentUnreachableException unreachable) {
       // Fail-closed backend: nothing reachable to stop; still release the record.
     }

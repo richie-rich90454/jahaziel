@@ -166,6 +166,14 @@ public final class RuntimeServiceImpl implements RuntimeService {
   }
 
   @Override
+  public void destroy(WorkspaceId id) {
+    Workspace workspace = workspaces.get(id);
+    stop(id);
+    ports.unregisterWorkspacePorts(id);
+    backend.destroy(backend.prepare(prepareRequest(workspace)));
+  }
+
+  @Override
   public Workspace resume(WorkspaceId id) {
     Workspace workspace = workspaces.get(id);
     WorkspaceHandle handle = backend.prepare(prepareRequest(workspace));

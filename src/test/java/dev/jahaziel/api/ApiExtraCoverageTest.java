@@ -325,7 +325,7 @@ class ApiExtraCoverageTest {
     when(auth.isAllowed(any(), any(), any())).thenReturn(true);
     org.mockito.Mockito.doThrow(new dev.jahaziel.runtime.api.NodeAgentUnreachableException("down"))
         .when(runtime)
-        .stop(any());
+        .destroy(any());
     c.delete(wid.value(), true, principal(u.value()));
   }
 

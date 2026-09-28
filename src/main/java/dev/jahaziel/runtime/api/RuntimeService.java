@@ -45,6 +45,15 @@ public interface RuntimeService {
   Workspace resume(WorkspaceId id);
 
   /**
+   * Tears down everything a workspace owns: stops the IDE server, removes every port binding, and
+   * destroys the backend handle. The home folder survives; the caller deletes the record itself, so
+   * reads fail fast afterwards instead of serving half-deleted state.
+   *
+   * @param id the workspace identifier
+   */
+  void destroy(WorkspaceId id);
+
+  /**
    * Marks a booted workspace ready after the guest agent registers.
    *
    * @param id the workspace identifier

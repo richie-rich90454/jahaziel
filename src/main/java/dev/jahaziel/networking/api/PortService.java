@@ -32,6 +32,14 @@ public interface PortService {
   void unregisterPort(UserId userId, int port);
 
   /**
+   * Removes every binding of a workspace, for deletion. Never throws for a workspace without
+   * bindings.
+   *
+   * @param workspaceId the workspace
+   */
+  void unregisterWorkspacePorts(WorkspaceId workspaceId);
+
+  /**
    * Lists a workspace's bindings.
    *
    * @param workspaceId the workspace

@@ -130,6 +130,22 @@ class RuntimeServiceImplTest {
   }
 
   @Test
+  void destroyStopsIdeClearsBindingsAndBackend() {
+    var workspace = realWorkspace();
+    workspace.prepare();
+    workspace.boot();
+    workspace.markReady();
+    workspace.start();
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    service.destroy(workspaceId);
+    assertInstanceOf(WorkspaceState.Suspended.class, workspace.state());
+    verify(ideServers).stop(workspaceId);
+    verify(progress).clear(workspaceId);
+    verify(ports).unregisterWorkspacePorts(workspaceId);
+    assertEquals(1, backend.destroys);
+  }
+
+  @Test
   void stopSuspendsRunning() {
     var workspace = realWorkspace();
     workspace.prepare();
@@ -420,6 +436,7 @@ class RuntimeServiceImplTest {
     int prepares;
     int starts;
     int stops;
+    int destroys;
     RuntimeException startFailure;
 
     @Override
@@ -448,6 +465,8 @@ class RuntimeServiceImplTest {
     }
 
     @Override
-    public void destroy(WorkspaceHandle handle) {}
+    public void destroy(WorkspaceHandle handle) {
+      destroys++;
+    }
   }
 }

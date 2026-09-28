@@ -81,6 +81,12 @@ public final class PortServiceImpl implements PortService {
   }
 
   @Override
+  public void unregisterWorkspacePorts(WorkspaceId workspaceId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    ports.findByIdWorkspaceId(workspaceId.value()).forEach(ports::delete);
+  }
+
+  @Override
   public List<PortBinding> bindingsByWorkspace(WorkspaceId workspaceId) {
     var workspace = workspaces.get(workspaceId);
     UUID owner = workspace.owner().value();
