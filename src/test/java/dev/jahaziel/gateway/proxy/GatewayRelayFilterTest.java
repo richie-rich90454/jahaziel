@@ -277,6 +277,52 @@ class GatewayRelayFilterTest {
   }
 
   @Test
+  void setsSessionCookieBeforeTheBodyIsWritten() throws Exception {
+    // The entry URL carries the token in the query; the workbench's asset requests carry only the
+    // cookie. Headers set after the body is flushed are dropped by the container, which left every
+    // asset request unauthorized and the workbench blank.
+    HttpServer backend = dummyBackend("ide-marker");
+    int backendPort = backend.getAddress().getPort();
+    try {
+      UUID user = UUID.randomUUID();
+      UUID workspace = UUID.randomUUID();
+      JwtVerifier tokens = mock(JwtVerifier.class);
+      when(tokens.verify("tok")).thenReturn(session(user, workspace));
+      WorkspaceDirectory directory = mock(WorkspaceDirectory.class);
+      when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
+      TargetResolver targets = mock(TargetResolver.class);
+      when(targets.resolve(workspace, 8080))
+          .thenReturn(new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+      CommitTrackingResponse response = new CommitTrackingResponse();
+      filter(tokens, directory, targets)
+          .doFilter(workspaceRequest("/?token=tok"), response, mock(FilterChain.class));
+      assertTrue(response.cookieSetBeforeCommit, "Set-Cookie arrived after the response committed");
+    } finally {
+      backend.stop(0);
+    }
+  }
+
+  /** Records whether a header was added before or after the response body committed. */
+  private static final class CommitTrackingResponse extends MockHttpServletResponse {
+    private boolean committed;
+    private boolean cookieSetBeforeCommit;
+
+    @Override
+    public void addHeader(String name, String value) {
+      if (name.equalsIgnoreCase("Set-Cookie") && !committed) {
+        cookieSetBeforeCommit = true;
+      }
+      super.addHeader(name, value);
+    }
+
+    @Override
+    public void flushBuffer() {
+      committed = true;
+      super.flushBuffer();
+    }
+  }
+
+  @Test
   void proxiesPostBodies() throws Exception {
     AtomicBody backend = new AtomicBody();
     HttpServer server = backendServer(backend);

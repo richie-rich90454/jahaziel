@@ -139,6 +139,10 @@ public final class GatewayRelayFilter implements Filter {
     InetSocketAddress backend = targets.resolve(workspaceId, route.port());
     String stripped = stripToken(request.getQueryString());
     String forwardTarget = request.getRequestURI() + (stripped == null ? "" : "?" + stripped);
+    // Before any body is written: the entry URL carries the token as a query parameter, but the
+    // workbench's asset requests do not, so the session must arrive as a cookie. Setting it after
+    // relayHttp would be dropped, because flushing the body already commits the response headers.
+    refreshCookie(request, response, session, rawToken);
     if (isUpgrade(headers)) {
       RelayUpgrade.pending()
           .set(
@@ -152,7 +156,6 @@ public final class GatewayRelayFilter implements Filter {
       return;
     }
     relayHttp(request, response, headers, forwardTarget, backend);
-    refreshCookie(request, response, session, rawToken);
   }
 
   private void relayHttp(
