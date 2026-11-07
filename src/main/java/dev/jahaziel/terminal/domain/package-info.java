@@ -2,5 +2,5 @@
  * Copyright 2026 The Jahaziel Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-/** Terminal sessions of a workspace. One PTY pair per session inside the VM. */
+/** PTY-backed terminal sessions associated with a workspace home directory. */
 package dev.jahaziel.terminal.domain;
