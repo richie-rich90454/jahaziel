@@ -14,7 +14,7 @@ web/dist/
 ide/out/
 ide/vscode-reh-web-*/
 ide/upstream/
-# Project-local build toolchain (pinned Node, MSBuild wrappers); fetched by ide/build.sh.
+# Retired IDE build toolchain; keep any existing local copies ignored.
 ide/toolchain/
 base-image-builder/work-*/
 *.ext4.zst
