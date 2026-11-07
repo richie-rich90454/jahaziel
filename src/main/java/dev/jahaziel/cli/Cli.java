@@ -289,8 +289,33 @@ public final class Cli {
       return 1;
     }
     String entries = listed.toString(StandardCharsets.UTF_8);
+    if (entries.isBlank()) {
+      err.println("jahaziel: cannot list " + archive + " (is tar on PATH?)");
+      return 1;
+    }
+    if (entries.lines().map(String::strip).anyMatch(entry -> !safeBackupEntry(entry))) {
+      err.println("jahaziel: archive contains an unsafe path, refusing");
+      return 1;
+    }
     if (!entries.contains("data/") && !entries.contains(".env")) {
       err.println("jahaziel: archive holds neither data/ nor .env, refusing");
+      return 1;
+    }
+    ByteArrayOutputStream verbose = new ByteArrayOutputStream();
+    exit =
+        exec(
+            List.of("tar", "-tvzf", archive.toString()),
+            jar,
+            new PrintStream(verbose, true, StandardCharsets.UTF_8));
+    if (exit != 0) {
+      err.println("jahaziel: cannot list " + archive + " (is tar on PATH?)");
+      return 1;
+    }
+    if (verbose
+        .toString(StandardCharsets.UTF_8)
+        .lines()
+        .anyMatch(line -> line.isEmpty() || (line.charAt(0) != '-' && line.charAt(0) != 'd'))) {
+      err.println("jahaziel: extraction failed");
       return 1;
     }
     exit = exec(List.of("tar", "-xzf", archive.toString(), "-C", jar.toString()), jar, out);
@@ -300,6 +325,25 @@ public final class Cli {
     }
     out.println("jahaziel: restored " + archive + " into " + jar);
     return 0;
+  }
+
+  private static boolean safeBackupEntry(String entry) {
+    if (entry.isBlank()
+        || entry.startsWith("/")
+        || entry.indexOf('\\') >= 0
+        || entry.matches("^[A-Za-z]:.*")) {
+      return false;
+    }
+    String normalized = entry.endsWith("/") ? entry.substring(0, entry.length() - 1) : entry;
+    if (!normalized.equals(".env")
+        && !normalized.equals("data")
+        && !normalized.startsWith("data/")) {
+      return false;
+    }
+    for (String part : normalized.split("/", -1)) {
+      if (part.isBlank() || part.equals(".") || part.equals("..")) return false;
+    }
+    return true;
   }
 
   private static int logs(String[] args, PrintStream out, PrintStream err) throws IOException {
