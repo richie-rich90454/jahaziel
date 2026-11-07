@@ -1,8 +1,17 @@
 {
   "name": "python",
-  "description": "Python 3 workspace with a virtualenv and pip install.",
+  "description": "Python starter. Create a virtual environment when you are ready to install dependencies.",
   "vcpuCount": 2,
   "memoryMib": 4096,
   "ports": [8000],
-  "setup": ["python3 -m venv .venv", ".venv/bin/pip install -r requirements.txt"]
+  "languagePacks": ["python"],
+  "runTasks": [
+    { "id": "preview", "label": "Serve preview", "command": ["python3", "-m", "http.server", "8000", "--bind", "0.0.0.0"], "port": 8000 }
+  ],
+  "starterFiles": {
+    "README.md": "# Python\n\nRun `python3 main.py` in the terminal. Use the Run panel to serve this workspace on port 8000.\n",
+    "main.py": "def main():\n    print('Hello from Jahaziel')\n\n\nif __name__ == '__main__':\n    main()\n",
+    "index.html": "<!doctype html>\n<html lang=\"en\"><meta charset=\"utf-8\"><title>Jahaziel Python workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit index.html and reload this preview.</p></body></html>\n",
+    "requirements.txt": ""
+  }
 }
