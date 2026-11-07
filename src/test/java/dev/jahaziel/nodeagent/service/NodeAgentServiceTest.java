@@ -65,7 +65,7 @@ class NodeAgentServiceTest {
   void destroyDeregistersSync() {
     WorkspaceHandle handle = handle();
     service.destroyWorkspace(handle, false);
-    verify(backend).destroy(handle);
+    verify(backend).destroy(handle, false);
     verify(sync).deregister(workspaceId);
   }
 
@@ -128,7 +128,7 @@ class NodeAgentServiceTest {
   @Test
   void listsSnapshotsFromDisk() throws Exception {
     WorkspaceHandle handle = handle();
-    Path snaps = root.resolve("snaps").resolve(workspaceId.toString());
+    Path snaps = root.resolve("snaps");
     Files.createDirectories(snaps);
     Files.createDirectory(snaps.resolve("daily"));
     WorkspaceHandle withHome =
