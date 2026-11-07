@@ -5,7 +5,6 @@
 package dev.jahaziel.platform;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,32 +39,6 @@ public interface Platform {
 
   /** Returns {@code data/tmp}. */
   Path tempDir();
-
-  /** Returns the REH (IDE server) directory for this platform. */
-  Path rehDir();
-
-  /** Returns one of win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64. */
-  String rehVariant();
-
-  /** Returns the REH executable. */
-  Path rehExecutable();
-
-  /**
-   * Builds the REH launch arguments for a workspace and port.
-   *
-   * @param workspace the workspace directory
-   * @param port the port to listen on
-   * @return the arguments, without the executable
-   */
-  List<String> rehLaunchArgs(Path workspace, int port);
-
-  /**
-   * Builds the native terminal command for a working directory.
-   *
-   * @param workingDir the directory to open in
-   * @return the command, executable first
-   */
-  List<String> terminal(Path workingDir);
 
   /** Returns the PATH separator ({@code ;} on Windows, {@code :} elsewhere). */
   String pathSeparator();
