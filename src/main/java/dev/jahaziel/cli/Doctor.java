@@ -4,8 +4,6 @@
  */
 package dev.jahaziel.cli;
 
-import dev.jahaziel.platform.Platform;
-import dev.jahaziel.platform.Platforms;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -16,6 +14,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.DriverManager;
@@ -24,9 +23,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
- * Pre-boot environment checks. Nine checks, one line each, exit 0 only when all pass. Pure JDK so
+ * Pre-boot environment checks. Ten checks, one line each, exit 0 only when all pass. Pure JDK so
  * the jar can diagnose itself before Spring starts.
  */
 public final class Doctor {
@@ -36,7 +36,7 @@ public final class Doctor {
   public record Check(String name, boolean ok, String detail, String fix) {}
 
   /**
-   * Runs all nine checks.
+   * Runs all ten checks.
    *
    * @param jarDir the directory holding the jar and .env
    * @param dataDir the data root
@@ -53,10 +53,11 @@ public final class Doctor {
     checks.add(dotEnv(jarDir, fileEnv));
     checks.add(portFree(port));
     checks.add(sqlite(dataDir));
-    checks.add(reh(dataDir));
-    checks.add(tools());
+    checks.add(hostAndBackend(fileEnv));
+    checks.add(storage(dataDir));
     checks.add(tmpDir(dataDir));
     checks.add(noStray(jarFile, dataDir));
+    checks.add(gitCli());
     return List.copyOf(checks);
   }
 
@@ -188,79 +189,6 @@ public final class Doctor {
     }
   }
 
-  private static Check reh(Path dataDir) {
-    String slug = Cli.rehSlug();
-    Path tarball = dataDir.resolve("ide").resolve("jahaziel-code-server-" + slug + ".tar.zst");
-    Path checksum = tarball.resolveSibling(tarball.getFileName() + ".sha256");
-    if (Files.isRegularFile(tarball) && Files.isRegularFile(checksum)) {
-      try {
-        String expected =
-            Files.readString(checksum, StandardCharsets.UTF_8).strip().split("\\s+")[0];
-        String actual = Cli.sha256(tarball);
-        if (actual.equalsIgnoreCase(expected)) {
-          return new Check("reh", true, tarball.getFileName() + " present, sha256 matches", "");
-        }
-        return new Check(
-            "reh",
-            false,
-            "sha256 mismatch for " + tarball.getFileName(),
-            "re-fetch the REH tarball and its .sha256 (ide/build.sh or fetch the manifest)");
-      } catch (IOException failure) {
-        return new Check(
-            "reh",
-            false,
-            "cannot verify " + tarball.getFileName() + ": " + failure.getMessage(),
-            "re-fetch the REH tarball and its .sha256");
-      }
-    }
-    Path extracted = dataDir.resolve("ide").resolve(slug);
-    java.io.File[] children = extracted.toFile().listFiles();
-    if (children != null) {
-      for (java.io.File child : children) {
-        if (child.getName().startsWith(".extracted-")) {
-          return new Check("reh", true, slug + " already extracted", "");
-        }
-      }
-    }
-    return new Check(
-        "reh",
-        false,
-        "REH tarball missing: " + tarball,
-        "build it with ide/build.sh or fetch the manifest for " + slug);
-  }
-
-  /**
-   * Checks the external tools REH extraction shells out to. Runs on the ambient PATH because that
-   * is what the extraction subprocess inherits.
-   */
-  private static Check tools() {
-    return tools(System.getenv("PATH"));
-  }
-
-  static Check tools(String pathValue) {
-    boolean windows = Platforms.detect(null).os() == Platform.Os.WINDOWS;
-    return tools(pathValue, windows);
-  }
-
-  static Check tools(String pathValue, boolean windows) {
-    List<String> missing = new ArrayList<>();
-    if (!commandAvailable("tar", pathValue, windows)) {
-      missing.add("tar");
-    }
-    if (!commandAvailable("zstd", pathValue, windows)) {
-      missing.add("zstd");
-    }
-    if (missing.isEmpty()) {
-      return new Check("tools", true, "tar and zstd resolve on PATH", "");
-    }
-    return new Check(
-        "tools",
-        false,
-        "missing on PATH: " + String.join(", ", missing),
-        "install zstd and launch from a shell where tar and zstd resolve"
-            + " (ide/build.sh already needs both)");
-  }
-
   static boolean commandAvailable(String command, String pathValue, boolean windows) {
     if (pathValue == null || pathValue.isBlank()) {
       return false;
@@ -346,6 +274,205 @@ public final class Doctor {
         false,
         "another instance is running (" + String.join(", ", signals) + ")",
         "stop them before starting (kill <pid>) or they will fight over data/jahaziel.db");
+  }
+
+  private static Check hostAndBackend(Map<String, String> fileEnv) {
+    String os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ROOT);
+    String arch = System.getProperty("os.arch", "unknown").toLowerCase(Locale.ROOT);
+    String architecture = arch.contains("aarch64") || arch.contains("arm64") ? "arm64" : "x64";
+    boolean linux = os.contains("linux");
+    String backend =
+        System.getenv()
+            .getOrDefault("JAHAZIEL_BACKEND", fileEnv.getOrDefault("JAHAZIEL_BACKEND", "local"));
+    if (!backend.equalsIgnoreCase("local") && !backend.equalsIgnoreCase("firecracker")) {
+      return new Check(
+          "host",
+          false,
+          "unsupported workspace backend: " + backend,
+          "set JAHAZIEL_BACKEND to local or firecracker");
+    }
+    if (backend.equalsIgnoreCase("firecracker")) {
+      if (!linux || !Files.isWritable(Path.of("/dev/kvm"))) {
+        return new Check(
+            "host",
+            false,
+            "firecracker needs Linux and writable /dev/kvm",
+            "select the local backend or configure a Linux host with KVM access");
+      }
+      if (!commandAvailable("firecracker", System.getenv("PATH"), false)) {
+        return new Check(
+            "host",
+            false,
+            "firecracker is selected but its executable is not on PATH",
+            "install and configure Firecracker outside the Jahaziel application data directory");
+      }
+    }
+    if (linux
+        && !Files.isExecutable(Path.of("/bin/bash"))
+        && !Files.isExecutable(Path.of("/bin/sh"))) {
+      return new Check(
+          "host",
+          false,
+          "no supported interactive shell is available",
+          "provide /bin/bash or /bin/sh");
+    }
+    if (linux
+        && !Files.isExecutable(Path.of("/usr/bin/setsid"))
+        && !Files.isExecutable(Path.of("/bin/setsid"))) {
+      return new Check(
+          "host",
+          false,
+          "setsid is unavailable; task and language-service process groups cannot be recovered",
+          "install util-linux through the Linux distribution package manager");
+    }
+    String host =
+        linux ? "Linux " + architecture : "non-server desktop host " + os + " " + architecture;
+    String detail =
+        host
+            + "; backend="
+            + backend.toLowerCase(Locale.ROOT)
+            + "; language packs are opt-in under data/language-packs";
+    if (!linux) {
+      detail += "; production servers target Linux x64 and arm64";
+    }
+    return new Check("host", true, detail, "");
+  }
+
+  private static Check gitCli() {
+    boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    if (commandAvailable("git", System.getenv("PATH"), windows)) {
+      return new Check("git", true, "Git CLI resolves on PATH", "");
+    }
+    return new Check(
+        "git",
+        false,
+        "Git CLI is unavailable; source-control panel operations cannot run",
+        "install Git through the Linux distribution package manager and restart Jahaziel");
+  }
+
+  private static Check storage(Path dataDir) {
+    Path root = dataDir.toAbsolutePath().normalize();
+    Path workspaces = root.resolve("workspaces");
+    Path packs = root.resolve("language-packs");
+    try {
+      Files.createDirectories(workspaces);
+      Files.createDirectories(packs);
+      if (!Files.isWritable(root) || !Files.isWritable(workspaces) || !Files.isWritable(packs)) {
+        return new Check(
+            "storage",
+            false,
+            "data, workspace, or language-pack directory is not writable",
+            "fix ownership and permissions under " + root);
+      }
+      long appBytes = directoryBytes(root);
+      long workspaceBytes = directoryBytes(workspaces);
+      long packBytes = directoryBytes(packs);
+      String packSummary = managedPackSummary(packs);
+      return new Check(
+          "storage",
+          true,
+          "application="
+              + appBytes
+              + " bytes, workspaces="
+              + workspaceBytes
+              + " bytes, language-pack cache="
+              + packBytes
+              + " bytes; "
+              + packSummary,
+          "");
+    } catch (IOException failure) {
+      return new Check(
+          "storage",
+          false,
+          "cannot inspect application data: " + failure.getMessage(),
+          "fix permissions on " + root);
+    }
+  }
+
+  static String managedPackSummary(Path root) throws IOException {
+    List<String> installed = new ArrayList<>();
+    List<String> selected = new ArrayList<>();
+    List<String> packIds = List.of("cpp", "java", "go", "rust", "typescript", "python");
+    if (Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(root)) {
+      for (String packId : packIds) {
+        Path packRoot = root.resolve(packId);
+        if (!Files.isDirectory(packRoot, LinkOption.NOFOLLOW_LINKS)
+            || Files.isSymbolicLink(packRoot)) continue;
+        try (Stream<Path> versions = Files.list(packRoot)) {
+          for (Path version :
+              versions
+                  .filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                  .filter(path -> !Files.isSymbolicLink(path))
+                  .sorted()
+                  .toList()) {
+            try (Stream<Path> architectures = Files.list(version)) {
+              for (Path architecture :
+                  architectures
+                      .filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                      .filter(path -> !Files.isSymbolicLink(path))
+                      .sorted()
+                      .toList()) {
+                Path marker = architecture.resolve(".jahaziel-pack");
+                if (Files.isSymbolicLink(marker)
+                    || !Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS)
+                    || Files.size(marker) > 4096) continue;
+                List<String> lines = Files.readAllLines(marker, StandardCharsets.UTF_8);
+                if (lines.size() >= 2
+                    && lines.getFirst().equals(packId)
+                    && lines.get(1).equals(version.getFileName().toString())) {
+                  installed.add(packId + "@" + lines.get(1) + "/" + architecture.getFileName());
+                }
+              }
+            }
+          }
+        }
+      }
+      Path selections = root.resolve("selections");
+      if (Files.isDirectory(selections, LinkOption.NOFOLLOW_LINKS)
+          && !Files.isSymbolicLink(selections)) {
+        try (Stream<Path> files = Files.list(selections)) {
+          for (Path file :
+              files
+                  .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+                  .filter(path -> !Files.isSymbolicLink(path))
+                  .filter(path -> path.getFileName().toString().endsWith(".txt"))
+                  .toList()) {
+            if (Files.size(file) > 4096) continue;
+            for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+              if (packIds.contains(id.strip()) && !selected.contains(id.strip())) {
+                selected.add(id.strip());
+              }
+            }
+          }
+        }
+      }
+    }
+    installed.sort(String::compareTo);
+    selected.sort(String::compareTo);
+    return "installed managed packs="
+        + (installed.isEmpty() ? "none" : String.join(",", installed))
+        + "; selected packs="
+        + (selected.isEmpty() ? "none" : String.join(",", selected))
+        + " (packs download only after explicit selection)";
+  }
+
+  private static long directoryBytes(Path root) throws IOException {
+    if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+      return 0;
+    }
+    try (Stream<Path> paths = Files.walk(root)) {
+      return paths
+          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+          .mapToLong(
+              path -> {
+                try {
+                  return Files.size(path);
+                } catch (IOException ignored) {
+                  return 0;
+                }
+              })
+          .sum();
+    }
   }
 
   /**
