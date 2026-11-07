@@ -3,7 +3,9 @@
 
 const assert = require("node:assert/strict");
 const { spawn, execFileSync } = require("node:child_process");
+const { createHash, createSign, generateKeyPairSync } = require("node:crypto");
 const fs = require("node:fs");
+const { createServer } = require("node:http");
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
@@ -20,6 +22,10 @@ const dataTemp = path.join(scratchRoot, "data", "tmp");
 const serverLogs = [];
 let server = null;
 let browser = null;
+let identityProvider = null;
+const smokeClientId = "jahaziel-browser-smoke";
+const smokeClientSecret = "browser-smoke-secret";
+const smokeResource = "jahaziel-api";
 
 function logServer(chunk) {
   serverLogs.push(chunk.toString());
@@ -37,18 +43,151 @@ async function freePort() {
   return address.port;
 }
 
-function launchServer(port) {
-  const env = {
-    ...process.env,
-    PORT: String(port),
-    JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE: process.execPath,
+function signedIdToken(privateKey, issuer, nonce) {
+  const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: "jahaziel-smoke-key", typ: "JWT" }))
+    .toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const claims = Buffer.from(JSON.stringify({
+    iss: issuer,
+    sub: "browser-smoke-user",
+    aud: smokeClientId,
+    exp: now + 300,
+    iat: now,
+    nonce,
+  })).toString("base64url");
+  const input = `${header}.${claims}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(input);
+  signer.end();
+  const signature = signer.sign(privateKey).toString("base64url");
+  return `${input}.${signature}`;
+}
+
+async function readRequestBody(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function startMockIdentityProvider() {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwk = {
+    ...publicKey.export({ format: "jwk" }),
+    kid: "jahaziel-smoke-key",
+    use: "sig",
+    alg: "RS256",
   };
+  let issuer;
+  let pendingLogin = null;
+  const identity = createServer(async (request, response) => {
+    const url = new URL(request.url, issuer);
+    const sendJson = (body) => {
+      response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      response.end(JSON.stringify(body));
+    };
+    try {
+      if (url.pathname === "/.well-known/openid-configuration") {
+        sendJson({
+          issuer,
+          authorization_endpoint: `${issuer}/authorize`,
+          token_endpoint: `${issuer}/token`,
+          userinfo_endpoint: `${issuer}/userinfo`,
+          jwks_uri: `${issuer}/jwks`,
+        });
+        return;
+      }
+      if (url.pathname === "/jwks") {
+        sendJson({ keys: [jwk] });
+        return;
+      }
+      if (url.pathname === "/authorize" && request.method === "GET") {
+        const redirectUri = new URL(url.searchParams.get("redirect_uri"));
+        const challenge = url.searchParams.get("code_challenge");
+        const state = url.searchParams.get("state");
+        const nonce = url.searchParams.get("nonce");
+        if (url.searchParams.get("client_id") !== smokeClientId
+            || url.searchParams.get("response_type") !== "code"
+            || url.searchParams.get("code_challenge_method") !== "S256"
+            || redirectUri.hostname !== "127.0.0.1"
+            || redirectUri.pathname !== "/api/oauth/callback"
+            || !challenge || !state || !nonce) {
+          response.writeHead(400).end("invalid authorization request");
+          return;
+        }
+        pendingLogin = { challenge, nonce, redirectUri: redirectUri.toString() };
+        redirectUri.searchParams.set("code", "browser-smoke-code");
+        redirectUri.searchParams.set("state", state);
+        response.writeHead(302, { location: redirectUri.toString() }).end();
+        return;
+      }
+      if (url.pathname === "/token" && request.method === "POST") {
+        const form = new URLSearchParams(await readRequestBody(request));
+        const basic = Buffer.from((request.headers.authorization || "").replace(/^Basic /, ""), "base64")
+          .toString("utf8");
+        const verifier = form.get("code_verifier") || "";
+        const challenge = createHash("sha256").update(verifier).digest("base64url");
+        if (basic !== `${smokeClientId}:${smokeClientSecret}`
+            || form.get("grant_type") !== "authorization_code"
+            || form.get("code") !== "browser-smoke-code"
+            || form.get("resource") !== smokeResource
+            || !pendingLogin
+            || form.get("redirect_uri") !== pendingLogin.redirectUri
+            || challenge !== pendingLogin.challenge) {
+          response.writeHead(400).end("invalid token request");
+          return;
+        }
+        const nonce = pendingLogin.nonce;
+        pendingLogin = null;
+        sendJson({
+          access_token: "browser-smoke-access-token",
+          token_type: "Bearer",
+          expires_in: 300,
+          id_token: signedIdToken(privateKey, issuer, nonce),
+        });
+        return;
+      }
+      if (url.pathname === "/userinfo" && request.method === "GET") {
+        if (request.headers.authorization !== "Bearer browser-smoke-access-token") {
+          response.writeHead(401).end("invalid access token");
+          return;
+        }
+        sendJson({
+          sub: "browser-smoke-user",
+          email: "browser-smoke@example.invalid",
+          name: "Browser Smoke",
+        });
+        return;
+      }
+      response.writeHead(404).end("not found");
+    } catch (failure) {
+      response.writeHead(500).end(failure.message);
+    }
+  });
+  const port = await new Promise((resolve, reject) => {
+    identity.once("error", reject);
+    identity.listen(0, "127.0.0.1", () => resolve(identity.address().port));
+  });
+  issuer = `http://127.0.0.1:${port}`;
+  return { server: identity, issuer };
+}
+
+function launchServer(port, identity) {
+  const env = { ...process.env };
   for (const key of Object.keys(env)) {
     if (key.startsWith("BASIS_")) delete env[key];
   }
+  Object.assign(env, {
+    PORT: String(port),
+    JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE: process.execPath,
+    BASIS_AUTH_ISSUER: identity.issuer,
+    BASIS_REDIRECT_URI: `http://127.0.0.1:${port}/api/oauth/callback`,
+    BASIS_CLIENT_ID: smokeClientId,
+    BASIS_CLIENT_SECRET: smokeClientSecret,
+    BASIS_RESOURCE: smokeResource,
+  });
   const child = spawn(
     "java",
-    [`-Djava.io.tmpdir=${dataTemp}`, "-jar", jarPath, "--demo", `--port=${port}`],
+    [`-Djava.io.tmpdir=${dataTemp}`, "-jar", jarPath, `--port=${port}`],
     { cwd: scratchRoot, env, detached: true, stdio: ["ignore", "pipe", "pipe"] },
   );
   child.stdout.on("data", logServer);
@@ -147,7 +286,8 @@ async function run() {
   execFileSync("java", ["-jar", jarPath, "init"], { cwd: scratchRoot, env, stdio: "pipe" });
 
   const port = await freePort();
-  server = launchServer(port);
+  identityProvider = await startMockIdentityProvider();
+  server = launchServer(port, identityProvider);
   await waitForHealth(port, server);
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
@@ -157,8 +297,11 @@ async function run() {
   const origin = `http://127.0.0.1:${port}`;
 
   await page.goto(origin);
+  await page.locator("#login-link").waitFor({ state: "visible" });
+  await page.locator("#login-link").click();
   await page.locator("#user-badge").waitFor({ state: "visible" });
-  assert.equal(await page.locator("#user-email").textContent(), "demo@example.com");
+  assert.equal(await page.locator("#user-email").textContent(), "browser-smoke@example.invalid");
+  assert.equal(new URL(page.url()).origin, origin, "OIDC sign-in must return to the packaged app");
   await page.locator("#workspace-name").fill("browser-smoke");
   await page.locator("#template-select").selectOption("python");
   await page.locator("#create-workspace").click();
@@ -318,6 +461,20 @@ async function run() {
     .filter({ hasText: "main.py" });
   await syntaxDiagnostic.waitFor({ state: "visible", timeout: 45_000 });
 
+  await page.locator("#task-list button").filter({ hasText: "Run example" }).click();
+  await waitForText(page, "#task-output", "Hello from Jahaziel", 15_000);
+  const latestTaskUrl = `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`;
+  await page.waitForFunction(async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) return false;
+    const task = await response.json();
+    return task.status === "SUCCEEDED" && task.exitCode === 0;
+  }, latestTaskUrl, { timeout: 15_000 });
+  const completedTaskResponse = await page.request.get(latestTaskUrl);
+  const completedTask = await completedTaskResponse.json();
+  assert.equal(completedTask.status, "SUCCEEDED", "completed tasks must expose success status");
+  assert.equal(completedTask.exitCode, 0, "completed tasks must expose their exit code");
+
   await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
   await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
   await waitForText(page, "#preview-links", "LISTENING", 15_000);
@@ -401,16 +558,19 @@ async function run() {
   assert.equal(runningTaskResponse.status(), 200, "latest task status must be readable");
   assert.equal((await runningTaskResponse.json()).status, "RUNNING");
 
+  const signedInState = await page.context().storageState();
   await browser.close();
   browser = null;
   await crashServer(server);
   server = null;
   serverLogs.length = 0;
-  server = launchServer(port);
+  server = launchServer(port, identityProvider);
   await waitForHealth(port, server);
   await waitForPortState(8000, false, 15_000);
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-  const recoveredPage = await browser.newPage();
+  const recoveredContext = await browser.newContext({ storageState: signedInState });
+  const recoveredPage = await recoveredContext.newPage();
+  recoveredPage.on("pageerror", (failure) => pageErrors.push(failure.message));
   await recoveredPage.goto(`${origin}/#workspace/${workspaceId}`);
   await recoveredPage.locator("#workbench-page").waitFor({ state: "visible" });
   await waitForText(recoveredPage, "#task-output", "Task was interrupted by a server restart", 15_000);
@@ -436,6 +596,9 @@ run()
   .finally(async () => {
     if (browser) await browser.close().catch(() => undefined);
     await stopServer(server).catch((failure) => console.error(failure));
+    if (identityProvider) {
+      await new Promise((resolve) => identityProvider.server.close(() => resolve()));
+    }
     if (fs.existsSync(scratchRoot)
         && path.dirname(scratchRoot) === os.tmpdir()
         && path.basename(scratchRoot).startsWith("jahaziel-browser-smoke-")) {
