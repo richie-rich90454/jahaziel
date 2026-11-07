@@ -487,9 +487,7 @@ public final class Doctor {
               + " failureType="
               + failure.getClass().getSimpleName());
       LOG.log(
-          Level.FINE,
-          "doctor storage inspection details correlationId=" + correlationId,
-          failure);
+          Level.FINE, "doctor storage inspection details correlationId=" + correlationId, failure);
       return new Check(
           "storage",
           false,
