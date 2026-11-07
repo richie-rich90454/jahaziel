@@ -294,7 +294,24 @@ async function run() {
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
   const pageErrors = [];
+  const terminalFrames = [];
   page.on("pageerror", (failure) => pageErrors.push(failure.message));
+  page.on("websocket", (socket) => {
+    if (!socket.url().includes("/api/v1/terminals/")) return;
+    socket.on("framereceived", (frame) => {
+      try {
+        const message = JSON.parse(String(frame.payload));
+        terminalFrames.push({
+          type: message.type,
+          containsMarker: typeof message.data === "string" && message.data.includes("JAH_SMOKE_"),
+          length: message.data?.length ?? 0,
+        });
+      } catch {
+        terminalFrames.push({ invalidJson: true });
+      }
+      if (terminalFrames.length > 20) terminalFrames.shift();
+    });
+  });
   const origin = `http://127.0.0.1:${port}`;
 
   await page.goto(origin);
@@ -548,11 +565,21 @@ async function run() {
   await page.locator("#terminal-reconnect").waitFor({ state: "visible", timeout: 20_000 });
   await page.locator("#terminal-reconnect").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
-  await page.waitForFunction(
-    (expected) => document.querySelector(".xterm-rows")?.textContent.includes(expected),
-    marker,
-    { timeout: 15_000 },
-  );
+  try {
+    await page.waitForFunction(
+      (expected) => document.querySelector(".xterm-rows")?.textContent.includes(expected),
+      marker,
+      { timeout: 15_000 },
+    );
+  } catch (failure) {
+    const terminalState = await page.locator("#terminal-state").textContent().catch(() => "unavailable");
+    const visibleRows = await page.locator(".xterm-rows").allTextContents().catch(() => []);
+    throw new Error(
+      `terminal reconnect did not restore output; state=${JSON.stringify(terminalState)}; `
+        + `rows=${JSON.stringify(visibleRows)}; frames=${JSON.stringify(terminalFrames)}; `
+        + `cause=${failure.message}`,
+    );
+  }
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
