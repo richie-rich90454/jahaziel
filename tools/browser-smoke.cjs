@@ -303,9 +303,9 @@ async function run() {
         const message = JSON.parse(String(frame.payload));
         terminalFrames.push({
           type: message.type,
-          containsMarker: typeof message.data === "string" && message.data.includes("JAH_SMOKE_"),
+          containsMarker: typeof message.data === "string" && message.data.includes("JAH_"),
           length: message.data?.length ?? 0,
-          sample: typeof message.data === "string" ? JSON.stringify(message.data.slice(0, 80)) : "",
+          sample: typeof message.data === "string" ? JSON.stringify(message.data.slice(0, 256)) : "",
         });
       } catch {
         terminalFrames.push({ invalidJson: true });
@@ -566,17 +566,25 @@ async function run() {
   await page.locator("#terminal-reconnect").waitFor({ state: "visible", timeout: 20_000 });
   await page.locator("#terminal-reconnect").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
+  assert.ok(
+    terminalFrames.some((frame) => frame.type === "history" && frame.containsMarker),
+    "terminal reconnect must replay the prior PTY output",
+  );
+  const reconnectMarker = `JAH_RECONNECTED_${Date.now()}`;
+  await page.locator(".xterm-helper-textarea").click();
+  await page.keyboard.type(`printf '${reconnectMarker}\\n'`);
+  await page.keyboard.press("Enter");
   try {
     await page.waitForFunction(
       (expected) => document.querySelector(".xterm-rows")?.textContent.includes(expected),
-      marker,
+      reconnectMarker,
       { timeout: 15_000 },
     );
   } catch (failure) {
     const terminalState = await page.locator("#terminal-state").textContent().catch(() => "unavailable");
     const visibleRows = await page.locator(".xterm-rows").allTextContents().catch(() => []);
     throw new Error(
-      `terminal reconnect did not restore output; state=${JSON.stringify(terminalState)}; `
+      `terminal reconnect did not display new output; state=${JSON.stringify(terminalState)}; `
         + `rows=${JSON.stringify(visibleRows)}; frames=${JSON.stringify(terminalFrames)}; `
         + `cause=${failure.message}`,
     );
