@@ -1,0 +1,82 @@
+# Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0.
+name: Linux build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+            machine: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify native runner architecture
+        shell: bash
+        run: test "$(uname -m)" = "${{ matrix.machine }}"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+      - name: Build browser workbench
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: Verify, package, and smoke launch the jar
+        run: ./mvnw -B verify -Psmoke
+      - name: Install the ephemeral CI browser
+        shell: bash
+        run: |
+          browser_tools="$RUNNER_TEMP/jahaziel-browser-tools"
+          mkdir -p "$browser_tools"
+          printf '{"private":true,"packageManager":"pnpm@12.14.0"}\n' > "$browser_tools/package.json"
+          pnpm --dir "$browser_tools" add --save-exact --store-dir "$RUNNER_TEMP/jahaziel-pnpm-store" @playwright/test@1.64.1
+          PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/jahaziel-playwright-browsers" \
+            "$browser_tools/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+      - name: Exercise the packaged workbench in a browser
+        shell: bash
+        run: |
+          NODE_PATH="$RUNNER_TEMP/jahaziel-browser-tools/node_modules" \
+          PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/jahaziel-playwright-browsers" \
+            node tools/browser-smoke.cjs target/jahaziel.jar
+      - name: Report and bound release artifact sizes
+        shell: bash
+        run: |
+          jar_bytes=$(stat -c '%s' target/jahaziel.jar)
+          web_bytes=$(du -sb web/dist | cut -f1)
+          printf 'Executable jar: %s bytes\n' "$jar_bytes"
+          printf 'Workbench assets: %s bytes\n' "$web_bytes"
+          test "$jar_bytes" -lt $((100 * 1024 * 1024))
+          test "$web_bytes" -lt $((8 * 1024 * 1024))
+          if jar tf target/jahaziel.jar | grep -Eiq 'BOOT-INF/classes/(ide/|dev/jahaziel/ide/|.*(clangd|jdtls|gopls|rust-analyzer|pyright))'; then
+            echo 'Jar contains a bundled IDE server or language toolchain.' >&2
+            exit 1
+          fi
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: jahaziel-linux-${{ matrix.arch }}
+          path: target/jahaziel.jar
+          if-no-files-found: error
+
