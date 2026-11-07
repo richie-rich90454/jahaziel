@@ -8,15 +8,15 @@ import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 /**
- * Workspace runtime lifecycle. Storage prepares, the VM boots, and the home folder always survives:
- * stop and restart never lose files.
+ * Workspace runtime lifecycle. The backend prepares the workspace home, and that home survives
+ * stop, restart, and resume.
  */
 public interface RuntimeService {
   /**
-   * Starts a workspace: prepares storage, boots the VM, persists every transition.
+   * Starts a workspace runtime and persists each lifecycle transition.
    *
    * @param id the workspace identifier
-   * @return the booting workspace
+   * @return the workspace while its runtime is starting
    */
   Workspace start(WorkspaceId id);
 
@@ -29,15 +29,15 @@ public interface RuntimeService {
   Workspace stop(WorkspaceId id);
 
   /**
-   * Restarts a workspace: stop, reboot into a fresh cycle, start from the preserved home.
+   * Restarts a workspace runtime from its preserved home.
    *
    * @param id the workspace identifier
-   * @return the booting workspace
+   * @return the workspace while its runtime is starting
    */
   Workspace restart(WorkspaceId id);
 
   /**
-   * Resumes a suspended workspace with a fresh VM on the preserved home.
+   * Resumes a suspended workspace runtime on the preserved home.
    *
    * @param id the workspace identifier
    * @return the active workspace
@@ -45,16 +45,15 @@ public interface RuntimeService {
   Workspace resume(WorkspaceId id);
 
   /**
-   * Tears down everything a workspace owns: stops the IDE server, removes every port binding, and
-   * destroys the backend handle. The home folder survives; the caller deletes the record itself, so
-   * reads fail fast afterwards instead of serving half-deleted state.
+   * Stops workspace-owned processes, removes its port bindings, and destroys the backend handle.
+   * The home folder survives; the caller deletes the workspace record itself.
    *
    * @param id the workspace identifier
    */
   void destroy(WorkspaceId id);
 
   /**
-   * Marks a booted workspace ready after the guest agent registers.
+   * Marks a started workspace ready after runtime preparation completes.
    *
    * @param id the workspace identifier
    * @return the ready workspace
