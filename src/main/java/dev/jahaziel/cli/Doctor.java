@@ -23,10 +23,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 
 /**
- * Pre-boot environment checks. Ten checks, one line each, exit 0 only when all pass. Pure JDK so
+ * Pre-boot environment checks. Eleven checks, one line each, exit 0 only when all pass. Pure JDK so
  * the jar can diagnose itself before Spring starts.
  */
 public final class Doctor {
@@ -36,7 +38,7 @@ public final class Doctor {
   public record Check(String name, boolean ok, String detail, String fix) {}
 
   /**
-   * Runs all ten checks.
+   * Runs all eleven checks.
    *
    * @param jarDir the directory holding the jar and .env
    * @param dataDir the data root
@@ -54,6 +56,7 @@ public final class Doctor {
     checks.add(portFree(port));
     checks.add(sqlite(dataDir));
     checks.add(hostAndBackend(fileEnv));
+    checks.add(languageTools(dataDir, fileEnv));
     checks.add(storage(dataDir));
     checks.add(tmpDir(dataDir));
     checks.add(noStray(jarFile, dataDir));
@@ -284,28 +287,14 @@ public final class Doctor {
     String backend =
         System.getenv()
             .getOrDefault("JAHAZIEL_BACKEND", fileEnv.getOrDefault("JAHAZIEL_BACKEND", "local"));
-    if (!backend.equalsIgnoreCase("local") && !backend.equalsIgnoreCase("firecracker")) {
+    if (!backend.equalsIgnoreCase("local")) {
       return new Check(
           "host",
           false,
-          "unsupported workspace backend: " + backend,
-          "set JAHAZIEL_BACKEND to local or firecracker");
-    }
-    if (backend.equalsIgnoreCase("firecracker")) {
-      if (!linux || !Files.isWritable(Path.of("/dev/kvm"))) {
-        return new Check(
-            "host",
-            false,
-            "firecracker needs Linux and writable /dev/kvm",
-            "select the local backend or configure a Linux host with KVM access");
-      }
-      if (!commandAvailable("firecracker", System.getenv("PATH"), false)) {
-        return new Check(
-            "host",
-            false,
-            "firecracker is selected but its executable is not on PATH",
-            "install and configure Firecracker outside the Jahaziel application data directory");
-      }
+          "unsupported workspace backend: "
+              + backend
+              + "; Firecracker is not available in this release",
+          "set JAHAZIEL_BACKEND=local");
     }
     if (linux
         && !Files.isExecutable(Path.of("/bin/bash"))
@@ -336,6 +325,91 @@ public final class Doctor {
       detail += "; production servers target Linux x64 and arm64";
     }
     return new Check("host", true, detail, "");
+  }
+
+  private static Check languageTools(Path dataDir, Map<String, String> fileEnv) {
+    String configuredNode =
+        System.getenv()
+            .getOrDefault(
+                "JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE",
+                fileEnv.getOrDefault("JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE", "/usr/bin/node"));
+    if (configuredNode.isBlank()) {
+      return new Check(
+          "toolchains",
+          false,
+          "configured Node.js executable path is blank",
+          "set JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE to an existing Node.js executable");
+    }
+    Path node;
+    try {
+      node = Path.of(configuredNode).toAbsolutePath().normalize();
+    } catch (java.nio.file.InvalidPathException invalid) {
+      return new Check(
+          "toolchains",
+          false,
+          "configured Node.js executable path is invalid",
+          "set JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE to an existing Node.js executable");
+    }
+
+    List<String> selected;
+    try {
+      selected =
+          selectedLanguagePacks(dataDir.toAbsolutePath().normalize().resolve("language-packs"));
+    } catch (IOException failure) {
+      return new Check(
+          "toolchains",
+          false,
+          "cannot safely read selected language packs: " + failure.getMessage(),
+          "repair data/language-packs/selections or fix its permissions");
+    }
+    boolean nodeRequired = selected.contains("typescript") || selected.contains("python");
+    boolean nodeAvailable = Files.isRegularFile(node) && Files.isExecutable(node);
+    if (nodeRequired && !nodeAvailable) {
+      return new Check(
+          "toolchains",
+          false,
+          "selected TypeScript or Python packs require Node.js; " + node + " is unavailable",
+          "set JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE to an existing Linux Node.js executable");
+    }
+    String nodeStatus =
+        nodeAvailable
+            ? "Node.js available at " + node
+            : "Node.js is optional until a TypeScript or Python pack is selected (configured "
+                + node
+                + ")";
+    return new Check(
+        "toolchains",
+        true,
+        "selected language packs="
+            + (selected.isEmpty() ? "none" : String.join(",", selected))
+            + "; "
+            + nodeStatus,
+        "");
+  }
+
+  private static List<String> selectedLanguagePacks(Path cacheRoot) throws IOException {
+    Path selections = cacheRoot.resolve("selections");
+    if (!Files.exists(selections, LinkOption.NOFOLLOW_LINKS)) return List.of();
+    if (Files.isSymbolicLink(selections)
+        || !Files.isDirectory(selections, LinkOption.NOFOLLOW_LINKS)) {
+      throw new IOException("selection path is not a plain directory");
+    }
+    Set<String> known = Set.of("cpp", "java", "go", "rust", "typescript", "python");
+    Set<String> selected = new TreeSet<>();
+    try (Stream<Path> files = Files.list(selections)) {
+      for (Path file :
+          files.filter(path -> path.getFileName().toString().endsWith(".txt")).toList()) {
+        if (Files.isSymbolicLink(file)
+            || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
+            || Files.size(file) > 4096) {
+          throw new IOException("selection file is not a bounded plain file");
+        }
+        for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+          if (known.contains(id.strip())) selected.add(id.strip());
+        }
+      }
+    }
+    return List.copyOf(selected);
   }
 
   private static Check gitCli() {
