@@ -12,10 +12,7 @@ import dev.jahaziel.gateway.proxy.LoopbackTargetResolver;
 import dev.jahaziel.gateway.routing.HostParser;
 import dev.jahaziel.gateway.routing.WorkspaceDirectory;
 import dev.jahaziel.nodeagent.audit.AuditSpool;
-import dev.jahaziel.nodeagent.service.LocalProcessBackend;
 import dev.jahaziel.nodeagent.service.NodeAgentService;
-import dev.jahaziel.nodeagent.storage.FolderStorage;
-import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.nodeagent.sync.SyncServer;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.WorkspaceStorage;
@@ -27,7 +24,6 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 
 /**
@@ -38,30 +34,6 @@ import org.springframework.core.Ordered;
 @Configuration
 @ConditionalOnProperty(name = "jahaziel.dist.enabled", havingValue = "true")
 public class DistConfig {
-  /**
-   * Returns folder storage over the data root. Pure NIO, so every OS works.
-   *
-   * @param storageRoot the data root
-   * @return the storage
-   */
-  @Bean
-  @Primary
-  public WorkspaceStorage distStorage(@Value("${jahaziel.storage.root}") String storageRoot) {
-    return new FolderStorage(new NioCommandRunner(), storageRoot);
-  }
-
-  /**
-   * Returns the zero-install local backend.
-   *
-   * @param storage the folder storage
-   * @return the backend
-   */
-  @Bean
-  @Primary
-  public NodeBackend distBackend(WorkspaceStorage storage) {
-    return new LocalProcessBackend(storage);
-  }
-
   /**
    * Starts the file-sync server on loopback.
    *
