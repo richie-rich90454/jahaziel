@@ -19,8 +19,6 @@ import dev.jahaziel.authorization.internal.AuthorizationServiceImpl;
 import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.extension.internal.ExtensionPolicyServiceImpl;
 import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
-import dev.jahaziel.ide.internal.IdeServerService;
-import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.internal.JwtServiceImpl;
@@ -28,6 +26,9 @@ import dev.jahaziel.identity.internal.UserServiceImpl;
 import dev.jahaziel.identity.persistence.AppUserRepository;
 import dev.jahaziel.identity.persistence.UserGroupRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
+import dev.jahaziel.language.api.LanguagePackService;
+import dev.jahaziel.language.internal.LanguagePackServiceImpl;
+import dev.jahaziel.language.internal.LanguageServerProcessManager;
 import dev.jahaziel.monitoring.api.MetricsService;
 import dev.jahaziel.monitoring.internal.MetricsServiceImpl;
 import dev.jahaziel.monitoring.internal.ResourceSamplingJob;
@@ -36,6 +37,7 @@ import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.networking.internal.GatewayRouteServiceImpl;
 import dev.jahaziel.networking.internal.GatewayRouteSyncJob;
+import dev.jahaziel.networking.internal.LoopbackPortStatusProbe;
 import dev.jahaziel.networking.internal.PortServiceImpl;
 import dev.jahaziel.networking.persistence.WorkspacePortRepository;
 import dev.jahaziel.node.api.NodeService;
@@ -46,7 +48,6 @@ import dev.jahaziel.platform.internal.InProcessScheduler;
 import dev.jahaziel.policy.api.PolicyService;
 import dev.jahaziel.policy.internal.PolicyServiceImpl;
 import dev.jahaziel.policy.persistence.PolicyRepository;
-import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.runtime.internal.RuntimeServiceImpl;
 import dev.jahaziel.runtime.internal.VmIdleCheckJob;
@@ -57,22 +58,25 @@ import dev.jahaziel.snapshot.internal.SnapshotServiceImpl;
 import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import dev.jahaziel.spi.ImageRef;
 import dev.jahaziel.spi.NodeBackend;
-import dev.jahaziel.spi.PrepareRequest;
-import dev.jahaziel.spi.QuotaBytes;
-import dev.jahaziel.spi.RuntimeHandle;
-import dev.jahaziel.spi.RuntimeRequest;
-import dev.jahaziel.spi.WorkspaceHandle;
 import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.storage.internal.CacheWarmJob;
 import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.internal.TerminalServiceImpl;
+import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
+import dev.jahaziel.workspace.api.WorkspaceFiles;
+import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
+import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.internal.CleanupJob;
+import dev.jahaziel.workspace.internal.WorkspaceDirectoryServiceImpl;
+import dev.jahaziel.workspace.internal.WorkspaceFilesServiceImpl;
+import dev.jahaziel.workspace.internal.WorkspaceProcessRegistryImpl;
 import dev.jahaziel.workspace.internal.WorkspaceServiceImpl;
 import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
 import jakarta.persistence.EntityManager;
+import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -125,29 +129,58 @@ public class AppConfig {
       WorkspaceAclRepository acl,
       VirtualMachineRepository machines,
       UserService users,
+      @Value("${jahaziel.storage.root}") String storageRoot,
+      WorkspaceProcessLifecycle processes) {
+    return new WorkspaceServiceImpl(workspaces, acl, machines, users, storageRoot, processes);
+  }
+
+  /** Returns workspace-rooted file operations. */
+  @Bean
+  public WorkspaceFiles workspaceFiles(@Value("${jahaziel.storage.root}") String storageRoot) {
+    return new WorkspaceFilesServiceImpl(storageRoot);
+  }
+
+  /** Returns the bounded HTTPS client used only after an explicit language-pack selection. */
+  @Bean
+  public HttpClient languagePackHttpClient() {
+    return HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(20))
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build();
+  }
+
+  /** Returns the shared, pinned, opt-in language-pack cache. */
+  @Bean
+  public LanguagePackService languagePacks(
+      @Value("${jahaziel.storage.root}") String storageRoot,
+      HttpClient languagePackHttpClient,
+      @Value("${jahaziel.language-tools.node-executable:/usr/bin/node}") String nodeExecutable) {
+    return new LanguagePackServiceImpl(storageRoot, languagePackHttpClient, nodeExecutable);
+  }
+
+  /** Returns confined workspace home paths to server-side process services. */
+  @Bean
+  public WorkspaceDirectoryService workspaceDirectories(
       @Value("${jahaziel.storage.root}") String storageRoot) {
-    return new WorkspaceServiceImpl(workspaces, acl, machines, users, storageRoot);
+    return new WorkspaceDirectoryServiceImpl(storageRoot);
   }
 
-  /**
-   * Returns the node backend. Fail-safe stub until the mTLS gRPC transport lands: every call
-   * refuses, so starts fail closed instead of half-provisioning.
-   */
+  /** Returns the persistent registry for server-managed workspace processes. */
   @Bean
-  public NodeBackend backend() {
-    return new UnreachableBackend();
+  public WorkspaceProcessRegistry workspaceProcessRegistry(
+      @Value("${jahaziel.storage.root}") String storageRoot) {
+    return new WorkspaceProcessRegistryImpl(storageRoot);
   }
 
-  /** Returns workspace storage. Same fail-safe stub as the backend. */
-  @Bean
-  public WorkspaceStorage storage() {
-    return new UnreachableStorage();
-  }
-
-  /** Returns the per-workspace IDE servers. */
-  @Bean(destroyMethod = "shutdownAll")
-  public IdeServerService ideServers(IdeService ide) {
-    return new IdeServerService(ide);
+  /** Returns the bounded language-server process manager. */
+  @Bean(destroyMethod = "closeAll")
+  public LanguageServerProcessManager languageServerProcesses(
+      LanguagePackService packs,
+      WorkspaceDirectoryService directories,
+      tools.jackson.databind.ObjectMapper json,
+      @Value("${jahaziel.storage.root}") String storageRoot,
+      WorkspaceProcessRegistry processRegistry) {
+    return new LanguageServerProcessManager(packs, directories, json, storageRoot, processRegistry);
   }
 
   /** Returns runtime lifecycle orchestration. */
@@ -156,11 +189,20 @@ public class AppConfig {
       NodeBackend backend,
       WorkspaceService workspaces,
       @Value("${jahaziel.image-ref:base-image:2026.09}") String imageRef,
-      IdeServerService ideServers,
       PortService ports,
-      dev.jahaziel.runtime.internal.BootProgressService progress) {
+      dev.jahaziel.runtime.internal.BootProgressService progress,
+      TerminalService terminals,
+      dev.jahaziel.workspace.api.WorkspaceTaskService tasks,
+      WorkspaceProcessLifecycle languageProcesses) {
     return new RuntimeServiceImpl(
-        backend, workspaces, new ImageRef(imageRef), ideServers, ports, progress);
+        backend,
+        workspaces,
+        new ImageRef(imageRef),
+        ports,
+        progress,
+        terminals,
+        tasks,
+        languageProcesses);
   }
 
   /** Returns nodes. */
@@ -192,6 +234,12 @@ public class AppConfig {
   public PortService ports(
       WorkspacePortRepository ports, UserService users, WorkspaceService workspaces) {
     return new PortServiceImpl(ports, users, workspaces);
+  }
+
+  /** Returns the bounded loopback listener probe used by workspace preview controls. */
+  @Bean
+  public dev.jahaziel.networking.api.PortStatusProbe portStatusProbe() {
+    return new LoopbackPortStatusProbe();
   }
 
   /** Returns the gateway route reconciler. No registry means the split topology: a no-op. */
@@ -246,9 +294,12 @@ public class AppConfig {
   }
 
   /** Returns terminal sessions. */
-  @Bean
-  public TerminalService terminals() {
-    return new TerminalServiceImpl();
+  @Bean(destroyMethod = "closeAll")
+  public TerminalService terminals(
+      WorkspaceDirectoryService directories,
+      WorkspaceProcessRegistry processRegistry,
+      WorkspaceService workspaces) {
+    return new TerminalServiceImpl(directories, processRegistry, workspaces);
   }
 
   /** Returns snapshots. */
@@ -305,71 +356,5 @@ public class AppConfig {
     scheduler.register(new AuditCollectorJob(new AuditSpoolReader(audit), Path.of(stagingDir)));
     scheduler.register(new GatewayRouteSyncJob(gatewayRoutes));
     return scheduler;
-  }
-
-  /** Fail-safe node backend. Refuses every call until the agent transport lands. */
-  static final class UnreachableBackend implements NodeBackend {
-    @Override
-    public String name() {
-      return "unreachable";
-    }
-
-    @Override
-    public WorkspaceHandle prepare(PrepareRequest request) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public RuntimeHandle start(RuntimeRequest request) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public void stop(RuntimeHandle handle, boolean graceful) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public void destroy(WorkspaceHandle handle) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-  }
-
-  /** Fail-safe workspace storage. Refuses every call until the agent transport lands. */
-  static final class UnreachableStorage implements WorkspaceStorage {
-    @Override
-    public WorkspaceHandle prepare(
-        java.util.UUID workspaceId,
-        java.util.UUID ownerId,
-        dev.jahaziel.spi.ImageRef image,
-        QuotaBytes quota) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public void destroy(WorkspaceHandle handle) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public dev.jahaziel.spi.SnapshotHandle snapshot(
-        WorkspaceHandle handle, dev.jahaziel.spi.SnapshotTag tag) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public void deleteSnapshot(dev.jahaziel.spi.SnapshotHandle snapshot) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public void restore(WorkspaceHandle handle, dev.jahaziel.spi.SnapshotHandle snapshot) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
-
-    @Override
-    public dev.jahaziel.spi.StorageUsage usage(WorkspaceHandle handle) {
-      throw new NodeAgentUnreachableException("node agent transport not configured");
-    }
   }
 }
