@@ -64,6 +64,21 @@ class PortServiceImplTest {
   }
 
   @Test
+  void capsRegisteredPortsPerWorkspace() {
+    when(users.get(userId)).thenReturn(identity());
+    when(workspaces.get(workspaceId)).thenReturn(workspace());
+    when(ports.findByIdWorkspaceId(workspaceId.value()))
+        .thenReturn(java.util.Collections.nCopies(32, mock(WorkspacePortEntity.class)));
+
+    IllegalArgumentException failure =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.registerPort(userId, 8080, workspaceId, "http"));
+
+    assertTrue(failure.getMessage().contains("at most 32 ports"));
+  }
+
+  @Test
   void rejectsReservedDuplicateAndForeign() {
     when(users.get(userId)).thenReturn(identity());
     when(workspaces.get(workspaceId)).thenReturn(workspace());
