@@ -60,7 +60,8 @@ class CliSupportBundleTest {
     String version = CliTestSupport.zipEntry(zip, "version.txt");
     assertTrue(version.contains("jahaziel " + Cli.version()));
     assertTrue(version.contains("java " + Runtime.version()));
-    assertTrue(version.contains(Cli.rehSlug()));
+    assertTrue(version.contains(System.getProperty("os.name")));
+    assertTrue(version.contains(System.getProperty("os.arch")));
     assertEquals("hello logs", CliTestSupport.zipEntry(zip, "logs/app.log"));
   }
 
