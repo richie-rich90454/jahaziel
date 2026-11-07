@@ -6,6 +6,7 @@ package dev.jahaziel.workspace.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,9 +46,16 @@ class WorkspaceStateRecoveryTest {
     recovery.run(mock(ApplicationArguments.class));
 
     WorkspaceState.Failed failed = assertInstanceOf(WorkspaceState.Failed.class, workspace.state());
-    assertEquals(
-        "server restarted while workspace was starting or running; files are preserved, start to recover",
-        failed.reason());
+    assertTrue(
+        failed
+            .reason()
+            .startsWith(
+                "server restarted while workspace was starting or running; files are preserved, start to recover (operation "));
+    String operation =
+        failed.reason().substring(failed.reason().lastIndexOf("operation ") + "operation ".length());
+    assertTrue(operation.endsWith(")"));
+    UUID correlationId = UUID.fromString(operation.substring(0, operation.length() - 1));
+    assertEquals(4, correlationId.version());
     verify(workspaces).save(workspace);
   }
 
