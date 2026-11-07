@@ -5,10 +5,18 @@
 
 -->
 
-# VS Code OSS stays the IDE server base
+# Historical decision: VS Code OSS server
 
-- Status: accepted
+- Status: superseded by the lightweight CodeMirror/xterm workbench contract
 - Date: 2026-09-25
+
+This ADR records the prior all-platform plan only. Its Windows REH and
+embedded VS Code server requirements no longer apply. The current product
+contract is in [docs/plan.md](../../plan.md), and the current workbench
+architecture is in [docs/architecture/ide.md](../../architecture/ide.md).
+
+The decision below is retained as design history and must not guide new
+implementation work.
 
 The platform must serve the IDE from a browser on every supported host,
 including `win32-x64` and `win32-arm64`, because the local backend runs
