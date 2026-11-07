@@ -9,7 +9,6 @@ import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.WorkspaceStorage;
-import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,13 +28,11 @@ public class WorkspaceBackendConfig {
   @Bean
   public NodeBackend nodeBackend(
       @Value("${jahaziel.workspace.backend:local}") String backend,
-      WorkspaceStorage storage,
-      @Value("${jahaziel.storage.root:data}") String storageRoot) {
-    if ("firecracker".equalsIgnoreCase(backend.strip())) {
-      return new FirecrackerBackend(Path.of(storageRoot, "workspaces"));
-    }
+      WorkspaceStorage storage) {
     if (!"local".equalsIgnoreCase(backend.strip())) {
-      throw new IllegalArgumentException("unsupported workspace backend: " + backend);
+      throw new IllegalArgumentException(
+          "only the local workspace backend is available in this release; "
+              + "Firecracker remains experimental and is not selectable");
     }
     return new LocalProcessBackend(storage);
   }
