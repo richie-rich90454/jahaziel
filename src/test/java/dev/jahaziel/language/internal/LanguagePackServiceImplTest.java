@@ -224,13 +224,14 @@ class LanguagePackServiceImplTest {
     LanguagePackServiceImpl.Definition definition = definition(gzip(serverBytes()));
     Path cache = temporary.resolve("cache");
     LanguagePackServiceImpl service = new LanguagePackServiceImpl(cache, http, List.of(definition));
-    Path version = cache.resolve("rust/test/x86_64");
+    String architecture = runtimeArchitecture();
+    Path version = cache.resolve("rust/test/" + architecture);
     Files.createDirectories(version);
     Files.writeString(version.resolve("payload"), "cached", StandardCharsets.UTF_8);
 
     var dryRun = service.prune(true);
     assertTrue(dryRun.dryRun());
-    assertEquals(List.of("rust:test:x86_64"), dryRun.versions());
+    assertEquals(List.of("rust:test:" + architecture), dryRun.versions());
     assertTrue(Files.exists(version.resolve("payload")));
 
     Files.createDirectories(cache.resolve("selections"));
@@ -241,7 +242,7 @@ class LanguagePackServiceImplTest {
     Files.delete(cache.resolve("selections/workspace.txt"));
     var removed = service.prune(false);
     assertFalse(removed.dryRun());
-    assertEquals(List.of("rust:test:x86_64"), removed.versions());
+    assertEquals(List.of("rust:test:" + architecture), removed.versions());
     assertFalse(Files.exists(version));
   }
 
@@ -251,8 +252,9 @@ class LanguagePackServiceImplTest {
     LanguagePackServiceImpl.Definition definition = definition(gzip(serverBytes()));
     Path cache = temporary.resolve("cache");
     LanguagePackServiceImpl service = new LanguagePackServiceImpl(cache, http, List.of(definition));
-    Path oldVersion = cache.resolve("rust/older/x86_64");
-    Path currentVersion = cache.resolve("rust/test/x86_64");
+    String architecture = runtimeArchitecture();
+    Path oldVersion = cache.resolve("rust/older/" + architecture);
+    Path currentVersion = cache.resolve("rust/test/" + architecture);
     Path selection = cache.resolve("selections/").resolve(UUID.randomUUID() + ".txt");
     Files.createDirectories(oldVersion);
     Files.createDirectories(currentVersion);
@@ -264,14 +266,14 @@ class LanguagePackServiceImplTest {
     var dryRun = service.prune(true);
 
     assertTrue(dryRun.dryRun());
-    assertEquals(List.of("rust:older:x86_64"), dryRun.versions());
+    assertEquals(List.of("rust:older:" + architecture), dryRun.versions());
     assertTrue(Files.exists(oldVersion));
     assertTrue(Files.exists(currentVersion));
 
     var applied = service.prune(false);
 
     assertFalse(applied.dryRun());
-    assertEquals(List.of("rust:older:x86_64"), applied.versions());
+    assertEquals(List.of("rust:older:" + architecture), applied.versions());
     assertFalse(Files.exists(oldVersion));
     assertTrue(Files.exists(currentVersion));
   }
@@ -592,8 +594,9 @@ class LanguagePackServiceImplTest {
     Path cache = temporary.resolve("cache");
     LanguagePackServiceImpl service = new LanguagePackServiceImpl(cache, http, List.of(definition));
     WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    String architecture = runtimeArchitecture();
     Path selection = cache.resolve("selections").resolve(workspace.value() + ".txt");
-    Path installed = cache.resolve("rust/test/x86_64");
+    Path installed = cache.resolve("rust/test/" + architecture);
     Path workspaceState =
         cache.resolve("state").resolve(workspace.value().toString()).resolve("go");
     Files.createDirectories(selection.getParent());
@@ -609,7 +612,7 @@ class LanguagePackServiceImplTest {
 
     assertFalse(Files.exists(selection));
     assertFalse(Files.exists(workspaceState));
-    assertEquals(List.of("rust:test:x86_64"), service.prune(true).versions());
+    assertEquals(List.of("rust:test:" + architecture), service.prune(true).versions());
   }
 
   private static List<LanguagePackServiceImpl.Definition> testCatalog(byte[] archive) {
@@ -617,6 +620,12 @@ class LanguagePackServiceImplTest {
         definition(archive),
         new LanguagePackServiceImpl.Definition("cpp", "clangd", "test", Map.of()),
         new LanguagePackServiceImpl.Definition("java", "JDTLS", "test", Map.of()));
+  }
+
+  private static String runtimeArchitecture() {
+    return System.getProperty("os.arch", "").matches("(?i)aarch64|arm64")
+        ? "aarch64"
+        : "x86_64";
   }
 
   private static LanguagePackServiceImpl.Definition definition(byte[] archive) {
