@@ -122,10 +122,12 @@ public final class TerminalServiceImpl implements TerminalService {
     }
     sessions.put(session.id(), state);
     if (state.process != null) {
-      Thread.ofVirtual()
+      Thread.ofPlatform()
+          .daemon()
           .name("terminal-output-" + session.id().value())
           .start(() -> readOutput(state));
-      Thread.ofVirtual()
+      Thread.ofPlatform()
+          .daemon()
           .name("terminal-exit-" + session.id().value())
           .start(() -> watchExit(state));
     }
@@ -339,7 +341,8 @@ public final class TerminalServiceImpl implements TerminalService {
       closeRegistration(state);
       return;
     }
-    List<ProcessHandle> descendants = process.descendants().toList();
+    ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
+    List<ProcessHandle> descendants = handle == null ? List.of() : handle.descendants().toList();
     descendants.forEach(ProcessHandle::destroy);
     process.destroy();
     try {
