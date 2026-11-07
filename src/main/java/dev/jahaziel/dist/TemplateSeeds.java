@@ -17,7 +17,8 @@ import java.util.List;
  */
 final class TemplateSeeds {
   /** Templates shipped inside the jar, matching {@code src/main/resources/templates/}. */
-  static final List<String> SEEDS = List.of("empty", "node", "python", "java", "static-site");
+  static final List<String> SEEDS =
+      List.of("empty", "node", "python", "java", "static-site", "cpp", "go", "rust");
 
   private TemplateSeeds() {}
 
