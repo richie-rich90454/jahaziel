@@ -1,8 +1,12 @@
 {
   "name": "java",
-  "description": "Java 25 workspace with a Maven build.",
+  "description": "Java starter with a small runnable source file.",
   "vcpuCount": 4,
   "memoryMib": 8192,
   "ports": [8080],
-  "setup": ["mvn -q compile"]
+  "languagePacks": ["java"],
+  "starterFiles": {
+    "README.md": "# Java\n\nCompile with `javac Main.java` and run with `java Main`.\n",
+    "Main.java": "public class Main {\n  public static void main(String[] args) {\n    System.out.println(\"Hello from Jahaziel\");\n  }\n}\n"
+  }
 }
