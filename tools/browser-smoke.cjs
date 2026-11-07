@@ -290,7 +290,8 @@ async function run() {
   server = launchServer(port, identityProvider);
   await waitForHealth(port, server);
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   page.setDefaultTimeout(20_000);
   const pageErrors = [];
   page.on("pageerror", (failure) => pageErrors.push(failure.message));
