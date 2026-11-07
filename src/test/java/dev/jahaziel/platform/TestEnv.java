@@ -5,6 +5,7 @@
 package dev.jahaziel.platform;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Map;
 
 /**
@@ -24,11 +25,30 @@ public final class TestEnv {
    */
   public static void set(String key, String value) {
     try {
-      Map<String, String> env = writableEnv();
-      if (value == null) {
-        env.remove(key);
-      } else {
-        env.put(key, value);
+      Class<?> environment = Class.forName("java.lang.ProcessEnvironment");
+      try {
+        Field windows = environment.getDeclaredField("theCaseInsensitiveEnvironment");
+        windows.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, String> map = (Map<String, String>) windows.get(null);
+        if (value == null) {
+          map.remove(key);
+        } else {
+          map.put(key, value);
+        }
+      } catch (NoSuchFieldException notWindows) {
+        Field unix = environment.getDeclaredField("theEnvironment");
+        unix.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> map = (Map<Object, Object>) unix.get(null);
+        Class<?> variableType = Class.forName("java.lang.ProcessEnvironment$Variable");
+        Object variable = stringValue(variableType, key);
+        if (value == null) {
+          map.remove(variable);
+        } else {
+          Class<?> valueType = Class.forName("java.lang.ProcessEnvironment$Value");
+          map.put(variable, stringValue(valueType, value));
+        }
       }
     } catch (ReflectiveOperationException failure) {
       throw new IllegalStateException("cannot tweak process env on this JVM", failure);
@@ -44,20 +64,10 @@ public final class TestEnv {
     set(key, null);
   }
 
-  private static Map<String, String> writableEnv() throws ReflectiveOperationException {
-    Class<?> environment = Class.forName("java.lang.ProcessEnvironment");
-    try {
-      Field windows = environment.getDeclaredField("theCaseInsensitiveEnvironment");
-      windows.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      Map<String, String> map = (Map<String, String>) windows.get(null);
-      return map;
-    } catch (NoSuchFieldException notWindows) {
-      Field unix = environment.getDeclaredField("theEnvironment");
-      unix.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      Map<String, String> map = (Map<String, String>) unix.get(null);
-      return map;
-    }
+  private static Object stringValue(Class<?> type, String value)
+      throws ReflectiveOperationException {
+    Method factory = type.getDeclaredMethod("valueOf", String.class);
+    factory.setAccessible(true);
+    return factory.invoke(null, value);
   }
 }
