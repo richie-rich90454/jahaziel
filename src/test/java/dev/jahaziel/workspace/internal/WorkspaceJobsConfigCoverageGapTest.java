@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
+import dev.jahaziel.nodeagent.service.LocalProcessBackend;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.NodeBackend;
@@ -99,23 +100,26 @@ class WorkspaceJobsConfigCoverageGapTest {
   @Test
   void backendConfigSelects(@TempDir Path root) {
     WorkspaceBackendConfig config = new WorkspaceBackendConfig();
-    NodeBackend fire = config.nodeBackend("firecracker", root.toString());
+    var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
+    NodeBackend fire = config.nodeBackend("firecracker", storage, root.toString());
     assertInstanceOf(FirecrackerBackend.class, fire);
-    NodeBackend upper = config.nodeBackend("  FIRECRACKER  ", root.toString());
+    NodeBackend upper = config.nodeBackend("  FIRECRACKER  ", storage, root.toString());
     assertInstanceOf(FirecrackerBackend.class, upper);
-    assertInstanceOf(LocalBackend.class, config.nodeBackend("local", root.toString()));
-    assertInstanceOf(LocalBackend.class, config.nodeBackend("other", root.toString()));
+    assertInstanceOf(
+        LocalProcessBackend.class, config.nodeBackend("local", storage, root.toString()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> config.nodeBackend("other", storage, root.toString()));
   }
 
   @Test
   void pathsGuards() {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    UserId owner = new UserId(UUID.randomUUID());
     assertTrue(WorkspacePaths.jailPath("/r", id).equals("/r/jail/" + id.value()));
-    assertTrue(WorkspacePaths.homePath("/r", owner).endsWith("/home"));
+    assertTrue(WorkspacePaths.homePath("/r", id).equals("/r/workspaces/" + id.value() + "/home"));
     assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath(null, id));
     assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath("  ", id));
-    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", owner));
+    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", id));
   }
 
   @Test
