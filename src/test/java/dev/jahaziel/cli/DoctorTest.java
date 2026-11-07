@@ -330,6 +330,21 @@ class DoctorTest {
   }
 
   @Test
+  void storageFailureShowsCodeAndCorrelationIdWithoutRawExceptionDetails() throws Exception {
+    Env env = green(root.resolve("jar"));
+    Path dataFile = Files.createFile(root.resolve("data-file"));
+
+    Doctor.Check check =
+        CliTestSupport.find(
+            Doctor.run(env.jarDir(), dataFile, env.port(), env.fileEnv(), env.jarFile()), "storage");
+
+    assertFalse(check.ok());
+    assertTrue(check.detail().contains("code=STORAGE_INSPECTION_FAILED"));
+    assertTrue(check.detail().matches(".*correlationId=[0-9a-f-]{36}\\).*"));
+    assertFalse(check.detail().contains(dataFile.toString()));
+  }
+
+  @Test
   void tmpdirFailsWhenDataDirIsUnusable() throws Exception {
     Env env = green(root.resolve("jar"));
     Path broken = Files.createTempFile(root, "data", ".txt");
