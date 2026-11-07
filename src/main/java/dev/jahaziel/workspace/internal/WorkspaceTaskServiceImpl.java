@@ -777,6 +777,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private void update(WorkspaceId id, java.util.function.UnaryOperator<WorkspaceMetadata> change) {
     synchronized (lock(id.value())) {
       Path path = metadataPath(id);
+      if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) return;
       write(path, change.apply(metadata(id)));
     }
   }
