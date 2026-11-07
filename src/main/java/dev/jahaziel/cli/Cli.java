@@ -7,7 +7,6 @@ package dev.jahaziel.cli;
 import dev.jahaziel.platform.Platforms;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
@@ -182,44 +181,10 @@ public final class Cli {
     Files.createDirectories(jar);
     Files.writeString(env, body, StandardCharsets.UTF_8);
     Files.createDirectories(jar.resolve("data").resolve("tmp"));
-    stageBundledReh(jar.resolve("data").resolve("ide"));
     out.println("jahaziel: wrote " + env + " and created data/");
     out.println(
         "jahaziel: next: fill BASIS_* vars, run `doctor`, then boot with no args or --demo");
     return 0;
-  }
-
-  /**
-   * Stages the REH tarball bundled in the jar into the data dir, so a fresh directory is runnable
-   * with no extra download. Slim jars carry no runtime and this is a no-op.
-   *
-   * @param ideDir the data {@code ide} directory
-   * @return the staged tarball, or null when this jar bundles no runtime
-   */
-  static Path stageBundledReh(Path ideDir) throws IOException {
-    String name = "jahaziel-code-server-" + rehSlug() + ".tar.zst";
-    return copyStaged(
-        ideDir,
-        name,
-        Cli.class.getResourceAsStream("/ide/" + name),
-        Cli.class.getResourceAsStream("/ide/" + name + ".sha256"));
-  }
-
-  static Path copyStaged(Path ideDir, String name, InputStream archive, InputStream checksum)
-      throws IOException {
-    if (archive == null || checksum == null) {
-      return null;
-    }
-    Files.createDirectories(ideDir);
-    Path tarball = ideDir.resolve(name);
-    if (!Files.isRegularFile(tarball)) {
-      Files.copy(archive, tarball);
-    }
-    Path sidecar = ideDir.resolve(name + ".sha256");
-    if (!Files.isRegularFile(sidecar)) {
-      Files.copy(checksum, sidecar);
-    }
-    return tarball;
   }
 
   private static int doctor(String[] args, PrintStream out) {
@@ -405,7 +370,10 @@ public final class Cli {
                   + "\njava "
                   + Runtime.version()
                   + "\n"
-                  + Platforms.hostRehVariant()
+                  + "host "
+                  + System.getProperty("os.name", "unknown")
+                  + " "
+                  + System.getProperty("os.arch", "unknown")
                   + "\n")
               .getBytes(StandardCharsets.UTF_8));
       Path logs = data.resolve("logs");
@@ -424,7 +392,7 @@ public final class Cli {
   }
 
   /**
-   * Prints the startup banner: version, host, java, data, port, backend, ide, status.
+   * Prints the startup banner: version, host, java, data, port, backend, and status.
    *
    * @param out the output stream
    * @param jar the jar directory
@@ -441,7 +409,6 @@ public final class Cli {
     } catch (Exception unresolved) {
       host = "unknown";
     }
-    String ideVersion = System.getenv().getOrDefault("JAHAZIEL_IDE_VERSION", "1.137.0");
     out.println("jahaziel " + version());
     out.println("  version: " + version());
     out.println("  host: " + host);
@@ -450,7 +417,7 @@ public final class Cli {
     out.println("  data: " + data.toAbsolutePath().normalize());
     out.println("  port: " + port);
     out.println("  backend: " + backend);
-    out.println("  ide: " + rehSlug() + " " + ideVersion);
+    out.println("  workbench: lightweight browser editor");
     out.println(
         "  status: starting" + (demo ? " (demo: stub IdP, BASIS_* ignored)" : " (basis-auth)"));
   }
@@ -465,7 +432,7 @@ public final class Cli {
 
         Commands:
           init                  Write .env (BASIS_* placeholders + random secret), mkdir data/
-          doctor                9 pre-boot checks, one line each; exit 0 when all pass
+          doctor                10 pre-boot checks, one line each; exit 0 when all pass
           upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)
           upgrade --check       Print the running version
           backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/
@@ -650,11 +617,6 @@ public final class Cli {
           redacted.append(key).append('=').append(secret ? "***" : value).append('\n');
         });
     return redacted.toString();
-  }
-
-  /** Returns the REH slug for this host, for example {@code linux-x64}. */
-  public static String rehSlug() {
-    return Platforms.hostRehVariant();
   }
 
   /** Returns the lowercase hex sha256 of a file. */
