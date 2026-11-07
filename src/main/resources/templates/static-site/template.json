@@ -1,8 +1,11 @@
 {
   "name": "static-site",
-  "description": "Static site workspace served on port 8080.",
+  "description": "A no-build static HTML starter.",
   "vcpuCount": 1,
   "memoryMib": 1024,
   "ports": [8080],
-  "setup": []
+  "starterFiles": {
+    "README.md": "# Static site\n\nServe this folder with any HTTP server.\n",
+    "index.html": "<!doctype html>\n<html lang=\"en\">\n  <head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>New site</title></head>\n  <body><main><h1>Hello from Jahaziel</h1><p>Your site is ready to edit.</p></main></body>\n</html>\n"
+  }
 }
