@@ -12,6 +12,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -60,6 +61,14 @@ public final class WorkspaceTaskController {
       throw new IllegalArgumentException("task run not found");
     }
     return run;
+  }
+
+  @GetMapping("/task-runs/latest")
+  public ResponseEntity<WorkspaceTaskService.TaskRun> latestTaskRun(
+      @PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "read");
+    WorkspaceTaskService.TaskRun run = tasks.latestTaskRun(workspace);
+    return run == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(run);
   }
 
   @PostMapping("/task-runs/{runId}/stop")
