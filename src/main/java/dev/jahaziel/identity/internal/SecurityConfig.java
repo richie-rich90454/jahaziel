@@ -66,7 +66,7 @@ public class SecurityConfig {
   public SecurityFilterChain chain(HttpSecurity http) throws Exception {
     JwtAuthenticationFilter.UserLookup lookup = user -> users.get(user).roles();
     JwtAuthenticationFilter bearer = new JwtAuthenticationFilter(tokens, lookup);
-    BffAuthenticationFilter cookies = new BffAuthenticationFilter(devconnect, tokens, users);
+    BffAuthenticationFilter cookies = new BffAuthenticationFilter(devconnect, tokens, users, demo);
     return http.authorizeHttpRequests(
             exchanges -> {
               exchanges
@@ -77,17 +77,16 @@ public class SecurityConfig {
                   // Public brand assets: browsers fetch these cookieless (manifest,
                   // favicon, PWA icons), so gating them behind auth only produces
                   // console 401s. They carry no secrets.
-                  .requestMatchers("/favicon.ico", "/favicon.svg", "/icons/**", "/site.webmanifest")
+                  .requestMatchers(
+                      "/favicon.ico",
+                      "/favicon.svg",
+                      "/icons/**",
+                      "/assets/**",
+                      "/site.webmanifest")
                   .permitAll();
               if (demo) {
                 exchanges
-                    .requestMatchers(
-                        "/",
-                        "/index.html",
-                        "/styles.css",
-                        "/app.js",
-                        "/_admin",
-                        "/_admin/diagnostics")
+                    .requestMatchers("/", "/index.html", "/_admin", "/_admin/diagnostics")
                     .permitAll();
               }
               exchanges.anyRequest().authenticated();
@@ -103,6 +102,7 @@ public class SecurityConfig {
         .exceptionHandling(handling -> handling.authenticationEntryPoint(this::onUnauthenticated))
         .addFilterBefore(cookies, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(new CookieWriteOriginFilter(), BffAuthenticationFilter.class)
         .build();
   }
 
