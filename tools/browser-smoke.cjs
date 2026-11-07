@@ -100,6 +100,34 @@ async function stopServer(child) {
   }
 }
 
+async function crashServer(child) {
+  if (!child || child.exitCode !== null) throw new Error("cannot verify recovery without a running server");
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (failure) {
+    if (failure.code !== "ESRCH") throw failure;
+  }
+  const stopped = await Promise.race([
+    new Promise((resolve) => child.once("exit", resolve).once("error", resolve)),
+    delay(5000).then(() => false),
+  ]);
+  if (stopped === false) throw new Error("server did not exit after forced termination");
+}
+
+async function waitForPortState(port, expected, timeout = 10_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const listening = await new Promise((resolve) => {
+      const socket = net.createConnection({ host: "127.0.0.1", port });
+      socket.once("connect", () => { socket.destroy(); resolve(true); });
+      socket.once("error", () => resolve(false));
+    });
+    if (listening === expected) return;
+    await delay(250);
+  }
+  throw new Error(`port ${port} did not become ${expected ? "available" : "closed"}`);
+}
+
 async function waitForText(page, selector, expression, timeout = 15_000) {
   await page.waitForFunction(
     ({ selector: target, expression: pattern }) =>
@@ -364,21 +392,39 @@ async function run() {
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
+  await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
+  await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
+  await waitForText(page, "#preview-links", "LISTENING", 15_000);
+  const runningTaskResponse = await page.request.get(
+    `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
+  );
+  assert.equal(runningTaskResponse.status(), 200, "latest task status must be readable");
+  assert.equal((await runningTaskResponse.json()).status, "RUNNING");
+
   await browser.close();
   browser = null;
-  await stopServer(server);
+  await crashServer(server);
   server = null;
   serverLogs.length = 0;
   server = launchServer(port);
   await waitForHealth(port, server);
+  await waitForPortState(8000, false, 15_000);
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const recoveredPage = await browser.newPage();
   await recoveredPage.goto(`${origin}/#workspace/${workspaceId}`);
   await recoveredPage.locator("#workbench-page").waitFor({ state: "visible" });
+  await waitForText(recoveredPage, "#task-output", "Task was interrupted by a server restart", 15_000);
+  const recoveredTaskResponse = await recoveredPage.request.get(
+    `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
+  );
+  assert.equal(recoveredTaskResponse.status(), 200, "interrupted task status must be available after restart");
+  const recoveredTask = await recoveredTaskResponse.json();
+  assert.equal(recoveredTask.status, "FAILED");
+  assert.match(recoveredTask.output, /Task was interrupted by a server restart/);
   await recoveredPage.locator(".tree-item").filter({ hasText: "README.md" }).click();
   await recoveredPage.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
   assert.deepEqual(pageErrors, [], "the browser workbench must not raise uncaught errors");
-  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, task preview, terminal resize/reconnect, restart recovery.");
+  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
 }
 
 run()
