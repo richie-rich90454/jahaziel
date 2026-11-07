@@ -148,7 +148,7 @@ public final class SyncServer {
   }
 
   /**
-   * Binds loopback, accepts on a dedicated daemon thread, and serves connections on virtual threads.
+   * Binds loopback and serves each connection on a dedicated daemon thread.
    *
    * @throws IOException when the socket cannot bind
    */
@@ -214,7 +214,7 @@ public final class SyncServer {
       }
       try {
         Socket client = socket.accept();
-        Thread.ofVirtual().name("sync-conn").start(() -> handleQuietly(client));
+        Thread.ofPlatform().daemon().name("sync-conn").start(() -> handleQuietly(client));
       } catch (IOException closed) {
         return;
       }
