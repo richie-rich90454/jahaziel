@@ -7,7 +7,7 @@
   "languagePacks": ["python"],
   "runTasks": [
     { "id": "example", "label": "Run example", "command": ["python3", "main.py"] },
-    { "id": "preview", "label": "Serve preview", "command": ["python3", "-m", "http.server", "8000", "--bind", "0.0.0.0"], "port": 8000 }
+    { "id": "preview", "label": "Serve preview", "command": ["python3", "-u", "-m", "http.server", "8000", "--bind", "0.0.0.0"], "port": 8000 }
   ],
   "starterFiles": {
     "README.md": "# Python\n\nRun `python3 main.py` in the terminal. Use the Run panel to serve this workspace on port 8000.\n",
