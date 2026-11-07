@@ -44,9 +44,6 @@ class DoctorCoverageGapTest {
     Files.writeString(jarDir.resolve(".env"), CliTestSupport.validEnv(), StandardCharsets.UTF_8);
     Path dataDir = jarDir.resolve("data");
     Files.createDirectories(dataDir);
-    Path slugDir = dataDir.resolve("ide").resolve(Cli.rehSlug());
-    Files.createDirectories(slugDir);
-    Files.writeString(slugDir.resolve(".extracted-test"), "x", StandardCharsets.UTF_8);
     Path tmp = dataDir.resolve("tmp");
     Files.createDirectories(tmp);
     System.setProperty("java.io.tmpdir", tmp.toString());
@@ -153,22 +150,14 @@ class DoctorCoverageGapTest {
   }
 
   @Test
-  void rehSentinelAndMissing(@TempDir Path dir) throws Exception {
+  void legacyIdeDataIsNotAStartupRequirement(@TempDir Path dir) throws Exception {
     Env env = green(root.resolve("jar-reh"));
-    Doctor.Check ok =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(ok.ok());
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path slugDir = env.dataDir().resolve("ide").resolve(Cli.rehSlug());
+    Path slugDir = env.dataDir().resolve("ide").resolve("linux-x64");
     Files.createDirectories(slugDir);
     Files.writeString(slugDir.resolve("stale.txt"), "x", StandardCharsets.UTF_8);
-    Doctor.Check missing =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!missing.ok());
+    var checks = Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
+    assertTrue(checks.stream().noneMatch(check -> check.name().equals("reh")));
+    assertTrue(Files.isRegularFile(slugDir.resolve("stale.txt")));
     assertTrue(!Doctor.dataLocked(dir.resolve("nope-probe")));
   }
 
