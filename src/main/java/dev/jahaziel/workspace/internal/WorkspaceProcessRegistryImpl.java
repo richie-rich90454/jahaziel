@@ -68,7 +68,10 @@ public final class WorkspaceProcessRegistryImpl
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(kind, "kind");
     Objects.requireNonNull(process, "process");
-    ProcessHandle handle = process.toHandle();
+    // Some process implementations (including pty4j on Linux) expose a PID but do not support
+    // Process.toHandle(). Resolve the operating-system handle from the portable PID API instead.
+    ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
+    if (handle == null) return new CompletedRegistration();
     if (!handle.isAlive()) return new CompletedRegistration();
     ProcessIdentity identity;
     try {
