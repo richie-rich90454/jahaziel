@@ -18,6 +18,7 @@ public final class TerminalSession {
   private Instant lastActivityAt;
   private int rowCount;
   private int colCount;
+  private volatile Integer exitCode;
 
   /**
    * Creates a session.
@@ -75,6 +76,17 @@ public final class TerminalSession {
     return colCount;
   }
 
+  /** Returns the process exit status, or {@code null} while the session is running. */
+  public Integer exitCode() {
+    return exitCode;
+  }
+
+  /** Records the process exit status for reconnecting clients. */
+  public void markExited(int status) {
+    exitCode = status;
+    recordActivity();
+  }
+
   /** Marks user activity now. */
   public void recordActivity() {
     lastActivityAt = Instant.now();
@@ -94,8 +106,9 @@ public final class TerminalSession {
   }
 
   private static void checkSize(int rows, int cols) {
-    if (rows < 1 || cols < 1) {
-      throw new IllegalArgumentException("terminal size must be positive");
+    if (rows < 1 || cols < 1 || rows > 200 || cols > 400) {
+      throw new IllegalArgumentException(
+          "terminal dimensions must be within 1-200 rows and 1-400 columns");
     }
   }
 }
