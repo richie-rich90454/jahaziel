@@ -142,7 +142,8 @@ esac
 distributionUrlName="${distributionUrl##*/}"
 distributionUrlNameMain="${distributionUrlName%.*}"
 distributionUrlNameMain="${distributionUrlNameMain%-bin}"
-MAVEN_USER_HOME="${MAVEN_USER_HOME:-${HOME}/.m2}"
+# Keep wrapper distributions inside the ignored repository cache by default.
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-${scriptDir}/.cache/maven-wrapper}"
 MAVEN_HOME="${MAVEN_USER_HOME}/wrapper/dists/${distributionUrlNameMain-}/$(hash_string "$distributionUrl")"
 
 exec_maven() {
