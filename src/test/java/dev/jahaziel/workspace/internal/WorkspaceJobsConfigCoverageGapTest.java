@@ -109,7 +109,8 @@ class WorkspaceJobsConfigCoverageGapTest {
     assertInstanceOf(LocalProcessBackend.class, local);
     assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
     IllegalArgumentException unsupported =
-        assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
+        assertThrows(
+            IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
     assertTrue(unsupported.getMessage().contains("WORKSPACE_BACKEND_UNSUPPORTED"));
     assertTrue(unsupported.getMessage().matches(".*correlationId=[0-9a-f-]{36}:.*"));
     assertThrows(
