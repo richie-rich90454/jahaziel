@@ -59,9 +59,7 @@ class LocalProcessBackendTest {
             new RuntimeRequest(workspaceId, 2, 2048, 0, 0, 0, 5000, 4096, List.of("a=b")));
     assertEquals(workspaceId, runtime.value());
     assertTrue(backend.isRunning(workspaceId));
-    Path descriptor = handle.jailPath().resolve("runtime.json");
-    assertTrue(Files.isRegularFile(descriptor));
-    assertTrue(Files.readString(descriptor).contains("a=b"));
+    assertFalse(Files.exists(handle.jailPath().resolve("runtime.json")));
 
     backend.stop(runtime, true);
     assertFalse(backend.isRunning(workspaceId));
@@ -70,7 +68,7 @@ class LocalProcessBackendTest {
     backend.destroy(handle);
     assertFalse(backend.isRunning(workspaceId));
     assertFalse(Files.exists(handle.jailPath()));
-    assertTrue(Files.isDirectory(home));
+    assertFalse(Files.exists(home));
   }
 
   @Test
