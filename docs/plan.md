@@ -99,7 +99,7 @@ The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It d
 
 1. On the Windows development machine, bootstrap and build use existing JDK/Node/package-manager runtimes, native PowerShell, and only repository-local dependency stores. No WSL, PATH edits, global toolchain installs, or service installation occur.
 2. Native Linux x64 and arm64 CI build and launch the packaged jar. The arm64 job must run on a native `aarch64` runner and pass before a release is signed off.
-3. The packaged browser workflow covers login, template materialization, setup status, file edit/save/conflict, an explicitly enabled language diagnostic, terminal stream/resize/close, run task output/exit/stop, preview authorization, and restart recovery.
+3. The packaged browser workflow covers login, template materialization, setup status, file edit/save/conflict, an explicitly enabled language diagnostic, terminal stream/resize/close, run task output/exit/stop, preview authorization, and restart recovery. After an abrupt server stop during a running task, the workbench restores its latest status, bounded output, and interruption reason, and startup stops only the recorded process session.
 4. Security verification covers unauthenticated and cross-workspace access, traversal, symlink escape, WebSocket authorization, command allowlisting, environment filtering, and secret redaction.
 5. Disk verification shows no VS Code or language packs fetched by a normal build, no toolchains in the jar, accurate cache reporting, and a prune dry-run with no modifications.
 
