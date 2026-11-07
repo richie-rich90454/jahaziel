@@ -7,8 +7,10 @@
 
 # Jahaziel
 
-Self-hosted browser development platform. One jar, port 11451.
+Jahaziel is a lightweight remote source IDE for trusted users working on code
+stored on a Linux server. It runs as one jar on one port and serves the
+workbench to a browser.
 
-Start at [Quick start](./guide/quick-start.md), then
-[Architecture](./architecture/overview.md) and
-[Acceptance](./operations/acceptance.md).
+Start with the [current product plan](./plan.md), then follow the
+[quick start](./guide/quick-start.md), [architecture](./architecture/overview.md),
+and [release acceptance](./operations/acceptance.md).
