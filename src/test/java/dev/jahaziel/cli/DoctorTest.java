@@ -19,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -88,7 +90,8 @@ class DoctorTest {
     Env env = green(root.resolve("jar"));
     String savedPath = System.getenv("PATH");
     Path bin = Files.createDirectory(root.resolve("allgreen-bin"));
-    Files.createFile(bin.resolve("git.exe"));
+    Path git = Files.createFile(bin.resolve(isWindows() ? "git.exe" : "git"));
+    makeExecutable(git);
     dev.jahaziel.platform.TestEnv.set("PATH", bin.toString());
     try {
       List<Doctor.Check> checks =
@@ -185,11 +188,27 @@ class DoctorTest {
   @Test
   void commandAvailableChecksExecutablesOffWindows() throws Exception {
     org.junit.jupiter.api.Assumptions.assumeFalse(
-        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win"));
+        isWindows());
     Path bin = Files.createDirectory(root.resolve("tools-posix-bin"));
-    Files.createFile(bin.resolve("tar"));
+    Path tar = Files.createFile(bin.resolve("tar"));
+    makeExecutable(tar);
     assertTrue(Doctor.commandAvailable("tar", bin.toString(), false));
     assertTrue(!Doctor.commandAvailable("zstd", bin.toString(), false));
+  }
+
+  private static boolean isWindows() {
+    return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+  }
+
+  private static void makeExecutable(Path file) throws Exception {
+    if (!isWindows()) {
+      Files.setPosixFilePermissions(
+          file,
+          EnumSet.of(
+              PosixFilePermission.OWNER_READ,
+              PosixFilePermission.OWNER_WRITE,
+              PosixFilePermission.OWNER_EXECUTE));
+    }
   }
 
   @Test
