@@ -21,7 +21,7 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `JAHAZIEL_DOMAIN` | Public domain and token issuer when `--domain` is absent (`localhost` by default) |
 | `JAHAZIEL_LOG_LEVEL` | Root log level |
 | `JAHAZIEL_DEMO` | Legacy demo flag (prefer `--demo`) |
-| `JAHAZIEL_BACKEND` | `local` or `firecracker` |
+| `JAHAZIEL_BACKEND` | `local` (the only selectable backend in this release) |
 | `NO_COLOR` | Disables ANSI colors in `logs` output |
 
 File values come from jar-adjacent `.env`; real environment wins. `--demo`
