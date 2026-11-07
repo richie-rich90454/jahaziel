@@ -453,7 +453,7 @@ async function run() {
   await pyrightPack.locator(".language-pack-action").click();
   await page.locator(".tree-item").filter({ hasText: "main.py" }).click();
   await waitForText(page, "#language-state", "python language service ready", 90_000);
-  const pythonEditor = page.locator(".cm-content");
+  const pythonEditor = page.locator('.cm-content[data-language="python"]');
   await pythonEditor.click();
   await page.keyboard.press("Control+A");
   await page.keyboard.type("def main(:\n    pass\n");
