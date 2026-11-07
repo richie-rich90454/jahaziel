@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,9 +69,6 @@ class DoctorTest {
     Files.writeString(env, CliTestSupport.validEnv(), StandardCharsets.UTF_8);
     Path dataDir = jarDir.resolve("data");
     Files.createDirectories(dataDir);
-    Path slugDir = dataDir.resolve("ide").resolve(Cli.rehSlug());
-    Files.createDirectories(slugDir);
-    Files.writeString(slugDir.resolve(".extracted-test"), "x", StandardCharsets.UTF_8);
     Path tmp = dataDir.resolve("tmp");
     Files.createDirectories(tmp);
     System.setProperty("java.io.tmpdir", tmp.toString());
@@ -89,18 +87,19 @@ class DoctorTest {
     Env env = green(root.resolve("jar"));
     String savedPath = System.getenv("PATH");
     Path bin = Files.createDirectory(root.resolve("allgreen-bin"));
-    Files.createFile(bin.resolve("tar.exe"));
-    Files.createFile(bin.resolve("zstd.exe"));
+    Files.createFile(bin.resolve("git.exe"));
     dev.jahaziel.platform.TestEnv.set("PATH", bin.toString());
     try {
       List<Doctor.Check> checks =
           Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
-      assertEquals(9, checks.size());
+      assertEquals(10, checks.size());
       for (Doctor.Check check : checks) {
-        assertTrue(check.ok());
+        assertTrue(check.ok(), check.name() + ": " + check.detail());
       }
       String text = print(checks);
-      assertTrue(text.contains("doctor: 9/9 checks passed"));
+      assertTrue(text.contains("doctor: 10/10 checks passed"));
+      assertTrue(text.contains("installed managed packs=none"));
+      assertTrue(text.contains("selected packs=none"));
       for (Doctor.Check check : checks) {
         assertTrue(text.contains("doctor: [ok] " + check.name() + " - "));
       }
@@ -117,62 +116,6 @@ class DoctorTest {
   }
 
   @Test
-  void toolsCheckPassesWhenBothPresent() throws Exception {
-    Path bin = Files.createDirectory(root.resolve("tools-bin"));
-    Files.createFile(bin.resolve("tar.exe"));
-    Files.createFile(bin.resolve("zstd.exe"));
-    Doctor.Check check = Doctor.tools(bin.toString(), true);
-    assertTrue(check.ok());
-    assertEquals("tools", check.name());
-  }
-
-  @Test
-  void toolsCheckNamesMissingCommands() throws Exception {
-    Path bin = Files.createDirectory(root.resolve("tools-partial-bin"));
-    Files.createFile(bin.resolve("tar.exe"));
-    Doctor.Check check = Doctor.tools(bin.toString(), true);
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("zstd"));
-    assertTrue(check.fix().contains("zstd"));
-    Path bin2 = Files.createDirectory(root.resolve("tools-partial-bin2"));
-    Files.createFile(bin2.resolve("zstd.exe"));
-    Doctor.Check check2 = Doctor.tools(bin2.toString(), true);
-    assertTrue(!check2.ok());
-    assertTrue(check2.detail().contains("tar"));
-  }
-
-  @Test
-  void toolsCheckFailsOnBlankPath() {
-    assertTrue(!Doctor.tools(null, true).ok());
-    assertTrue(!Doctor.tools("   ", true).ok());
-  }
-
-  @Test
-  void toolsCheckReadsOsFromSystemProperties() throws Exception {
-    String osName = System.getProperty("os.name");
-    String osArch = System.getProperty("os.arch");
-    try {
-      System.setProperty("os.name", "Linux");
-      System.setProperty("os.arch", "amd64");
-      Path bin = Files.createDirectory(root.resolve("tools-linux-bin"));
-      Files.createFile(bin.resolve("tar"));
-      Files.createFile(bin.resolve("zstd"));
-      assertTrue(Doctor.tools(bin.toString()).ok());
-    } finally {
-      restoreProperty("os.name", osName);
-      restoreProperty("os.arch", osArch);
-    }
-  }
-
-  private static void restoreProperty(String key, String value) {
-    if (value == null) {
-      System.clearProperty(key);
-    } else {
-      System.setProperty(key, value);
-    }
-  }
-
-  @Test
   void commandAvailableSkipsBlankSegments() throws Exception {
     Path bin = Files.createDirectory(root.resolve("tools-segments-bin"));
     Files.createFile(bin.resolve("tar.exe"));
@@ -182,7 +125,24 @@ class DoctorTest {
   }
 
   @Test
+  void reportsInstalledAndSelectedManagedLanguagePacks() throws Exception {
+    Path cache = Files.createDirectories(root.resolve("language-packs"));
+    Path installed = Files.createDirectories(cache.resolve("rust/2026-09-21/aarch64"));
+    Files.writeString(installed.resolve(".jahaziel-pack"), "rust\n2026-09-21\nchecksum\n");
+    Path selections = Files.createDirectories(cache.resolve("selections"));
+    Files.writeString(selections.resolve(UUID.randomUUID() + ".txt"), "rust\nunknown\n");
+
+    String summary = Doctor.managedPackSummary(cache);
+
+    assertTrue(summary.contains("rust@2026-09-21/aarch64"));
+    assertTrue(summary.contains("selected packs=rust"));
+    assertTrue(!summary.contains("unknown"));
+  }
+
+  @Test
   void commandAvailableChecksExecutablesOffWindows() throws Exception {
+    org.junit.jupiter.api.Assumptions.assumeFalse(
+        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win"));
     Path bin = Files.createDirectory(root.resolve("tools-posix-bin"));
     Files.createFile(bin.resolve("tar"));
     assertTrue(Doctor.commandAvailable("tar", bin.toString(), false));
@@ -327,102 +287,6 @@ class DoctorTest {
   }
 
   @Test
-  void rehMissingWithoutIdeDir() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("REH tarball missing: "));
-    assertTrue(check.fix().contains("ide/build.sh"));
-  }
-
-  @Test
-  void rehMissingWithTarballButNoChecksum() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path tarball = rehTarball(env.dataDir());
-    Files.createDirectories(tarball.getParent());
-    Files.write(tarball, new byte[] {1, 2, 3});
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("REH tarball missing: "));
-  }
-
-  @Test
-  void rehMissingWhenExtractedDirHasNoSentinel() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path slugDir = env.dataDir().resolve("ide").resolve(Cli.rehSlug());
-    Files.createDirectories(slugDir);
-    Files.writeString(slugDir.resolve("stale.txt"), "x", StandardCharsets.UTF_8);
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("REH tarball missing: "));
-  }
-
-  @Test
-  void rehChecksumMatch() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path tarball = rehTarball(env.dataDir());
-    Files.createDirectories(tarball.getParent());
-    Files.write(tarball, new byte[] {9, 8, 7});
-    Path checksum = tarball.resolveSibling(tarball.getFileName() + ".sha256");
-    Files.writeString(
-        checksum, Cli.sha256(tarball) + "  " + tarball.getFileName(), StandardCharsets.UTF_8);
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(check.ok());
-    assertTrue(check.detail().contains("sha256 matches"));
-  }
-
-  @Test
-  void rehChecksumMismatch() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path tarball = rehTarball(env.dataDir());
-    Files.createDirectories(tarball.getParent());
-    Files.write(tarball, new byte[] {9, 8, 7});
-    Path checksum = tarball.resolveSibling(tarball.getFileName() + ".sha256");
-    Files.writeString(checksum, "0".repeat(64), StandardCharsets.UTF_8);
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("sha256 mismatch"));
-    assertTrue(check.fix().contains("re-fetch"));
-  }
-
-  @Test
-  void rehUnreadableChecksum() throws Exception {
-    Env env = green(root.resolve("jar"));
-    CliTestSupport.deleteBestEffort(env.dataDir().resolve("ide"));
-    Path tarball = rehTarball(env.dataDir());
-    Files.createDirectories(tarball.getParent());
-    Files.write(tarball, new byte[] {9, 8, 7});
-    Path checksum = tarball.resolveSibling(tarball.getFileName() + ".sha256");
-    Files.write(checksum, new byte[] {(byte) 0xFF, (byte) 0xFE});
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile()),
-            "reh");
-    assertTrue(!check.ok());
-    assertTrue(check.detail().contains("cannot verify "));
-  }
-
-  @Test
   void tmpdirFailsWhenDataDirIsUnusable() throws Exception {
     Env env = green(root.resolve("jar"));
     Path broken = Files.createTempFile(root, "data", ".txt");
@@ -525,10 +389,6 @@ class DoctorTest {
   private Doctor.Check portCheck(Env env, int port) {
     return CliTestSupport.find(
         Doctor.run(env.jarDir(), env.dataDir(), port, env.fileEnv(), env.jarFile()), "port");
-  }
-
-  private static Path rehTarball(Path dataDir) {
-    return dataDir.resolve("ide").resolve("jahaziel-code-server-" + Cli.rehSlug() + ".tar.zst");
   }
 
   private static HttpServer serve(int status, String server) throws Exception {
