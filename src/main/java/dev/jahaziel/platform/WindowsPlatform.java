@@ -5,10 +5,8 @@
 package dev.jahaziel.platform;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -54,44 +52,6 @@ public final class WindowsPlatform implements Platform {
   @Override
   public Path tempDir() {
     return dataDir.resolve("tmp");
-  }
-
-  @Override
-  public Path rehDir() {
-    return dataDir.resolve("ide").resolve(rehVariant());
-  }
-
-  @Override
-  public String rehVariant() {
-    return arch == Arch.ARM64 ? "win32-arm64" : "win32-x64";
-  }
-
-  @Override
-  public Path rehExecutable() {
-    return rehDir().resolve("bin").resolve("jahaziel-code-server.cmd");
-  }
-
-  @Override
-  public List<String> rehLaunchArgs(Path workspace, int port) {
-    Objects.requireNonNull(workspace, "workspace");
-    List<String> args = new ArrayList<>();
-    args.add("--host");
-    args.add("127.0.0.1");
-    args.add("--port");
-    args.add(Integer.toString(port));
-    args.add("--without-connection-token");
-    args.add("--server-data-dir");
-    args.add(toNative(dataDir()));
-    args.add("--extensions-dir");
-    args.add(toNative(dataDir().resolve("extensions")));
-    args.add(toNative(workspace.toAbsolutePath().normalize()));
-    return Collections.unmodifiableList(args);
-  }
-
-  @Override
-  public List<String> terminal(Path workingDir) {
-    Objects.requireNonNull(workingDir, "workingDir");
-    return List.of("cmd.exe", "/c", "start", "", "cmd.exe", "/k", "cd /d " + toNative(workingDir));
   }
 
   @Override
