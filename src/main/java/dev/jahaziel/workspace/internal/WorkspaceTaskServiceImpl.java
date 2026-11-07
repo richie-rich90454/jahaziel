@@ -64,6 +64,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private final ConcurrentMap<UUID, WorkspaceProcessRegistry.Registration> processRegistrations =
       new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, Process> setupProcesses = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, Thread> setupThreads = new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, WorkspaceProcessRegistry.Registration> setupRegistrations =
       new ConcurrentHashMap<>();
   private final Set<UUID> activeSetups = ConcurrentHashMap.newKeySet();
@@ -203,57 +204,66 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       write(
           metadataPath(workspaceId),
           state.withSetup("RUNNING", "", "", correlationId, Instant.now()));
+      log.info("workspace setup started correlationId={} workspaceId={}", correlationId, workspaceId);
+      Thread setupThread =
+          Thread.ofPlatform()
+              .daemon()
+              .name("workspace-setup-" + workspaceId.value())
+              .unstarted(
+                  () -> {
+                    StringBuilder output = new StringBuilder();
+                    try {
+                      for (List<String> command : commands) {
+                        if (cancelledSetups.contains(workspaceId.value())) {
+                          throw new IllegalStateException(
+                              "setup stopped because workspace stopped");
+                        }
+                        runAndCapture(workspaceId, command, output);
+                      }
+                      if (cancelledSetups.contains(workspaceId.value())) {
+                        throw new IllegalStateException(
+                            "setup stopped because workspace stopped");
+                      }
+                      update(
+                          workspaceId,
+                          current ->
+                              current.withSetup(
+                                  "READY",
+                                  SecretRedactor.redact(outputText(output)),
+                                  "",
+                                  Instant.now()));
+                      log.info(
+                          "workspace setup completed correlationId={} workspaceId={}",
+                          correlationId,
+                          workspaceId);
+                    } catch (RuntimeException failure) {
+                      String error =
+                          cancelledSetups.contains(workspaceId.value())
+                              ? "setup stopped because workspace stopped"
+                              : safeMessage(failure);
+                      update(
+                          workspaceId,
+                          current ->
+                              current.withSetup(
+                                  "FAILED",
+                                  SecretRedactor.redact(outputText(output)),
+                                  error,
+                                  Instant.now()));
+                      log.warn(
+                          "workspace setup failed correlationId={} workspaceId={} reason={}",
+                          correlationId,
+                          workspaceId,
+                          error);
+                    } finally {
+                      activeSetups.remove(workspaceId.value());
+                      cancelledSetups.remove(workspaceId.value());
+                      setupThreads.remove(workspaceId.value(), Thread.currentThread());
+                    }
+                  });
+      setupThreads.put(workspaceId.value(), setupThread);
+      setupThread.start();
+      return setupStatus(workspaceId);
     }
-    log.info("workspace setup started correlationId={} workspaceId={}", correlationId, workspaceId);
-    Thread.ofPlatform()
-        .daemon()
-        .name("workspace-setup-" + workspaceId.value())
-        .start(
-            () -> {
-              StringBuilder output = new StringBuilder();
-              try {
-                for (List<String> command : commands) {
-                  if (cancelledSetups.contains(workspaceId.value())) {
-                    throw new IllegalStateException("setup stopped because workspace stopped");
-                  }
-                  runAndCapture(workspaceId, command, output);
-                }
-                if (cancelledSetups.contains(workspaceId.value())) {
-                  throw new IllegalStateException("setup stopped because workspace stopped");
-                }
-                update(
-                    workspaceId,
-                    current ->
-                        current.withSetup(
-                            "READY", SecretRedactor.redact(outputText(output)), "", Instant.now()));
-                log.info(
-                    "workspace setup completed correlationId={} workspaceId={}",
-                    correlationId,
-                    workspaceId);
-              } catch (RuntimeException failure) {
-                String error =
-                    cancelledSetups.contains(workspaceId.value())
-                        ? "setup stopped because workspace stopped"
-                        : safeMessage(failure);
-                update(
-                    workspaceId,
-                    current ->
-                        current.withSetup(
-                            "FAILED",
-                            SecretRedactor.redact(outputText(output)),
-                            error,
-                            Instant.now()));
-                log.warn(
-                    "workspace setup failed correlationId={} workspaceId={} reason={}",
-                    correlationId,
-                    workspaceId,
-                    error);
-              } finally {
-                activeSetups.remove(workspaceId.value());
-                cancelledSetups.remove(workspaceId.value());
-              }
-            });
-    return setupStatus(workspaceId);
   }
 
   private static SetupStatus setupRetryBlocked(WorkspaceMetadata state) {
@@ -377,6 +387,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         }
       }
     }
+    awaitSetupTermination(workspaceId.value());
   }
 
   @Override
@@ -391,7 +402,10 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   @PreDestroy
   public void closeAll() {
     for (UUID workspaceId : List.copyOf(activeSetups)) {
-      closeSetup(workspaceId, "server shutting down");
+      synchronized (lock(workspaceId)) {
+        closeSetup(workspaceId, "server shutting down");
+      }
+      awaitSetupTermination(workspaceId);
     }
     for (Path file : metadataFiles()) {
       WorkspaceMetadata state = read(file);
@@ -458,6 +472,19 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 "setup interrupted: " + reason,
                 Instant.now()));
       }
+    }
+  }
+
+  private void awaitSetupTermination(UUID workspaceId) {
+    Thread setupThread = setupThreads.get(workspaceId);
+    if (setupThread == null || setupThread == Thread.currentThread()) return;
+    try {
+      setupThread.join(5000);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+    }
+    if (setupThread.isAlive()) {
+      log.warn("workspace setup did not stop promptly workspaceId={}", workspaceId);
     }
   }
 
