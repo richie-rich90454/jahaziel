@@ -122,7 +122,9 @@ class SmokeTest {
     Map<String, String> env = Map.of("PORT", String.valueOf(free));
     Run doctor = exec(tmp, List.of("java", "-jar", jar.toString(), "doctor"), env, 120);
     assertEquals(0, doctor.code(), "doctor must pass on a fresh install: " + doctor.out());
-    assertTrue(doctor.out().contains("10/10"), "doctor must report 10/10, got: " + doctor.out());
+    Matcher checks = Pattern.compile("doctor: (\\d+)/(\\d+) checks passed").matcher(doctor.out());
+    assertTrue(checks.find(), "doctor must report its check totals, got: " + doctor.out());
+    assertEquals(checks.group(2), checks.group(1), "doctor must pass every reported check");
     assertTrue(
         doctor.out().contains("[ok] git -"),
         "doctor must report Git availability: " + doctor.out());
