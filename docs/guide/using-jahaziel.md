@@ -7,61 +7,74 @@
 
 # Using Jahaziel
 
-Last verified against version 0.1.0-SNAPSHOT.
+The browser workbench at `http://localhost:11451` is served by the Linux
+Jahaziel jar. It manages source files stored on the server and opens terminal
+sessions only when you request one.
 
-The workbench at `http://localhost:11451` is the whole product: create a
-workspace, start it, open the IDE link that appears. Everything below is what
-each button and badge on that page means.
+## Create and edit
 
-## The normal flow
+1. Sign in, enter a workspace name, and choose a server-managed starter.
+2. Jahaziel creates a private home directory for the new workspace and writes
+the template starter files there.
+3. Open the workspace. Use the explorer to browse folders, create/rename/delete
+files, and select a text file in the editor.
+4. Modified tabs show an unsaved marker. Save sends the file's latest ETag. If
+another process has changed it, the save is rejected so newer server content
+is not silently overwritten. Copy your local edits before reloading.
+5. Open a terminal explicitly to run commands in that workspace home. Closing
+the terminal stops its shell process.
+6. Use template task controls when available. Preview links are workspace
+scoped and open only registered ports. The workbench shows whether each
+registered port accepts connections; use **Check ports** after starting a
+server from the terminal.
+7. For an existing Git repository, use Source Control to inspect changes,
+stage or unstage files, view diffs, and commit staged changes. Configure a Git
+author identity in the repository before the first commit. Workbench commands
+use a sanitized process environment and skip repository hooks. Clone
+repositories, configure credentials, and run hooks from the workspace
+terminal.
 
-1. Type a name, press **Create**. The card appears as `requested`.
-2. Press **Start**. The card walks `requested → preparing → booting → ready`,
-   with a progress bar for the boot sub-steps: extracting, spawning, waiting,
-   registering.
-3. The **first ever start takes about a minute**: it unpacks the ~108 MB IDE
-   runtime. Later starts reuse it and take seconds.
-4. When the card reads `ready`, an **Open IDE** link appears under it. Click
-   it — that is the VS Code-compatible IDE running in your browser.
+## Language diagnostics
 
-## Buttons cheat-sheet
+The Language panel lists pinned server-managed tools that can be enabled for a
+workspace. Enabling a tool downloads its verified release into the shared
+`data/language-packs/` cache; Jahaziel does not fetch tools during startup or a
+normal build. Rust Analyzer, the Java language server, TypeScript, Pyright, and
+gopls are available on Linux x64 and arm64. clangd is available on Linux x64.
+The Go pack also downloads a pinned Go SDK when selected. Open a matching
+source file after enabling its pack to start diagnostics. Disabling a pack
+removes the workspace selection while keeping the shared cached release
+available for reuse or pruning.
 
-| Card state | Buttons | Meaning |
-|---|---|---|
-| `requested` | Start | Begin the boot. |
-| `preparing`, `booting` | Starting… (disabled), Retry start, Cancel | A boot is mid-flight. Retry start resumes it; Cancel parks it as `suspended` with files kept. |
-| `ready`, `active`, `idle` | Stop, Restart | Stop parks it; Restart reboots it. |
-| `suspended`, `failed` | Restart | Re-runs the boot from the preserved home folder. |
-| any | Delete | Asks for confirmation. Home files are kept. |
+## Workspace states
 
-`Cancel` during a boot is safe: it stops the IDE server and parks the
-workspace as `suspended`. Nothing is deleted.
+`requested`, `preparing`, `booting`, `ready`, `active`, `idle`, `suspended`,
+and `failed` describe the existing workspace lifecycle. A failed start keeps
+the workspace home. Read the visible reason and operation reference, correct
+the problem, then retry. Include the operation reference when looking for
+matching server log entries. Setup and task panels also display references for
+their individual attempts.
 
-## Ports section
+## Process trust boundary
 
-- `No ports registered. Start the workspace to open it in the browser.` —
-  nothing is serving yet. Press Start (or Retry start).
-- `IDE is starting — its link appears here when the port registers.` — the
-  boot is nearly done; the Open IDE link lands within seconds.
-- `:port` links — the live entry points. Open IDE opens the same target in a
-  new tab.
+The first release runs terminal and task processes as the same Linux account
+as Jahaziel. Use it with trusted users only. Workspace file API checks do not
+sandbox a native shell from other files accessible to that account. Git
+operations also run as this account. Workbench Git commands use a sanitized
+environment and do not execute repository hooks; terminal commands remain
+inside the same trusted-user process boundary.
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `No live boot is reporting` on a `preparing`/`booting` card | The server restarted mid-boot (live progress is in-memory), or the boot died before reporting | Press **Retry start** |
-| Open IDE link won't open / points at a wrong domain | The link encodes the public domain and API port at boot time | Browsers resolve `*.localhost` to loopback, so the `localhost` default just works. For LAN/server runs set `JAHAZIEL_DOMAIN` (or `--domain`) to a domain with DNS, restart the jar, and use a freshly minted link — old links keep the old domain |
-| Card reads `failed` with a `Failed: …` reason | The boot threw; the reason names the cause and survives restarts | Press **Restart**; if it repeats, read the reason — it names the cause |
-| Start spins, then `failed: IDE server exited during startup (exit=…)` | The IDE process died instantly; the card quotes the tail of its log | Read the full IDE log (below) — it holds the crash output — then Restart |
-| Start spins, then the card is `failed: IDE server did not listen in time` | The IDE process exited or never bound its port within 30 s | Check the IDE log (below), then Restart |
-| Start spins, then `failed: REH tarball missing …` | The IDE runtime was never staged next to the jar | Run the jar from its folder, or rebuild with the `bundled-ide` profile |
-| `doctor` is not `9/9` | Environment prerequisite missing | Fix what doctor names, then start the jar |
+| Symptom | What to check |
+|---|---|
+| Sign in is unavailable | Complete the configured identity-provider values in `.env`; use demo mode only on localhost |
+| Workspace files are empty | Check template apply status and the server data directory permissions |
+| Save reports a conflict | Another terminal process changed the file; copy your edits and reload before retrying |
+| Terminal cannot connect | Check workspace write permission, terminal session limits, server logs, and `/bin/bash` or `/bin/sh` |
+| Preview is unavailable | Confirm the workspace task is running, its port is registered, and the gateway route is authorized |
+| Doctor reports a storage failure | Check the paths and per-directory byte totals printed by `doctor` |
+| Server startup reports a workspace-home migration conflict | Keep both directories intact, resolve the conflicting file under the workspace home, then restart; the migration will not overwrite either copy |
 
-The IDE log per workspace lives at `.jahaziel-ide/server.log` inside that
-workspace's home folder (under the jar's `data/` tree). It is the first place
-to look whenever a boot fails.
-
-See [quick start](./quick-start.md) for install/run, [demo
-mode](./demo-mode.md) for the zero-config path, and
-[configuration](./configuration.md) for every variable.
+See [quick start](./quick-start.md), [configuration](./configuration.md),
+and the [trusted-process threat model](../security/threat-model.md).
