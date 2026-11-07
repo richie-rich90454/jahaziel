@@ -21,8 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Firecracker backend. Linux only, requires {@code /dev/kvm}. Selected with {@code
- * jahaziel.workspace.backend=firecracker}; anything else falls back to {@code local}.
+ * Experimental Firecracker process backend. It is retained for separate verification and is not
+ * selectable in the single-server release. It does not provide a verified isolated workspace.
  */
 public final class FirecrackerBackend implements NodeBackend {
   private static final String BINARY = "/usr/bin/firecracker";
