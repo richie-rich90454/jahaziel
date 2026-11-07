@@ -1,0 +1,147 @@
+<!--
+
+    Copyright 2026 The Jahaziel Authors
+    SPDX-License-Identifier: Apache-2.0
+
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#151a15" />
+    <meta name="description" content="Jahaziel is a lightweight remote source IDE for Linux workspaces." />
+    <title>Jahaziel — Remote source IDE</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+  </head>
+  <body>
+    <div id="app" data-page="home">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">J</span>
+          <span class="brand-name">jahaziel<span class="brand-dot">.</span></span>
+          <span class="brand-divider"></span>
+          <span class="brand-product">remote source IDE</span>
+        </div>
+        <div id="user-badge" class="user-badge" hidden>
+          <span class="user-presence"></span><span id="user-name"></span><span id="user-email" class="user-email"></span>
+        </div>
+        <a id="login-link" class="login-link" href="/api/login" hidden>Sign in <span aria-hidden="true">↗</span></a>
+      </header>
+
+      <main id="home-page" class="page page-home">
+        <div class="toasts" id="toasts" aria-live="polite"></div>
+        <section class="home-intro">
+          <div>
+            <p class="eyebrow">YOUR LINUX WORKSPACES</p>
+            <h1>Make room<br /><em>to build.</em></h1>
+            <p class="intro-copy">A focused development environment, running on your server and ready from any browser.</p>
+          </div>
+          <div class="intro-stamp" aria-hidden="true"><span>LINUX</span><b>↗</b><span>REMOTE</span><i></i><span>READY</span></div>
+        </section>
+
+        <section class="workspace-section" aria-labelledby="workspace-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">PROJECT SPACES</p><h2 id="workspace-heading">Workspaces <span id="workspace-count" class="count-mark">00</span></h2></div>
+            <div id="loading-state" class="loading-state">Connecting…</div>
+          </div>
+          <ul id="workspace-list" class="workspace-list"></ul>
+          <div id="empty-workspaces" class="empty-state" hidden>
+            <div class="empty-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+            <h3>Your next project starts here.</h3><p>Choose a starter and Jahaziel will lay down the first files.</p>
+          </div>
+        </section>
+
+        <section class="create-section" aria-labelledby="create-heading">
+          <div class="create-copy">
+            <p class="eyebrow">A CLEAN START</p><h2 id="create-heading">Create a workspace</h2>
+            <p id="template-note">Files are created in a private home directory for this workspace.</p>
+          </div>
+          <form id="workspace-form" class="create-form">
+            <label class="field-label" for="workspace-name">Workspace name</label>
+            <input id="workspace-name" name="name" required maxlength="64" placeholder="e.g. orchid-dashboard" autocomplete="off" />
+            <label class="field-label" for="template-select">Starter</label>
+            <select id="template-select" name="template"></select>
+            <button id="create-workspace" class="button button-primary" type="submit">Create workspace <span aria-hidden="true">↗</span></button>
+          </form>
+        </section>
+        <footer class="home-footer"><span>JAHAZIEL / REMOTE SOURCE IDE</span><span>FILES STAY ON YOUR SERVER</span></footer>
+      </main>
+
+      <main id="workbench-page" class="page page-workbench" hidden>
+        <div class="toasts" id="workbench-toasts" aria-live="polite"></div>
+        <div class="workbench-bar">
+          <button id="back-home" class="icon-button back-button" type="button" aria-label="Back to workspaces">←</button>
+          <div class="breadcrumb"><span>WORKSPACES</span><b>/</b><strong id="workbench-title">Workspace</strong></div>
+          <span id="workbench-state" class="status status-requested">requested</span>
+          <div class="bar-spacer"></div>
+          <div id="preview-links" class="preview-links"></div>
+          <button id="refresh-preview-ports" class="button button-quiet preview-refresh" type="button" title="Check which preview ports are open">Check ports</button>
+          <button id="runtime-toggle" class="button button-quiet" type="button">Start workspace</button>
+        </div>
+        <div class="workbench-layout">
+          <aside class="file-sidebar" aria-label="Workspace files">
+            <div class="panel-heading"><div><span class="panel-glyph">▤</span><span>EXPLORER</span></div><span class="panel-meta">WORKSPACE</span></div>
+            <div class="project-root"><span class="root-caret">⌄</span><span id="root-name">PROJECT</span></div>
+            <div class="workspace-search" role="search">
+              <input id="workspace-search" type="search" placeholder="Search workspace…" aria-label="Search workspace files and contents" autocomplete="off" />
+              <ul id="search-results" class="search-results" aria-live="polite" hidden></ul>
+            </div>
+            <div class="file-actions" aria-label="File actions">
+              <button id="new-file" type="button" title="New file">＋<span>File</span></button>
+              <button id="new-folder" type="button" title="New folder">▱<span>Folder</span></button>
+              <button id="download-selected" type="button" title="Download selected file" aria-label="Download selected file" disabled>↓</button>
+              <button id="rename-selected" type="button" title="Rename selected">↗</button>
+              <button id="delete-selected" type="button" title="Delete selected">×</button>
+            </div>
+            <ul id="file-tree" class="file-tree"></ul>
+            <section class="task-panel" aria-label="Workspace setup and run tasks">
+              <div class="panel-heading"><div><span class="panel-glyph">▶</span><span>RUN</span></div><span id="setup-state" class="panel-meta">SETUP</span></div>
+              <div class="setup-row"><span id="setup-summary">Template setup is ready.</span><button id="setup-retry" class="text-action" type="button" hidden>Retry</button></div>
+              <div id="setup-correlation" class="operation-ref" hidden></div>
+              <pre id="setup-output" class="task-output" hidden></pre>
+              <div id="task-list" class="task-list"></div>
+              <button id="task-stop" class="text-action" type="button" hidden>Stop task</button>
+              <div id="task-correlation" class="operation-ref" hidden></div>
+              <pre id="task-output" class="task-output" hidden></pre>
+            </section>
+            <section class="language-panel" aria-label="Language services">
+              <div class="panel-heading"><div><span class="panel-glyph">λ</span><span>LANGUAGES</span></div><span id="language-state" class="panel-meta">OPTIONAL</span></div>
+              <ul id="language-pack-list" class="language-pack-list"></ul>
+              <div id="language-diagnostics" class="language-diagnostics" aria-live="polite"></div>
+            </section>
+            <section class="git-panel" aria-label="Git source control">
+              <div class="panel-heading"><div><span class="panel-glyph">⑂</span><span>SOURCE CONTROL</span></div><div class="git-heading-actions"><span id="git-state" class="panel-meta">GIT</span><button id="git-refresh" class="text-action" type="button" aria-label="Refresh Git status">Refresh</button></div></div>
+              <ul id="git-changes" class="git-changes"></ul>
+              <form id="git-commit-form" class="git-commit-form">
+                <textarea id="git-message" maxlength="512" rows="2" placeholder="Commit message" aria-label="Commit message"></textarea>
+                <button id="git-commit" class="button button-save" type="submit" disabled>Commit</button>
+              </form>
+              <pre id="git-diff" class="git-diff" hidden></pre>
+            </section>
+            <div class="sidebar-foot"><span class="tiny-pulse"></span>FILES STORED ON SERVER</div>
+          </aside>
+          <section class="editor-column" aria-label="Code editor">
+            <div class="editor-chrome"><div id="editor-tabs" class="editor-tabs"></div><div class="editor-controls">
+              <span id="save-state" class="save-state"></span><button id="save-file" class="button button-save" type="button" disabled>Save <kbd>Ctrl S</kbd></button>
+            </div></div>
+            <div class="editor-location"><span class="location-root">workspace</span><span>/</span><span id="active-file">No file selected</span></div>
+            <div class="editor-surface-wrap">
+              <div id="editor-empty" class="editor-empty"><div class="empty-mark">⌘</div><p>Choose a file to begin.</p><span>Changes save directly to your Linux workspace.</span></div>
+              <div id="editor-surface" class="editor-surface"></div>
+            </div>
+            <section class="terminal-dock" aria-label="Terminal">
+              <div class="terminal-heading"><div><span class="terminal-square"></span><span>TERMINAL</span><span id="terminal-state" class="terminal-state">No session</span></div>
+                <div class="terminal-actions"><select id="terminal-session-select" class="terminal-session-select" aria-label="Detached terminal sessions" hidden disabled></select><button id="terminal-reconnect" class="terminal-action" type="button" hidden disabled>Reconnect</button><button id="terminal-new" class="terminal-action" type="button">＋ New terminal</button><button id="close-terminal" class="terminal-action terminal-close" type="button" hidden>×</button></div>
+              </div>
+              <div id="terminal-surface" class="terminal-surface"><div class="terminal-placeholder"><span>⌁</span><p>Open a terminal to run commands in this workspace.</p></div></div>
+            </section>
+            <footer class="statusbar"><span>JAHaziel</span><span id="status-language">REMOTE WORKSPACE</span><span>UTF-8</span><span>LINUX</span></footer>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>
