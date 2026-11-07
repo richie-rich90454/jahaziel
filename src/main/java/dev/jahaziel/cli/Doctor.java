@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.cli;
 
+import dev.jahaziel.language.api.LanguageRuntimeRequirements;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -282,7 +283,7 @@ public final class Doctor {
   private static Check hostAndBackend(Map<String, String> fileEnv) {
     String os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ROOT);
     String arch = System.getProperty("os.arch", "unknown").toLowerCase(Locale.ROOT);
-    String architecture = arch.contains("aarch64") || arch.contains("arm64") ? "arm64" : "x64";
+    String architecture = serverArchitecture(arch);
     boolean linux = os.contains("linux");
     String backend =
         System.getenv()
@@ -293,6 +294,13 @@ public final class Doctor {
           false,
           "This installation supports the local workspace backend only.",
           "set JAHAZIEL_BACKEND=local");
+    }
+    if (linux && architecture.startsWith("unsupported")) {
+      return new Check(
+          "host",
+          false,
+          "This Linux host architecture is not supported: " + architecture,
+          "use a Linux x64 or arm64 server");
     }
     if (linux
         && !Files.isExecutable(Path.of("/bin/bash"))
@@ -323,6 +331,12 @@ public final class Doctor {
       detail += "; production servers target Linux x64 and arm64";
     }
     return new Check("host", true, detail, "");
+  }
+
+  static String serverArchitecture(String arch) {
+    if (arch.contains("aarch64") || arch.contains("arm64")) return "arm64";
+    if (arch.contains("x86_64") || arch.contains("amd64") || arch.contains("x64")) return "x64";
+    return "unsupported (" + arch + ")";
   }
 
   static Check languageTools(Path dataDir, Map<String, String> fileEnv) {
@@ -360,7 +374,8 @@ public final class Doctor {
           "Selected language-pack data cannot be read safely.",
           "repair data/language-packs/selections or fix its permissions");
     }
-    boolean nodeRequired = selected.contains("typescript") || selected.contains("python");
+    boolean nodeRequired =
+        selected.stream().anyMatch(LanguageRuntimeRequirements::usesNodeRuntime);
     boolean nodeAvailable = Files.isRegularFile(node) && Files.isExecutable(node);
     if (nodeRequired && !nodeAvailable) {
       return new Check(
@@ -443,13 +458,19 @@ public final class Doctor {
       return new Check(
           "storage",
           true,
-          "application="
+          "application data total (includes the listed subdirectories)="
               + appBytes
               + " bytes, workspaces="
               + workspaceBytes
               + " bytes, language-pack cache="
               + packBytes
-              + " bytes; "
+              + " bytes; writable paths: data="
+              + root
+              + ", workspaces="
+              + workspaces
+              + ", language packs="
+              + packs
+              + "; "
               + packSummary,
           "");
     } catch (IOException failure) {
