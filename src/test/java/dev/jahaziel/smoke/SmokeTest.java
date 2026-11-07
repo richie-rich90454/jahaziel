@@ -5,6 +5,7 @@
 package dev.jahaziel.smoke;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -18,15 +19,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarFile;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.MethodOrderer;
@@ -46,6 +48,36 @@ import org.junit.jupiter.api.io.TempDir;
 class SmokeTest {
   private static final Duration BOOT_TIMEOUT = Duration.ofSeconds(60);
   private static final Duration KILL_TIMEOUT = Duration.ofSeconds(20);
+
+  @Test
+  @Order(0)
+  void jarContainsOnlyMaintainedWorkbenchAssets(@TempDir Path tmp) throws Exception {
+    Path jarPath = copyJarTo(tmp);
+    try (JarFile jar = new JarFile(jarPath.toFile())) {
+      Set<String> entries = jar.stream().map(entry -> entry.getName()).collect(Collectors.toSet());
+      assertTrue(entries.contains("BOOT-INF/classes/static/index.html"));
+      assertTrue(
+          entries.stream()
+              .anyMatch(name -> name.matches("BOOT-INF/classes/static/assets/editor-[^/]+\\.js")));
+      assertFalse(entries.contains("BOOT-INF/classes/static/app.js"));
+      assertFalse(entries.contains("BOOT-INF/classes/static/styles.css"));
+      assertEquals(
+          1,
+          entries.stream()
+              .filter(name -> name.matches("BOOT-INF/classes/static/assets/index-[^/]+\\.js"))
+              .count());
+      assertFalse(
+          entries.stream()
+              .anyMatch(
+                  name ->
+                      name.contains("code-server")
+                          || name.contains("clangd")
+                          || name.contains("rust-analyzer")
+                          || name.contains("gopls")
+                          || name.contains("jdtls")
+                          || name.contains("node_modules")));
+    }
+  }
 
   @Test
   @Order(1)
@@ -83,22 +115,17 @@ class SmokeTest {
 
   @Test
   @Order(4)
-  void doctorFailsFreshThenPasses(@TempDir Path tmp) throws Exception {
+  void doctorPassesOnFreshInstall(@TempDir Path tmp) throws Exception {
     Path jar = copyJarTo(tmp);
     exec(tmp, List.of("java", "-jar", jar.toString(), "init"), Map.of(), 60);
     int free = freePort();
     Map<String, String> env = Map.of("PORT", String.valueOf(free));
-    Run fresh = exec(tmp, List.of("java", "-jar", jar.toString(), "doctor"), env, 120);
-    assertTrue(fresh.code() != 0, "doctor must fail on a fresh init (no REH tarball)");
-
-    Path dataTmp = tmp.resolve("data").resolve("tmp");
-    Files.createDirectories(dataTmp);
-    fabricateReh(tmp.resolve("data"));
-    List<String> command =
-        List.of("java", "-Djava.io.tmpdir=" + dataTmp, "-jar", jar.toString(), "doctor");
-    Run pass = exec(tmp, command, env, 120);
-    assertEquals(0, pass.code(), "doctor must exit 0 when set up: " + pass.out());
-    assertTrue(pass.out().contains("9/9"), "doctor must report 9/9, got: " + pass.out());
+    Run doctor = exec(tmp, List.of("java", "-jar", jar.toString(), "doctor"), env, 120);
+    assertEquals(0, doctor.code(), "doctor must pass on a fresh install: " + doctor.out());
+    assertTrue(doctor.out().contains("10/10"), "doctor must report 10/10, got: " + doctor.out());
+    assertTrue(
+        doctor.out().contains("[ok] git -"),
+        "doctor must report Git availability: " + doctor.out());
   }
 
   @Test
@@ -106,7 +133,6 @@ class SmokeTest {
   void fullRunServesHealthWorkbenchAndAdmin(@TempDir Path work) throws Exception {
     Path jar = copyJarTo(work);
     exec(work, List.of("java", "-jar", jar.toString(), "init"), Map.of(), 60);
-    fabricateReh(work.resolve("data"));
     Path dataTmp = work.resolve("data").resolve("tmp");
     Files.createDirectories(dataTmp);
     int port = freePort();
@@ -126,7 +152,7 @@ class SmokeTest {
     Process server = serverBuilder.start();
     try {
       HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-      String health = pollHealth(http, port);
+      String health = pollHealth(http, port, server, work.resolve("server.log"));
       assertTrue(health.contains("\"status\":\"UP\""), "health must be UP, got: " + health);
       assertTrue(
           Files.isRegularFile(work.resolve("data").resolve("jahaziel.db")),
@@ -148,16 +174,42 @@ class SmokeTest {
       assertTrue(
           root.body().toLowerCase(Locale.ROOT).contains("workbench"),
           "/ must contain the workbench");
+      assertTrue(
+          root.body().contains("terminal-session-select"),
+          "workbench must expose reconnectable terminals");
+      assertTrue(
+          root.body().contains("terminal-reconnect"), "workbench must expose a reconnect action");
+
+      Matcher script = Pattern.compile("<script[^>]+src=\"([^\"]+\\.js)\"").matcher(root.body());
+      assertTrue(script.find(), "workbench page must reference a built JavaScript asset");
+      HttpResponse<String> scriptAsset =
+          get(http, "http://127.0.0.1:" + port + script.group(1), Map.of());
+      assertEquals(200, scriptAsset.statusCode(), "packaged workbench JavaScript must be served");
+      Matcher stylesheet =
+          Pattern.compile("<link[^>]+href=\"([^\"]+\\.css)\"").matcher(root.body());
+      assertTrue(stylesheet.find(), "workbench page must reference a built stylesheet");
+      HttpResponse<String> cssAsset =
+          get(http, "http://127.0.0.1:" + port + stylesheet.group(1), Map.of());
+      assertEquals(200, cssAsset.statusCode(), "packaged workbench CSS must be served");
 
       HttpResponse<String> admin = get(http, "http://127.0.0.1:" + port + "/_admin", Map.of());
       assertEquals(200, admin.statusCode(), "/_admin must be 200, body: " + admin.body());
 
+      HttpResponse<String> identity =
+          get(http, "http://127.0.0.1:" + port + "/api/v1/me", Map.of());
+      assertEquals(200, identity.statusCode(), "demo identity must be available without a login");
+      assertTrue(identity.body().contains("demo@example.com"), identity.body());
       HttpResponse<String> workspaces =
-          get(http, "http://127.0.0.1:" + port + "/api/workspaces", Map.of());
-      assertEquals(
-          401,
-          workspaces.statusCode(),
-          "/api/workspaces must reject anonymous callers, body: " + workspaces.body());
+          get(http, "http://127.0.0.1:" + port + "/api/v1/me/workspaces", Map.of());
+      assertEquals(200, workspaces.statusCode(), "demo workspaces must be available anonymously");
+      assertTrue(workspaces.body().contains("\"name\":\"demo\""), workspaces.body());
+      HttpResponse<String> templates =
+          get(http, "http://127.0.0.1:" + port + "/api/v1/templates", Map.of());
+      assertEquals(200, templates.statusCode(), "demo templates must load in the workbench");
+      HttpResponse<String> signIn = get(http, "http://127.0.0.1:" + port + "/api/login", Map.of());
+      assertEquals(302, signIn.statusCode(), "demo sign-in link should return to the workbench");
+      assertEquals("/", signIn.headers().firstValue("location").orElseThrow());
+
     } finally {
       server.destroy();
       boolean gone = server.waitFor(KILL_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
@@ -169,10 +221,14 @@ class SmokeTest {
     assertNoOrphan(work.resolve("jahaziel.jar"));
   }
 
-  private static String pollHealth(HttpClient http, int port) throws Exception {
+  private static String pollHealth(HttpClient http, int port, Process server, Path serverLog)
+      throws Exception {
     long deadline = System.currentTimeMillis() + BOOT_TIMEOUT.toMillis();
     String last = "";
     while (System.currentTimeMillis() < deadline) {
+      if (!server.isAlive()) {
+        fail("server exited with " + server.exitValue() + "; log: " + Files.readString(serverLog));
+      }
       try {
         HttpResponse<String> response =
             get(http, "http://127.0.0.1:" + port + "/actuator/health", Map.of());
@@ -188,7 +244,7 @@ class SmokeTest {
       }
       Thread.sleep(1000);
     }
-    fail("health was not UP within 60s, last: " + last);
+    fail("health was not UP within 60s, last: " + last + "; log: " + Files.readString(serverLog));
     throw new IllegalStateException("unreachable");
   }
 
@@ -218,31 +274,6 @@ class SmokeTest {
                           }
                         }));
     assertTrue(strays.isEmpty(), "orphan java processes hold " + jar + ": " + strays);
-  }
-
-  private static void fabricateReh(Path data) throws Exception {
-    String slug = rehSlug();
-    Path ide = data.resolve("ide");
-    Files.createDirectories(ide);
-    Path tarball = ide.resolve("jahaziel-code-server-" + slug + ".tar.zst");
-    Files.write(tarball, "smoke-test-placeholder".getBytes(StandardCharsets.UTF_8));
-    MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-    String hex = HexFormat.of().formatHex(sha256.digest(Files.readAllBytes(tarball)));
-    Files.writeString(
-        tarball.resolveSibling(tarball.getFileName() + ".sha256"),
-        hex + "  " + tarball.getFileName(),
-        StandardCharsets.UTF_8);
-  }
-
-  private static String rehSlug() {
-    String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-    String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-    boolean arm = arch.contains("aarch64") || arch.contains("arm64");
-    String sys =
-        os.contains("win")
-            ? "win32"
-            : os.contains("mac") || os.contains("darwin") ? "darwin" : "linux";
-    return sys + "-" + (arm ? "arm64" : "x64");
   }
 
   private static String value(String body, String key) {
