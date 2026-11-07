@@ -6,6 +6,7 @@ package dev.jahaziel.language.internal;
 
 import dev.jahaziel.language.api.LanguagePackInstallException;
 import dev.jahaziel.language.api.LanguagePackService;
+import dev.jahaziel.language.api.LanguageRuntimeRequirements;
 import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.workspace.domain.WorkspaceId;
@@ -1372,7 +1373,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
   }
 
   private static boolean isNodeLanguage(Definition definition) {
-    return definition.id().equals("typescript") || definition.id().equals("python");
+    return LanguageRuntimeRequirements.usesNodeRuntime(definition.id());
   }
 
   private static boolean isVersionAtLeast(String actual, String minimum) {
