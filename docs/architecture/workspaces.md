@@ -24,8 +24,10 @@ directory.
   sessions. The process registry records executable identity, start time, and
   session ID so startup recovery can stop the whole session without targeting
   a recycled PID. Terminal sessions use the PTY-created Linux session.
-- The optional Firecracker backend remains experimental and requires separate
-  Linux/KVM acceptance before it can be treated as a supported release mode.
+- The Firecracker implementation is retained for separate verification, but
+  the single-server release does not let users select it. No KVM isolation is
+  claimed until a complete workspace boot and recovery path passes native
+  Linux/KVM acceptance.
 - Workspace files, task state, packs, and application state stay beneath the
   configured data directory. Ports and previews use the gateway on port 11451.
 
