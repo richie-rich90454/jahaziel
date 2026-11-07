@@ -291,9 +291,7 @@ public final class Doctor {
       return new Check(
           "host",
           false,
-          "unsupported workspace backend: "
-              + backend
-              + "; Firecracker is not available in this release",
+          "This installation supports the local workspace backend only.",
           "set JAHAZIEL_BACKEND=local");
     }
     if (linux
@@ -359,7 +357,7 @@ public final class Doctor {
       return new Check(
           "toolchains",
           false,
-          "cannot safely read selected language packs: " + failure.getMessage(),
+          "Selected language-pack data cannot be read safely.",
           "repair data/language-packs/selections or fix its permissions");
     }
     boolean nodeRequired = selected.contains("typescript") || selected.contains("python");
