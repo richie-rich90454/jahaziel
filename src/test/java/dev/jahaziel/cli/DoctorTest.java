@@ -336,7 +336,8 @@ class DoctorTest {
 
     Doctor.Check check =
         CliTestSupport.find(
-            Doctor.run(env.jarDir(), dataFile, env.port(), env.fileEnv(), env.jarFile()), "storage");
+            Doctor.run(env.jarDir(), dataFile, env.port(), env.fileEnv(), env.jarFile()),
+            "storage");
 
     assertFalse(check.ok());
     assertTrue(check.detail().contains("code=STORAGE_INSPECTION_FAILED"));
