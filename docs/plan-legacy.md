@@ -1,22 +1,22 @@
 <!-- Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0. -->
 
-> Historical plan. Superseded by [the Linux remote source IDE contract](./plan.md).
-> It is retained only as design history; its platform and VS Code requirements are obsolete.
-<!--
+# Historical plan: the original all-platform design
 
-    Copyright 2026 The Jahaziel Authors
-    SPDX-License-Identifier: Apache-2.0
+> This plan is retained for design history only. It is superseded by the
+> [current Linux remote source IDE contract](./plan.md). Its Windows/macOS
+> server, VS Code REH, and six-target requirements no longer apply.
 
--->
+The original proposal below is preserved verbatim apart from this status
+notice and title. Do not use it to guide current implementation or releases.
 
-# Jahaziel: the definitive plan
+---
 
-Source of truth for the release. Host: Windows, macOS, or Linux — x64 or
-arm64. No admin. No WSL, no Docker, no system services. Runs from any
-user-writable folder, e.g. `C:\Users\<user>\Desktop\jahaziel\`,
-`~/Desktop/jahaziel/`, `/opt/jahaziel/`. Port `11451`. No CI. Same behavior
-on every OS/arch combo — only the REH binary and the terminal shell differ.
-Docs are part of every phase's done-when. Phase 9 is human-executed.
+Host: Windows, macOS, or Linux — x64 or arm64. No admin. No WSL, no Docker,
+no system services. Runs from any user-writable folder, e.g.
+`C:\Users\<user>\Desktop\jahaziel\`, `~/Desktop/jahaziel/`,
+`/opt/jahaziel/`. Port `11451`. No CI. Same behavior on every OS/arch combo —
+only the REH binary and the terminal shell differ. Docs are part of every
+phase's done-when. Phase 9 is human-executed.
 
 ## Contracts
 
