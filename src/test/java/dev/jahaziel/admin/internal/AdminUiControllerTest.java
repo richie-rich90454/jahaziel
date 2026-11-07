@@ -15,7 +15,6 @@ import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.dist.DemoSeeder;
-import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.api.NodeService;
@@ -40,11 +39,9 @@ class AdminUiControllerTest {
       boolean demo, Path logFile, AuthorizationService auth, UserService users) {
     var admin = mock(AdminService.class);
     var nodes = mock(NodeService.class);
-    var ide = mock(IdeService.class);
-    when(ide.variant()).thenReturn(IdeService.Variant.WIN32_X64);
     when(nodes.list()).thenReturn(List.of());
     when(admin.listWorkspaces()).thenReturn(List.of());
-    return new AdminUiController(admin, nodes, auth, users, ide, logFile.toString(), "local", demo);
+    return new AdminUiController(admin, nodes, auth, users, logFile.toString(), "local", demo);
   }
 
   private AdminUiController openController(boolean demo, Path logFile) {
@@ -129,7 +126,7 @@ class AdminUiControllerTest {
     var auth = mock(AuthorizationService.class);
     var users = mock(UserService.class);
     when(auth.isAdmin(adminId)).thenReturn(true);
-    when(users.isMfaEnabled(adminId)).thenReturn(true);
+    when(users.isMfaEnabled(adminId)).thenReturn(false);
     AdminUiController controller = controller(true, tmp.resolve("control-plane.log"), auth, users);
     assertEquals(200, controller.overview(null).getStatusCode().value());
     assertEquals(200, controller.diagnostics(null).getStatusCode().value());
