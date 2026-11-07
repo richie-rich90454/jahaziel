@@ -13,12 +13,12 @@ import org.junit.jupiter.api.Test;
 /** Runtime lifecycle over HTTP: the local backend really prepares, boots, and parks. */
 class RuntimeE2eTest extends E2eBase {
   @Test
-  void startMovesRequestedToBooting() throws Exception {
+  void startMovesRequestedToReady() throws Exception {
     String id = createWorkspace(userToken(), uniqueName("run"));
 
     E2eResponse started = post("/api/v1/workspaces/" + id + "/start", userToken(), null);
     assertEquals(200, started.status(), started.body());
-    assertTrue(started.body().contains("\"state\":\"booting\""), started.body());
+    assertTrue(started.body().contains("\"state\":\"ready\""), started.body());
   }
 
   @Test
@@ -28,7 +28,7 @@ class RuntimeE2eTest extends E2eBase {
     assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
     E2eResponse again = post("/api/v1/workspaces/" + id + "/start", userToken(), null);
     assertEquals(200, again.status(), again.body());
-    assertTrue(again.body().contains("\"state\":\"booting\""), again.body());
+    assertTrue(again.body().contains("\"state\":\"ready\""), again.body());
   }
 
   @Test
@@ -58,7 +58,7 @@ class RuntimeE2eTest extends E2eBase {
 
     E2eResponse restarted = post("/api/v1/workspaces/" + id + "/restart", userToken(), null);
     assertEquals(200, restarted.status(), restarted.body());
-    assertTrue(restarted.body().contains("\"state\":\"booting\""), restarted.body());
+    assertTrue(restarted.body().contains("\"state\":\"ready\""), restarted.body());
   }
 
   @Test
