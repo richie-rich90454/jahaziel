@@ -43,7 +43,7 @@ class NodeAgentServiceCoverageGapTest {
     UUID workspace = UUID.randomUUID();
     Path home = root.resolve("home");
     Files.createDirectories(home);
-    Path snaps = home.getParent().resolve("snaps").resolve(workspace.toString());
+    Path snaps = home.getParent().resolve("snaps");
     Files.createDirectories(snaps);
     AclFileAttributeView view = Files.getFileAttributeView(snaps, AclFileAttributeView.class);
     assumeTrue(view != null, "ACLs unsupported on " + snaps);
