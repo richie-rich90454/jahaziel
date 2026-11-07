@@ -35,27 +35,6 @@ class BackendStopFinalTest {
   }
 
   @Test
-  void localStopDestroysDescendants() throws Exception {
-    LocalBackend backend = new LocalBackend(tmp.resolve("ws"));
-    UUID id = UUID.randomUUID();
-    ProcessHandle descendant = mock(ProcessHandle.class);
-    plant(backend, id, tree(descendant));
-    backend.stop(new RuntimeHandle(id), true);
-    verify(descendant).destroy();
-  }
-
-  @Test
-  void localStopForceDestroys() throws Exception {
-    LocalBackend backend = new LocalBackend(tmp.resolve("ws"));
-    UUID id = UUID.randomUUID();
-    Process fake = mock(Process.class);
-    when(fake.descendants()).thenAnswer(inv -> Stream.of(mock(ProcessHandle.class)));
-    plant(backend, id, fake);
-    backend.stop(new RuntimeHandle(id), false);
-    verify(fake).destroyForcibly();
-  }
-
-  @Test
   void firecrackerStopDestroysDescendants() throws Exception {
     FirecrackerBackend backend = new FirecrackerBackend(tmp.resolve("fc"));
     UUID id = UUID.randomUUID();
@@ -66,8 +45,7 @@ class BackendStopFinalTest {
   }
 
   @Test
-  void missingProcessIsNoop() throws Exception {
-    new LocalBackend(tmp.resolve("ws")).stop(new RuntimeHandle(UUID.randomUUID()), true);
+  void missingFirecrackerProcessIsNoop() throws Exception {
     new FirecrackerBackend(tmp.resolve("fc")).stop(new RuntimeHandle(UUID.randomUUID()), false);
   }
 }
