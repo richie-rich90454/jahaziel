@@ -494,7 +494,7 @@ async function run() {
       const body = (await previewPage.locator("body").textContent().catch(() => "")) ?? "";
       previewFailure = `status=${response?.status()} body=${JSON.stringify(body?.slice(0, 160))}`;
       previewLoaded = response?.ok() === true
-        && body.includes("Jahaziel Python workspace");
+        && body.includes("Hello from Jahaziel");
     } catch (failure) {
       if (attempt === 11) throw failure;
     }
