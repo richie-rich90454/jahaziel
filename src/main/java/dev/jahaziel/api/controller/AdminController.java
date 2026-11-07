@@ -24,12 +24,15 @@ import dev.jahaziel.node.api.NodeService;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.policy.api.PolicyDoc;
 import dev.jahaziel.policy.api.PolicyService;
+import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
+import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,6 +57,7 @@ public class AdminController {
   private final PolicyService policies;
   private final MetricsService metrics;
   private final WorkspaceDtoFactory dtos;
+  private final RuntimeService runtime;
 
   /**
    * Creates the controller.
@@ -78,6 +82,22 @@ public class AdminController {
       PolicyService policies,
       MetricsService metrics,
       WorkspaceDtoFactory dtos) {
+    this(admin, auth, users, workspaces, nodes, audit, policies, metrics, dtos, null);
+  }
+
+  /** Creates the controller with full runtime process cleanup for workspace deletion. */
+  @Autowired
+  public AdminController(
+      AdminService admin,
+      AuthorizationService auth,
+      UserService users,
+      WorkspaceService workspaces,
+      NodeService nodes,
+      AuditService audit,
+      PolicyService policies,
+      MetricsService metrics,
+      WorkspaceDtoFactory dtos,
+      RuntimeService runtime) {
     this.admin = admin;
     this.auth = auth;
     this.users = users;
@@ -87,6 +107,7 @@ public class AdminController {
     this.policies = policies;
     this.metrics = metrics;
     this.dtos = dtos;
+    this.runtime = runtime;
   }
 
   /**
@@ -162,6 +183,13 @@ public class AdminController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteWorkspace(@PathVariable UUID id, Principal principal) {
     requireAdmin(principal);
+    if (runtime != null) {
+      try {
+        runtime.destroy(new WorkspaceId(id));
+      } catch (NodeAgentUnreachableException unreachable) {
+        // The remote backend cannot be reached; local session and record cleanup still proceeds.
+      }
+    }
     workspaces.delete(new WorkspaceId(id));
   }
 
