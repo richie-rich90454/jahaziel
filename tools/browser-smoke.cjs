@@ -447,7 +447,7 @@ async function run() {
   );
 
   await page.locator("#runtime-toggle").click();
-  await waitForText(page, "#workbench-state", "READY", 20_000);
+  await waitForText(page, "#workbench-state", "^ready$", 20_000);
 
   const pyrightPack = page.locator(".language-pack").filter({ hasText: "Pyright" });
   await pyrightPack.locator(".language-pack-action").click();
