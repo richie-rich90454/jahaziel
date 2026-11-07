@@ -327,7 +327,7 @@ public final class Doctor {
     return new Check("host", true, detail, "");
   }
 
-  private static Check languageTools(Path dataDir, Map<String, String> fileEnv) {
+  static Check languageTools(Path dataDir, Map<String, String> fileEnv) {
     String configuredNode =
         System.getenv()
             .getOrDefault(
