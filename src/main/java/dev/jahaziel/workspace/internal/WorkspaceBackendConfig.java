@@ -4,29 +4,39 @@
  */
 package dev.jahaziel.workspace.internal;
 
+import dev.jahaziel.nodeagent.service.LocalProcessBackend;
+import dev.jahaziel.nodeagent.storage.FolderStorage;
+import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.spi.NodeBackend;
+import dev.jahaziel.spi.WorkspaceStorage;
 import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 /**
- * Selects the workspace backend. {@code local} by default; {@code firecracker} on Linux with {@code
- * /dev/kvm}. Primary so it wins over the fail-closed stub in AppConfig.
+ * Single-server runtime wiring. The selected backend and storage implementation are created once
+ * and shared by workspace lifecycle, snapshots, and the node facade.
  */
 @Configuration
-@ConditionalOnProperty(name = "jahaziel.dist.enabled", havingValue = "false", matchIfMissing = true)
 public class WorkspaceBackendConfig {
   @Bean
-  @Primary
+  public WorkspaceStorage workspaceStorage(
+      @Value("${jahaziel.storage.root:data}") String storageRoot) {
+    return new FolderStorage(new NioCommandRunner(), storageRoot);
+  }
+
+  @Bean
   public NodeBackend nodeBackend(
       @Value("${jahaziel.workspace.backend:local}") String backend,
-      @Value("${jahaziel.storage.workspaces-dir:data/workspaces}") String workspacesDir) {
+      WorkspaceStorage storage,
+      @Value("${jahaziel.storage.root:data}") String storageRoot) {
     if ("firecracker".equalsIgnoreCase(backend.strip())) {
-      return new FirecrackerBackend(Path.of(workspacesDir));
+      return new FirecrackerBackend(Path.of(storageRoot, "workspaces"));
     }
-    return new LocalBackend(Path.of(workspacesDir));
+    if (!"local".equalsIgnoreCase(backend.strip())) {
+      throw new IllegalArgumentException("unsupported workspace backend: " + backend);
+    }
+    return new LocalProcessBackend(storage);
   }
 }
