@@ -66,14 +66,13 @@ class FirecrackerBackendCoverageGapTest {
 
   @Test
   void kvmAvailableBranches() {
-    assertFalse(FirecrackerBackend.kvmAvailable());
     withLinux(
         () -> {
           try (MockedStatic<Files> files =
               Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.exists(any(Path.class))).thenReturn(false);
+            files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(false);
             assertFalse(FirecrackerBackend.kvmAvailable());
-            files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
+            files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(true);
             assertTrue(FirecrackerBackend.kvmAvailable());
           }
         });
@@ -82,8 +81,19 @@ class FirecrackerBackendCoverageGapTest {
   @Test
   void prepareRequiresKvm(@TempDir Path root) {
     FirecrackerBackend backend = new FirecrackerBackend(root);
-    assertThrows(IllegalStateException.class, () -> backend.prepare(prepareFor(UUID.randomUUID())));
-    assertThrows(IllegalStateException.class, () -> backend.start(runtimeFor(UUID.randomUUID())));
+    withLinux(
+        () -> {
+          try (MockedStatic<Files> files =
+              Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(false);
+            assertThrows(
+                IllegalStateException.class,
+                () -> backend.prepare(prepareFor(UUID.randomUUID())));
+            assertThrows(
+                IllegalStateException.class,
+                () -> backend.start(runtimeFor(UUID.randomUUID())));
+          }
+        });
   }
 
   @Test
