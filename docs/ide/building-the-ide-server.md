@@ -8,10 +8,9 @@
 # IDE server build (retired)
 
 Jahaziel no longer builds or embeds a VS Code-derived remote extension host.
-The old `ide/build.sh`, upstream checkout, patch stack, and bundled REH
-artifacts are not part of the current build or release path. Keep existing
-ignored IDE build outputs untouched; normal development does not fetch or
-remove them.
+The tracked `ide/` fork sources, build scripts, patch stack, and bundled REH
+packaging path have been removed. Existing ignored IDE build outputs remain
+untouched; normal development does not fetch or remove them.
 
 The maintained browser workbench lives in `web/src` and is bundled into the
 single jar by the repository-local Windows PowerShell workflow:
