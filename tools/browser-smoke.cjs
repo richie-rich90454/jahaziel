@@ -305,6 +305,7 @@ async function run() {
           type: message.type,
           containsMarker: typeof message.data === "string" && message.data.includes("JAH_SMOKE_"),
           length: message.data?.length ?? 0,
+          sample: typeof message.data === "string" ? JSON.stringify(message.data.slice(0, 80)) : "",
         });
       } catch {
         terminalFrames.push({ invalidJson: true });
