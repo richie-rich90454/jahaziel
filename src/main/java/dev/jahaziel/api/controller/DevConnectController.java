@@ -12,6 +12,8 @@ import java.net.URI;
 import java.security.Principal;
 import java.time.Duration;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -34,6 +36,7 @@ public class DevConnectController {
 
   private final DevConnectService devconnect;
   private final UserService users;
+  private final boolean demo;
 
   /**
    * Creates the controller.
@@ -42,8 +45,18 @@ public class DevConnectController {
    * @param users the user lookup
    */
   public DevConnectController(DevConnectService devconnect, UserService users) {
+    this(devconnect, users, false);
+  }
+
+  /** Creates the controller with the demo-mode sign-in behavior. */
+  @Autowired
+  public DevConnectController(
+      DevConnectService devconnect,
+      UserService users,
+      @Value("${jahaziel.demo:false}") boolean demo) {
     this.devconnect = devconnect;
     this.users = users;
+    this.demo = demo;
   }
 
   /**
@@ -53,6 +66,7 @@ public class DevConnectController {
    */
   @GetMapping("/api/login")
   public ResponseEntity<Void> login() {
+    if (demo) return redirect(SUCCESS_REDIRECT);
     return redirect(devconnect.startLogin());
   }
 
