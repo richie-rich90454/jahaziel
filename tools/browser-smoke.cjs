@@ -484,19 +484,25 @@ async function run() {
   assert.equal(await page.locator("#preview-links a").count(), 1, "registered preview port must be visible");
   const previewHref = await page.locator("#preview-links a").getAttribute("href");
   assert.ok(previewHref, "registered preview link must include its workspace-scoped URL");
-  const previewPage = await browser.newPage();
+  const previewPage = await page.context().newPage();
   let previewLoaded = false;
+  let previewFailure = "no response";
   for (let attempt = 0; attempt < 12 && !previewLoaded; attempt += 1) {
     try {
       const response = await previewPage.goto(previewHref, { waitUntil: "domcontentloaded", timeout: 8000 });
+      const body = (await previewPage.locator("body").textContent().catch(() => "")) ?? "";
+      previewFailure = `status=${response?.status()} body=${JSON.stringify(body?.slice(0, 160))}`;
       previewLoaded = response?.ok() === true
-        && (await previewPage.locator("body").textContent()).includes("Jahaziel Python workspace");
+        && body.includes("Jahaziel Python workspace");
     } catch (failure) {
       if (attempt === 11) throw failure;
     }
     if (!previewLoaded) await delay(500);
   }
-  assert.ok(previewLoaded, "workspace-scoped preview URL must route to the running task");
+  assert.ok(
+    previewLoaded,
+    `workspace-scoped preview URL must route to the running task (${previewFailure})`,
+  );
   await previewPage.close();
   await page.locator("#task-stop").click();
   await waitForText(page, "#task-output", "STOPPED", 15_000);
