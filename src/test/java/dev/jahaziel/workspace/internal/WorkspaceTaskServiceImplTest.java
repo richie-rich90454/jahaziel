@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.ApplicationArguments;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -185,6 +186,43 @@ class WorkspaceTaskServiceImplTest {
     assertNotNull(stopped);
     assertEquals("STOPPED", stopped.status());
     assertEquals(workspace.value(), stopped.workspaceId());
+  }
+
+  @Test
+  void reportsTaskInterruptedByServerRestartInLatestRun() throws Exception {
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(template.resolve("template.json"), "{\"name\":\"node\"}");
+    ObjectMapper json = new ObjectMapper();
+    WorkspaceTaskServiceImpl service =
+        new WorkspaceTaskServiceImpl(
+            temp.resolve("data").toString(),
+            temp.resolve("templates").toString(),
+            json,
+            mock(WorkspaceService.class),
+            new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString()));
+    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    UUID runId = UUID.randomUUID();
+    service.initialize(workspace, "node");
+    Path metadata = temp.resolve("data/workspace-state").resolve(workspace.value() + ".json");
+    ObjectNode state = (ObjectNode) json.readTree(Files.readString(metadata));
+    state.put("taskRunId", runId.toString());
+    state.put("taskId", "serve");
+    state.put("taskLabel", "Serve preview");
+    state.put("taskStatus", "RUNNING");
+    state.put("taskOutput", "Starting preview server");
+    state.put("taskStartedAt", Instant.now().toString());
+    Files.writeString(metadata, json.writeValueAsString(state));
+
+    service.run(mock(ApplicationArguments.class));
+
+    WorkspaceTaskService.TaskRun recovered = service.latestTaskRun(workspace);
+    assertNotNull(recovered);
+    assertEquals(runId, recovered.id());
+    assertEquals("FAILED", recovered.status());
+    assertTrue(recovered.output().contains("Starting preview server"));
+    assertTrue(recovered.output().contains("Task was interrupted by a server restart."));
+    assertNotNull(recovered.finishedAt());
+    assertNull(service.latestTaskRun(new WorkspaceId(UUID.randomUUID())));
   }
 
   @Test
