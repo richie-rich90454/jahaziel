@@ -8,7 +8,9 @@ package dev.jahaziel.language.api;
 public final class LanguageRuntimeRequirements {
   private LanguageRuntimeRequirements() {}
 
-  /** Returns whether the managed language service identified by {@code languageId} needs Node.js. */
+  /**
+   * Returns whether the managed language service identified by {@code languageId} needs Node.js.
+   */
   public static boolean usesNodeRuntime(String languageId) {
     return "typescript".equals(languageId) || "python".equals(languageId);
   }
