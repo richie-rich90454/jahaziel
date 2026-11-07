@@ -1,8 +1,18 @@
 {
   "name": "node",
-  "description": "Node.js 24 workspace with npm install on first start.",
+  "description": "Node.js and TypeScript starter. Both examples run without installing project dependencies.",
   "vcpuCount": 2,
   "memoryMib": 4096,
   "ports": [3000],
-  "setup": ["npm install"]
+  "languagePacks": ["typescript"],
+  "runTasks": [
+    { "id": "start", "label": "Start preview server", "command": ["node", "src/server.js"], "port": 3000 },
+    { "id": "typescript-example", "label": "Run TypeScript example", "command": ["node", "src/index.ts"] }
+  ],
+  "starterFiles": {
+    "README.md": "# Node.js and TypeScript\n\nStart the preview server with `node src/server.js`, then open port 3000. Run the typed example with `node src/index.ts` on Node.js 22.18.0 or newer. This example uses erasable TypeScript syntax; Node strips the types but does not type-check them at runtime. For editor diagnostics, select the TypeScript language pack, which requires Node.js 22.22.2 or newer. No project dependencies are needed, and language packs download only after you select one.\n",
+    "package.json": "{\n  \"name\": \"jahaziel-app\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"scripts\": {\n    \"dev\": \"node src/server.js\",\n    \"example:typescript\": \"node src/index.ts\"\n  }\n}\n",
+    "src/index.ts": "type Greeting = {\n  name: string;\n  project: string;\n};\n\nfunction greet(input: Greeting): string {\n  return `Hello ${input.name}, welcome to ${input.project}.`;\n}\n\nconsole.log(greet({ name: 'developer', project: 'Jahaziel' }));\n",
+    "src/server.js": "import { createServer } from 'node:http';\n\nconst server = createServer((_request, response) => {\n  response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });\n  response.end('Hello from Jahaziel\\n');\n});\n\nserver.listen(3000, '0.0.0.0', () => {\n  console.log('Listening on http://0.0.0.0:3000');\n});\n"
+  }
 }
