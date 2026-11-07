@@ -23,7 +23,7 @@ class AppConfigCoverageGapTest {
   void selectsTheLocalBackendExplicitly() {
     WorkspaceStorage storage = mock(WorkspaceStorage.class);
 
-    NodeBackend backend = config.nodeBackend("local", storage, "data");
+    NodeBackend backend = config.nodeBackend("local", storage);
 
     assertInstanceOf(LocalProcessBackend.class, backend);
     assertEquals("local", backend.name());
@@ -33,7 +33,7 @@ class AppConfigCoverageGapTest {
   void rejectsUnknownBackendAtStartup() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> config.nodeBackend("unknown", mock(WorkspaceStorage.class), "data"));
+        () -> config.nodeBackend("unknown", mock(WorkspaceStorage.class)));
   }
 
   @Test
