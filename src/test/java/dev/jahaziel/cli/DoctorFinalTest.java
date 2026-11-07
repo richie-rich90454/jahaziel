@@ -80,27 +80,25 @@ class DoctorFinalTest {
   }
 
   @Test
-  void rehCatchWhenSlugIsAFile() throws Exception {
+  void doctorDoesNotRequireLegacyIdeRuntime() throws Exception {
     Path jar = root.resolve("jar");
     Files.createDirectories(jar);
     Files.writeString(jar.resolve(".env"), CliTestSupport.validEnv());
     Path data = jar.resolve("data");
     Files.createDirectories(data);
-    Path ide = data.resolve("ide");
-    Files.createDirectories(ide);
-    Files.writeString(ide.resolve(Cli.rehSlug()), "not-a-directory");
+    Path legacyIde = data.resolve("ide");
+    Files.createDirectories(legacyIde);
+    Files.writeString(legacyIde.resolve("linux-x64"), "not-a-directory");
     Path tmp = data.resolve("tmp");
     Files.createDirectories(tmp);
-    Doctor.Check check =
-        CliTestSupport.find(
-            Doctor.run(
-                jar,
-                data,
-                CliTestSupport.freePort(),
-                Cli.parseDotEnv(jar.resolve(".env")),
-                jar.resolve("jahaziel.jar")),
-            "reh");
-    assertFalse(check.ok());
-    assertTrue(check.detail().contains("REH tarball missing: "));
+    var checks =
+        Doctor.run(
+            jar,
+            data,
+            CliTestSupport.freePort(),
+            Cli.parseDotEnv(jar.resolve(".env")),
+            jar.resolve("jahaziel.jar"));
+    assertTrue(checks.stream().noneMatch(check -> check.name().equals("reh")));
+    assertTrue(Files.isRegularFile(legacyIde.resolve("linux-x64")));
   }
 }
