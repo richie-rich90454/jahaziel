@@ -170,9 +170,7 @@ public final class TerminalServiceImpl implements TerminalService {
       throw new IllegalStateException("interactive terminal processes are unavailable");
     }
     synchronized (state) {
-      if (!state.history.isEmpty()) {
-        output.accept(new StreamEvent("output", state.history.toString(), null));
-      }
+      output.accept(new StreamEvent("history", state.history.toString(), null));
       state.listeners.add(output);
       Integer exitCode = state.session.exitCode();
       if (exitCode != null) {
