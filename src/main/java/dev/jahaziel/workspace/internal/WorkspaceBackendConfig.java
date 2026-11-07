@@ -9,6 +9,7 @@ import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.WorkspaceStorage;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,8 +32,9 @@ public class WorkspaceBackendConfig {
       WorkspaceStorage storage) {
     if (!"local".equalsIgnoreCase(backend.strip())) {
       throw new IllegalArgumentException(
-          "Only the local workspace backend is available in this release; "
-              + "set JAHAZIEL_BACKEND=local.");
+          "WORKSPACE_BACKEND_UNSUPPORTED correlationId="
+              + UUID.randomUUID()
+              + ": only the local workspace backend is available; set JAHAZIEL_BACKEND=local.");
     }
     return new LocalProcessBackend(storage);
   }
