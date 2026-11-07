@@ -7,6 +7,7 @@ package dev.jahaziel.identity.internal;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
+import dev.jahaziel.identity.domain.DemoIdentity;
 import dev.jahaziel.identity.domain.UserId;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -34,6 +35,7 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
   private final DevConnectService devconnect;
   private final JwtService tokens;
   private final UserService users;
+  private final boolean demo;
 
   /**
    * Creates the filter.
@@ -44,21 +46,51 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
    */
   public BffAuthenticationFilter(
       DevConnectService devconnect, JwtService tokens, UserService users) {
+    this(devconnect, tokens, users, false);
+  }
+
+  /**
+   * Creates the filter, optionally enabling the fixed local demo identity.
+   *
+   * @param devconnect the DevConnect session lookup
+   * @param tokens the API token verifier
+   * @param users the account and role lookup
+   * @param demo true only for an explicitly requested local demo boot
+   */
+  public BffAuthenticationFilter(
+      DevConnectService devconnect, JwtService tokens, UserService users, boolean demo) {
     this.devconnect = Objects.requireNonNull(devconnect, "devconnect");
     this.tokens = Objects.requireNonNull(tokens, "tokens");
     this.users = Objects.requireNonNull(users, "users");
+    this.demo = demo;
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    if (demo
+        && request.getHeader(HttpHeaders.AUTHORIZATION) == null
+        && SecurityContextHolder.getContext().getAuthentication() == null) {
+      publishDemoIdentity();
+      chain.doFilter(request, response);
+      return;
+    }
     if (devconnect.enabled()
         && request.getHeader(HttpHeaders.AUTHORIZATION) == null
         && SecurityContextHolder.getContext().getAuthentication() == null) {
       authenticateFromCookies(request, response);
     }
     chain.doFilter(request, response);
+  }
+
+  private static void publishDemoIdentity() {
+    List<SimpleGrantedAuthority> authorities =
+        List.of(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"));
+    var authentication =
+        new UsernamePasswordAuthenticationToken(
+            DemoIdentity.USER_ID.value().toString(), null, authorities);
+    SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 
   private void authenticateFromCookies(HttpServletRequest request, HttpServletResponse response) {
