@@ -31,8 +31,8 @@ public class WorkspaceBackendConfig {
       WorkspaceStorage storage) {
     if (!"local".equalsIgnoreCase(backend.strip())) {
       throw new IllegalArgumentException(
-          "only the local workspace backend is available in this release; "
-              + "Firecracker remains experimental and is not selectable");
+          "Only the local workspace backend is available in this release; "
+              + "set JAHAZIEL_BACKEND=local.");
     }
     return new LocalProcessBackend(storage);
   }
