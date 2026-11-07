@@ -37,7 +37,7 @@ hosted runner's temporary directory and is not part of the app or release jar.
 10. In an existing repository, inspect status and diff, stage and unstage files, and commit staged changes.
 11. Restart the jar and confirm file content and workspace identity recover.
 12. Interrupt the server while a workspace is starting or active; confirm it reports a recoverable failure, preserves files, and starts successfully on retry.
-13. Leave a run task with child processes active, abruptly stop the jar, and confirm startup recovery stops only the recorded Linux session, including its child processes. Confirm a stale or mismatched process marker never stops its PID.
+13. Leave a run task with child processes active, abruptly stop the jar, and confirm startup recovery stops only the recorded Linux session, including its child processes. Confirm the workbench restores the latest run with its previous bounded output and interruption reason, and a stale or mismatched process marker never stops its PID.
 14. Exercise path traversal, symlink escape, cross-workspace Git/file access, WebSocket authorization, and secret-redaction checks.
 15. Confirm normal build does not download IDE servers or language packs and the jar contains no toolchains.
 16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
