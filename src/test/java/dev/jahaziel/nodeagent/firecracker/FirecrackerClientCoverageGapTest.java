@@ -18,15 +18,15 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** The shutdown and status-code branches of {@link FirecrackerClient} over a fake socket. */
 class FirecrackerClientCoverageGapTest {
   @Test
-  void shutdownAcceptsNoContent(@TempDir Path root) throws Exception {
-    Path socket = root.resolve("ok204.sock");
+  void shutdownAcceptsNoContent() throws Exception {
+    Path socket = shortSocketPath("ok204");
     FakeApi api = new FakeApi(socket, "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
     try {
       new FirecrackerClient().shutdown(socket.toString());
@@ -37,8 +37,8 @@ class FirecrackerClientCoverageGapTest {
   }
 
   @Test
-  void shutdownAcceptsOk(@TempDir Path root) throws Exception {
-    Path socket = root.resolve("ok200.sock");
+  void shutdownAcceptsOk() throws Exception {
+    Path socket = shortSocketPath("ok200");
     FakeApi api = new FakeApi(socket, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
     try {
       new FirecrackerClient().shutdown(socket.toString());
@@ -49,8 +49,8 @@ class FirecrackerClientCoverageGapTest {
   }
 
   @Test
-  void shutdownRefusesError(@TempDir Path root) throws Exception {
-    Path socket = root.resolve("err.sock");
+  void shutdownRefusesError() throws Exception {
+    Path socket = shortSocketPath("err");
     FakeApi api = new FakeApi(socket, "HTTP/1.1 500 Internal Error\r\nContent-Length: 2\r\n\r\n{}");
     try {
       FirecrackerException failure =
@@ -64,6 +64,14 @@ class FirecrackerClientCoverageGapTest {
     }
   }
 
+  private static Path shortSocketPath(String prefix) {
+    Path directory =
+        java.io.File.separatorChar == '\\'
+            ? Path.of(System.getProperty("java.io.tmpdir"))
+            : Path.of("/tmp");
+    return directory.resolve("jhz-" + prefix + "-" + UUID.randomUUID() + ".sock");
+  }
+
   /** Single-connection fake Firecracker API over a Unix socket. */
   private static final class FakeApi {
     private final Path socketPath;
@@ -74,14 +82,15 @@ class FirecrackerClientCoverageGapTest {
     FakeApi(Path socketPath, String response) throws InterruptedException {
       this.socketPath = socketPath;
       this.response = response;
-      server = Thread.ofVirtual().start(this::serve);
+      server = Thread.ofPlatform().daemon().start(this::serve);
       for (int i = 0; i < 200 && !Files.exists(socketPath); i++) {
         Thread.sleep(10);
       }
     }
 
-    void close() throws InterruptedException {
+    void close() throws Exception {
       server.join(10000);
+      Files.deleteIfExists(socketPath);
     }
 
     private void serve() {
