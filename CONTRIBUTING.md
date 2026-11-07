@@ -7,10 +7,12 @@
 
 # Contributing
 
-## One file, one commit
+## Cohesive changes
 
-Each commit holds one logical change to one file. Stage with
-`git add <exact-file>`; never `git add .`, never `git commit -a`.
+Keep each change focused on one user-visible behavior or maintenance
+concern. Include the code, docs, and focused verification needed to make
+that behavior understandable and reviewable. Stage only the intended
+paths; never `git add .`, never `git commit -a`.
 
 Commit messages use `<type>(<scope>): <subject>` with the subject in
 imperative mood, lowercase, no period, max 72 characters. Explain why
@@ -19,8 +21,10 @@ in the body, not what.
 ## Prerequisites
 
 - JDK 25 on `PATH` (`java -version` must say 25).
-- Node 24.18 for the IDE build (`node --version` must say v24.18.x).
-- No other runtime is required to build the jar.
+- Node.js 24 or newer for the browser workbench.
+- pnpm 12.14.0, invoked from an existing installation. Bootstrap
+  never installs Node, Java, pnpm, or system packages.
+- Maven and pnpm caches are configured under the ignored repository `.cache/`.
 
 ## Dev verbs
 
@@ -28,34 +32,34 @@ in the body, not what.
 |---|---|---|
 | `init` | `java -jar jahaziel.jar init` | scaffold `.env` beside the jar |
 | `run` | `java -jar jahaziel.jar` | serve `http://localhost:11451` |
-| `build` | `./mvnw -q -DskipTests package` | produce `target/jahaziel.jar` |
-| `test` | `./mvnw verify` | full checks before every commit |
-| `smoke` | `./mvnw verify -Psmoke` | portable smoke on a release combo |
+| `build` | `.\dev.ps1 build` | build `web/src`, then produce `target/jahaziel.jar` |
+| `test` | `.\dev.ps1 test` | run the focused project checks |
+| `smoke` | `.\dev.ps1 smoke` | smoke the packaged jar on Linux |
+| `cache:report` | `.\dev.ps1 cache:report` | show local dependency and build-output sizes |
+| `cache:prune` | `.\dev.ps1 cache:prune` | preview generated cache/output cleanup; `--apply` removes only listed paths |
 
-## Cross-platform rules
+## Platform contract
 
-- No `os.name` (or any OS branch) outside `dev.jahaziel.platform`.
-  Backends vary behind the `NodeBackend` SPI, never in callers.
-- Only portable JDK APIs in shared code; POSIX/Win32 specifics stay
-  behind the platform boundary.
-- The runtime writes only under `./data/`. Never recommend a path
-  outside it.
+- Jahaziel servers run on Linux x64 and arm64. Windows/macOS are browser clients.
+- POSIX process and PTY behavior stays in the backend and terminal seams.
+- Persistent application data is under the configured data directory.
+- Workspace processes share the service account; do not claim untrusted-user isolation.
 
 ## Testing
 
-Run `./mvnw verify` before every commit. Never commit a broken build.
-Release candidates additionally pass `./mvnw verify -Psmoke` on each
-of the six OS/arch combos in `docs/plan.md`. Every file carries the
-license header; Java code follows google-java-format. Both are checked
-by the build.
+Run focused tests for changed behavior and `.\dev.ps1 test` before release.
+Linux x64 CI builds, tests, packages, and launches the jar. Release
+candidates also require a native Linux arm64 acceptance run. Every file
+carries the license header; Java code follows google-java-format.
 
 ## Release checklist
 
-1. `./mvnw verify` green.
-2. `-Psmoke` green on all six OS/arch combos, by a human (no CI).
-3. `docs/operations/acceptance.md` results table filled with the
+1. `.\dev.ps1 test` green.
+2. Linux x64 CI builds, verifies, packages, and launches the jar.
+3. Native Linux arm64 acceptance passes before release.
+4. `docs/operations/acceptance.md` results table filled with the
    commit SHA.
-4. No new top-level dependency without an ADR in
+5. No new top-level dependency without an ADR in
    `docs/contributing/architecture-decisions/`.
 
 ## Error-message checklist
