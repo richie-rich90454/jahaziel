@@ -208,11 +208,6 @@
     <resources>
       <resource>
         <directory>src/main/resources</directory>
-        <excludes>
-          <exclude>static/app.js</exclude>
-          <exclude>static/index.html</exclude>
-          <exclude>static/styles.css</exclude>
-        </excludes>
       </resource>
       <resource>
         <directory>web/dist</directory>
@@ -349,19 +344,13 @@ SPDX-License-Identifier: Apache-2.0</inlineHeader>
                 <exclude>LICENSE</exclude>
                 <!-- Machine-consumed package list; keeps its own hash comments. -->
                 <exclude>base-image-builder/packages.txt</exclude>
-                <!-- Machine-consumed pins and lists; read verbatim by scripts. -->
-                <exclude>ide/upstream-version.txt</exclude>
                 <!-- Microsoft upstream checkout; keeps its own headers. -->
                 <exclude>ide/upstream/**</exclude>
-                <!-- Retired workbench branding asset is not part of Jahaziel's web UI. -->
-                <exclude>ide/branding/branding.css</exclude>
                 <!-- REH build outputs (packaging dir, tarballs, checksums). -->
                 <exclude>ide/out/**</exclude>
                 <exclude>ide/vscode-reh-web-*/**</exclude>
                 <!-- Local run scratch (jar copy, real .env, extracted IDE). -->
                 <exclude>testing/**</exclude>
-                <exclude>ide/extensions-builtin/list.txt</exclude>
-                <exclude>ide/tests/no-network-test/blocklist.txt</exclude>
                 <!-- Generated docs site and vendored frontend deps. -->
                 <exclude>docs/.vitepress/dist/**</exclude>
                 <exclude>docs/node_modules/**</exclude>
