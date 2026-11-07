@@ -123,10 +123,15 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
               metadata.workspaceId());
         }
         if ("RUNNING".equals(metadata.taskStatus())) {
+          String output = interruptedTaskOutput(metadata.taskOutput());
           write(
               file,
-              metadata.withTask(
-                  "FAILED", metadata.taskOutput(), null, metadata.taskStartedAt(), Instant.now()));
+              metadata.withTask("FAILED", output, null, metadata.taskStartedAt(), Instant.now()));
+          log.warn(
+              "workspace task interrupted correlationId={} workspaceId={} taskId={} reason=server-restarted",
+              metadata.taskRunId(),
+              metadata.workspaceId(),
+              metadata.taskId());
         }
       }
     } catch (IOException failure) {
@@ -336,6 +341,12 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     WorkspaceMetadata state = read(file);
     if (!runId.equals(state.taskRunId())) throw new IllegalArgumentException("task run not found");
     return taskRunFor(new WorkspaceId(state.workspaceId()), state);
+  }
+
+  @Override
+  public TaskRun latestTaskRun(WorkspaceId workspaceId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    return taskRunFor(workspaceId, metadataOrNull(workspaceId));
   }
 
   @Override
@@ -875,17 +886,26 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private TaskRun taskRunFor(WorkspaceId workspaceId, WorkspaceMetadata state) {
-    if (state.taskRunId() == null) return null;
+    if (state == null || state.taskRunId() == null) return null;
     return new TaskRun(
         state.taskRunId(),
         workspaceId.value(),
         state.taskId(),
         state.taskLabel(),
         state.taskStatus(),
-        state.taskOutput(),
+        SecretRedactor.redact(state.taskOutput()),
         state.taskExitCode(),
         state.taskStartedAt(),
         state.taskFinishedAt());
+  }
+
+  private static String interruptedTaskOutput(String existing) {
+    String reason = "Task was interrupted by a server restart.";
+    String output = existing == null || existing.isBlank() ? reason : existing + "\n" + reason;
+    if (output.length() > MAX_OUTPUT_CHARS) {
+      output = output.substring(output.length() - MAX_OUTPUT_CHARS);
+    }
+    return SecretRedactor.redact(output);
   }
 
   private static String safeMessage(Throwable failure) {
