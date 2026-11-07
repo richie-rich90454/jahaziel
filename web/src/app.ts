@@ -35,7 +35,7 @@ interface TaskRun { id: string; workspaceId: string; taskId: string; label: stri
 interface GitChange { path: string; indexStatus: string; worktreeStatus: string; }
 interface GitStatus { repository: boolean; branch: string; changes: GitChange[]; }
 interface GitDiff { path: string; content: string; }
-interface StreamMessage { type: "input" | "output" | "resize" | "exit"; data?: string; rows?: number; cols?: number; exitCode?: number; }
+interface StreamMessage { type: "input" | "history" | "output" | "resize" | "exit"; data?: string; rows?: number; cols?: number; exitCode?: number; }
 interface OpenDocument {
   path: string;
   version: string;
@@ -1187,6 +1187,8 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
   }
   if (state.workspace?.workspaceId !== workspaceId || state.terminalSessionId !== session.sessionId) return;
   const terminal = new Terminal({
+    rows: session.rows,
+    cols: session.cols,
     cursorBlink: true,
     fontFamily: '"IBM Plex Mono", "Cascadia Code", monospace',
     fontSize: 13,
@@ -1203,21 +1205,37 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(`${protocol}//${window.location.host}/api/v1/terminals/${session.sessionId}/stream`);
   state.socket = socket;
+  let exited = false;
   socket.addEventListener("open", () => {
     if (state.socket !== socket || state.terminalSessionId !== session.sessionId) {
       socket.close();
       return;
     }
-    fit.fit();
-    socket.send(JSON.stringify({ type: "resize", rows: terminal.rows, cols: terminal.cols } satisfies StreamMessage));
     terminal.focus();
-    byId("terminal-state").textContent = "Connected";
+    byId("terminal-state").textContent = "Restoring…";
   });
   socket.addEventListener("message", (event) => {
     try {
       const message = JSON.parse(String(event.data)) as StreamMessage;
+      if (message.type === "history") {
+        const restore = (): void => {
+          if (state.socket !== socket || state.terminalSessionId !== session.sessionId) return;
+          fit.fit();
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "resize", rows: terminal.rows, cols: terminal.cols } satisfies StreamMessage));
+          }
+          terminal.scrollToBottom();
+          terminal.focus();
+          if (!exited) byId("terminal-state").textContent = "Connected";
+        };
+        if (message.data) terminal.write(message.data, restore);
+        else restore();
+      }
       if (message.type === "output" && message.data) terminal.write(message.data);
-      if (message.type === "exit") byId("terminal-state").textContent = `Exited (${message.exitCode ?? "unknown"})`;
+      if (message.type === "exit") {
+        exited = true;
+        byId("terminal-state").textContent = `Exited (${message.exitCode ?? "unknown"})`;
+      }
     } catch { terminal.write("\r\n[terminal] invalid server message\r\n"); }
   });
   socket.addEventListener("close", () => {
