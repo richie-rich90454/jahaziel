@@ -374,8 +374,7 @@ public final class Doctor {
           "Selected language-pack data cannot be read safely.",
           "repair data/language-packs/selections or fix its permissions");
     }
-    boolean nodeRequired =
-        selected.stream().anyMatch(LanguageRuntimeRequirements::usesNodeRuntime);
+    boolean nodeRequired = selected.stream().anyMatch(LanguageRuntimeRequirements::usesNodeRuntime);
     boolean nodeAvailable = Files.isRegularFile(node) && Files.isExecutable(node);
     if (nodeRequired && !nodeAvailable) {
       return new Check(
