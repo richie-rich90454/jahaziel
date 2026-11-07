@@ -7,6 +7,11 @@
 
 # IDE patch manifest
 
+> Historical record only. The browser workbench no longer builds or embeds the
+> VS Code fork, and no current command uses this patch stack. Do not run the old
+> build instructions as part of Jahaziel development. Existing ignored IDE
+> outputs are left untouched.
+
 One coherent change per patch, applied in order by `ide/build.sh`. The
 stack must apply cleanly to the pinned upstream tag; `build.sh` fails
 closed when a patch does not.
