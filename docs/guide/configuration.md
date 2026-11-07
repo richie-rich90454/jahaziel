@@ -25,6 +25,7 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `JAHAZIEL_LOG_LEVEL` | `INFO` | Root log level |
 | `JAHAZIEL_DEMO` | `false` | Legacy demo flag (prefer `--demo`) |
 | `JAHAZIEL_BACKEND` | `local` | `local` or `firecracker` (Linux with `/dev/kvm`) |
+| `JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE` | `/usr/bin/node` | Existing Node.js executable used by explicitly enabled TypeScript and Python language services; Jahaziel never installs it |
 
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
