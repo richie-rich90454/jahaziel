@@ -483,7 +483,12 @@ public final class Doctor {
       LOG.log(
           Level.WARNING,
           "doctor storage inspection failed code=STORAGE_INSPECTION_FAILED correlationId="
-              + correlationId,
+              + correlationId
+              + " failureType="
+              + failure.getClass().getSimpleName());
+      LOG.log(
+          Level.FINE,
+          "doctor storage inspection details correlationId=" + correlationId,
           failure);
       return new Check(
           "storage",
