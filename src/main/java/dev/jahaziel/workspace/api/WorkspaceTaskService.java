@@ -37,6 +37,9 @@ public interface WorkspaceTaskService {
   /** Reads one run, including its bounded output. */
   TaskRun taskRun(UUID runId);
 
+  /** Returns the most recent run for a workspace so the workbench can recover its status. */
+  TaskRun latestTaskRun(WorkspaceId workspaceId);
+
   /** Stops a running declared task belonging to the specified workspace. */
   TaskRun stopTask(WorkspaceId workspaceId, UUID runId);
 
