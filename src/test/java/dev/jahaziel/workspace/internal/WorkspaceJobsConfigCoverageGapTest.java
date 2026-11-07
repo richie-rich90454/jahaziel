@@ -108,13 +108,10 @@ class WorkspaceJobsConfigCoverageGapTest {
     NodeBackend local = config.nodeBackend("local", storage);
     assertInstanceOf(LocalProcessBackend.class, local);
     assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
-    assertThrows(
-        IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
+    assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
     assertThrows(
         IllegalArgumentException.class, () -> config.nodeBackend("  FIRECRACKER  ", storage));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> config.nodeBackend("other", storage));
+    assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("other", storage));
   }
 
   @Test
