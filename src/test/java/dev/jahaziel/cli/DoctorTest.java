@@ -103,7 +103,9 @@ class DoctorTest {
       assertTrue(text.contains("selected packs=none"));
       Doctor.Check storage = CliTestSupport.find(checks, "storage");
       assertTrue(
-          storage.detail().contains("application data total (includes the listed subdirectories)="));
+          storage
+              .detail()
+              .contains("application data total (includes the listed subdirectories)="));
       assertTrue(storage.detail().contains("writable paths: data=" + env.dataDir()));
       assertTrue(storage.detail().contains("workspaces=" + env.dataDir().resolve("workspaces")));
       assertTrue(
