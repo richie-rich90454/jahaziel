@@ -13,7 +13,7 @@ The first release is for trusted users. Workspace terminals and run tasks execut
 
 Git status, diff, staging, and commit operations also run as the service account. Workbench Git commands clear inherited application environment values, ignore system and global Git configuration, and disable hooks. Repository-local filters can still run with the sanitized environment, and all repository contents remain available to the same service account. Treat repositories and users as trusted; Git operations do not create an OS isolation boundary.
 
-Firecracker is a separately selected backend. Its class being present in the jar is not evidence that KVM, jail setup, command allowlists, or isolation have passed release verification. No hostile multi-tenant guarantee is made.
+The Firecracker backend is retained for separate verification and is not selectable in this release. Its class being present in the jar is not evidence that KVM, jail setup, command allowlists, or isolation have passed release verification. No hostile multi-tenant guarantee is made.
 
 ## Adversaries
 
