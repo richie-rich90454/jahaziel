@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 /**
@@ -33,6 +36,10 @@ import java.util.stream.Stream;
  * the jar can diagnose itself before Spring starts.
  */
 public final class Doctor {
+  private static final Logger LOG = Logger.getLogger(Doctor.class.getName());
+  private static final Set<String> LANGUAGE_PACK_IDS =
+      Set.of("cpp", "java", "go", "rust", "typescript", "python");
+
   private Doctor() {}
 
   /** A single check result. */
@@ -406,7 +413,6 @@ public final class Doctor {
         || !Files.isDirectory(selections, LinkOption.NOFOLLOW_LINKS)) {
       throw new IOException("selection path is not a plain directory");
     }
-    Set<String> known = Set.of("cpp", "java", "go", "rust", "typescript", "python");
     Set<String> selected = new TreeSet<>();
     try (Stream<Path> files = Files.list(selections)) {
       for (Path file :
@@ -417,7 +423,7 @@ public final class Doctor {
           throw new IOException("selection file is not a bounded plain file");
         }
         for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-          if (known.contains(id.strip())) selected.add(id.strip());
+          if (LANGUAGE_PACK_IDS.contains(id.strip())) selected.add(id.strip());
         }
       }
     }
@@ -473,20 +479,27 @@ public final class Doctor {
               + packSummary,
           "");
     } catch (IOException failure) {
+      String correlationId = UUID.randomUUID().toString();
+      LOG.log(
+          Level.WARNING,
+          "doctor storage inspection failed code=STORAGE_INSPECTION_FAILED correlationId="
+              + correlationId,
+          failure);
       return new Check(
           "storage",
           false,
-          "cannot inspect application data: " + failure.getMessage(),
-          "fix permissions on " + root);
+          "cannot inspect application data (code=STORAGE_INSPECTION_FAILED, correlationId="
+              + correlationId
+              + ")",
+          "check permissions and available disk space under " + root);
     }
   }
 
   static String managedPackSummary(Path root) throws IOException {
     List<String> installed = new ArrayList<>();
     List<String> selected = new ArrayList<>();
-    List<String> packIds = List.of("cpp", "java", "go", "rust", "typescript", "python");
     if (Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(root)) {
-      for (String packId : packIds) {
+      for (String packId : LANGUAGE_PACK_IDS) {
         Path packRoot = root.resolve(packId);
         if (!Files.isDirectory(packRoot, LinkOption.NOFOLLOW_LINKS)
             || Files.isSymbolicLink(packRoot)) continue;
@@ -531,7 +544,7 @@ public final class Doctor {
                   .toList()) {
             if (Files.size(file) > 4096) continue;
             for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-              if (packIds.contains(id.strip()) && !selected.contains(id.strip())) {
+              if (LANGUAGE_PACK_IDS.contains(id.strip()) && !selected.contains(id.strip())) {
                 selected.add(id.strip());
               }
             }
