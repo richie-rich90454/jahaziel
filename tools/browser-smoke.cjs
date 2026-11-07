@@ -459,7 +459,7 @@ async function run() {
   await page.keyboard.type("def main(:\n    pass\n");
   const syntaxDiagnostic = page.locator("#language-diagnostics .language-diagnostic-error")
     .filter({ hasText: "main.py" });
-  await syntaxDiagnostic.waitFor({ state: "visible", timeout: 45_000 });
+  await syntaxDiagnostic.first().waitFor({ state: "visible", timeout: 45_000 });
 
   await page.locator("#task-list button").filter({ hasText: "Run example" }).click();
   await waitForText(page, "#task-output", "Hello from Jahaziel", 15_000);
