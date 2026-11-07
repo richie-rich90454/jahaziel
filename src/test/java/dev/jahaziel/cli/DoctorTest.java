@@ -187,8 +187,7 @@ class DoctorTest {
 
   @Test
   void commandAvailableChecksExecutablesOffWindows() throws Exception {
-    org.junit.jupiter.api.Assumptions.assumeFalse(
-        isWindows());
+    org.junit.jupiter.api.Assumptions.assumeFalse(isWindows());
     Path bin = Files.createDirectory(root.resolve("tools-posix-bin"));
     Path tar = Files.createFile(bin.resolve("tar"));
     makeExecutable(tar);
