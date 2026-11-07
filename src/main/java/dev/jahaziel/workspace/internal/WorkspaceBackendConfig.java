@@ -27,7 +27,7 @@ public class WorkspaceBackendConfig {
 
   @Bean
   public NodeBackend nodeBackend(
-      @Value("${jahaziel.workspace.backend:local}") String backend,
+      @Value("${JAHAZIEL_BACKEND:${jahaziel.workspace.backend:local}}") String backend,
       WorkspaceStorage storage) {
     if (!"local".equalsIgnoreCase(backend.strip())) {
       throw new IllegalArgumentException(
