@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Jahaziel',
-  description: 'Self-hosted browser development platform. One jar, port 11451.',
+  description: 'A lightweight remote source IDE for Linux servers, built for browser-based development.',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/quick-start' },
@@ -34,9 +34,14 @@ export default defineConfig({
         { text: 'Workspaces', link: '/architecture/workspaces' },
       ],
       '/ide/': [
-        { text: 'Building the IDE server', link: '/ide/building-the-ide-server' },
-        { text: 'Patch manifest', link: '/ide/patch-manifest' },
-        { text: 'Telemetry audit', link: '/ide/telemetry-audit' },
+        {
+          text: 'IDE history',
+          items: [
+            { text: 'Retired server build', link: '/ide/building-the-ide-server' },
+            { text: 'Historical patch manifest', link: '/ide/patch-manifest' },
+            { text: 'Historical telemetry audit', link: '/ide/telemetry-audit' },
+          ],
+        },
       ],
       '/deployment/': [
         { text: 'Single-server deployment', link: '/deployment/single-server' },
@@ -69,7 +74,11 @@ export default defineConfig({
           link: '/contributing/architecture-decisions/no-external-messaging-services',
         },
         {
-          text: 'VS Code OSS stays the IDE server base',
+          text: 'Lightweight browser workbench',
+          link: '/contributing/architecture-decisions/lightweight-workbench',
+        },
+        {
+          text: 'Historical: VS Code OSS server base',
           link: '/contributing/architecture-decisions/ide-server-base',
         },
       ],
