@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.runtime.internal;
 
-import dev.jahaziel.ide.internal.IdeServerService.BootPhase;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.Map;
@@ -14,21 +13,28 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Live boot phases per workspace. The domain state machine only knows coarse states (preparing,
- * booting, ready), but a local start crosses real sub-steps — extracting the REH, spawning the IDE
- * server, waiting for its port, registering the gateway route — and the UI renders a determinate
- * progress bar from these instead of guessing. Entries are transient: a restart wipes them, and the
- * next start repopulates from the beginning.
+ * Live boot phases per workspace. These phases describe workspace storage preparation and backend
+ * lifecycle state only; terminal and task processes are started on demand. Entries are transient
+ * and are cleared when the process restarts.
  */
 public final class BootProgressService {
+  /** Coarse boot phases visible to the workbench. */
+  public enum BootPhase {
+    PREPARING,
+    STARTING,
+    READY
+  }
+
   /**
    * A phase report.
    *
+   * @param correlationId the identifier shared by every phase of one start operation
    * @param phase the current sub-step
    * @param updatedAt when the workspace entered it
    */
-  public record Progress(BootPhase phase, Instant updatedAt) {
+  public record Progress(UUID correlationId, BootPhase phase, Instant updatedAt) {
     public Progress {
+      Objects.requireNonNull(correlationId, "correlationId");
       Objects.requireNonNull(phase, "phase");
       Objects.requireNonNull(updatedAt, "updatedAt");
     }
@@ -45,7 +51,15 @@ public final class BootProgressService {
   public void report(WorkspaceId id, BootPhase phase) {
     Objects.requireNonNull(id, "id");
     Objects.requireNonNull(phase, "phase");
-    phases.put(id.value(), new Progress(phase, Instant.now()));
+    phases.compute(
+        id.value(),
+        (ignored, previous) -> {
+          UUID correlationId =
+              phase == BootPhase.PREPARING || previous == null
+                  ? UUID.randomUUID()
+                  : previous.correlationId();
+          return new Progress(correlationId, phase, Instant.now());
+        });
   }
 
   /**
