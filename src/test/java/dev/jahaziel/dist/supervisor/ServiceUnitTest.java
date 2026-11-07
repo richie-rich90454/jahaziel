@@ -82,12 +82,12 @@ class ServiceUnitTest {
     Path service =
         write(
             dir,
-            "jahaziel-code-server.service",
+            "jahaziel-sync-push.service",
             """
             [Service]
             User=jahaziel-guest
             ExecStartPre=/usr/bin/python3 /usr/local/bin/jahaziel-sync pull
-            ExecStart=/opt/jahaziel-code-server/bin/jahaziel-code-server --host 127.0.0.1
+            ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
             ExecStop=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
             Restart=always
             RestartSec=2s
