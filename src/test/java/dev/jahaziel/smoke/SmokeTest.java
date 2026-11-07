@@ -298,7 +298,7 @@ class SmokeTest {
     if (!configured.isBlank() && Files.isRegularFile(Path.of(configured))) {
       return Path.of(configured).toAbsolutePath().normalize();
     }
-    for (String candidate : List.of("target/jahaziel.jar", "dist/target/jahaziel.jar")) {
+    for (String candidate : List.of("target/jahaziel.jar")) {
       Path path = Path.of(candidate).toAbsolutePath().normalize();
       if (Files.isRegularFile(path)) {
         return path;
