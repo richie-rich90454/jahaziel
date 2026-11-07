@@ -9,8 +9,11 @@ import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.List;
+import java.util.function.Consumer;
 
-/** Terminal session registry. PTY allocation itself happens inside the workspace VM. */
+/**
+ * Terminal session registry. PTYs run in the trusted host account, rooted in the workspace home.
+ */
 public interface TerminalService {
   /**
    * Opens a session.
@@ -55,4 +58,25 @@ public interface TerminalService {
    * @throws TerminalNotFoundException when the session does not exist
    */
   void activity(TerminalSessionId id);
+
+  /** Subscribes to process events and immediately replays buffered output and an exit status. */
+  AutoCloseable attach(TerminalSessionId id, Consumer<StreamEvent> output);
+
+  /** Writes terminal input to the process stdin. */
+  void write(TerminalSessionId id, String input);
+
+  /** Updates the PTY dimensions. */
+  void resize(TerminalSessionId id, int rows, int cols);
+
+  /** Closes every live PTY for a workspace. */
+  void closeByWorkspace(WorkspaceId workspaceId);
+
+  /** Allows new PTYs after the workspace has successfully started. */
+  default void allowByWorkspace(WorkspaceId workspaceId) {}
+
+  /** Closes every live PTY during server shutdown. */
+  void closeAll();
+
+  /** One stream event delivered to the browser. */
+  record StreamEvent(String type, String data, Integer exitCode) {}
 }
