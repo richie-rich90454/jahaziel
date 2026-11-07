@@ -5,56 +5,47 @@
 
 -->
 
-# IDE
+# Browser workbench
 
-Last verified against version 0.1.0-SNAPSHOT.
+Jahaziel serves one lightweight, same-origin browser workbench from its
+single jar. `web/src` is the maintained TypeScript source. Vite builds it
+into static assets; Maven packages those assets under `static/`.
 
-Jahaziel Code is a fork of VS Code with telemetry, AI features, and
-Microsoft endpoints removed; the marketplace is Open VSX only.
-Details of each change: `docs/ide/patch-manifest.md`. Outbound
-channels and their removal: `docs/ide/telemetry-audit.md`.
+CodeMirror 6 provides text editing and language modes. xterm.js displays a
+terminal stream backed by an explicitly requested server-side PTY. The
+server does not include the VS Code fork, REH binaries, language servers,
+or compiler toolchains in the jar.
 
-The IDE server (REH) ships in three modes; see `docs/plan.md`:
+The first usable workflow is a workspace chooser, a server-managed template
+picker, file tree and bounded quick-open search, editor tabs with ETag save
+conflicts, a terminal panel, run tasks, workspace preview links, and a compact
+Git panel for status, diff, stage, unstage, and commit. Git panel commits use
+repository Git identity. The panel clears inherited environment secrets and
+disables repository hooks; cloning, credential setup, and hook execution stay
+in the terminal.
+Optional, explicitly selected Rust, C/C++, Java, Go, TypeScript, JavaScript,
+and Python language services run from pinned shared server-side packs. The Go
+pack downloads the official Go 1.27.3 SDK for the server architecture and builds
+gopls v0.24.0 only when selected. Go module downloads are checksum-verified by
+the Go module system; the temporary compiler and module caches are removed when
+installation finishes. Each workspace keeps its own Go module and build caches
+under application data so projects cannot share mutable module state. TypeScript
+and Python packs use the configured existing Node.js runtime. VS Code extension
+compatibility, a plugin marketplace, debugger parity, and collaborative editing
+are deferred.
 
-- `fat`: server bundled in the jar; works offline.
-- `slim`: uses host-installed tools; smallest distribution.
-- `download`: fetched once at first run, cached under `./data/`.
+The first release offers clangd diagnostics on Linux x64 only. Arm64 release
+acceptance uses an available cross-architecture pack such as Pyright; C/C++
+diagnostics on arm64 are deferred until Jahaziel can provide a small,
+app-managed artifact without pulling in the full LLVM distribution or relying
+on a distribution-specific system package. The upstream standalone clangd
+downloads currently document Linux x86-64, while the official LLVM release
+offers a full Linux Arm64 toolchain archive ([clangd downloads](https://clangd.llvm.org/installation),
+[LLVM releases](https://github.com/llvm/llvm-project/releases)).
 
-## Why the fork stays on VS Code OSS
+The server targets Linux x64 and arm64. Windows and macOS are browser
+clients. Runtime processes use the Jahaziel service account, so terminal and
+task access is for trusted users only.
 
-The IDE must run as a browser-served server on every supported host,
-including `win32-x64` and `win32-arm64`, because the local backend runs
-workspaces as host processes.
-
-The maintained third-party browser distributions were evaluated and
-rejected for that reason:
-
-| Distribution | Windows build | Verdict |
-|---|---|---|
-| `coder/code-server` | None published; npm install is unsupported and known-broken | Rejected: no `win32` artifact |
-| `gitpod-io/openvscode-server` | Releases are Linux-only; native Windows is unsupported | Rejected: no `win32` artifact |
-| `eclipse-openvsx` | Extension registry, not a VS Code server | Not applicable |
-
-VS Code OSS ships its own `vscode-reh-web-win32-*-min` target, so the
-fork is the only option that covers all six variants. The decision is
-recorded in `docs/contributing/architecture-decisions/ide-server-base.md`.
-
-## What the runtime requires of a build artifact
-
-`IdeService` verifies and extracts exactly one shape, so `ide/build.sh`
-produces it:
-
-| Item | Value |
-|---|---|
-| Tarball | `data/ide/jahaziel-code-server-<slug>.tar.zst` |
-| Checksum | `data/ide/jahaziel-code-server-<slug>.tar.zst.sha256` (required; a missing sidecar fails closed) |
-| Extracted top-level directory | `<slug>`, for example `win32-x64` |
-| Launcher | `<slug>/bin/jahaziel-code-server.cmd` on Windows, `<slug>/bin/jahaziel-code-server` elsewhere |
-| Slug | `win32-x64`, `win32-arm64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64` |
-
-The launcher name follows `product.json` `serverApplicationName`, which
-patch 0001 sets to `jahaziel-code-server`; the upstream packaging task
-renames its generated script to match.
-
-`doctor` checks the host variant, because the local backend serves the
-IDE from the same machine. On a Linux server that is `linux-x64`.
+The former VS Code OSS server decision is historical and superseded by the
+[lightweight workbench contract](../plan.md).
