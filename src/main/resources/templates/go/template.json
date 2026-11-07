@@ -1,0 +1,13 @@
+{
+  "name": "go",
+  "description": "Go starter with one runnable package.",
+  "vcpuCount": 2,
+  "memoryMib": 4096,
+  "ports": [],
+  "languagePacks": ["go"],
+  "starterFiles": {
+    "README.md": "# Go\n\nRun with `go run .`.\n",
+    "go.mod": "module example.com/jahaziel-app\n\ngo 1.23\n",
+    "main.go": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Jahaziel\")\n}\n"
+  }
+}
