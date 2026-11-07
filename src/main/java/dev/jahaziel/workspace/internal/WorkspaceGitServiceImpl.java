@@ -286,7 +286,8 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
     AtomicReference<Capture> captured = new AtomicReference<>();
     AtomicReference<IOException> readFailure = new AtomicReference<>();
     Thread reader =
-        Thread.ofVirtual()
+        Thread.ofPlatform()
+            .daemon()
             .start(
                 () -> {
                   try {
