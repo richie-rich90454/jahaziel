@@ -43,8 +43,7 @@ public final class JahazielMain {
 
   /** Subdirectories owned under the data root. */
   static final List<String> PORTABLE_DIRS =
-      List.of(
-          "data", "logs", "tmp", "workspaces", "ide", "backups", "dumps", "plugins", "templates");
+      List.of("data", "logs", "tmp", "workspaces", "backups", "dumps", "plugins", "templates");
 
   private JahazielMain() {}
 
@@ -162,7 +161,6 @@ public final class JahazielMain {
     Files.createDirectories(root.resolve("logs"));
     Files.createDirectories(root.resolve("tmp"));
     Files.createDirectories(root.resolve("workspaces"));
-    Files.createDirectories(root.resolve("ide"));
     Files.createDirectories(root.resolve("backups"));
     Files.createDirectories(root.resolve("dumps"));
     Files.createDirectories(root.resolve("plugins"));
@@ -257,7 +255,17 @@ public final class JahazielMain {
 
   static void portableProperties(
       JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
-    portablePropertyMap(data, keys, parsed, platform).forEach(JahazielMain::setIfAbsent);
+    portablePropertyMap(data, keys, parsed, platform)
+        .forEach(
+            (key, value) -> {
+              if (parsed.demo() && key.equals("server.address")) {
+                // Demo authentication grants a fixed admin identity, so never let an inherited
+                // environment or system property expose that mode on a network interface.
+                System.setProperty(key, value);
+              } else {
+                setIfAbsent(key, value);
+              }
+            });
   }
 
   /**
@@ -300,6 +308,7 @@ public final class JahazielMain {
     if (parsed.demo()) {
       properties.put("jahaziel.auth.provider", "stub");
       properties.put("jahaziel.demo", "true");
+      properties.put("server.address", "127.0.0.1");
     }
     properties.put("jahaziel.domain", parsed.domain());
     properties.put("jahaziel.jwt.private-key-file", keys.privateKey().toString());
@@ -362,8 +371,8 @@ public final class JahazielMain {
           --help                Print this help
           --version             Print the version
 
-        Layout: data/ holds workspaces/, ide/, logs/, tmp/, backups/, dumps/,
-        plugins/, templates/, keys/, audit/, sync/, and jahaziel.db
+        Layout: data/ holds workspaces/, language-packs/, logs/, tmp/, backups/,
+        dumps/, plugins/, templates/, keys/, audit/, sync/, and jahaziel.db
         (SQLite WAL, created once, never cleared). Env is read from
         jar-adjacent .env (real environment wins); login needs all five
         BASIS_* vars (BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI, BASIS_CLIENT_ID,
