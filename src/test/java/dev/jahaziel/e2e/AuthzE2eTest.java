@@ -7,6 +7,7 @@ package dev.jahaziel.e2e;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,6 +28,11 @@ class AuthzE2eTest extends E2eBase {
     assertEquals(403, get("/api/v1/workspaces/" + id + "/terminals", userToken()).status());
     assertEquals(403, get("/api/v1/workspaces/" + id + "/ports", userToken()).status());
     assertEquals(403, get("/api/v1/workspaces/" + id + "/metrics", userToken()).status());
+    assertEquals(403, get("/api/v1/workspaces/" + id + "/git", userToken()).status());
+    assertEquals(
+        403, get("/api/v1/workspaces/" + id + "/git/diff?path=README.md", userToken()).status());
+    assertEquals(
+        403, get("/api/v1/workspaces/" + id + "/files/search?q=secret", userToken()).status());
   }
 
   @Test
@@ -50,12 +56,27 @@ class AuthzE2eTest extends E2eBase {
                 userToken(),
                 "{\"port\":18090,\"protocol\":\"http\"}")
             .status());
+    assertEquals(
+        403,
+        post("/api/v1/workspaces/" + id + "/git/stage", userToken(), "{\"path\":\"README.md\"}")
+            .status());
+    assertEquals(
+        403,
+        post(
+                "/api/v1/workspaces/" + id + "/git/commit",
+                userToken(),
+                "{\"message\":\"do not commit\"}")
+            .status());
     assertEquals(403, delete("/api/v1/workspaces/" + id + "?confirm=true", userToken()).status());
   }
 
   @Test
   void nonOwnerCannotCloseForeignTerminal() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("linux"),
+        "PTY authorization integration test requires the Linux server runtime");
     String id = createWorkspace(adminToken(), uniqueName("fterm"));
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", adminToken(), null).status());
     String sessionId =
         bodyJson(post("/api/v1/workspaces/" + id + "/terminals", adminToken(), null))
             .get("sessionId")
