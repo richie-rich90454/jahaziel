@@ -101,6 +101,13 @@ class DoctorTest {
       assertTrue(text.contains("doctor: 11/11 checks passed"));
       assertTrue(text.contains("installed managed packs=none"));
       assertTrue(text.contains("selected packs=none"));
+      Doctor.Check storage = CliTestSupport.find(checks, "storage");
+      assertTrue(
+          storage.detail().contains("application data total (includes the listed subdirectories)="));
+      assertTrue(storage.detail().contains("writable paths: data=" + env.dataDir()));
+      assertTrue(storage.detail().contains("workspaces=" + env.dataDir().resolve("workspaces")));
+      assertTrue(
+          storage.detail().contains("language packs=" + env.dataDir().resolve("language-packs")));
       for (Doctor.Check check : checks) {
         assertTrue(text.contains("doctor: [ok] " + check.name() + " - "));
       }
@@ -163,6 +170,14 @@ class DoctorTest {
 
     assertTrue(optional.ok(), optional.detail());
     assertTrue(optional.detail().contains("selected language packs=java"));
+  }
+
+  @Test
+  void reportsSupportedAndUnsupportedServerArchitectures() {
+    assertEquals("x64", Doctor.serverArchitecture("amd64"));
+    assertEquals("x64", Doctor.serverArchitecture("x86_64"));
+    assertEquals("arm64", Doctor.serverArchitecture("aarch64"));
+    assertEquals("unsupported (riscv64)", Doctor.serverArchitecture("riscv64"));
   }
 
   @Test
