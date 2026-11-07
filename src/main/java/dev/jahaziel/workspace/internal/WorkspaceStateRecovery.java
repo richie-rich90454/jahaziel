@@ -8,6 +8,9 @@ import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceState;
 import java.util.Objects;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.Ordered;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
 public final class WorkspaceStateRecovery implements ApplicationRunner {
+  private static final Logger log = LoggerFactory.getLogger(WorkspaceStateRecovery.class);
   private static final String RESTART_REASON =
       "server restarted while workspace was starting or running; files are preserved, start to recover";
 
@@ -37,8 +41,13 @@ public final class WorkspaceStateRecovery implements ApplicationRunner {
           || state instanceof WorkspaceState.Ready
           || state instanceof WorkspaceState.Active
           || state instanceof WorkspaceState.Idle) {
-        workspace.fail(RESTART_REASON);
+        UUID correlationId = UUID.randomUUID();
+        workspace.fail(RESTART_REASON + " (operation " + correlationId + ")");
         workspaces.save(workspace);
+        log.warn(
+            "workspace lifecycle recovered correlationId={} workspaceId={} reason=server-restarted",
+            correlationId,
+            workspace.id().value());
       }
     }
   }
