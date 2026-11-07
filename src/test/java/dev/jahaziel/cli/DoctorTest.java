@@ -5,6 +5,7 @@
 package dev.jahaziel.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
@@ -92,12 +93,12 @@ class DoctorTest {
     try {
       List<Doctor.Check> checks =
           Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
-      assertEquals(10, checks.size());
+      assertEquals(11, checks.size());
       for (Doctor.Check check : checks) {
         assertTrue(check.ok(), check.name() + ": " + check.detail());
       }
       String text = print(checks);
-      assertTrue(text.contains("doctor: 10/10 checks passed"));
+      assertTrue(text.contains("doctor: 11/11 checks passed"));
       assertTrue(text.contains("installed managed packs=none"));
       assertTrue(text.contains("selected packs=none"));
       for (Doctor.Check check : checks) {
@@ -137,6 +138,31 @@ class DoctorTest {
     assertTrue(summary.contains("rust@2026-09-21/aarch64"));
     assertTrue(summary.contains("selected packs=rust"));
     assertTrue(!summary.contains("unknown"));
+  }
+
+  @Test
+  void requiresConfiguredNodeOnlyForSelectedNodeBackedPacks() throws Exception {
+    Path selections = Files.createDirectories(root.resolve("data/language-packs/selections"));
+    Files.writeString(selections.resolve("python-workspace.txt"), "python\n");
+    Path missingNode = root.resolve("missing-node");
+
+    Doctor.Check missing =
+        Doctor.languageTools(
+            root.resolve("data"),
+            Map.of("JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE", missingNode.toString()));
+
+    assertFalse(missing.ok());
+    assertTrue(missing.detail().contains("require Node.js"));
+    assertTrue(missing.fix().contains("JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE"));
+
+    Files.writeString(selections.resolve("python-workspace.txt"), "java\n");
+    Doctor.Check optional =
+        Doctor.languageTools(
+            root.resolve("data"),
+            Map.of("JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE", missingNode.toString()));
+
+    assertTrue(optional.ok(), optional.detail());
+    assertTrue(optional.detail().contains("selected language packs=java"));
   }
 
   @Test
