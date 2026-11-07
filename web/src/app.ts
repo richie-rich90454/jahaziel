@@ -67,6 +67,7 @@ const state = {
   terminalSessions: [] as TerminalSession[],
   socket: null as WebSocket | null,
   taskRunId: null as string | null,
+  taskPollingId: null as string | null,
   setupPolling: false,
   searchTimer: null as number | null,
   gitHasStaged: false,
@@ -439,13 +440,14 @@ function languageIdForPath(path: string): string | null {
 async function refreshTasks(): Promise<void> {
   const workspace = state.workspace;
   if (!workspace) return;
-  const [setupResult, tasksResult] = await Promise.all([
+  const [setupResult, tasksResult, latestRunResult] = await Promise.all([
     api<SetupStatus>(`/api/v1/workspaces/${workspace.workspaceId}/setup`),
     api<WorkspaceTask[]>(`/api/v1/workspaces/${workspace.workspaceId}/tasks`),
+    api<TaskRun>(`/api/v1/workspaces/${workspace.workspaceId}/task-runs/latest`),
   ]);
+  if (state.workspace?.workspaceId !== workspace.workspaceId) return;
   const setup = setupResult.body;
   renderSetupStatus(setup);
-  byId("task-correlation").hidden = true;
   const setupOutput = byId<HTMLPreElement>("setup-output");
   setupOutput.hidden = !setup.output;
   setupOutput.textContent = setup.output;
@@ -460,6 +462,9 @@ async function refreshTasks(): Promise<void> {
     empty.textContent = "No run tasks in this template.";
     list.append(empty);
   }
+  const latestRun = latestRunResult.body;
+  renderTaskRun(latestRun);
+  if (latestRun?.status === "RUNNING") void pollTaskRun(workspace.workspaceId, latestRun);
   if (setup.status === "RUNNING" && !state.setupPolling) void pollSetup(workspace.workspaceId);
 }
 
@@ -637,27 +642,59 @@ async function runTask(task: WorkspaceTask): Promise<void> {
   const workspace = state.workspace;
   if (!workspace) return;
   const { body: run } = await api<TaskRun>(`/api/v1/workspaces/${workspace.workspaceId}/tasks/${encodeURIComponent(task.id)}/run`, { method: "POST" });
-  state.taskRunId = run.id;
+  renderTaskRun(run);
   void refreshPortStatuses().catch(() => undefined);
+  await pollTaskRun(workspace.workspaceId, run);
+}
+
+function renderTaskRun(run: TaskRun | null): void {
   const output = byId<HTMLPreElement>("task-output");
   const stop = byId<HTMLButtonElement>("task-stop");
-  stop.hidden = run.status !== "RUNNING";
-  stop.onclick = () => { void stopTask(run.id); };
   const reference = byId("task-correlation");
+  if (!run) {
+    state.taskRunId = null;
+    stop.hidden = true;
+    stop.disabled = false;
+    reference.hidden = true;
+    output.hidden = true;
+    output.textContent = "";
+    return;
+  }
+  state.taskRunId = run.id;
+  stop.hidden = run.status !== "RUNNING";
+  stop.disabled = false;
+  stop.onclick = () => { void stopTask(run.id); };
   reference.hidden = false;
   reference.textContent = `TASK REF ${run.id}`;
   reference.title = run.id;
   output.hidden = false;
-  output.textContent = `${run.label} · ${run.status}\n${run.output}`;
-  let current = run;
-  while (state.workspace?.workspaceId === workspace.workspaceId && state.taskRunId === run.id && current.status === "RUNNING") {
-    await new Promise((resolve) => window.setTimeout(resolve, 1000));
-    const response = await api<TaskRun>(`/api/v1/workspaces/${workspace.workspaceId}/task-runs/${run.id}`);
-    current = response.body;
-    stop.hidden = current.status !== "RUNNING";
-    output.textContent = `${current.label} · ${current.status}${current.exitCode === null ? "" : ` · exit ${current.exitCode}`}\n${current.output}`;
-    output.scrollTop = output.scrollHeight;
-    await refreshPortStatuses().catch(() => undefined);
+  output.textContent = `${run.label} · ${run.status}${run.exitCode === null ? "" : ` · exit ${run.exitCode}`}\n${run.output}`;
+  output.scrollTop = output.scrollHeight;
+}
+
+async function pollTaskRun(workspaceId: string, initialRun: TaskRun): Promise<void> {
+  if (state.taskPollingId === initialRun.id) return;
+  state.taskPollingId = initialRun.id;
+  let current = initialRun;
+  try {
+    while (state.workspace?.workspaceId === workspaceId
+        && state.taskRunId === initialRun.id
+        && current.status === "RUNNING") {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      if (state.workspace?.workspaceId !== workspaceId || state.taskRunId !== initialRun.id) break;
+      const { body } = await api<TaskRun>(`/api/v1/workspaces/${workspaceId}/task-runs/${initialRun.id}`);
+      current = body;
+      if (state.workspace?.workspaceId === workspaceId && state.taskRunId === initialRun.id) {
+        renderTaskRun(current);
+      }
+      await refreshPortStatuses().catch(() => undefined);
+    }
+  } catch (failure) {
+    if (state.workspace?.workspaceId === workspaceId && state.taskRunId === initialRun.id) {
+      toast(`Task status could not be refreshed: ${errorText(failure)}`, "error");
+    }
+  } finally {
+    if (state.taskPollingId === initialRun.id) state.taskPollingId = null;
   }
 }
 
@@ -671,12 +708,7 @@ async function stopTask(runId: string): Promise<void> {
       `/api/v1/workspaces/${workspace.workspaceId}/task-runs/${runId}/stop`,
       { method: "POST" },
     );
-    const output = byId<HTMLPreElement>("task-output");
-    output.textContent = `${run.label} · ${run.status}${run.exitCode === null ? "" : ` · exit ${run.exitCode}`}\n${run.output}`;
-    const reference = byId("task-correlation");
-    reference.hidden = false;
-    reference.textContent = `TASK REF ${run.id}`;
-    reference.title = run.id;
+    renderTaskRun(run);
   } finally {
     stop.disabled = false;
     await refreshPortStatuses().catch(() => undefined);
