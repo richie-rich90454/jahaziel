@@ -5,7 +5,6 @@
 package dev.jahaziel.platform;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -14,30 +13,7 @@ import java.util.Objects;
  * os.arch}; everything else injects a {@link Platform}.
  */
 public final class Platforms {
-  /** Supported REH variants, printed when the host is unsupported. */
-  public static final List<String> SUPPORTED_VARIANTS =
-      List.of("win32-x64", "win32-arm64", "darwin-x64", "darwin-arm64", "linux-x64", "linux-arm64");
-
   private Platforms() {}
-
-  /**
-   * Returns the REH slug for this host, for example {@code linux-x64}. Pure host mapping, no
-   * Spring, so JDK-only callers like the CLI can use it without pulling in the jar layout.
-   *
-   * @return the variant slug
-   */
-  public static String hostRehVariant() {
-    String osName = System.getProperty("os.name", "");
-    String osArch = System.getProperty("os.arch", "");
-    boolean arm =
-        osArch.toLowerCase(Locale.ROOT).contains("aarch64")
-            || osArch.toLowerCase(Locale.ROOT).contains("arm64");
-    String sys =
-        mapOs(osName) == Platform.Os.WINDOWS
-            ? "win32"
-            : mapOs(osName) == Platform.Os.MACOS ? "darwin" : "linux";
-    return sys + "-" + (arm ? "arm64" : "x64");
-  }
 
   /**
    * Detects the platform from the real JVM properties and the jar location. Unsupported hosts throw
@@ -77,8 +53,7 @@ public final class Platforms {
               + os
               + " arch="
               + arch
-              + "). supported: "
-              + String.join(", ", SUPPORTED_VARIANTS));
+              + "). server targets: Linux x64 and Linux arm64");
     }
     Path dataDir =
         explicitDataDir == null || explicitDataDir.isBlank()
