@@ -148,7 +148,7 @@ public final class SyncServer {
   }
 
   /**
-   * Binds loopback and serves on virtual threads.
+   * Binds loopback, accepts on a dedicated daemon thread, and serves connections on virtual threads.
    *
    * @throws IOException when the socket cannot bind
    */
@@ -160,7 +160,7 @@ public final class SyncServer {
     ServerSocket socket = new ServerSocket();
     socket.bind(new InetSocketAddress("127.0.0.1", port));
     serverSocket = socket;
-    Thread.ofVirtual().name("sync-accept").start(this::acceptLoop);
+    Thread.ofPlatform().daemon().name("sync-accept").start(this::acceptLoop);
   }
 
   /**
