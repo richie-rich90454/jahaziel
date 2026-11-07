@@ -3,12 +3,14 @@
 
 # Machine-local ignores live in .git/info/exclude.
 target/
+.cache/
 *.class
 .idea/
 .vscode/
 *.iml
 .DS_Store
 node_modules/
+web/dist/
 ide/out/
 ide/vscode-reh-web-*/
 ide/upstream/
