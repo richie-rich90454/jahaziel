@@ -623,9 +623,7 @@ class LanguagePackServiceImplTest {
   }
 
   private static String runtimeArchitecture() {
-    return System.getProperty("os.arch", "").matches("(?i)aarch64|arm64")
-        ? "aarch64"
-        : "x86_64";
+    return System.getProperty("os.arch", "").matches("(?i)aarch64|arm64") ? "aarch64" : "x86_64";
   }
 
   private static LanguagePackServiceImpl.Definition definition(byte[] archive) {
