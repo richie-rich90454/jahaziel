@@ -153,7 +153,7 @@ class CliBackupRestoreTest {
         List.of("tar", "-czf", archive.toString(), "-C", src.toString(), "other.txt"), jar);
     Output output = CliTestSupport.dispatch("restore", archive.toString());
     assertEquals(1, output.code());
-    assertTrue(output.err().contains("neither data/ nor .env"));
+    assertTrue(output.err().contains("archive contains an unsafe path, refusing"));
   }
 
   @Test
