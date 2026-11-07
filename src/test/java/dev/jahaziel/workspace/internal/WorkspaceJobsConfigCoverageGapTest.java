@@ -38,10 +38,14 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 class WorkspaceJobsConfigCoverageGapTest {
   @Test
@@ -111,6 +115,22 @@ class WorkspaceJobsConfigCoverageGapTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> config.nodeBackend("other", storage));
+  }
+
+  @Test
+  void backendConfigReadsDocumentedEnvironmentProperty() {
+    try (var context = new AnnotationConfigApplicationContext()) {
+      context
+          .getEnvironment()
+          .getPropertySources()
+          .addFirst(new MapPropertySource("test", Map.of("JAHAZIEL_BACKEND", "firecracker")));
+      context.registerBean(
+          dev.jahaziel.spi.WorkspaceStorage.class,
+          () -> mock(dev.jahaziel.spi.WorkspaceStorage.class));
+      context.register(WorkspaceBackendConfig.class);
+
+      assertThrows(BeanCreationException.class, context::refresh);
+    }
   }
 
   @Test
