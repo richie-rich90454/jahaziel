@@ -52,7 +52,9 @@ class WorkspaceStateRecoveryTest {
             .startsWith(
                 "server restarted while workspace was starting or running; files are preserved, start to recover (operation "));
     String operation =
-        failed.reason().substring(failed.reason().lastIndexOf("operation ") + "operation ".length());
+        failed
+            .reason()
+            .substring(failed.reason().lastIndexOf("operation ") + "operation ".length());
     assertTrue(operation.endsWith(")"));
     UUID correlationId = UUID.fromString(operation.substring(0, operation.length() - 1));
     assertEquals(4, correlationId.version());
