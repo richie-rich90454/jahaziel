@@ -82,6 +82,7 @@ class SecurityConfigCoverageGapTest {
               return http;
             });
     when(http.addFilterBefore(any(), any())).thenReturn(http);
+    when(http.addFilterAfter(any(), any())).thenReturn(http);
     org.mockito.Mockito.doReturn(mock(SecurityFilterChain.class)).when(http).build();
     return http;
   }
