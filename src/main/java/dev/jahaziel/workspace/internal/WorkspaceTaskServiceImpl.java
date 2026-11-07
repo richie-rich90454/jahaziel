@@ -205,7 +205,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
           state.withSetup("RUNNING", "", "", correlationId, Instant.now()));
     }
     log.info("workspace setup started correlationId={} workspaceId={}", correlationId, workspaceId);
-    Thread.ofVirtual()
+    Thread.ofPlatform()
+        .daemon()
         .name("workspace-setup-" + workspaceId.value())
         .start(
             () -> {
@@ -327,7 +328,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
           runId,
           workspaceId,
           taskId);
-      Thread.ofVirtual()
+      Thread.ofPlatform()
+          .daemon()
           .name("workspace-task-" + runId)
           .start(() -> executeTask(workspaceId, runId, command));
       return taskRunFor(workspaceId, metadata(workspaceId));
@@ -498,7 +500,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         if (registration != null) processRegistrations.put(runId, registration);
       }
       Thread reader =
-          Thread.ofVirtual()
+          Thread.ofPlatform()
+              .daemon()
               .name("workspace-task-output-" + runId)
               .start(() -> readOutput(running, output, workspaceId, runId));
       boolean ended =
@@ -578,7 +581,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         throw new IllegalStateException("setup stopped because workspace stopped");
       }
       Thread reader =
-          Thread.ofVirtual()
+          Thread.ofPlatform()
+              .daemon()
               .name("workspace-setup-output-" + process.pid())
               .start(() -> readInto(process, output, workspaceId));
       if (!process.waitFor(MAX_RUNTIME.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
