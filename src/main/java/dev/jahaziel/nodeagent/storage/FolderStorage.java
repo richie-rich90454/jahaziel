@@ -47,7 +47,7 @@ public final class FolderStorage implements WorkspaceStorage {
     Objects.requireNonNull(image, "image");
     Objects.requireNonNull(quota, "quota");
     Path jail = jailPath(workspaceId);
-    Path home = homePath(ownerId);
+    Path home = homePath(workspaceId);
     commands.run(List.of("mkdir", "-p", jail.toString()));
     if (commands.exists(home)) {
       enforceQuota(home, quota);
@@ -59,14 +59,27 @@ public final class FolderStorage implements WorkspaceStorage {
 
   @Override
   public void destroy(WorkspaceHandle handle) {
+    destroy(handle, false);
+  }
+
+  @Override
+  public void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
     Objects.requireNonNull(handle, "handle");
     commands.run(List.of("rm", "-rf", handle.jailPath().toString()));
+    if (keepSnapshots) {
+      commands.run(List.of("rm", "-rf", handle.homePath().toString()));
+    } else {
+      // Each workspace owns its project files and snapshots. Reclaim them with the workspace row.
+      commands.run(List.of("rm", "-rf", handle.homePath().getParent().toString()));
+    }
   }
 
   @Override
   public SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag) {
     Objects.requireNonNull(handle, "handle");
     Objects.requireNonNull(tag, "tag");
+    // A requested workspace can be snapshotted before its first runtime start.
+    commands.run(List.of("mkdir", "-p", handle.homePath().toString()));
     Path snaps = snapsDir(handle);
     Path snap = snaps.resolve(tag.value());
     commands.run(List.of("mkdir", "-p", snaps.toString()));
@@ -89,6 +102,7 @@ public final class FolderStorage implements WorkspaceStorage {
     Path home = handle.homePath();
     Path staged = home.resolveSibling(home.getFileName() + ".new");
     Path retired = home.resolveSibling(home.getFileName() + ".old");
+    commands.run(List.of("mkdir", "-p", home.toString()));
     commands.run(List.of("rm", "-rf", staged.toString()));
     commands.run(List.of("rm", "-rf", retired.toString()));
     commands.run(List.of("mkdir", "-p", staged.toString()));
@@ -138,12 +152,12 @@ public final class FolderStorage implements WorkspaceStorage {
     return Path.of(storageRoot, "jail", workspaceId.toString());
   }
 
-  private Path homePath(UUID ownerId) {
-    return Path.of(storageRoot, "workspaces", ownerId.toString(), "home");
+  private Path homePath(UUID workspaceId) {
+    return Path.of(storageRoot, "workspaces", workspaceId.toString(), "home");
   }
 
   private Path snapsDir(WorkspaceHandle handle) {
-    return handle.homePath().getParent().resolve("snaps").resolve(handle.workspaceId().toString());
+    return handle.homePath().getParent().resolve("snaps");
   }
 
   private static String contentsOf(Path dir) {
