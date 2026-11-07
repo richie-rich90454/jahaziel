@@ -204,7 +204,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       write(
           metadataPath(workspaceId),
           state.withSetup("RUNNING", "", "", correlationId, Instant.now()));
-      log.info("workspace setup started correlationId={} workspaceId={}", correlationId, workspaceId);
+      log.info(
+          "workspace setup started correlationId={} workspaceId={}", correlationId, workspaceId);
       Thread setupThread =
           Thread.ofPlatform()
               .daemon()
@@ -221,8 +222,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                         runAndCapture(workspaceId, command, output);
                       }
                       if (cancelledSetups.contains(workspaceId.value())) {
-                        throw new IllegalStateException(
-                            "setup stopped because workspace stopped");
+                        throw new IllegalStateException("setup stopped because workspace stopped");
                       }
                       update(
                           workspaceId,
