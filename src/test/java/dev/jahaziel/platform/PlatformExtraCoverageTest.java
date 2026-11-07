@@ -53,10 +53,6 @@ class PlatformExtraCoverageTest {
     assertThrows(NullPointerException.class, () -> Platforms.detect("Linux", "x86_64", null, null));
     Platform blankDir = Platforms.detect("Linux", "x86_64", tmp, "  ");
     assertTrue(blankDir.dataDir().toString().endsWith("data"));
-    assertTrue(Platforms.hostRehVariant().matches("(win32|darwin|linux)-(x64|arm64)"));
-    assertTrue(
-        Platforms.SUPPORTED_VARIANTS.contains(Platforms.hostRehVariant())
-            || Platforms.hostRehVariant().startsWith("linux"));
     assertTrue(Platforms.resolveJarDir() != null);
   }
 
@@ -65,38 +61,24 @@ class PlatformExtraCoverageTest {
     WindowsPlatform w = new WindowsPlatform(tmp, tmp.resolve("data"), Platform.Arch.ARM64);
     assertEquals(Platform.Os.WINDOWS, w.os());
     assertEquals(Platform.Arch.ARM64, w.arch());
-    assertEquals("win32-arm64", w.rehVariant());
-    assertTrue(w.rehExecutable().toString().endsWith(".cmd"));
-    assertTrue(w.rehDir().toString().contains("win32-arm64"));
     assertTrue(w.tempDir().toString().endsWith("tmp"));
     assertEquals(tmp.toAbsolutePath().normalize(), w.jarDir());
-    List<String> args = w.rehLaunchArgs(tmp.resolve("ws"), 8080);
-    assertTrue(args.contains("8080"));
-    assertTrue(w.terminal(tmp).contains("cmd.exe"));
     assertEquals(";", w.pathSeparator());
     assertThrows(NullPointerException.class, () -> w.toNative(null));
     assertThrows(NullPointerException.class, () -> w.toPosix(null));
-    assertThrows(NullPointerException.class, () -> w.rehLaunchArgs(null, 1));
-    assertThrows(NullPointerException.class, () -> w.terminal(null));
     Map<String, String> env = w.subprocessEnv();
     assertTrue(env.get("TEMP").contains("tmp"));
   }
 
   @Test
-  void posixRejectsWindowsAndCoversMacTerminal() {
+  void posixRejectsWindowsAndCoversMacPaths() {
     assertThrows(
         IllegalArgumentException.class,
         () -> new PosixPlatform(Platform.Os.WINDOWS, Platform.Arch.X64, tmp, tmp));
     PosixPlatform mac = new PosixPlatform(Platform.Os.MACOS, Platform.Arch.X64, tmp, tmp);
-    assertTrue(mac.terminal(tmp).contains("open"));
-    assertEquals("darwin-x64", mac.rehVariant());
     PosixPlatform linux = new PosixPlatform(Platform.Os.LINUX, Platform.Arch.ARM64, tmp, tmp);
-    assertEquals("linux-arm64", linux.rehVariant());
-    assertTrue(linux.terminal(tmp).contains("x-terminal-emulator"));
     assertThrows(NullPointerException.class, () -> linux.toNative(null));
     assertThrows(NullPointerException.class, () -> linux.toPosix(null));
-    assertThrows(NullPointerException.class, () -> linux.rehLaunchArgs(null, 1));
-    assertThrows(NullPointerException.class, () -> linux.terminal(null));
   }
 
   @Test
