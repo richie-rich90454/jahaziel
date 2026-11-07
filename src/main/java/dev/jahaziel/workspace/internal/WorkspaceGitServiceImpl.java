@@ -212,7 +212,11 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
   }
 
   private static String checkedPath(Path root, String path) {
-    if (path == null || path.isBlank() || path.length() > 1024 || path.indexOf('\\') >= 0) {
+    if (path == null
+        || path.isBlank()
+        || path.length() > 1024
+        || path.indexOf('\\') >= 0
+        || path.matches("^[A-Za-z]:.*")) {
       throw new IllegalArgumentException("Git path must be a workspace-relative path");
     }
     try {
