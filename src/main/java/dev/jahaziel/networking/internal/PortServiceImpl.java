@@ -65,6 +65,11 @@ public final class PortServiceImpl implements PortService {
     if (ports.existsById(key)) {
       throw new IllegalArgumentException("port " + port + " already registered");
     }
+    if (ports.findByIdWorkspaceId(workspaceId.value()).size()
+        >= PortService.MAX_PORTS_PER_WORKSPACE) {
+      throw new IllegalArgumentException(
+          "a workspace can register at most " + PortService.MAX_PORTS_PER_WORKSPACE + " ports");
+    }
     PortBinding binding =
         new PortBinding(userId.value(), port, workspaceId.value(), protocol, Instant.now());
     ports.save(PortMapper.toEntity(binding));
