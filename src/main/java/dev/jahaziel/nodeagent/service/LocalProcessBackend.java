@@ -10,29 +10,20 @@ import dev.jahaziel.spi.RuntimeHandle;
 import dev.jahaziel.spi.RuntimeRequest;
 import dev.jahaziel.spi.WorkspaceHandle;
 import dev.jahaziel.spi.WorkspaceStorage;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import tools.jackson.databind.ObjectMapper;
 
 /**
- * Zero-install local backend. Workspaces are real folders via the injected storage; "running" means
- * the workspace is marked live and its runtime descriptor is on disk. No hypervisor, no
- * subprocesses, no extra installs: the same jar runs on Linux, Windows, Windows Server, and macOS.
- * Production Linux with Firecracker binaries uses the Firecracker backend instead.
+ * Trusted single-user backend. A workspace is a real per-workspace home directory. Starting it
+ * records lifecycle state only; processes are created only for an explicit terminal or run task.
+ * Processes share the Jahaziel service account and are not a hostile multi-tenant boundary.
  */
 public final class LocalProcessBackend implements NodeBackend {
   private final WorkspaceStorage storage;
   private final ConcurrentHashMap<UUID, WorkspaceHandle> prepared = new ConcurrentHashMap<>();
   private final Set<UUID> running = ConcurrentHashMap.newKeySet();
-  private final ObjectMapper mapper = new ObjectMapper();
 
   /**
    * Creates the backend.
@@ -62,7 +53,6 @@ public final class LocalProcessBackend implements NodeBackend {
     Objects.requireNonNull(request, "request");
     WorkspaceHandle handle = requirePrepared(request.workspaceId());
     running.add(request.workspaceId());
-    writeRuntimeDescriptor(handle, request);
     return new RuntimeHandle(request.workspaceId());
   }
 
@@ -76,8 +66,13 @@ public final class LocalProcessBackend implements NodeBackend {
 
   @Override
   public void destroy(WorkspaceHandle handle) {
+    destroy(handle, false);
+  }
+
+  @Override
+  public void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
     Objects.requireNonNull(handle, "handle");
-    storage.destroy(handle);
+    storage.destroy(handle, keepSnapshots);
     running.remove(handle.workspaceId());
     prepared.remove(handle.workspaceId());
   }
@@ -98,29 +93,5 @@ public final class LocalProcessBackend implements NodeBackend {
       throw new IllegalStateException("workspace not prepared: " + workspaceId);
     }
     return handle;
-  }
-
-  private void writeRuntimeDescriptor(WorkspaceHandle handle, RuntimeRequest request) {
-    Map<String, Object> document =
-        Map.of(
-            "workspace",
-            handle.workspaceId().toString(),
-            "vcpu_count",
-            request.vcpuCount(),
-            "memory_mib",
-            request.memoryMib(),
-            "kernel_cmdline_extra",
-            List.copyOf(request.kernelCmdlineExtra()),
-            "home",
-            handle.homePath().toString());
-    Path descriptor = handle.jailPath().resolve("runtime.json");
-    try {
-      Files.createDirectories(descriptor.toAbsolutePath().getParent());
-      Files.writeString(descriptor, mapper.writeValueAsString(document));
-    } catch (IOException failure) {
-      throw new UncheckedIOException("cannot write runtime descriptor", failure);
-    } catch (tools.jackson.core.JacksonException failure) {
-      throw new IllegalStateException("cannot encode runtime descriptor", failure);
-    }
   }
 }
