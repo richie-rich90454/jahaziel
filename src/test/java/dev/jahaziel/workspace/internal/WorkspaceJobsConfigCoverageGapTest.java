@@ -98,18 +98,19 @@ class WorkspaceJobsConfigCoverageGapTest {
   }
 
   @Test
-  void backendConfigSelects(@TempDir Path root) {
+  void backendConfigSelectsOnlyVerifiedBackend() {
     WorkspaceBackendConfig config = new WorkspaceBackendConfig();
     var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
-    NodeBackend fire = config.nodeBackend("firecracker", storage, root.toString());
-    assertInstanceOf(FirecrackerBackend.class, fire);
-    NodeBackend upper = config.nodeBackend("  FIRECRACKER  ", storage, root.toString());
-    assertInstanceOf(FirecrackerBackend.class, upper);
-    assertInstanceOf(
-        LocalProcessBackend.class, config.nodeBackend("local", storage, root.toString()));
+    NodeBackend local = config.nodeBackend("local", storage);
+    assertInstanceOf(LocalProcessBackend.class, local);
+    assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
+    assertThrows(
+        IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
+    assertThrows(
+        IllegalArgumentException.class, () -> config.nodeBackend("  FIRECRACKER  ", storage));
     assertThrows(
         IllegalArgumentException.class,
-        () -> config.nodeBackend("other", storage, root.toString()));
+        () -> config.nodeBackend("other", storage));
   }
 
   @Test
