@@ -87,11 +87,9 @@ class FirecrackerBackendCoverageGapTest {
               Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
             files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(false);
             assertThrows(
-                IllegalStateException.class,
-                () -> backend.prepare(prepareFor(UUID.randomUUID())));
+                IllegalStateException.class, () -> backend.prepare(prepareFor(UUID.randomUUID())));
             assertThrows(
-                IllegalStateException.class,
-                () -> backend.start(runtimeFor(UUID.randomUUID())));
+                IllegalStateException.class, () -> backend.start(runtimeFor(UUID.randomUUID())));
           }
         });
   }
