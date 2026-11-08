@@ -27,6 +27,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,9 +52,19 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private static final Logger log = LoggerFactory.getLogger(WorkspaceTaskServiceImpl.class);
   private static final int MAX_OUTPUT_CHARS = 64 * 1024;
   private static final int MAX_TASKS = 4;
+  private static final int MAX_DISCOVERED_TASKS = 32;
+  private static final long MAX_PROJECT_MANIFEST_BYTES = 256 * 1024;
   private static final Duration MAX_RUNTIME = Duration.ofMinutes(30);
   private static final Set<String> LANGUAGE_PACK_IDS =
       Set.of("cpp", "java", "go", "rust", "typescript", "python");
+  private static final Map<String, String> PACKAGE_SCRIPT_LABELS =
+      Map.of(
+          "dev", "Start development server",
+          "start", "Start project",
+          "preview", "Start preview server",
+          "serve", "Serve project",
+          "test", "Run tests",
+          "build", "Build project");
 
   private final Path storageRoot;
   private final Path templatesRoot;
@@ -279,19 +291,260 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   public List<Task> tasks(WorkspaceId workspaceId) {
     WorkspaceMetadata state = metadataOrNull(workspaceId);
     if (state == null) return List.of();
-    JsonNode definitions = manifest(state.templateName()).path("runTasks");
-    if (!definitions.isArray()) return List.of();
-    List<Task> result = new ArrayList<>();
-    for (JsonNode definition : definitions) {
-      result.add(
-          new Task(
-              requiredId(definition.path("id")),
-              requiredLabel(definition.path("label")),
-              definition.path("port").isIntegralNumber()
-                  ? definition.path("port").intValue()
-                  : null));
+    return taskDefinitions(workspaceId, state).stream()
+        .map(definition -> new Task(definition.id(), definition.label(), definition.port()))
+        .toList();
+  }
+
+  private List<TaskDefinition> taskDefinitions(WorkspaceId workspaceId, WorkspaceMetadata state) {
+    List<TaskDefinition> result = new ArrayList<>();
+    Set<String> ids = new HashSet<>();
+    JsonNode configured = manifest(state.templateName()).path("runTasks");
+    if (configured.isArray()) {
+      for (JsonNode definition : configured) {
+        String id = requiredId(definition.path("id"));
+        Integer port =
+            definition.path("port").isIntegralNumber() ? definition.path("port").intValue() : null;
+        if (ids.add(id)) {
+          result.add(
+              new TaskDefinition(
+                  id,
+                  requiredLabel(definition.path("label")),
+                  port,
+                  command(definition.path("command"))));
+        }
+      }
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS) {
+      discoverProjectTasks(workspaceId, state, result, ids);
     }
     return List.copyOf(result);
+  }
+
+  private void discoverProjectTasks(
+      WorkspaceId workspaceId,
+      WorkspaceMetadata state,
+      List<TaskDefinition> result,
+      Set<String> ids) {
+    Path home = directories.home(workspaceId);
+    JsonNode packageJson = readProjectManifest(home.resolve("package.json"), workspaceId);
+    if (packageJson != null) {
+      discoverPackageScripts(packageJson, home, state, result, ids);
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("Makefile"))) {
+      discoverMakeTargets(home.resolve("Makefile"), result, ids, workspaceId);
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("pom.xml"))) {
+      String wrapper = executableWrapper(home.resolve("mvnw"), "mvn");
+      addDiscovered(
+          result, ids, "discovered-maven-test", "Run Maven tests", null, List.of(wrapper, "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-maven-package",
+          "Build Maven project",
+          null,
+          List.of(wrapper, "package"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS
+        && (isPlainFile(home.resolve("build.gradle"))
+            || isPlainFile(home.resolve("build.gradle.kts")))) {
+      String wrapper = executableWrapper(home.resolve("gradlew"), "gradle");
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-test",
+          "Run Gradle tests",
+          null,
+          List.of(wrapper, "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-build",
+          "Build Gradle project",
+          null,
+          List.of(wrapper, "build"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-run",
+          "Run Gradle application",
+          null,
+          List.of(wrapper, "run"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("Cargo.toml"))) {
+      addDiscovered(
+          result, ids, "discovered-cargo-test", "Run Cargo tests", null, List.of("cargo", "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-cargo-run",
+          "Run Rust application",
+          null,
+          List.of("cargo", "run"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("go.mod"))) {
+      addDiscovered(
+          result, ids, "discovered-go-test", "Run Go tests", null, List.of("go", "test", "./..."));
+      addDiscovered(
+          result, ids, "discovered-go-run", "Run Go application", null, List.of("go", "run", "."));
+    }
+  }
+
+  private void discoverPackageScripts(
+      JsonNode packageJson,
+      Path home,
+      WorkspaceMetadata state,
+      List<TaskDefinition> result,
+      Set<String> ids) {
+    JsonNode scripts = packageJson.path("scripts");
+    if (!scripts.isObject()) return;
+    String manager = packageManager(packageJson, home);
+    if (manager == null) return;
+    for (String script : List.of("dev", "start", "preview", "serve", "test", "build")) {
+      JsonNode value = scripts.get(script);
+      if (value == null || !value.isTextual() || value.asString().isBlank()) continue;
+      if (result.stream()
+          .anyMatch(
+              configured ->
+                  String.join(" ", configured.command()).equals(value.asString().strip()))) {
+        continue;
+      }
+      String id = "discovered-package-" + encodeTaskId(script);
+      String label = PACKAGE_SCRIPT_LABELS.get(script) + " (" + manager + ")";
+      Integer port = packageScriptPort(script, value.asString(), packageJson, state.templateName());
+      addDiscovered(result, ids, id, label, port, List.of(manager, "run", script));
+      if (result.size() >= MAX_DISCOVERED_TASKS) return;
+    }
+  }
+
+  private static String packageManager(JsonNode packageJson, Path home) {
+    JsonNode declared = packageJson.path("packageManager");
+    if (declared.isTextual()) {
+      String value = declared.asString();
+      if (value.startsWith("pnpm@")) return "pnpm";
+      if (value.startsWith("npm@")) return "npm";
+      if (value.startsWith("yarn@")) return "yarn";
+      return null;
+    }
+    if (isPlainFile(home.resolve("pnpm-lock.yaml"))
+        || isPlainFile(home.resolve("pnpm-workspace.yaml"))) return "pnpm";
+    if (isPlainFile(home.resolve("yarn.lock"))) return "yarn";
+    return "npm";
+  }
+
+  private Integer packageScriptPort(
+      String script, String command, JsonNode packageJson, String templateName) {
+    java.util.regex.Matcher explicit =
+        java.util.regex.Pattern.compile("(?:--port(?:=|\\s+)|(?:^|\\s)-p\\s+|PORT=)([0-9]{1,5})")
+            .matcher(command);
+    if (explicit.find()) {
+      int port = Integer.parseInt(explicit.group(1));
+      if (port >= 1 && port <= 65535) return port;
+    }
+    boolean vite = dependency(packageJson, "vite");
+    if (script.equals("dev") && vite) return 5173;
+    if (script.equals("preview") && vite) return 4173;
+    if (script.equals("dev") && dependency(packageJson, "@angular/cli")) return 4200;
+    if (script.equals("dev")
+        && (dependency(packageJson, "next")
+            || dependency(packageJson, "nuxt")
+            || dependency(packageJson, "react-scripts"))) return 3000;
+    if (script.equals("dev") && dependency(packageJson, "astro")) return 4321;
+    if (Set.of("dev", "start", "preview", "serve").contains(script)) {
+      Integer declared = firstTemplatePort(templateName);
+      if (declared != null) return declared;
+      return switch (script) {
+        case "dev" -> 5173;
+        case "preview" -> 4173;
+        case "serve" -> 8080;
+        default -> 3000;
+      };
+    }
+    return null;
+  }
+
+  private static boolean dependency(JsonNode packageJson, String name) {
+    return packageJson.path("dependencies").has(name)
+        || packageJson.path("devDependencies").has(name)
+        || packageJson.path("peerDependencies").has(name);
+  }
+
+  private Integer firstTemplatePort(String templateName) {
+    JsonNode ports = manifest(templateName).path("ports");
+    if (!ports.isArray()) return null;
+    for (JsonNode port : ports) {
+      if (port.isIntegralNumber() && port.intValue() >= 1 && port.intValue() <= 65535) {
+        return port.intValue();
+      }
+    }
+    return null;
+  }
+
+  private void discoverMakeTargets(
+      Path makefile, List<TaskDefinition> result, Set<String> ids, WorkspaceId workspaceId) {
+    try {
+      if (Files.size(makefile) > MAX_PROJECT_MANIFEST_BYTES) return;
+      int count = 0;
+      for (String line : Files.readAllLines(makefile, StandardCharsets.UTF_8)) {
+        String trimmed = line.strip();
+        if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(".")) continue;
+        int colon = trimmed.indexOf(':');
+        if (colon <= 0 || (trimmed.indexOf('=') >= 0 && trimmed.indexOf('=') < colon)) continue;
+        String targets = trimmed.substring(0, colon).strip();
+        for (String target : targets.split("\\s+")) {
+          if (!target.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,47}")) continue;
+          String id = "discovered-make-" + encodeTaskId(target);
+          addDiscovered(
+              result, ids, id, "Run Make target: " + target, null, List.of("make", "--", target));
+          if (++count >= 16 || result.size() >= MAX_DISCOVERED_TASKS) return;
+        }
+      }
+    } catch (IOException | RuntimeException malformed) {
+      log.warn("cannot discover Make targets workspaceId={}", workspaceId);
+    }
+  }
+
+  private JsonNode readProjectManifest(Path path, WorkspaceId workspaceId) {
+    try {
+      if (!isPlainFile(path) || Files.size(path) > MAX_PROJECT_MANIFEST_BYTES) return null;
+      JsonNode manifest = json.readTree(Files.readString(path, StandardCharsets.UTF_8));
+      return manifest != null && manifest.isObject() ? manifest : null;
+    } catch (IOException | RuntimeException malformed) {
+      log.warn("cannot discover package scripts workspaceId={}", workspaceId);
+      return null;
+    }
+  }
+
+  private static boolean isPlainFile(Path path) {
+    return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path);
+  }
+
+  private static String executableWrapper(Path wrapper, String fallback) {
+    return Files.isRegularFile(wrapper, LinkOption.NOFOLLOW_LINKS)
+            && !Files.isSymbolicLink(wrapper)
+            && Files.isExecutable(wrapper)
+        ? "./" + wrapper.getFileName()
+        : fallback;
+  }
+
+  private static String encodeTaskId(String value) {
+    return Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void addDiscovered(
+      List<TaskDefinition> result,
+      Set<String> ids,
+      String id,
+      String label,
+      Integer port,
+      List<String> command) {
+    if (result.size() >= MAX_DISCOVERED_TASKS
+        || !ids.add(id)
+        || result.stream().anyMatch(existing -> existing.command().equals(command))) return;
+    result.add(new TaskDefinition(id, label, port, List.copyOf(command)));
   }
 
   @Override
@@ -310,15 +563,14 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (!"READY".equals(state.setupStatus())) {
       throw new IllegalStateException("template setup must finish before running a task");
     }
-    JsonNode selected = null;
-    for (JsonNode definition : manifest(state.templateName()).path("runTasks")) {
-      if (definition.path("id").asString("").equals(taskId)) selected = definition;
-    }
-    if (selected == null) throw new IllegalArgumentException("unknown workspace task");
-    List<String> command = command(selected.path("command"));
-    String label = requiredLabel(selected.path("label"));
-    Integer previewPort =
-        selected.path("port").isIntegralNumber() ? selected.path("port").intValue() : null;
+    TaskDefinition selected =
+        taskDefinitions(workspaceId, state).stream()
+            .filter(definition -> definition.id().equals(taskId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("unknown workspace task"));
+    List<String> command = selected.command();
+    String label = selected.label();
+    Integer previewPort = selected.port();
     if (previewPort != null && (previewPort < 1 || previewPort > 65535)) {
       throw new IllegalArgumentException("task preview port must be between 1 and 65535");
     }
@@ -966,6 +1218,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private static Integer safeExitOrNull(Process process) {
     return process == null ? null : safeExit(process);
   }
+
+  private record TaskDefinition(String id, String label, Integer port, List<String> command) {}
 
   private static boolean isStarted(WorkspaceState state) {
     return state instanceof WorkspaceState.Ready
