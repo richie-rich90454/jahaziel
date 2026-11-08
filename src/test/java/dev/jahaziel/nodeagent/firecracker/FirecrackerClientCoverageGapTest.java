@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class FirecrackerClientCoverageGapTest {
   @Test
   void shutdownAcceptsNoContent() throws Exception {
-    Path socket = shortSocketPath("ok204");
+    Path socket = shortSocketPath();
     FakeApi api = new FakeApi(socket, "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
     try {
       new FirecrackerClient().shutdown(socket.toString());
@@ -38,7 +38,7 @@ class FirecrackerClientCoverageGapTest {
 
   @Test
   void shutdownAcceptsOk() throws Exception {
-    Path socket = shortSocketPath("ok200");
+    Path socket = shortSocketPath();
     FakeApi api = new FakeApi(socket, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
     try {
       new FirecrackerClient().shutdown(socket.toString());
@@ -50,7 +50,7 @@ class FirecrackerClientCoverageGapTest {
 
   @Test
   void shutdownRefusesError() throws Exception {
-    Path socket = shortSocketPath("err");
+    Path socket = shortSocketPath();
     FakeApi api = new FakeApi(socket, "HTTP/1.1 500 Internal Error\r\nContent-Length: 2\r\n\r\n{}");
     try {
       FirecrackerException failure =
@@ -64,12 +64,20 @@ class FirecrackerClientCoverageGapTest {
     }
   }
 
-  private static Path shortSocketPath(String prefix) {
+  private static Path shortSocketPath() {
     Path directory =
         java.io.File.separatorChar == '\\'
-            ? Path.of(System.getProperty("java.io.tmpdir"))
+            ? Path.of(System.getProperty("user.dir"), ".cache")
             : Path.of("/tmp");
-    return directory.resolve("jhz-" + prefix + "-" + UUID.randomUUID() + ".sock");
+    if (java.io.File.separatorChar == '\\') {
+      try {
+        Files.createDirectories(directory);
+      } catch (IOException failure) {
+        throw new IllegalStateException("Could not create the short socket directory", failure);
+      }
+    }
+    String suffix = UUID.randomUUID().toString().replace("-", "");
+    return directory.resolve("j" + suffix + ".sock");
   }
 
   /** Single-connection fake Firecracker API over a Unix socket. */
@@ -77,26 +85,26 @@ class FirecrackerClientCoverageGapTest {
     private final Path socketPath;
     private final String response;
     private final AtomicReference<String> seen = new AtomicReference<>("");
+    private final ServerSocketChannel listener;
     private final Thread server;
 
-    FakeApi(Path socketPath, String response) throws InterruptedException {
+    FakeApi(Path socketPath, String response) throws IOException {
       this.socketPath = socketPath;
       this.response = response;
+      listener = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+      listener.bind(UnixDomainSocketAddress.of(socketPath));
       server = Thread.ofPlatform().daemon().start(this::serve);
-      for (int i = 0; i < 200 && !Files.exists(socketPath); i++) {
-        Thread.sleep(10);
-      }
     }
 
     void close() throws Exception {
+      listener.close();
       server.join(10000);
       Files.deleteIfExists(socketPath);
     }
 
     private void serve() {
-      try (ServerSocketChannel serverCh = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
-        serverCh.bind(UnixDomainSocketAddress.of(socketPath));
-        try (SocketChannel accepted = serverCh.accept()) {
+      try (listener) {
+        try (SocketChannel accepted = listener.accept()) {
           accepted.configureBlocking(true);
           seen.set(new String(readAll(accepted), StandardCharsets.UTF_8));
           accepted.write(ByteBuffer.wrap(response.getBytes(StandardCharsets.US_ASCII)));
