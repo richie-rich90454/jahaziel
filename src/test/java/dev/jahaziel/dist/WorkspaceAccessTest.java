@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sun.net.httpserver.HttpServer;
 import dev.jahaziel.JahazielApplication;
 import dev.jahaziel.identity.api.JwtService;
-import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.persistence.AppUserEntity;
 import dev.jahaziel.identity.persistence.AppUserRepository;
@@ -45,9 +44,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * End-to-end workspace access: a port registered for a running workspace becomes reachable through
- * the gateway at its host-form URL, authenticated by the workspace-scoped token the API returned.
- * The token binds one user, one workspace, and one port; anything else is refused.
+ * End-to-end workspace access: a registered port is reachable through the fixed preview host at
+ * its workspace-and-port path, authenticated by the scoped token the API returned. The token binds
+ * one user, one workspace, and one port; anything else is refused.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkspaceAccessTest {
@@ -120,9 +119,7 @@ class WorkspaceAccessTest {
   }
 
   @Test
-  void registeredPortIsReachableThroughTheGatewayWithItsToken() throws Exception {
-    String slug = context.getBean(UserService.class).slug(owner);
-
+  void registeredPortIsReachableThroughFixedPreviewPathWithItsToken() throws Exception {
     JsonNode workspace =
         json(post("/api/v1/workspaces", ownerToken, "{\"name\":\"access-check\"}"));
     workspaceId = workspace.get("workspaceId").asString();
@@ -139,23 +136,23 @@ class WorkspaceAccessTest {
                 ownerToken,
                 "{\"port\":" + backendPort + ",\"protocol\":\"http\"}"));
     String url = port.get("url").asString();
-    assertTrue(
-        url.startsWith(
-            "http://" + slug + "-" + backendPort + "." + DOMAIN + ":" + GATEWAY_PORT + "/?token="),
-        url);
-
     URI parsed = URI.create(url);
+    assertEquals("preview." + DOMAIN, parsed.getHost());
+    assertTrue(parsed.getPath().endsWith("/" + workspaceId + "/" + backendPort + "/"), url);
     String token = queryToken(parsed.getRawQuery());
 
-    RawResponse anonymous = get(parsed.getHost(), "/");
+    RawResponse anonymous = get(parsed.getRawAuthority(), parsed.getRawPath());
     assertEquals(401, anonymous.status(), anonymous.body());
 
-    RawResponse served = get(parsed.getHost(), "/?token=" + token);
+    RawResponse served = get(parsed.getRawAuthority(), parsed.getRawPath() + "?token=" + token);
     assertEquals(200, served.status(), served.body());
     assertTrue(served.body().contains("jahaziel-workspace-marker"), served.body());
 
     String foreign = tokens.issue(owner, UUID.randomUUID(), List.of(), Duration.ofMinutes(5));
-    assertEquals(403, get(parsed.getHost(), "/?token=" + foreign).status(), "wrong workspace");
+    assertEquals(
+        403,
+        get(parsed.getRawAuthority(), parsed.getRawPath() + "?token=" + foreign).status(),
+        "wrong workspace");
   }
 
   private HttpServer dummyServer() throws IOException {
@@ -191,9 +188,9 @@ class WorkspaceAccessTest {
     return MAPPER.readTree(body);
   }
 
-  /** Sends a request to the gateway with a chosen Host header, which HttpClient forbids. */
+  /** Sends a request to the application with a chosen Host header, which HttpClient forbids. */
   private static RawResponse get(String host, String target) throws IOException {
-    try (Socket socket = new Socket("127.0.0.1", GATEWAY_PORT)) {
+    try (Socket socket = new Socket("127.0.0.1", API_PORT)) {
       socket.setSoTimeout(10_000);
       String request =
           "GET " + target + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
