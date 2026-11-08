@@ -30,3 +30,40 @@ Last verified against version 0.1.0-SNAPSHOT.
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
 [CLI reference](../reference/cli.md).
+
+## Debug adapters
+
+Debugging is disabled for a language until an administrator configures a
+compatible Debug Adapter Protocol (DAP) adapter. Jahaziel does not download or
+install debugger adapters. Add the catalog to the external `application.yml`
+in the directory from which the jar is launched, and provide an absolute Linux
+executable path plus the exact fixed arguments verified for that adapter:
+
+```yaml
+jahaziel:
+  debug:
+    adapters:
+      node:
+        version: "<administrator-pinned-version>"
+        transport: STDIO
+        command:
+          - "/absolute/path/to/verified-node-dap-adapter"
+          - "<verified-stdio-argument>"
+```
+
+Replace both placeholders with the installed adapter's pinned version and
+documented command. Configure only adapters installed and maintained by the
+server administrator. The browser cannot select an executable, adapter
+arguments, or transport. Add entries using `python`, `java`, `cpp`, `go`, or
+`rust` for the other supported language IDs.
+
+`STDIO` is the default and recommended transport. If an adapter supports only
+TCP, set `transport: TCP` and include `{port}` in one fixed command argument;
+Jahaziel substitutes an available local port. Verify that the adapter binds
+only to loopback before enabling TCP. A DAP adapter runs under the Jahaziel
+service account with the same trust boundary as workspace processes.
+
+After configuring adapters, restart Jahaziel and open the **Debug** panel in a
+running workspace. This release supports launch sessions only. Adapter
+installation, `attach`, restart, and the `.vscode/launch.json` subset are not
+provided by the current implementation.
