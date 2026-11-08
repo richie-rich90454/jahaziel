@@ -17,6 +17,8 @@ import dev.jahaziel.audit.internal.PartitionProvisionJob;
 import dev.jahaziel.audit.persistence.AuditEventRepository;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.authorization.internal.AuthorizationServiceImpl;
+import dev.jahaziel.debug.internal.DebugAdapterProperties;
+import dev.jahaziel.debug.internal.DebugServiceImpl;
 import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.extension.internal.ExtensionPolicyServiceImpl;
 import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
@@ -84,14 +86,18 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * Service wiring. Every collaborator arrives by constructor; the scheduler starts after all jobs
  * are registered and stops with the context.
  */
 @Configuration
+@EnableConfigurationProperties(DebugAdapterProperties.class)
 public class AppConfig {
   /** Returns the system clock. */
   @Bean
@@ -182,6 +188,15 @@ public class AppConfig {
       @Value("${jahaziel.storage.root}") String storageRoot,
       WorkspaceProcessRegistry processRegistry) {
     return new LanguageServerProcessManager(packs, directories, json, storageRoot, processRegistry);
+  }
+
+  /** Combines workspace shutdown across language-service and debugger processes. */
+  @Bean
+  @Primary
+  public WorkspaceProcessLifecycle workspaceProcessLifecycle(
+      LanguageServerProcessManager languageProcesses,
+      ObjectProvider<DebugServiceImpl> debugProcesses) {
+    return new WorkspaceProcessLifecycleComposite(languageProcesses, debugProcesses);
   }
 
   /** Returns runtime lifecycle orchestration. */
