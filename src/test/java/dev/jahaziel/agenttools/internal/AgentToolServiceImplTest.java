@@ -5,17 +5,23 @@
 package dev.jahaziel.agenttools.internal;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
+import dev.jahaziel.identity.domain.UserId;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.ObjectMapper;
 
 class AgentToolServiceImplTest {
   @TempDir Path temporary;
@@ -47,6 +53,37 @@ class AgentToolServiceImplTest {
     assertThrows(
         IOException.class,
         () -> AgentToolServiceImpl.extractExecutable(archive, temporary.resolve("opencode")));
+  }
+
+  @Test
+  void extractsThePinnedNestedRipgrepEntry() throws Exception {
+    byte[] executable = new byte[] {0x7f, 'E', 'L', 'F', 1, 2, 3};
+    String entryName = "ripgrep-15.2.0-x86_64-unknown-linux-musl/rg";
+    Path archive = archive(entry(entryName, executable));
+    Path destination = temporary.resolve("rg");
+
+    AgentToolServiceImpl.extractExecutable(archive, destination, entryName);
+
+    assertArrayEquals(executable, Files.readAllBytes(destination));
+  }
+
+  @Test
+  void preparesSeparateToolAndProfileDirectoriesForEachUser() {
+    AgentToolServiceImpl service =
+        new AgentToolServiceImpl(
+            temporary.resolve("data"), mock(ObjectMapper.class), mock(HttpClient.class));
+    UserId first = new UserId(java.util.UUID.randomUUID());
+    UserId second = new UserId(java.util.UUID.randomUUID());
+
+    service.prepareProfile(first);
+    service.prepareProfile(second);
+
+    assertTrue(Files.isDirectory(service.executableDirectory(first)));
+    assertTrue(Files.isDirectory(service.profileDirectory(first).resolve("config")));
+    assertTrue(Files.isDirectory(service.profileDirectory(first).resolve("data")));
+    assertTrue(Files.isDirectory(service.profileDirectory(first).resolve("cache")));
+    assertNotEquals(service.executableDirectory(first), service.executableDirectory(second));
+    assertNotEquals(service.profileDirectory(first), service.profileDirectory(second));
   }
 
   private Path archive(TarEntry... entries) throws IOException {
