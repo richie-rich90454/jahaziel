@@ -185,6 +185,33 @@ h1, h2, h3, p { margin-top: 0; }
 .task-button:hover { border-color: #647957; color: var(--acid); }
 .task-button:disabled { cursor: wait; opacity: .6; }
 .task-output { max-height: 90px; overflow: auto; margin: 0 8px 8px; border: 1px solid #2e382d; padding: 6px; color: #a8b59f; background: #111611; white-space: pre-wrap; overflow-wrap: anywhere; font: 8px/1.45 var(--mono); }
+.debug-panel { flex: 0 1 430px; max-height: 48vh; overflow: auto; border-top: 1px solid var(--line-soft); background: #181e18; }
+.debug-launch-form { display: grid; gap: 7px; padding: 0 9px 8px; }
+.debug-field { display: grid; min-width: 0; gap: 4px; color: #8f9a89; font: 8px var(--mono); }
+.debug-field input, .debug-field select { width: 100%; min-width: 0; height: 28px; border: 1px solid #394334; border-radius: 3px; padding: 0 7px; color: #d6dfd0; background: #111611; font: 9px var(--mono); }
+.debug-field input:focus, .debug-field select:focus { border-color: #71865f; outline: 1px solid #71865f; }
+.debug-check { display: flex; align-items: center; gap: 6px; color: #aab5a3; font: 8px var(--mono); }
+.debug-check input { width: 16px; height: 16px; accent-color: var(--acid); }
+.debug-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 9px 8px; }
+.debug-actions .button { min-height: 30px; padding: 0 9px; font: 8px var(--mono); }
+.debug-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0 9px 9px; }
+.debug-controls button, .debug-inline-form > button { min-height: 29px; border: 1px solid #394334; border-radius: 3px; padding: 0 6px; background: #202720; color: #b8c5af; cursor: pointer; font: 8px var(--mono); }
+.debug-controls button:hover:not(:disabled), .debug-inline-form > button:hover:not(:disabled) { border-color: #71865f; color: var(--acid); }
+.debug-controls button:disabled, .debug-inline-form > button:disabled { opacity: .45; cursor: not-allowed; }
+.debug-subpanel { min-width: 0; border-top: 1px solid #2b342a; padding: 8px 9px; }
+.debug-subpanel h3 { margin: 0 0 6px; color: #82917b; font: 8px var(--mono); letter-spacing: .08em; }
+.debug-inline-form { display: flex; align-items: flex-end; gap: 5px; }
+.debug-inline-form .debug-field { flex: 1 1 auto; }
+.debug-list { display: grid; gap: 2px; max-height: 150px; overflow: auto; list-style: none; margin: 5px 0 0; padding: 0; }
+.debug-list button { display: block; width: 100%; min-height: 26px; overflow: hidden; border: 0; border-radius: 2px; padding: 4px 6px; background: transparent; color: #c0ccb8; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font: 8px/1.35 var(--mono); }
+.debug-list button:hover { background: #252d25; color: var(--acid); }
+.debug-empty { padding: 4px 6px; color: #788474; font: 8px/1.4 var(--mono); }
+.debug-watch-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: baseline; border-bottom: 1px solid #283128; padding: 4px 2px; font: 8px var(--mono); }
+.debug-watch-expression { overflow: hidden; color: #93a58a; text-overflow: ellipsis; white-space: nowrap; }
+.debug-watch-value { max-width: 56%; overflow: hidden; color: #d2ddc9; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.debug-console { max-height: 140px; overflow: auto; margin: 0 0 7px; border: 1px solid #2e382d; padding: 7px; color: #b2c1a9; background: #111611; white-space: pre-wrap; overflow-wrap: anywhere; font: 8px/1.45 var(--mono); }
+.debug-inspect-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.debug-inspect-grid > .debug-subpanel + .debug-subpanel { border-left: 1px solid #2b342a; }
 .git-panel { flex: 0 0 auto; max-height: 220px; overflow: auto; border-top: 1px solid var(--line-soft); background: #181e18; }
 .git-heading-actions { display: flex; align-items: center; gap: 8px; }
 .git-changes { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0 7px 7px; }
@@ -321,6 +348,7 @@ h1, h2, h3, p { margin-top: 0; }
   #workbench-page[data-active-panel="files"] .file-sidebar,
   #workbench-page[data-active-panel="run"] .file-sidebar,
   #workbench-page[data-active-panel="languages"] .file-sidebar,
+  #workbench-page[data-active-panel="debug"] .file-sidebar,
   #workbench-page[data-active-panel="git"] .file-sidebar { display: flex; }
   #workbench-page[data-active-panel="editor"] .editor-column,
   #workbench-page[data-active-panel="terminal"] .editor-column,
@@ -344,6 +372,15 @@ h1, h2, h3, p { margin-top: 0; }
   #workbench-page[data-active-panel="languages"] .file-sidebar > .task-panel,
   #workbench-page[data-active-panel="languages"] .file-sidebar > .git-panel,
   #workbench-page[data-active-panel="languages"] .file-sidebar > .sidebar-foot { display: none; }
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .panel-heading:first-child,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .project-root,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .workspace-search,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .file-actions,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .file-tree,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .task-panel,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .language-panel,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .git-panel,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .sidebar-foot { display: none; }
   #workbench-page[data-active-panel="git"] .file-sidebar > .panel-heading:first-child,
   #workbench-page[data-active-panel="git"] .file-sidebar > .project-root,
   #workbench-page[data-active-panel="git"] .file-sidebar > .workspace-search,
@@ -354,6 +391,7 @@ h1, h2, h3, p { margin-top: 0; }
   #workbench-page[data-active-panel="git"] .file-sidebar > .sidebar-foot { display: none; }
   #workbench-page[data-active-panel="run"] .task-panel,
   #workbench-page[data-active-panel="languages"] .language-panel,
+  #workbench-page[data-active-panel="debug"] .debug-panel,
   #workbench-page[data-active-panel="git"] .git-panel { min-height: 0; max-height: none; flex: 1 1 auto; border-top: 0; }
   #workbench-page[data-active-panel="editor"] .terminal-dock,
   #workbench-page[data-active-panel="editor"] .preview-dock,
@@ -408,6 +446,22 @@ h1, h2, h3, p { margin-top: 0; }
   .language-pack-meta { font-size: 9px; }
   .language-pack-action { min-height: 40px; padding: 0 10px; font-size: 10px; }
   .language-diagnostic { min-height: 40px; padding: 7px; font-size: 10px; }
+  .debug-panel { width: 100%; overflow: auto; }
+  .debug-launch-form { gap: 10px; padding: 0 12px 12px; }
+  .debug-field { gap: 6px; font-size: 10px; }
+  .debug-field input, .debug-field select { height: 44px; padding: 0 10px; font-size: 13px; }
+  .debug-check { min-height: 40px; font-size: 11px; }
+  .debug-actions { gap: 8px; padding: 0 12px 10px; }
+  .debug-actions .button { min-height: 44px; padding: 0 12px; font-size: 11px; }
+  .debug-controls { gap: 6px; padding: 0 12px 12px; }
+  .debug-controls button, .debug-inline-form > button { min-height: 44px; padding: 0 8px; font-size: 10px; }
+  .debug-subpanel { padding: 11px 12px; }
+  .debug-subpanel h3 { margin-bottom: 8px; font-size: 10px; }
+  .debug-list { max-height: 22vh; gap: 4px; }
+  .debug-list button { min-height: 40px; padding: 7px; font-size: 10px; }
+  .debug-empty { padding: 7px; font-size: 10px; }
+  .debug-watch-row { padding: 7px 3px; font-size: 10px; }
+  .debug-console { max-height: 25vh; padding: 9px; font-size: 10px; }
   .git-change { min-height: 46px; gap: 6px; }
   .git-path { padding: 8px; font-size: 11px; }
   .git-action { min-height: 38px; padding: 0 8px; font-size: 10px; }
