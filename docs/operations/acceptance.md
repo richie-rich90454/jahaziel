@@ -13,6 +13,8 @@ built, tested, packaged, and smoke-launched on native CI runners. The arm64 job
 must report `aarch64`; emulation does not substitute for it. Both jobs also run
 a headless browser flow against the packaged jar. Browser tooling stays in the
 hosted runner's temporary directory and is not part of the app or release jar.
+That packaged desktop-browser flow is a regression check; it does not replace
+the real-iPad acceptance gate below.
 
 ## Candidate under test
 
@@ -42,6 +44,24 @@ hosted runner's temporary directory and is not part of the app or release jar.
 15. Confirm normal build does not download IDE servers or language packs and the jar contains no toolchains.
 16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
 17. Back up and restore `data/` and `.env` according to `docs/operations/backup.md`.
+
+## iPad release gate
+
+Complete this matrix on real iPads for the current and two previous major
+iPadOS versions before declaring the workbench shippable. Record the device
+model, iPadOS version, browser version, and result for each run.
+
+| Browser | Touch-only | Keyboard and trackpad | Portrait / landscape | Split View / Stage Manager |
+|---|---|---|---|---|
+| Safari | pending | pending | pending | pending |
+| Chrome | pending | pending | pending | pending |
+| Edge | pending | pending | pending | pending |
+
+For every row, verify editing and touch selection, virtual keyboard behavior,
+terminal shortcut keys and TUI interaction, preview opening in-panel and in a
+new tab, tab suspension and draft recovery, WebSocket reconnect, and layout at
+compact widths. Repeat the core flows with the external keyboard disconnected
+so every control remains reachable by touch.
 
 The optional catalog includes an opt-in Go 1.27.3 SDK and gopls v0.24.0 build
 for Linux x64 and arm64. Its displayed download size covers the Go SDK only;
