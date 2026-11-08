@@ -85,7 +85,9 @@ class PortControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].port").value(8080))
         .andExpect(jsonPath("$[0].listening").value(true))
-        .andExpect(jsonPath("$[0].url").value("https://richard-8080.code.test/?token=tok"));
+        .andExpect(
+            jsonPath("$[0].url")
+                .value("https://preview.code.test/" + workspace + "/8080/?token=tok"));
   }
 
   @Test
