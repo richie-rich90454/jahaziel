@@ -5,6 +5,17 @@
   "memoryMib": 4096,
   "ports": [],
   "languagePacks": ["cpp"],
+  "runTasks": [
+    {
+      "id": "run",
+      "label": "Compile and run C++ program",
+      "command": [
+        "/bin/sh",
+        "-lc",
+        "clang++ -std=c++20 -Wall -Wextra -pedantic main.cpp -o .jahaziel-app && ./.jahaziel-app"
+      ]
+    }
+  ],
   "starterFiles": {
     "README.md": "# C++\n\nBuild with `clang++ -std=c++20 -Wall -Wextra -pedantic main.cpp -o app`, then run `./app`.\n",
     "main.cpp": "#include <iostream>\n\nint main() {\n    std::cout << \"Hello from Jahaziel\\n\";\n    return 0;\n}\n"
