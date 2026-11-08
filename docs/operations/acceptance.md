@@ -44,6 +44,8 @@ the real-iPad acceptance gate below.
 15. Confirm normal build does not download IDE servers or language packs and the jar contains no toolchains.
 16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
 17. Back up and restore `data/` and `.env` according to `docs/operations/backup.md`.
+18. Configure verified, version-pinned DAP adapters for Node.js, Python, Java, C/C++, Go, and Rust. For each language, launch a workspace program, set and hit a breakpoint, inspect the call stack and variables, evaluate a watch and console expression, step and continue, reconnect the stream, stop the session, and confirm its adapter process exits. Repeat with missing adapters, invalid workspace paths, symlink escapes, unauthorized users, mismatched session/workspace IDs, and server restart; confirm errors are bounded and adapter processes do not survive workspace shutdown.
+19. Confirm the debugger never accepts browser-supplied executable paths or adapter arguments, and that unsupported `attach`, `restart`, `runInTerminal`, and `.vscode/launch.json` flows fail with clear errors rather than starting another process.
 
 ## iPad release gate
 
