@@ -554,7 +554,7 @@ async function refreshTasks(): Promise<void> {
   if (tasksResult.body.length === 0) {
     const empty = document.createElement("span");
     empty.className = "setup-row";
-    empty.textContent = "No run tasks in this template.";
+    empty.textContent = "No runnable tasks found in this workspace.";
     list.append(empty);
   }
   const latestRun = latestRunResult.body;
