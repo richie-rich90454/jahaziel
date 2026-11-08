@@ -422,6 +422,46 @@ class WorkspaceTaskServiceImplTest {
   }
 
   @Test
+  void previewTaskReceivesItsWorkspacePathAndPort() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase().contains("linux"),
+        "workspace tasks require Linux");
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(
+        template.resolve("template.json"),
+        """
+        {"name":"node","runTasks":[{"id":"serve","label":"Serve preview","command":["/usr/bin/env"],"port":3000}]}
+        """);
+    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
+    WorkspaceTaskServiceImpl service =
+        new WorkspaceTaskServiceImpl(
+            temp.resolve("data").toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            workspaces,
+            new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString()));
+    service.initialize(workspace, "node");
+
+    try {
+      WorkspaceTaskService.TaskRun started = service.startTask(workspace, "serve");
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      WorkspaceTaskService.TaskRun completed = service.taskRun(started.id());
+      while (System.nanoTime() < deadline && "RUNNING".equals(completed.status())) {
+        Thread.sleep(10);
+        completed = service.taskRun(started.id());
+      }
+
+      assertEquals("COMPLETED", completed.status());
+      assertTrue(completed.output().contains("3000"));
+      assertTrue(completed.output().contains("/" + workspace.value() + "/3000"));
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
   void stoppingWorkspaceTerminatesSetupProcessTreeAndKeepsProgress() throws Exception {
     Assumptions.assumeTrue(
         System.getProperty("os.name", "").toLowerCase().contains("linux"),
