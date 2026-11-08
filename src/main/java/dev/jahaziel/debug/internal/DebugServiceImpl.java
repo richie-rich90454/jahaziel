@@ -473,13 +473,16 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     }
   }
 
-  private static String readDapMessage(InputStream input) throws IOException {
+  static String readDapMessage(InputStream input) throws IOException {
     int contentLength = -1;
     int headerBytes = 0;
     boolean foundContentLength = false;
     while (true) {
       String line = readHeaderLine(input, headerBytes);
-      if (line == null) return null;
+      if (line == null) {
+        if (headerBytes == 0 && contentLength < 0) return null;
+        throw new IOException("DAP header ended unexpectedly");
+      }
       headerBytes += line.length() + 2;
       if (headerBytes > MAX_DAP_HEADER_BYTES) throw new IOException("DAP header is too large");
       if (line.isEmpty()) break;
