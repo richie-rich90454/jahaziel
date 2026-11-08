@@ -351,7 +351,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
 
   private ObjectNode launchArguments(AdapterSession session) {
     ObjectNode args = json.createObjectNode();
-    args.put("type", dapType(session.request.languageId()));
+    args.put("type", DebugService.DAP_ADAPTER_IDS.get(session.request.languageId()));
     args.put("request", "launch");
     args.put("name", "Jahaziel workspace launch");
     if (session.request.languageId().equals("java")) {
@@ -384,17 +384,6 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     if (sourcePath == null || !sourcePath.isString()) return;
     Path confined = resolveWorkspacePath(session.home, sourcePath.asString(), true, false);
     sourceObject.put("path", confined.toString());
-  }
-
-  private static String dapType(String languageId) {
-    return switch (languageId) {
-      case "node" -> "pwa-node";
-      case "python" -> "debugpy";
-      case "java" -> "java";
-      case "cpp", "rust" -> "lldb";
-      case "go" -> "go";
-      default -> throw new IllegalArgumentException("unsupported debug language");
-    };
   }
 
   private static Path resolveWorkspacePath(
@@ -750,7 +739,14 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
 
     private Session view() {
       return new Session(
-          id, workspaceId.value(), request.languageId(), state, adapterVersion, startedAt, error);
+          id,
+          workspaceId.value(),
+          request.languageId(),
+          DebugService.DAP_ADAPTER_IDS.get(request.languageId()),
+          state,
+          adapterVersion,
+          startedAt,
+          error);
     }
 
     private void attach(Consumer<String> listener) {
