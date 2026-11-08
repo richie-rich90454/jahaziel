@@ -118,6 +118,13 @@
             </section>
             <section class="debug-panel" aria-label="Debugger">
               <div class="panel-heading"><div><span class="panel-glyph">◆</span><span>DEBUG</span></div><span id="debug-state" class="panel-meta" role="status">NOT RUNNING</span></div>
+              <div class="debug-config-toolbar">
+                <button id="debug-load-launch-config" class="button button-quiet" type="button">Load .vscode/launch.json</button>
+                <label id="debug-launch-config-field" class="debug-field" for="debug-launch-config" hidden>Launch configuration
+                  <select id="debug-launch-config" hidden disabled></select>
+                </label>
+                <span id="debug-launch-config-status" class="debug-config-status" role="status" aria-live="polite"></span>
+              </div>
               <div class="debug-launch-form">
                 <label class="debug-field" for="debug-language">Language
                   <select id="debug-language">
