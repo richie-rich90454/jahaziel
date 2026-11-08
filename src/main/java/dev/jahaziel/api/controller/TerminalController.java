@@ -4,6 +4,8 @@
  */
 package dev.jahaziel.api.controller;
 
+import dev.jahaziel.agenttools.api.AgentToolNotInstalledException;
+import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.api.dto.TerminalSessionDto;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
@@ -14,6 +16,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TerminalController {
   private final TerminalService terminals;
   private final AuthorizationService auth;
+  private final AgentToolService agentTools;
 
   /**
    * Creates the controller.
@@ -38,8 +42,15 @@ public class TerminalController {
    * @param auth the authorization checks
    */
   public TerminalController(TerminalService terminals, AuthorizationService auth) {
+    this(terminals, auth, null);
+  }
+
+  @Autowired
+  public TerminalController(
+      TerminalService terminals, AuthorizationService auth, AgentToolService agentTools) {
     this.terminals = terminals;
     this.auth = auth;
+    this.agentTools = agentTools;
   }
 
   /**
@@ -60,6 +71,31 @@ public class TerminalController {
       Principal principal) {
     WorkspaceId workspace = require(principal, id, "write");
     return TerminalSessionDto.from(terminals.open(workspace, userId(principal), rows, cols));
+  }
+
+  /** Opens a terminal and starts the server-managed OpenCode command. */
+  @PostMapping("/workspaces/{id}/terminals/opencode")
+  @ResponseStatus(HttpStatus.CREATED)
+  public TerminalSessionDto openOpenCode(
+      @PathVariable UUID id,
+      @RequestParam(defaultValue = "30") int rows,
+      @RequestParam(defaultValue = "120") int cols,
+      Principal principal) {
+    UserId user = userId(principal);
+    WorkspaceId workspace = require(principal, id, "write");
+    if (agentTools == null
+        || agentTools.catalog(user).stream()
+            .noneMatch(tool -> "opencode".equals(tool.id()) && "INSTALLED".equals(tool.status()))) {
+      throw new AgentToolNotInstalledException();
+    }
+    var session = terminals.open(workspace, user, rows, cols);
+    try {
+      terminals.write(session.id(), "opencode\r");
+      return TerminalSessionDto.from(session);
+    } catch (RuntimeException failure) {
+      terminals.close(session.id());
+      throw failure;
+    }
   }
 
   /**
