@@ -136,6 +136,11 @@
               <span id="save-state" class="save-state"></span><button id="save-file" class="button button-save" type="button" disabled>Save <kbd>Ctrl S</kbd></button>
             </div></div>
             <div class="editor-location"><span class="location-root">workspace</span><span>/</span><span id="active-file">No file selected</span></div>
+            <div id="save-conflict-actions" class="save-conflict-actions" hidden>
+              <span>The server file changed after you opened it.</span>
+              <button id="use-server-version" type="button">Use server version</button>
+              <button id="keep-local-version" type="button">Keep my edits</button>
+            </div>
             <div class="editor-surface-wrap">
               <div id="editor-empty" class="editor-empty"><div class="empty-mark">⌘</div><p>Choose a file to begin.</p><span>Changes save directly to your Linux workspace.</span></div>
               <div id="editor-surface" class="editor-surface"></div>
