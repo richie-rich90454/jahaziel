@@ -4,6 +4,7 @@
 ///
 
 import type { EditorView } from "codemirror";
+import { parseDebugLaunchConfigurations, type DebugLaunchConfiguration } from "./debug-launch-config";
 import { LanguageServices, type LanguageDiagnostic, type LanguagePack } from "./language-services";
 import "@xterm/xterm/css/xterm.css";
 import "./workbench.css";
@@ -114,6 +115,7 @@ const state = {
   languagePacks: [] as LanguagePack[],
   activePanel: "files" as "files" | "editor" | "run" | "languages" | "debug" | "git" | "terminal" | "preview",
   debugSession: null as DebugSession | null,
+  debugLaunchConfigurations: [] as DebugLaunchConfiguration[],
   debugSocket: null as WebSocket | null,
   debugSequence: 0,
   dapPending: new Map<number, DapPending>(),
@@ -418,6 +420,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
     await stopDebugSession(false);
   }
   state.workspace = workspace;
+  clearDebugLaunchConfigurations();
   state.previewPort = null;
   state.previewUrl = null;
   state.languageServices?.close();
@@ -986,6 +989,8 @@ function updateDebugControls(): void {
   const connected = state.debugSocket?.readyState === WebSocket.OPEN;
   const hasSession = state.debugSession !== null;
   byId<HTMLButtonElement>("debug-start").disabled = hasSession;
+  byId<HTMLButtonElement>("debug-load-launch-config").disabled = hasSession || state.workspace === null;
+  byId<HTMLSelectElement>("debug-launch-config").disabled = hasSession || state.debugLaunchConfigurations.length === 0;
   byId<HTMLButtonElement>("debug-stop").disabled = !hasSession;
   byId<HTMLButtonElement>("debug-reconnect").hidden = !hasSession || connected;
   byId<HTMLButtonElement>("debug-reconnect").disabled = !hasSession;
@@ -1008,6 +1013,53 @@ function configureDebugLanguageFields(): void {
   const isJava = byId<HTMLSelectElement>("debug-language").value === "java";
   byId("debug-program-field").hidden = isJava;
   byId("debug-main-class-field").hidden = !isJava;
+}
+
+async function loadDebugLaunchConfigurations(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  clearDebugLaunchConfigurations();
+  const query = new URLSearchParams({ path: ".vscode/launch.json" });
+  const { body } = await api<DocumentBody>(
+    `/api/v1/workspaces/${workspace.workspaceId}/files/document?${query}`,
+  );
+  if (state.workspace?.workspaceId !== workspace.workspaceId) return;
+  const configurations = parseDebugLaunchConfigurations(body.content);
+  state.debugLaunchConfigurations = configurations;
+  const select = byId<HTMLSelectElement>("debug-launch-config");
+  select.replaceChildren();
+  for (const configuration of configurations) {
+    const option = document.createElement("option");
+    option.value = configuration.name;
+    option.textContent = `${configuration.name} · ${configuration.languageId}`;
+    select.append(option);
+  }
+  byId("debug-launch-config-field").hidden = false;
+  select.hidden = false;
+  byId("debug-launch-config-status").textContent = `${configurations.length} supported launch configuration${configurations.length === 1 ? "" : "s"} loaded.`;
+  select.value = configurations[0].name;
+  applyDebugLaunchConfiguration(configurations[0].name);
+  updateDebugControls();
+}
+
+function applyDebugLaunchConfiguration(name: string): void {
+  const configuration = state.debugLaunchConfigurations.find((item) => item.name === name);
+  if (!configuration) return;
+  byId<HTMLSelectElement>("debug-language").value = configuration.languageId;
+  byId<HTMLInputElement>("debug-program").value = configuration.program ?? "";
+  byId<HTMLInputElement>("debug-main-class").value = configuration.mainClass ?? "";
+  byId<HTMLInputElement>("debug-working-directory").value = configuration.workingDirectory;
+  byId<HTMLInputElement>("debug-arguments").value = JSON.stringify(configuration.arguments);
+  byId<HTMLInputElement>("debug-stop-on-entry").checked = configuration.stopOnEntry;
+  configureDebugLanguageFields();
+}
+
+function clearDebugLaunchConfigurations(): void {
+  state.debugLaunchConfigurations = [];
+  byId<HTMLSelectElement>("debug-launch-config").replaceChildren();
+  byId<HTMLSelectElement>("debug-launch-config").hidden = true;
+  byId("debug-launch-config-field").hidden = true;
+  byId("debug-launch-config-status").textContent = "";
 }
 
 function clearDebugInspectors(): void {
@@ -2307,6 +2359,7 @@ function backToWorkspaces(navigate = true): void {
   state.activePath = null;
   state.selectedPath = null;
   state.workspace = null;
+  clearDebugLaunchConfigurations();
   state.previewPort = null;
   state.previewUrl = null;
   state.languageServices?.close();
@@ -2338,6 +2391,16 @@ function wireUi(): void {
     if ((event.currentTarget as HTMLAnchorElement).getAttribute("aria-disabled") === "true") event.preventDefault();
   });
   byId<HTMLSelectElement>("debug-language").addEventListener("change", configureDebugLanguageFields);
+  byId<HTMLButtonElement>("debug-load-launch-config").addEventListener("click", async (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    control.disabled = true;
+    try { await loadDebugLaunchConfigurations(); }
+    catch (failure) { toast(errorText(failure), "error"); }
+    finally { updateDebugControls(); }
+  });
+  byId<HTMLSelectElement>("debug-launch-config").addEventListener("change", (event) =>
+    applyDebugLaunchConfiguration((event.currentTarget as HTMLSelectElement).value),
+  );
   byId<HTMLButtonElement>("debug-start").addEventListener("click", () =>
     startDebugSession().catch((failure) => toast(errorText(failure), "error")),
   );
