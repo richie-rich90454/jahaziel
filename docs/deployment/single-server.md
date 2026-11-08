@@ -7,7 +7,7 @@
 
 # Deploy Jahaziel on a Linux server
 
-This guide installs one Jahaziel jar as a systemd service on Linux x64 or arm64, stores its files in `/var/lib/jahaziel`, and serves it through Caddy over HTTPS.
+This guide installs one Jahaziel jar as a systemd service on Ubuntu 26.04 LTS (the reference host) or another supported Linux x64 or arm64 host, stores its files in `/var/lib/jahaziel`, and serves it through Caddy over HTTPS. The browser workbench is designed first for iPad Safari, Chrome, and Edge, and also supports desktop browsers.
 
 Jahaziel is a remote source IDE for trusted users. Workspaces have separate homes, but terminals, tasks, and Git commands run as native processes under the same Linux service account. Do not expose this deployment to mutually untrusted users.
 
@@ -19,15 +19,15 @@ Jahaziel is a remote source IDE for trusted users. Workspaces have separate home
 | Java | Runtime 25 or newer |
 | Application | One executable jar |
 | Application port | `11451`, bound to loopback by the supplied systemd unit |
-| Public access | Caddy on ports 80 and 443 |
+| Public access | Caddy on ports 80 and 443, with separate IDE and preview hostnames |
 | Persistent app files | `/var/lib/jahaziel/.env` and `/var/lib/jahaziel/data/` |
 | Login | Existing compatible DevConnect/Basis identity provider |
 
-Use a DNS name you control, such as `code.example.com`. Replace that example with your real hostname throughout this guide.
+Use a DNS name you control, such as `code.example.com`. The preview host is `preview.code.example.com`. Replace both examples with your real names throughout this guide.
 
 ## 1. Prepare the Linux host
 
-Use a supported Linux x64 or arm64 host. Provide these tools through your distribution's normal administration process:
+Use Ubuntu 26.04 LTS on Linux x64 or arm64 for the documented reference deployment. Other supported Linux distributions can use the same service layout. Provide these tools through your distribution's normal administration process:
 
 - Java runtime 25 or newer.
 - `curl`, used below to fetch the matching systemd unit and to check HTTPS endpoints.
@@ -40,10 +40,10 @@ Jahaziel does not install these tools. Node.js, Python, compilers, and other pro
 Create DNS records before enabling HTTPS:
 
 1. Point `code.example.com` to the server's public IPv4 address and, if used, IPv6 address.
-2. If you want wildcard workspace previews, point `*.code.example.com` to the same server.
+2. Point `preview.code.example.com` to the same addresses. This is one exact preview hostname; wildcard DNS is not needed.
 3. Allow inbound SSH for administration and ports 80 and 443 for HTTP/HTTPS. Keep port `11451` private; the included unit binds it to `127.0.0.1`.
 
-The server must reach the configured identity provider. If users will install language packs, allow outbound HTTPS access to the pinned pack sources.
+The server must reach the configured identity provider. If users explicitly install language packs or per-user coding tools, allow outbound HTTPS access to their pinned catalog sources.
 
 ## 2. Download the jar for your server
 
@@ -157,12 +157,25 @@ The service runs `doctor` before each start. If it fails, fix the reported check
 
 ## 7. Configure Caddy and HTTPS
 
-Install Caddy using its [official instructions](https://caddyserver.com/docs/install) for your Linux distribution. For the main workbench hostname, add this site to `/etc/caddy/Caddyfile`:
+Install Caddy using its [official instructions](https://caddyserver.com/docs/install) for your Linux distribution. Add both exact hosts to `/etc/caddy/Caddyfile`. Replace the example names in the included [Caddy configuration](../../ops/caddy/Caddyfile) and its content security policy with your own hostnames:
 
 ~~~caddyfile
 code.example.com {
     encode zstd gzip
     reverse_proxy 127.0.0.1:11451
+    header {
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; frame-src 'self' https://preview.code.example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+}
+
+preview.code.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:11451
+    header {
+        -X-Frame-Options
+        Content-Security-Policy "frame-ancestors https://code.example.com"
+    }
 }
 ~~~
 
@@ -173,46 +186,7 @@ sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ~~~
 
-Caddy obtains and renews the HTTPS certificate for the hostname. Its reverse proxy supports the application's WebSocket connections. Do not add a separate public route to port `11451`.
-
-For wildcard preview URLs, point `*.code.example.com` at this host and use a DNS-01 certificate for the wildcard. The repository's [Caddyfile](https://github.com/richie-rich90454/jahaziel/blob/main/ops/caddy/Caddyfile) shows the optional Cloudflare DNS challenge setup. That configuration requires a Caddy build with the Cloudflare DNS module and a protected `CLOUDFLARE_API_TOKEN`; use your DNS provider's matching Caddy module if you do not use Cloudflare. Route both the main hostname and wildcard preview hostname to `127.0.0.1:11451`.
-
-To provide the Cloudflare token to the systemd-managed Caddy process, store it in a root-readable environment file and reference it from a Caddy systemd drop-in. The Caddy DNS challenge requires a custom Caddy build with the provider module; see the [Caddy TLS documentation](https://caddyserver.com/docs/caddyfile/directives/tls). Create the environment file:
-
-~~~bash
-sudoedit /etc/caddy/cloudflare.env
-~~~
-
-Add this line and replace the example with a restricted DNS API token:
-
-~~~dotenv
-CLOUDFLARE_API_TOKEN=your-token
-~~~
-
-Create the drop-in directory and open the service override:
-
-~~~bash
-sudo install --directory --owner=root --group=root --mode=0755 /etc/systemd/system/caddy.service.d
-sudoedit /etc/systemd/system/caddy.service.d/cloudflare.conf
-~~~
-
-Add this configuration:
-
-~~~ini
-[Service]
-EnvironmentFile=/etc/caddy/cloudflare.env
-~~~
-
-Set ownership and permissions, reload systemd, and restart Caddy:
-
-~~~bash
-sudo chown root:root /etc/caddy/cloudflare.env
-sudo chmod 0600 /etc/caddy/cloudflare.env
-sudo systemctl daemon-reload
-sudo systemctl restart caddy
-~~~
-
-Do not commit this token or put it in a public configuration file.
+Caddy obtains and renews ordinary HTTPS certificates for both exact hostnames using built-in ACME challenge support. No wildcard DNS, DNS provider module, API token, or wildcard certificate is required. Its reverse proxy supports terminal, language-service, debugger, preview, and hot-reload WebSocket connections. Do not add a separate public route to port `11451`.
 
 Keep `JAHAZIEL_DOMAIN` set to the base host (`code.example.com`), without `https://`. See the [port and preview reference](../reference/ports.md) for workspace preview behavior.
 
@@ -232,7 +206,7 @@ Then complete a browser smoke check:
 3. Create and save a text file, then reopen it.
 4. Open a terminal and confirm its working directory belongs to that workspace.
 5. Run a task only if its project runtime is installed on the host.
-6. If wildcard DNS and TLS are configured, start a preview task and open its preview link.
+6. Start a preview task, confirm it is reachable at `https://preview.code.example.com/{workspaceId}/{port}/`, and check both embedded and new-tab preview opening.
 7. Restart Jahaziel and verify the workspace and saved file remain.
 
 Node.js and Python starter tasks need their matching host runtimes. The application jar does not contain them.
@@ -322,7 +296,8 @@ Back up `.env` and the full `data/` directory. Protect both from unauthorized ac
 | `doctor` cannot find `setsid` | Install the distribution's `util-linux` package. |
 | Login is disabled or rejected | Check all five `BASIS_*` values and verify the callback URL, issuer, client, and resource with the identity-provider administrator. |
 | Browser sign-in returns to the wrong URL | Ensure `BASIS_REDIRECT_URI` exactly matches the public URL and `JAHAZIEL_DOMAIN` contains only the base hostname. |
-| HTTPS works but preview links fail | Confirm wildcard DNS, wildcard DNS-01 certificate issuance, and both Caddy routes to port `11451`. |
+| HTTPS works but preview links fail | Confirm exact DNS records for both `code.example.com` and `preview.code.example.com`, automatic certificates for both, the preview site in Caddy, and the `workspaceId/port` preview path. |
+| The embedded preview is blank while a new tab works | Confirm the IDE `frame-src` permits the configured preview host and the preview host's `frame-ancestors` permits the IDE host. |
 | The service cannot write data | Confirm the `jahaziel` user owns `/var/lib/jahaziel` and all contents. |
 | Port `11451` is occupied | Stop the other listener or choose a different `PORT`, then update the unit and Caddy upstream together. |
 | A task cannot launch a project | Install that project's runtime on the host; Jahaziel does not bundle Node.js, Python, or compilers. |
