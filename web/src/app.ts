@@ -29,6 +29,17 @@ interface TerminalSession {
   rows: number;
   cols: number;
 }
+interface AgentToolStatus {
+  id: string;
+  name: string;
+  version: string;
+  architecture: string;
+  status: string;
+  downloadSizeBytes: number;
+  installedSizeBytes: number;
+  progressPercent: number;
+  error: string;
+}
 interface WorkspaceTask { id: string; label: string; port: number | null; }
 interface SetupStatus { status: string; output: string; error: string; updatedAt: string; correlationId?: string | null; }
 interface TaskRun { id: string; workspaceId: string; taskId: string; label: string; status: string; output: string; exitCode: number | null; }
@@ -69,6 +80,8 @@ const state = {
   terminalObserver: null as ResizeObserver | null,
   terminalSessionId: null as string | null,
   terminalSessions: [] as TerminalSession[],
+  agentToolStatus: null as AgentToolStatus | null,
+  agentToolPolling: false,
   socket: null as WebSocket | null,
   taskRunId: null as string | null,
   taskPollingId: null as string | null,
@@ -356,6 +369,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
     await refreshFiles();
     await refreshTasks();
     await refreshLanguagePacks();
+    void refreshAgentToolStatus(true);
     await refreshTerminalSessions();
     return;
   }
@@ -395,8 +409,111 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   await refreshFiles();
   await refreshTasks();
   await refreshLanguagePacks();
+  void refreshAgentToolStatus(true);
   await refreshTerminalSessions();
   renderTabs();
+}
+
+async function refreshAgentToolStatus(installWhenMissing: boolean): Promise<void> {
+  if (state.agentToolPolling) return;
+  state.agentToolPolling = true;
+  try {
+    let status = await readAgentToolStatus();
+    renderAgentToolStatus(status);
+    if (installWhenMissing && status?.status === "NOT_INSTALLED") {
+      const { body } = await api<AgentToolStatus>("/api/v1/me/tools/opencode/install", { method: "POST" });
+      status = body;
+      renderAgentToolStatus(status);
+    }
+    while (status?.status === "INSTALLING") {
+      await new Promise((resolve) => window.setTimeout(resolve, 1800));
+      status = await readAgentToolStatus();
+      renderAgentToolStatus(status);
+    }
+  } catch (failure) {
+    byId("opencode-status").textContent = `OpenCode · ${errorText(failure)}`;
+  } finally {
+    state.agentToolPolling = false;
+  }
+}
+
+async function readAgentToolStatus(): Promise<AgentToolStatus | null> {
+  const { body } = await api<AgentToolStatus[]>("/api/v1/me/tools");
+  state.agentToolStatus = body.find((tool) => tool.id === "opencode") ?? null;
+  return state.agentToolStatus;
+}
+
+function renderAgentToolStatus(status: AgentToolStatus | null): void {
+  const label = byId("opencode-status");
+  const launch = byId<HTMLButtonElement>("terminal-opencode");
+  const update = byId<HTMLButtonElement>("opencode-update");
+  const remove = byId<HTMLButtonElement>("opencode-remove");
+  if (!status) {
+    label.textContent = "OpenCode · unavailable";
+    launch.textContent = "Open OpenCode";
+    launch.disabled = true;
+    update.hidden = true;
+    remove.hidden = true;
+    return;
+  }
+  const installed = status.status === "INSTALLED";
+  const installing = status.status === "INSTALLING";
+  label.textContent = installing
+    ? `OpenCode · installing ${status.progressPercent}%`
+    : installed
+      ? `OpenCode ${status.version} · ready`
+      : status.status === "FAILED"
+        ? `OpenCode · install failed: ${status.error}`
+        : status.status === "UNSUPPORTED"
+          ? `OpenCode · unsupported ${status.architecture}`
+          : `OpenCode · ${Math.ceil(status.downloadSizeBytes / 1_000_000)} MB install`;
+  launch.textContent = installed ? "Open OpenCode" : status.status === "FAILED" ? "Retry install" : "Installing";
+  launch.disabled = installing || status.status === "UNSUPPORTED";
+  update.hidden = !installed;
+  update.disabled = installing;
+  remove.hidden = !installed;
+  remove.disabled = installing;
+}
+
+async function launchOpenCode(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  if (state.agentToolStatus?.status !== "INSTALLED") {
+    if (state.agentToolStatus?.status !== "INSTALLING") {
+      await refreshAgentToolStatus(false);
+      if (state.agentToolStatus?.status === "NOT_INSTALLED" || state.agentToolStatus?.status === "FAILED") {
+        const { body } = await api<AgentToolStatus>("/api/v1/me/tools/opencode/install", { method: "POST" });
+        state.agentToolStatus = body;
+        renderAgentToolStatus(body);
+        void refreshAgentToolStatus(false);
+      }
+    }
+    toast("OpenCode is not ready yet. Its install status is shown in the terminal panel.", "error");
+    return;
+  }
+  const { body: session } = await api<TerminalSession>(
+    `/api/v1/workspaces/${workspace.workspaceId}/terminals/opencode?rows=28&cols=100`,
+    { method: "POST" },
+  );
+  if (state.workspace?.workspaceId !== workspace.workspaceId) {
+    await api(`/api/v1/terminals/${session.sessionId}`, { method: "DELETE" }).catch(() => undefined);
+    return;
+  }
+  await connectTerminal(session, workspace.workspaceId);
+}
+
+async function updateOpenCode(): Promise<void> {
+  const { body } = await api<AgentToolStatus>("/api/v1/me/tools/opencode/update", { method: "POST" });
+  state.agentToolStatus = body;
+  renderAgentToolStatus(body);
+  void refreshAgentToolStatus(false);
+}
+
+async function removeOpenCode(): Promise<void> {
+  if (!window.confirm("Remove the per-user OpenCode executable? Its profile and provider sign-in will be kept.")) return;
+  const { body } = await api<AgentToolStatus>("/api/v1/me/tools/opencode", { method: "DELETE" });
+  state.agentToolStatus = body;
+  renderAgentToolStatus(body);
 }
 
 async function refreshTerminalSessions(): Promise<void> {
@@ -1618,6 +1735,9 @@ function wireUi(): void {
   );
   byId("back-home").addEventListener("click", () => backToWorkspaces());
   byId("terminal-new").addEventListener("click", () => openTerminal().catch((failure) => toast(errorText(failure), "error")));
+  byId("terminal-opencode").addEventListener("click", () => launchOpenCode().catch((failure) => toast(errorText(failure), "error")));
+  byId("opencode-update").addEventListener("click", () => updateOpenCode().catch((failure) => toast(errorText(failure), "error")));
+  byId("opencode-remove").addEventListener("click", () => removeOpenCode().catch((failure) => toast(errorText(failure), "error")));
   byId("terminal-reconnect").addEventListener("click", () => reconnectTerminal().catch((failure) => toast(errorText(failure), "error")));
   byId("close-terminal").addEventListener("click", () =>
     void closeTerminal(true, true).catch((failure) => toast(errorText(failure), "error")),
