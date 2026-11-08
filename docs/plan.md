@@ -4,11 +4,15 @@
 
 ## Product contract
 
-Jahaziel is a self-hosted, browser-based source IDE for trusted users who need to work on code stored on a Linux server. Windows, macOS, and Linux desktops are browser clients. Jahaziel server releases target Linux x64 and Linux arm64; native Windows and macOS servers are deferred.
+Jahaziel is a self-hosted, browser-based source IDE for trusted users who need to work on code stored on a Linux server. iPad is the primary client: Safari, Chrome, and Edge on the current and two previous major iPadOS versions, with touch-only and keyboard/trackpad interaction in portrait, landscape, Split View, and Stage Manager. Windows, macOS, and Linux desktops are also browser clients. Jahaziel server releases target Linux x64 and Linux arm64; Ubuntu 26.04 LTS is the documented reference host; native Windows and macOS servers are deferred.
 
 The release workflow is: sign in → create a workspace from a server-managed template → edit and save files → open a terminal → run a task → preview a port → restart the server and recover files. The first release is a modular monolith in one executable jar, on one application port, with persistent state below the configured data directory.
 
 The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It does not embed VS Code, download REH sources, or bundle language toolchains. Language packs are pinned, shared, and fetched only after an explicit user or administrator action. Runtime processes run as the Jahaziel service account. This mode is appropriate for trusted users and does not claim cross-user process or filesystem isolation.
+
+The touch workbench keeps workspace, file, task, terminal, and preview controls available without hover. The terminal includes a shortcut strip for keys that are awkward on a tablet. Preview URLs use one fixed `preview.<JAHAZIEL_DOMAIN>` host and workspace/port paths; included templates and task adapters receive `JAHZIEL_PREVIEW_BASE_PATH`. Projects that hard-code root-relative asset paths may need configuration before path-based previews work.
+
+OpenCode is managed once per user across that user's workspaces; Claude Code is an explicit optional install. Each user's configuration and credentials stay under the configured data directory, never in a server-wide shared profile. DAP debugging uses server allowlists and workspace-rooted launch configurations; browser clients cannot provide arbitrary executables or remote attach targets.
 
 ## Development and disk constraints
 
@@ -16,6 +20,7 @@ The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It d
 - Bootstrap checks for existing JDK 25, Node 24+, and the pinned pnpm package manager. It must report missing requirements without installing them.
 - Maven and pnpm dependency stores, wrapper downloads, and generated frontend outputs live under ignored repository-local directories. `./dev.ps1 cache:report` reports these sizes; `./dev.ps1 cache:prune` is dry-run by default and only removes known generated caches with `--apply`.
 - Do not fetch VS Code sources, language packs, compilers, interpreters, or runtime images during app builds. Do not touch existing ignored IDE build outputs.
+- Use the existing pnpm 12 installation. Resolve project package scripts from project metadata and respect pnpm lockfiles; do not silently substitute a package manager or install a project runtime.
 - A change is one cohesive behavior, including the code, documentation, and focused verification that make it reviewable.
 
 ## Architecture boundaries
@@ -86,6 +91,15 @@ The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It d
 4. Use additive Flyway migrations. Preserve workspace IDs, workspace homes, and user-created files across upgrades.
 5. Document server/client platforms, trusted-process limitations, backup/restore, and language-pack cache behavior from the same contract.
 
+### 8. iPad workflow, user tools, and debugging
+
+1. Keep navigation and file actions available without hover, preserve safe-area insets, and resize editor, terminal, task, debug, and preview panels for compact widths and multitasking layouts.
+2. Complete real-device acceptance for Safari, Chrome, and Edge on the current and two previous major iPadOS versions. Cover touch-only input, external keyboard and trackpad, the virtual keyboard, Split View, Stage Manager, tab suspension, TUI interaction, and reconnect recovery.
+3. Discover template tasks, package scripts, Make, Maven/Gradle, Cargo, and Go tasks as server-side identifiers. Launch only discovered or server-managed task definitions; resolve package-manager commands from project metadata and support pnpm 12.
+4. Manage OpenCode once per user across that user's workspaces and offer Claude Code as an explicit optional install. Pin versions and verify catalog artifacts before installation; expose progress and storage usage, keep credentials per user, and require explicit upgrades and removal.
+5. Add DAP sessions for the six starter languages. Allow only server-managed adapters and workspace-rooted launch configurations; reject unsupported fields, arbitrary executable paths, and remote attach targets.
+6. Keep terminal TUI, breakpoints, call stack, variables, watches, debug console, and preview controls usable by touch as well as keyboard and trackpad.
+
 ## Compatibility and API shape
 
 - Keep existing `/api/v1` workspace, template, terminal, and port routes compatible where practical.
@@ -102,7 +116,8 @@ The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It d
 3. The packaged browser workflow covers login, template materialization, setup status, file edit/save/conflict, an explicitly enabled language diagnostic, terminal stream/resize/close, run task output/exit/stop, preview authorization, and restart recovery. After an abrupt server stop during a running task, the workbench restores its latest status, bounded output, and interruption reason, and startup stops only the recorded process session.
 4. Security verification covers unauthenticated and cross-workspace access, traversal, symlink escape, WebSocket authorization, command allowlisting, environment filtering, and secret redaction.
 5. Disk verification shows no VS Code or language packs fetched by a normal build, no toolchains in the jar, accurate cache reporting, and a prune dry-run with no modifications.
+6. Before release, complete the real-iPad browser matrix and deploy the packaged app on Ubuntu 26.04 LTS x64 and arm64 with exact IDE and preview DNS records, TLS, identity login, a project task, and a working path-based preview.
 
 ## Explicitly deferred
 
-Native Windows/macOS servers; debugger parity; VS Code extension compatibility; extension marketplace; real-time collaborative editing; hostile multi-tenant isolation; automatic language-pack downloads; automatic tool/cache cleanup; and Firecracker release claims before native verification.
+Native Windows/macOS servers; VS Code extension compatibility; extension marketplace; real-time collaborative editing; hostile multi-tenant isolation; automatic language-pack downloads; automatic tool/cache cleanup; and Firecracker release claims before native verification.
