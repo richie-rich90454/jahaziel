@@ -7,6 +7,7 @@ package dev.jahaziel.terminal.internal;
 import com.pty4j.PtyProcess;
 import com.pty4j.PtyProcessBuilder;
 import com.pty4j.WinSize;
+import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.security.api.SecretRedactor;
@@ -54,13 +55,14 @@ public final class TerminalServiceImpl implements TerminalService {
   private final WorkspaceDirectoryService directories;
   private final WorkspaceProcessRegistry processRegistry;
   private final WorkspaceService workspaces;
+  private final AgentToolService agentTools;
   private final boolean ptyEnabled;
   private final ConcurrentMap<TerminalSessionId, State> sessions = new ConcurrentHashMap<>();
   private final Set<WorkspaceId> stoppingWorkspaces = new HashSet<>();
 
   /** Registry-only constructor retained for isolated service tests. */
   public TerminalServiceImpl() {
-    this(null, null, null, false);
+    this(null, null, null, null, false);
   }
 
   /** Creates the production PTY service with process and workspace lifecycle checks. */
@@ -68,10 +70,20 @@ public final class TerminalServiceImpl implements TerminalService {
       WorkspaceDirectoryService directories,
       WorkspaceProcessRegistry processRegistry,
       WorkspaceService workspaces) {
+    this(directories, processRegistry, workspaces, null);
+  }
+
+  /** Creates the production PTY service with per-user managed tool paths. */
+  public TerminalServiceImpl(
+      WorkspaceDirectoryService directories,
+      WorkspaceProcessRegistry processRegistry,
+      WorkspaceService workspaces,
+      AgentToolService agentTools) {
     this(
         directories,
         Objects.requireNonNull(processRegistry, "processRegistry"),
         Objects.requireNonNull(workspaces, "workspaces"),
+        agentTools,
         true);
   }
 
@@ -79,11 +91,13 @@ public final class TerminalServiceImpl implements TerminalService {
       WorkspaceDirectoryService directories,
       WorkspaceProcessRegistry processRegistry,
       WorkspaceService workspaces,
+      AgentToolService agentTools,
       boolean ptyEnabled) {
     if (ptyEnabled) Objects.requireNonNull(directories, "directories");
     this.directories = directories;
     this.processRegistry = processRegistry;
     this.workspaces = workspaces;
+    this.agentTools = agentTools;
     this.ptyEnabled = ptyEnabled;
   }
 
@@ -259,7 +273,17 @@ public final class TerminalServiceImpl implements TerminalService {
     Path home = directories.home(session.workspaceId());
     try {
       String shell = Files.isExecutable(Path.of("/bin/bash")) ? "/bin/bash" : "/bin/sh";
-      Map<String, String> environment = terminalEnvironment(home);
+      Map<String, String> environment;
+      if (agentTools == null) {
+        environment = terminalEnvironment(home);
+      } else {
+        agentTools.prepareProfile(session.userId());
+        environment =
+            terminalEnvironment(
+                home,
+                agentTools.executableDirectory(session.userId()),
+                agentTools.profileDirectory(session.userId()));
+      }
       return new PtyProcessBuilder(new String[] {shell, "-i"})
           .setDirectory(home.toString())
           .setEnvironment(environment)
@@ -280,6 +304,28 @@ public final class TerminalServiceImpl implements TerminalService {
         "PATH", "/usr/local/bin:/usr/bin:/bin",
         "TERM", "xterm-256color",
         "LANG", "C.UTF-8");
+  }
+
+  /** Returns the workspace environment with the user's private tool and CLI profile paths. */
+  static Map<String, String> terminalEnvironment(Path home, Path toolBin, Path profile) {
+    Objects.requireNonNull(home, "home");
+    Objects.requireNonNull(toolBin, "toolBin");
+    Objects.requireNonNull(profile, "profile");
+    return Map.of(
+        "HOME",
+        home.toString(),
+        "PATH",
+        toolBin + java.io.File.pathSeparator + "/usr/local/bin:/usr/bin:/bin",
+        "XDG_CONFIG_HOME",
+        profile.resolve("config").toString(),
+        "XDG_DATA_HOME",
+        profile.resolve("data").toString(),
+        "XDG_CACHE_HOME",
+        profile.resolve("cache").toString(),
+        "TERM",
+        "xterm-256color",
+        "LANG",
+        "C.UTF-8");
   }
 
   private static void readOutput(State state) {
