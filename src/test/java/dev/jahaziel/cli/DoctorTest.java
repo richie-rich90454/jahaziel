@@ -88,6 +88,12 @@ class DoctorTest {
   @Test
   void allGreen() throws Exception {
     Env env = green(root.resolve("jar"));
+    UUID userId = UUID.randomUUID();
+    Path userTool =
+        Files.createDirectories(
+                env.dataDir().resolve("users").resolve(userId.toString()).resolve("bin"))
+            .resolve("opencode");
+    Files.writeString(userTool, "agent");
     String savedPath = System.getenv("PATH");
     Path bin = Files.createDirectory(root.resolve("allgreen-bin"));
     Path git = Files.createFile(bin.resolve(isWindows() ? "git.exe" : "git"));
@@ -113,6 +119,9 @@ class DoctorTest {
       assertTrue(storage.detail().contains("workspaces=" + env.dataDir().resolve("workspaces")));
       assertTrue(
           storage.detail().contains("language packs=" + env.dataDir().resolve("language-packs")));
+      assertTrue(
+          storage.detail().contains("per-user agent/profile storage=" + userId + ":5 bytes"));
+      assertTrue(storage.detail().contains("user tools=" + env.dataDir().resolve("users")));
       for (Doctor.Check check : checks) {
         assertTrue(text.contains("doctor: [ok] " + check.name() + " - "));
       }
