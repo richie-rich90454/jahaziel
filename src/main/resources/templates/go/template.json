@@ -5,6 +5,10 @@
   "memoryMib": 4096,
   "ports": [],
   "languagePacks": ["go"],
+  "runTasks": [
+    { "id": "run", "label": "Run Go application", "command": ["go", "run", "."] },
+    { "id": "test", "label": "Run Go tests", "command": ["go", "test", "./..."] }
+  ],
   "starterFiles": {
     "README.md": "# Go\n\nRun with `go run .`.\n",
     "go.mod": "module example.com/jahaziel-app\n\ngo 1.23\n",
