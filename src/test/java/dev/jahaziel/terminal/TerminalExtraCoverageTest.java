@@ -51,8 +51,11 @@ class TerminalExtraCoverageTest {
     TerminalServiceImpl s = svc();
     Field f = TerminalServiceImpl.class.getDeclaredField("sessions");
     f.setAccessible(true);
-    ConcurrentHashMap<TerminalSessionId, TerminalSession> map =
-        (ConcurrentHashMap<TerminalSessionId, TerminalSession>) f.get(s);
+    ConcurrentHashMap<TerminalSessionId, Object> map =
+        (ConcurrentHashMap<TerminalSessionId, Object>) f.get(s);
+    Class<?> stateClass = Class.forName("dev.jahaziel.terminal.internal.TerminalServiceImpl$State");
+    var stateConstructor = stateClass.getDeclaredConstructor(TerminalSession.class);
+    stateConstructor.setAccessible(true);
     WorkspaceId w = new WorkspaceId(UUID.randomUUID());
     UserId u = new UserId(UUID.randomUUID());
     for (int i = 0; i < 10005; i++) {
@@ -61,7 +64,7 @@ class TerminalExtraCoverageTest {
       Field last = TerminalSession.class.getDeclaredField("lastActivityAt");
       last.setAccessible(true);
       last.set(sess, java.time.Instant.now().minus(java.time.Duration.ofHours(25)));
-      map.put(sess.id(), sess);
+      map.put(sess.id(), stateConstructor.newInstance(sess));
     }
     s.open(w, u, 24, 80);
     assertTrue(map.size() < 10006);

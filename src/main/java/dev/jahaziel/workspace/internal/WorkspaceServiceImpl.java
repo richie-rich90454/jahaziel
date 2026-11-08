@@ -9,6 +9,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.spi.StorageUsage;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
+import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.VirtualMachine;
@@ -37,6 +38,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
   private final VirtualMachineRepository machines;
   private final UserService users;
   private final String storageRoot;
+  private final WorkspaceProcessLifecycle processes;
 
   /**
    * Creates the service.
@@ -53,6 +55,17 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
       VirtualMachineRepository machines,
       UserService users,
       String storageRoot) {
+    this(workspaces, acl, machines, users, storageRoot, null);
+  }
+
+  /** Creates the service with lifecycle cleanup for interactive processes. */
+  public WorkspaceServiceImpl(
+      WorkspaceRepository workspaces,
+      WorkspaceAclRepository acl,
+      VirtualMachineRepository machines,
+      UserService users,
+      String storageRoot,
+      WorkspaceProcessLifecycle processes) {
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.acl = Objects.requireNonNull(acl, "acl");
     this.machines = Objects.requireNonNull(machines, "machines");
@@ -61,6 +74,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
       throw new IllegalArgumentException("storageRoot must not be blank");
     }
     this.storageRoot = storageRoot;
+    this.processes = processes;
   }
 
   @Override
@@ -89,7 +103,7 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
     Workspace workspace =
         new Workspace(workspaceId, owner, name, WorkspaceQuota.defaults(), machine);
     String jail = WorkspacePaths.jailPath(storageRoot, workspaceId);
-    String home = WorkspacePaths.homePath(storageRoot, owner);
+    String home = WorkspacePaths.homePath(storageRoot, workspaceId);
     workspaces.save(WorkspaceMapper.toEntity(workspace, home, jail));
     try {
       machines.save(
@@ -141,6 +155,9 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
 
   @Override
   public void delete(WorkspaceId id) {
+    if (processes != null) {
+      processes.deleteWorkspace(id);
+    }
     Workspace workspace = load(id);
     workspace.destroy();
     workspaces.deleteById(id.value());

@@ -36,6 +36,10 @@ A bare run with no `.env` prints help and runs nothing; run `init` first.
 [--level=LEVEL]`, `support-bundle`, and `--demo` (stub IdP, ignores
 `BASIS_*`) all run without starting the server.
 
+Doctor reports application, workspace, and language-pack cache sizes, plus
+installed and selected managed language packs. Language packs remain opt-in;
+doctor never downloads or prunes them.
+
 ## Errors
 
 Failures print a handwritten message with a machine-readable code and

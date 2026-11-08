@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.ide.internal.IdeServerService.BootPhase;
+import dev.jahaziel.runtime.internal.BootProgressService.BootPhase;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -27,10 +27,12 @@ class BootProgressServiceTest {
   @Test
   void reportOverwritesInOrder() {
     service.report(id, BootPhase.PREPARING);
-    service.report(id, BootPhase.EXTRACTING);
+    UUID correlationId = service.snapshot(id).orElseThrow().correlationId();
+    service.report(id, BootPhase.STARTING);
     var progress = service.snapshot(id).orElseThrow();
-    assertEquals(BootPhase.EXTRACTING, progress.phase());
-    assertTrue(service.snapshotAll().get(id.value()).phase() == BootPhase.EXTRACTING);
+    assertEquals(BootPhase.STARTING, progress.phase());
+    assertEquals(correlationId, progress.correlationId());
+    assertTrue(service.snapshotAll().get(id.value()).phase() == BootPhase.STARTING);
   }
 
   @Test
@@ -49,8 +51,9 @@ class BootProgressServiceTest {
     assertThrows(NullPointerException.class, () -> service.clear(null));
     assertThrows(
         NullPointerException.class,
-        () -> new BootProgressService.Progress(null, java.time.Instant.now()));
+        () -> new BootProgressService.Progress(null, BootPhase.READY, java.time.Instant.now()));
     assertThrows(
-        NullPointerException.class, () -> new BootProgressService.Progress(BootPhase.READY, null));
+        NullPointerException.class,
+        () -> new BootProgressService.Progress(UUID.randomUUID(), BootPhase.READY, null));
   }
 }

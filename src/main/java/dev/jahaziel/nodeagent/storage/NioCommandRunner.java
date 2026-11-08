@@ -21,9 +21,9 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
 /**
- * Pure-Java {@link CommandRunner} for the exact argv shapes {@link FolderStorage} uses. No
- * subprocesses, so workspaces work on Windows, Windows Server, macOS, and Linux alike. Anything
- * outside those shapes fails fast instead of half-running.
+ * Pure-Java {@link CommandRunner} for the exact argv shapes {@link FolderStorage} uses. It keeps
+ * storage tests and local development independent of host utility processes. Release servers target
+ * Linux x64 and arm64. Anything outside those shapes fails fast instead of half-running.
  */
 public final class NioCommandRunner implements CommandRunner {
   @Override

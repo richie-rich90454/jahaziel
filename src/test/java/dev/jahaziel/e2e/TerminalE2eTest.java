@@ -8,13 +8,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /** Terminal sessions over HTTP; the registry is in memory, PTY relay lives in the VM. */
 class TerminalE2eTest extends E2eBase {
   @Test
   void openListCloseRoundTrip() throws Exception {
+    assumeLinuxServer();
     String id = createWorkspace(userToken(), uniqueName("term"));
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
 
     E2eResponse opened =
         post("/api/v1/workspaces/" + id + "/terminals?rows=40&cols=100", userToken(), null);
@@ -36,7 +39,9 @@ class TerminalE2eTest extends E2eBase {
 
   @Test
   void defaultSizeApplies() throws Exception {
+    assumeLinuxServer();
     String id = createWorkspace(userToken(), uniqueName("sized"));
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
 
     E2eResponse opened = post("/api/v1/workspaces/" + id + "/terminals", userToken(), null);
     assertEquals(201, opened.status(), opened.body());
@@ -46,7 +51,9 @@ class TerminalE2eTest extends E2eBase {
 
   @Test
   void closeTwiceIsNotFound() throws Exception {
+    assumeLinuxServer();
     String id = createWorkspace(userToken(), uniqueName("twice"));
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
     E2eResponse opened = post("/api/v1/workspaces/" + id + "/terminals", userToken(), null);
     String sessionId = bodyJson(opened).get("sessionId").asString();
 
@@ -73,5 +80,11 @@ class TerminalE2eTest extends E2eBase {
   void listOnUnknownWorkspaceIsNotFound() throws Exception {
     assertEquals(
         404, get("/api/v1/workspaces/" + UUID.randomUUID() + "/terminals", userToken()).status());
+  }
+
+  private static void assumeLinuxServer() {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("linux"),
+        "PTY integration tests require the Linux server runtime");
   }
 }

@@ -68,7 +68,7 @@ class NodeAgentServiceCoverageTest {
         () ->
             service.startRuntime(
                 null, new RuntimeRequest(workspace, 1, 1, 0, 0, 0, 1, 1, List.of())));
-    Path snaps = home.getParent().resolve("snaps").resolve(workspace.toString());
+    Path snaps = home.getParent().resolve("snaps");
     Files.createDirectories(snaps.resolve("a"));
     Files.createDirectories(snaps.resolve("b"));
     Files.createFile(snaps.resolve("plain.txt"));

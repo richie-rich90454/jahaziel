@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
+import dev.jahaziel.nodeagent.service.LocalProcessBackend;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.NodeBackend;
@@ -37,10 +38,14 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 class WorkspaceJobsConfigCoverageGapTest {
   @Test
@@ -97,25 +102,46 @@ class WorkspaceJobsConfigCoverageGapTest {
   }
 
   @Test
-  void backendConfigSelects(@TempDir Path root) {
+  void backendConfigSelectsOnlyVerifiedBackend() {
     WorkspaceBackendConfig config = new WorkspaceBackendConfig();
-    NodeBackend fire = config.nodeBackend("firecracker", root.toString());
-    assertInstanceOf(FirecrackerBackend.class, fire);
-    NodeBackend upper = config.nodeBackend("  FIRECRACKER  ", root.toString());
-    assertInstanceOf(FirecrackerBackend.class, upper);
-    assertInstanceOf(LocalBackend.class, config.nodeBackend("local", root.toString()));
-    assertInstanceOf(LocalBackend.class, config.nodeBackend("other", root.toString()));
+    var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
+    NodeBackend local = config.nodeBackend("local", storage);
+    assertInstanceOf(LocalProcessBackend.class, local);
+    assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
+    IllegalArgumentException unsupported =
+        assertThrows(
+            IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
+    assertTrue(unsupported.getMessage().contains("WORKSPACE_BACKEND_UNSUPPORTED"));
+    assertTrue(unsupported.getMessage().matches(".*correlationId=[0-9a-f-]{36}:.*"));
+    assertThrows(
+        IllegalArgumentException.class, () -> config.nodeBackend("  FIRECRACKER  ", storage));
+    assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("other", storage));
+  }
+
+  @Test
+  void backendConfigReadsDocumentedEnvironmentProperty() {
+    try (var context = new AnnotationConfigApplicationContext()) {
+      context
+          .getEnvironment()
+          .getPropertySources()
+          .addFirst(new MapPropertySource("test", Map.of("JAHAZIEL_BACKEND", "firecracker")));
+      context.registerBean(
+          dev.jahaziel.spi.WorkspaceStorage.class,
+          () -> mock(dev.jahaziel.spi.WorkspaceStorage.class));
+      context.register(WorkspaceBackendConfig.class);
+
+      assertThrows(BeanCreationException.class, context::refresh);
+    }
   }
 
   @Test
   void pathsGuards() {
     WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    UserId owner = new UserId(UUID.randomUUID());
     assertTrue(WorkspacePaths.jailPath("/r", id).equals("/r/jail/" + id.value()));
-    assertTrue(WorkspacePaths.homePath("/r", owner).endsWith("/home"));
+    assertTrue(WorkspacePaths.homePath("/r", id).equals("/r/workspaces/" + id.value() + "/home"));
     assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath(null, id));
     assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath("  ", id));
-    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", owner));
+    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", id));
   }
 
   @Test

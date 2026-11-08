@@ -12,10 +12,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedConstruction;
@@ -24,43 +21,6 @@ import org.mockito.Mockito;
 /** Closes the JaCoCo gaps in {@link Platforms}, {@link PosixPlatform} and {@link DotEnv}. */
 class PlatformsCoverageGapTest {
   @TempDir private Path tmp;
-
-  private String osName;
-  private String osArch;
-
-  @BeforeEach
-  void saveOs() {
-    osName = System.getProperty("os.name");
-    osArch = System.getProperty("os.arch");
-  }
-
-  @AfterEach
-  void restoreOs() {
-    System.setProperty("os.name", osName);
-    System.setProperty("os.arch", osArch);
-  }
-
-  @Test
-  void hostVariantAllOses() {
-    System.setProperty("os.name", "Windows 11");
-    System.setProperty("os.arch", "amd64");
-    assertEquals("win32-x64", Platforms.hostRehVariant());
-    System.setProperty("os.arch", "aarch64");
-    assertEquals("win32-arm64", Platforms.hostRehVariant());
-    System.setProperty("os.name", "Mac OS X");
-    System.setProperty("os.arch", "x86_64");
-    assertEquals("darwin-x64", Platforms.hostRehVariant());
-    System.setProperty("os.arch", "arm64");
-    assertEquals("darwin-arm64", Platforms.hostRehVariant());
-    System.setProperty("os.name", "Linux");
-    System.setProperty("os.arch", "amd64");
-    assertEquals("linux-x64", Platforms.hostRehVariant());
-    System.setProperty("os.arch", "aarch64");
-    assertEquals("linux-arm64", Platforms.hostRehVariant());
-    System.setProperty("os.name", "darwin");
-    System.setProperty("os.arch", "x64");
-    assertEquals("darwin-x64", Platforms.hostRehVariant());
-  }
 
   @Test
   void detectPartialUnsupported() {
@@ -128,14 +88,9 @@ class PlatformsCoverageGapTest {
     assertEquals(Platform.Os.LINUX, p.os());
     assertEquals(Platform.Arch.X64, p.arch());
     assertEquals(tmp.toAbsolutePath().normalize().resolve("tmp"), p.tempDir());
-    assertTrue(p.rehDir().toString().contains("linux-x64"));
-    assertEquals("linux-x64", p.rehVariant());
-    assertTrue(p.rehExecutable().toString().contains("jahaziel-code-server"));
     assertEquals(":", p.pathSeparator());
     assertEquals("a/b", p.toNative(Path.of("a/b")));
     assertEquals("a/b", p.toPosix(Path.of("a/b")));
-    List<String> args = p.rehLaunchArgs(tmp, 1234);
-    assertTrue(args.contains("1234"));
     assertTrue(p.subprocessEnv().containsKey("TMPDIR"));
   }
 

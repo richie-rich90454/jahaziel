@@ -7,13 +7,15 @@
 
 # Jahaziel
 
-Self-hosted browser-based development platform: every authorized
-developer gets their own Linux development machine, accessible entirely
-through a browser. One login, one browser tab: a real Linux machine, a
-real IDE, a real terminal.
+Self-hosted browser-based development environment for trusted users.
+Jahaziel runs on a Linux x64 or arm64 server and provides a lightweight
+workbench, workspace files, terminals, run tasks, and preview links to
+browser clients on Windows, macOS, and Linux.
 
-One jar, one port, one data folder. See `docs/plan.md` for the
-shipping plan.
+One jar, one port, one data folder. Workspace files are separated by
+workspace. Native workspace processes share the Jahaziel service account;
+the local backend is for trusted users, not hostile multi-tenant isolation.
+See `docs/plan.md` for the current product contract and release plan.
 
 ## Quick Start
 
@@ -31,11 +33,13 @@ values.
 ## Build
 
 ```bash
-./mvnw -q -DskipTests package   # produces target/jahaziel.jar
+./dev.ps1 build                 # builds the workbench, then target/jahaziel.jar
 ```
 
-Requires JDK 25 and Node 24.18. Full checks: `./mvnw verify`.
-Smoke profile: `./mvnw verify -Psmoke`. See `CONTRIBUTING.md`.
+Requires existing JDK 25, Node 24+, and the pinned pnpm package manager.
+Dependencies and caches stay in ignored repository-local directories.
+Full checks: `./mvnw verify`; packaged smoke: `./dev.ps1 smoke`.
+See `CONTRIBUTING.md`.
 
 ## Layout
 
@@ -55,18 +59,14 @@ Details: `docs/architecture/overview.md`.
 
 ## Platforms
 
-| OS | Arch | REH | Backend | Jar mode |
-|---|---|---|---|---|
-| Linux | x86_64 | fat | Firecracker (KVM), local fallback | single jar |
-| Linux | arm64 | fat | Firecracker (KVM), local fallback | single jar |
-| Windows | x86_64 | slim | local | single jar |
-| Windows | arm64 | slim | local | single jar |
-| macOS | x86_64 | download | local | single jar |
-| macOS | arm64 | download | local | single jar |
+| Server OS | Arch | Workbench client |
+|---|---|---|
+| Linux | x86_64 | Any supported modern browser |
+| Linux | arm64 | Any supported modern browser |
 
-Port 11451 on all six. The local backend runs workspaces as host
-processes with no isolation boundary; see
-`docs/security/threat-model.md`.
+Port 11451 serves the UI, API, terminal WebSocket, and preview gateway.
+Windows and macOS are browser clients; native Jahaziel servers on those
+systems are deferred.
 
 ## Docs
 

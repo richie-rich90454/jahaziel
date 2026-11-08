@@ -9,42 +9,45 @@
 
 Last verified against version 0.1.0-SNAPSHOT.
 
-One jar (`target/jahaziel.jar`), one port (11451), one data folder
-(`./data/`). The flat `src/main/java` tree is organized as
-`dev.jahaziel.*` packages:
+Jahaziel is a single-jar, browser-based source IDE for trusted users working on
+Linux server workspaces. The Linux x64 and arm64 server targets use one
+application port and keep persistent files beneath the configured data
+directory. Windows and macOS computers are browser clients; development on the
+Windows workstation uses the repository's native PowerShell workflow.
 
-- `dev.jahaziel.api` — HTTP controllers and DTOs; the only HTTP
-  surface besides the gateway loopback.
-- `dev.jahaziel.workspace`, `dev.jahaziel.runtime` — workspace
-  lifecycle and process/VM supervision.
-- `dev.jahaziel.node`, `dev.jahaziel.nodeagent` — placement facade
-  over the `dev.jahaziel.spi.NodeBackend` interface; the local
-  process backend and the Firecracker backend both implement it.
-- `dev.jahaziel.storage`, `dev.jahaziel.snapshot` — folder storage
-  under `./data/` and copy-on-write workspace state.
-- `dev.jahaziel.networking`, `dev.jahaziel.gateway` — per-workspace
-  ports and Host-header routing with JWT verification; no
-  control-plane round trip per request.
-- `dev.jahaziel.terminal` — shell sessions bound to workspaces.
-- `dev.jahaziel.identity`, `dev.jahaziel.authorization`,
-  `dev.jahaziel.policy`, `dev.jahaziel.extension` — login
-  (DevConnect/OIDC, off until `.env` is complete), access decisions,
-  and the Open VSX-only extension policy.
-- `dev.jahaziel.audit` — guest events over vsock to a collector that
-  appends outside user reach; see `docs/security/threat-model.md`.
-- `dev.jahaziel.monitoring`, `dev.jahaziel.administration` — health
-  (`/actuator/health`) and admin APIs.
-- `dev.jahaziel.platform` — the only package that branches on the OS.
-- `dev.jahaziel.dist` — single-jar wiring: `.env` loading,
-  jar-adjacent `./data/` layout, SQLite, loopback gateway.
-- `dev.jahaziel.spi`, `dev.jahaziel.config` — plugin interfaces and
-  shared configuration.
-- `dev.jahaziel.ide` — Jahaziel Code integration; see
-  `docs/architecture/ide.md`.
+The browser workbench is maintained in `web/src`, built into same-origin
+static assets, and packaged into the jar. CodeMirror 6 provides text editing;
+xterm.js displays explicitly requested workspace terminal sessions. The jar
+does not contain the VS Code fork, an IDE server, or language-tool binaries.
 
-Package boundaries are enforced by ArchUnit: a package uses another
-package's public API only, never its internals.
+The flat `src/main/java` tree keeps the `dev.jahaziel.*` modular-monolith
+boundaries:
 
-Further reading: `docs/architecture/platform.md`,
-`docs/architecture/workspaces.md`, `docs/architecture/ide.md`,
-`docs/plan.md`.
+- `dev.jahaziel.api` exposes authenticated HTTP controllers and DTOs.
+- `dev.jahaziel.identity` and `dev.jahaziel.authorization` handle sign-in,
+  sessions, and workspace access decisions.
+- `dev.jahaziel.workspace` and `dev.jahaziel.runtime` manage one persistent
+  home per workspace, provisioning, tasks, and recovery.
+- `dev.jahaziel.nodeagent`, `dev.jahaziel.spi`, and `dev.jahaziel.platform`
+  provide the runtime backend seam. The release default runs requested
+  processes under the Jahaziel service account; it does not claim hostile
+  multi-tenant isolation.
+- `dev.jahaziel.terminal` manages PTYs and authenticated terminal streams.
+- `dev.jahaziel.language` manages explicitly selected, pinned language packs
+  and their authenticated language-service streams.
+- `dev.jahaziel.networking` and `dev.jahaziel.gateway` manage preview ports
+  and workspace-scoped routing.
+- `dev.jahaziel.storage` and `dev.jahaziel.snapshot` manage persistent data
+  and snapshots under the configured data directory.
+- `dev.jahaziel.dist` composes the single-server runtime; `dev.jahaziel.cli`,
+  `dev.jahaziel.administration`, and `dev.jahaziel.monitoring` provide
+  operations, diagnostics, and health reporting.
+
+ArchUnit checks enforce package boundaries. A package uses another package's
+public API rather than its internals. The former `dev.jahaziel.ide` integration
+is retired from normal startup and jar packaging; see the
+[workbench architecture](ide.md) and [current plan](../plan.md).
+
+Further reading: [platform support](platform.md),
+[workspace lifecycle](workspaces.md), and the
+[security threat model](../security/threat-model.md).

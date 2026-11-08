@@ -8,11 +8,9 @@ import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.dist.DemoSeeder;
-import dev.jahaziel.ide.internal.IdeService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.api.NodeService;
-import dev.jahaziel.platform.Platforms;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,7 +35,6 @@ public class AdminUiController {
   private final NodeService nodes;
   private final AuthorizationService auth;
   private final UserService users;
-  private final IdeService ide;
   private final Path logFile;
   private final String backend;
   private final boolean demo;
@@ -47,7 +44,6 @@ public class AdminUiController {
       NodeService nodes,
       AuthorizationService auth,
       UserService users,
-      IdeService ide,
       @Value("${logging.file.name:/var/log/jahaziel/control-plane.log}") String logFile,
       @Value("${jahaziel.workspace.backend:local}") String backend,
       @Value("${jahaziel.demo:false}") boolean demo) {
@@ -55,7 +51,6 @@ public class AdminUiController {
     this.nodes = nodes;
     this.auth = auth;
     this.users = users;
-    this.ide = ide;
     this.logFile = Path.of(logFile);
     this.backend = backend;
     this.demo = demo;
@@ -82,8 +77,10 @@ public class AdminUiController {
             + "<li>backend: "
             + backend
             + "</li>"
-            + "<li>reh: "
-            + ide.variant().slug()
+            + "<li>host: "
+            + System.getProperty("os.name")
+            + "/"
+            + System.getProperty("os.arch")
             + "</li></ul>"
             + "<ul><li><a href=\"/admin/v1/health\">health</a></li>"
             + "<li><a href=\"/admin/v1/workspaces\">workspaces</a></li>"
@@ -109,12 +106,12 @@ public class AdminUiController {
             + admin.listWorkspaces().size()
             + "\nbackend="
             + backend
-            + "\nreh="
-            + ide.variant().slug()
             + "\njava="
             + System.getProperty("java.version")
             + "\nhost="
-            + Platforms.hostRehVariant()
+            + System.getProperty("os.name")
+            + "/"
+            + System.getProperty("os.arch")
             + "\n";
     return ResponseEntity.ok()
         .header(
@@ -145,10 +142,10 @@ public class AdminUiController {
   }
 
   private UserId requireAdmin(Principal principal) {
+    if (demo) {
+      return DemoSeeder.DEMO_USER;
+    }
     if (principal == null) {
-      if (demo) {
-        return DemoSeeder.DEMO_USER;
-      }
       throw new IllegalArgumentException("missing principal");
     }
     UserId user;

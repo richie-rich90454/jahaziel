@@ -5,6 +5,7 @@
 package dev.jahaziel.nodeagent.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -18,19 +19,17 @@ import dev.jahaziel.spi.RuntimeHandle;
 import dev.jahaziel.spi.RuntimeRequest;
 import dev.jahaziel.spi.WorkspaceHandle;
 import java.io.UncheckedIOException;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 /** Remaining branches of {@link LocalProcessBackend} and {@link NodeMetricsCollector}. */
 class LocalAndMetricsCoverageTest {
   @Test
-  void localNameAndDescriptorFailure(@TempDir Path root) throws Exception {
+  void localNameAndNoDescriptorRuntime(@TempDir Path root) throws Exception {
     LocalProcessBackend backend =
         new LocalProcessBackend(new FolderStorage(new NioCommandRunner(), root.toString()));
     assertEquals("local", backend.name());
@@ -42,9 +41,8 @@ class LocalAndMetricsCoverageTest {
     Path block = root.resolve("block");
     Files.writeString(block, "x");
     WorkspaceHandle bad = new WorkspaceHandle(workspace, handle.homePath(), block.resolve("child"));
-    // Direct failure: descriptor parent is under a file.
     RuntimeRequest request = new RuntimeRequest(workspace, 1, 512, 0, 0, 0, 100, 100, List.of());
-    // Fresh backend backed by a storage mock returning the bad handle.
+    // The trusted local backend has no fake runtime descriptor or per-workspace IDE process.
     dev.jahaziel.spi.WorkspaceStorage stub = mock(dev.jahaziel.spi.WorkspaceStorage.class);
     org.mockito.Mockito.when(
             stub.prepare(
@@ -53,36 +51,9 @@ class LocalAndMetricsCoverageTest {
         .thenReturn(bad);
     LocalProcessBackend withBad = new LocalProcessBackend(stub);
     withBad.prepare(prepared);
-    assertThrows(UncheckedIOException.class, () -> withBad.start(request));
-    assertEquals(bad, bad);
-  }
-
-  @Test
-  void localDescriptorEncodingFailure(@TempDir Path root) throws Exception {
-    FolderStorage storage = new FolderStorage(new NioCommandRunner(), root.toString());
-    LocalProcessBackend backend = new LocalProcessBackend(storage);
-    UUID workspace = UUID.randomUUID();
-    backend.prepare(
-        new PrepareRequest(
-            workspace, UUID.randomUUID(), new ImageRef("img"), new QuotaBytes(1 << 20), 1, 512));
-    Field mapperField = LocalProcessBackend.class.getDeclaredField("mapper");
-    mapperField.setAccessible(true);
-    ObjectMapper failing =
-        new ObjectMapper() {
-          @Override
-          public String writeValueAsString(Object value)
-              throws tools.jackson.core.JacksonException {
-            throw new tools.jackson.core.JacksonException("boom") {};
-          }
-        };
-    ObjectMapper original = (ObjectMapper) mapperField.get(backend);
-    mapperField.set(backend, failing);
-    try {
-      RuntimeRequest request = new RuntimeRequest(workspace, 1, 512, 0, 0, 0, 100, 100, List.of());
-      assertThrows(IllegalStateException.class, () -> backend.start(request));
-    } finally {
-      mapperField.set(backend, original);
-    }
+    withBad.start(request);
+    assertTrue(withBad.isRunning(workspace));
+    assertFalse(Files.exists(bad.jailPath()));
   }
 
   @Test

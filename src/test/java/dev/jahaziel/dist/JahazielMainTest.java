@@ -120,6 +120,38 @@ class JahazielMainTest {
   }
 
   @Test
+  void demoBootForcesLoopbackEvenWhenAHostBindIsConfigured() {
+    String priorAddress = System.getProperty("server.address");
+    Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+    Path dataPath = emptyDir.resolve("demo-data");
+    try {
+      System.setProperty("server.address", "0.0.0.0");
+      JarDataDir data = JarDataDir.resolve(dataPath.toString());
+      DevKeys.Keys keys =
+          new DevKeys.Keys(data.keys().resolve("jwt.key"), data.keys().resolve("jwt.pub"));
+      JahazielMain.Arguments parsed =
+          new JahazielMain.Arguments(
+              dataPath.toString(), 11451, 8081, "localhost", true, false, false);
+
+      assertEquals(
+          "127.0.0.1", JahazielMain.portablePropertyMap(data, keys, parsed).get("server.address"));
+      JahazielMain.portableProperties(data, keys, parsed);
+
+      assertEquals("127.0.0.1", System.getProperty("server.address"));
+    } finally {
+      if (priorAddress == null) {
+        System.clearProperty("server.address");
+      } else {
+        System.setProperty("server.address", priorAddress);
+      }
+      System.getProperties().stringPropertyNames().stream()
+          .filter(key -> !before.contains(key))
+          .toList()
+          .forEach(System::clearProperty);
+    }
+  }
+
+  @Test
   void unsupportedPlatformFails() {
     String osName = System.getProperty("os.name");
     String osArch = System.getProperty("os.arch");

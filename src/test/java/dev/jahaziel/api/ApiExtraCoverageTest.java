@@ -42,6 +42,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.runtime.internal.BootProgressService;
+import dev.jahaziel.runtime.internal.BootProgressService.BootPhase;
 import java.security.Principal;
 import java.time.Duration;
 import java.time.Instant;
@@ -63,10 +64,10 @@ class ApiExtraCoverageTest {
     PortBinding b =
         new PortBinding(UUID.randomUUID(), 8080, UUID.randomUUID(), "http", Instant.now());
     assertTrue(
-        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), null).url()
+        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), null, false).url()
             == null);
     assertTrue(
-        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), "tok")
+        PortDto.from(b, "slug", new GatewayEndpoint("https", "code.test", 443), "tok", true)
             .url()
             .contains("tok"));
     assertEquals(0, MetricsDto.zero().cpuUsagePercent());
@@ -96,12 +97,12 @@ class ApiExtraCoverageTest {
     assertTrue(admin.ports().get(0).url() == null);
     assertTrue(dto.bootPhase() == null);
     assertTrue(dto.bootPhaseAt() == null);
-    progress.report(ws.id(), dev.jahaziel.ide.internal.IdeServerService.BootPhase.SPAWNING);
+    progress.report(ws.id(), BootPhase.STARTING);
     WorkspaceDto live = f.forUser(owner, view);
-    assertEquals("spawning", live.bootPhase());
+    assertEquals("starting", live.bootPhase());
     assertTrue(live.bootPhaseAt() != null);
     WorkspaceDto liveAdmin = f.withoutTokens(view);
-    assertEquals("spawning", liveAdmin.bootPhase());
+    assertEquals("starting", liveAdmin.bootPhase());
     assertThrows(
         NullPointerException.class,
         () ->
@@ -247,6 +248,9 @@ class ApiExtraCoverageTest {
     DevConnectController c = new DevConnectController(dev, users);
     when(dev.startLogin()).thenReturn("https://idp/authorize");
     assertEquals(302, c.login().getStatusCode().value());
+    assertEquals(
+        "/",
+        new DevConnectController(dev, users, true).login().getHeaders().getLocation().toString());
     assertEquals(
         "/?login=failed",
         c.callback("s", "code", "access_denied").getHeaders().getLocation().toString());
@@ -450,6 +454,7 @@ class ApiExtraCoverageTest {
     PortController c =
         new PortController(
             ports,
+            port -> false,
             users,
             auth,
             routes,

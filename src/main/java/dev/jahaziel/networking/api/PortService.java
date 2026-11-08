@@ -12,6 +12,9 @@ import java.util.UUID;
 
 /** Port bindings for the gateway. Bind events are auditable. */
 public interface PortService {
+  /** Maximum registered preview ports on one workspace. */
+  int MAX_PORTS_PER_WORKSPACE = 32;
+
   /**
    * Registers a port binding. Reserved ports 22 and 25 are never exposed.
    *

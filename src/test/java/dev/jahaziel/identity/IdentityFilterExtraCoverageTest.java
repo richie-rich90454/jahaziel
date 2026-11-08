@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
+import dev.jahaziel.identity.domain.DemoIdentity;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.internal.BffAuthenticationFilter;
 import dev.jahaziel.identity.internal.JwtAuthenticationFilter;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 class IdentityFilterExtraCoverageTest {
@@ -95,6 +97,26 @@ class IdentityFilterExtraCoverageTest {
     on.doFilter(authHeader, new MockHttpServletResponse(), mock(FilterChain.class));
     assertThrows(
         NullPointerException.class, () -> new BffAuthenticationFilter(null, tokens, users));
+  }
+
+  @Test
+  void demoModeAuthenticatesOnlyRequestsWithoutAnExplicitAuthorizationHeader() throws Exception {
+    DevConnectService dev = mock(DevConnectService.class);
+    JwtService tokens = mock(JwtService.class);
+    UserService users = mock(UserService.class);
+    BffAuthenticationFilter filter = new BffAuthenticationFilter(dev, tokens, users, true);
+    FilterChain chain = mock(FilterChain.class);
+
+    filter.doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), chain);
+    var demo = SecurityContextHolder.getContext().getAuthentication();
+    assertEquals(DemoIdentity.USER_ID.value().toString(), demo.getName());
+    assertTrue(demo.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")));
+
+    SecurityContextHolder.clearContext();
+    MockHttpServletRequest explicitAuthorization = new MockHttpServletRequest();
+    explicitAuthorization.addHeader("Authorization", "Bearer provided");
+    filter.doFilter(explicitAuthorization, new MockHttpServletResponse(), chain);
+    assertEquals(null, SecurityContextHolder.getContext().getAuthentication());
   }
 
   @Test

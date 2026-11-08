@@ -5,7 +5,11 @@
 
 -->
 
-# Telemetry audit
+# Historical telemetry audit
+
+> Archived review of the retired VS Code fork. Jahaziel no longer builds or
+> embeds that server. This audit does not describe the current browser
+> workbench; see [the current architecture](../architecture/ide.md).
 
 Every outbound channel in the IDE tree and what the fork does about it.
 

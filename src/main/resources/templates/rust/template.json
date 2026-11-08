@@ -1,0 +1,13 @@
+{
+  "name": "rust",
+  "description": "Rust starter with no external crates.",
+  "vcpuCount": 2,
+  "memoryMib": 4096,
+  "ports": [],
+  "languagePacks": ["rust"],
+  "starterFiles": {
+    "README.md": "# Rust\n\nBuild and run with `cargo run`.\n",
+    "Cargo.toml": "[package]\nname = \"jahaziel-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    "src/main.rs": "fn main() {\n    println!(\"Hello from Jahaziel\");\n}\n"
+  }
+}

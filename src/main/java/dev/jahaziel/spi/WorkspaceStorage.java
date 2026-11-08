@@ -13,10 +13,11 @@ import java.util.UUID;
 @JahazielSpi(version = 1)
 public interface WorkspaceStorage {
   /**
-   * Prepares storage for a workspace. Homes are per user, so the owner is required.
+   * Prepares storage for a workspace. Homes are keyed by workspace id; the owner is retained for
+   * quota, audit, and policy decisions.
    *
    * @param workspaceId the workspace to prepare
-   * @param ownerId the owning user, keying the persistent home
+   * @param ownerId the owning user
    * @param image the base image to provision from
    * @param quota the logical quota for the home folder
    * @return the storage handle
@@ -29,6 +30,18 @@ public interface WorkspaceStorage {
    * @param handle the storage handle
    */
   void destroy(WorkspaceHandle handle);
+
+  /**
+   * Destroys a workspace while optionally retaining its snapshots.
+   *
+   * <p>Implementations that store snapshots separately can override this method to preserve them.
+   *
+   * @param handle the storage handle
+   * @param keepSnapshots whether snapshots should survive workspace removal
+   */
+  default void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
+    destroy(handle);
+  }
 
   /**
    * Snapshots a workspace home folder.

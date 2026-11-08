@@ -25,9 +25,9 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 
 /**
  * Web security. Bearer tokens and DevConnect cookies authenticate the API; the login endpoints are
- * public because they are how a browser proves who it is. Actuator health stays public. Demo mode
- * additionally opens the workbench shell and the admin dashboard: localhost try-before-configure
- * with no secrets behind it.
+ * public because they are how a browser proves who it is. Actuator health and the workbench shell
+ * stay public so unauthenticated browsers can reach its sign-in link. Demo mode additionally opens
+ * the admin dashboard: localhost try-before-configure with no secrets behind it.
  */
 @Configuration
 @EnableWebSecurity
@@ -66,7 +66,7 @@ public class SecurityConfig {
   public SecurityFilterChain chain(HttpSecurity http) throws Exception {
     JwtAuthenticationFilter.UserLookup lookup = user -> users.get(user).roles();
     JwtAuthenticationFilter bearer = new JwtAuthenticationFilter(tokens, lookup);
-    BffAuthenticationFilter cookies = new BffAuthenticationFilter(devconnect, tokens, users);
+    BffAuthenticationFilter cookies = new BffAuthenticationFilter(devconnect, tokens, users, demo);
     return http.authorizeHttpRequests(
             exchanges -> {
               exchanges
@@ -77,18 +77,16 @@ public class SecurityConfig {
                   // Public brand assets: browsers fetch these cookieless (manifest,
                   // favicon, PWA icons), so gating them behind auth only produces
                   // console 401s. They carry no secrets.
-                  .requestMatchers("/favicon.ico", "/favicon.svg", "/icons/**", "/site.webmanifest")
+                  .requestMatchers(
+                      "/favicon.ico",
+                      "/favicon.svg",
+                      "/icons/**",
+                      "/assets/**",
+                      "/site.webmanifest")
                   .permitAll();
+              exchanges.requestMatchers("/", "/index.html").permitAll();
               if (demo) {
-                exchanges
-                    .requestMatchers(
-                        "/",
-                        "/index.html",
-                        "/styles.css",
-                        "/app.js",
-                        "/_admin",
-                        "/_admin/diagnostics")
-                    .permitAll();
+                exchanges.requestMatchers("/_admin", "/_admin/diagnostics").permitAll();
               }
               exchanges.anyRequest().authenticated();
             })
@@ -103,6 +101,7 @@ public class SecurityConfig {
         .exceptionHandling(handling -> handling.authenticationEntryPoint(this::onUnauthenticated))
         .addFilterBefore(cookies, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(new CookieWriteOriginFilter(), BffAuthenticationFilter.class)
         .build();
   }
 

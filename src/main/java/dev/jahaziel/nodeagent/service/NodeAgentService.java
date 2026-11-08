@@ -95,13 +95,13 @@ public final class NodeAgentService implements NodeAgentOperations {
   @Override
   public void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots) {
     Objects.requireNonNull(handle, "handle");
-    backend.destroy(handle);
-    sync.deregister(handle.workspaceId());
     if (!keepSnapshots) {
       for (SnapshotSummary snapshot : listSnapshots(handle)) {
         storage.deleteSnapshot(snapshot.handle());
       }
     }
+    backend.destroy(handle, keepSnapshots);
+    sync.deregister(handle.workspaceId());
     audit(handle.workspaceId(), "workspace.destroy", Map.of());
   }
 
@@ -130,8 +130,7 @@ public final class NodeAgentService implements NodeAgentOperations {
   @Override
   public List<SnapshotSummary> listSnapshots(WorkspaceHandle handle) {
     Objects.requireNonNull(handle, "handle");
-    Path snaps =
-        handle.homePath().getParent().resolve("snaps").resolve(handle.workspaceId().toString());
+    Path snaps = handle.homePath().getParent().resolve("snaps");
     if (!Files.isDirectory(snaps)) {
       return List.of();
     }

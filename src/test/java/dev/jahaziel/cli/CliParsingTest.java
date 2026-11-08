@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.jahaziel.platform.Platforms;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -216,11 +215,6 @@ class CliParsingTest {
   }
 
   @Test
-  void rehSlugMatchesPlatforms() {
-    assertEquals(Platforms.hostRehVariant(), Cli.rehSlug());
-  }
-
-  @Test
   void usageMentionsVerbs() {
     String usage = Cli.usage();
     for (String verb :
@@ -263,7 +257,7 @@ class CliParsingTest {
     assertTrue(text.contains("  data: " + data.toAbsolutePath().normalize()));
     assertTrue(text.contains("  port: 11451"));
     assertTrue(text.contains("  backend: local"));
-    assertTrue(text.contains("  ide: " + Cli.rehSlug() + " 1.137.0"));
+    assertTrue(text.contains("  workbench: lightweight browser editor"));
     assertTrue(text.contains(demo ? "(demo: stub IdP, BASIS_* ignored)" : "(basis-auth)"));
     assertTrue(text.contains(demo ? "starting (demo" : "starting (basis-auth)"));
   }

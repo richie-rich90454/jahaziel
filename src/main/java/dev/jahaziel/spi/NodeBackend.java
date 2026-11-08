@@ -44,4 +44,14 @@ public interface NodeBackend {
    * @param handle the storage handle
    */
   void destroy(WorkspaceHandle handle);
+
+  /**
+   * Destroys a workspace runtime and its storage, optionally retaining snapshots.
+   *
+   * @param handle the storage handle
+   * @param keepSnapshots whether snapshots should survive workspace removal
+   */
+  default void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
+    destroy(handle);
+  }
 }

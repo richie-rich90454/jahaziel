@@ -5,45 +5,55 @@
 
 -->
 
-# Acceptance (Phase 9)
+# Release acceptance
 
-Phase 9 is human-run on real hardware. A person works through the
-checklist below for each of the six OS/arch combos in `docs/plan.md`,
-then records the result with the release commit SHA. The release is
-accepted only when every row passes. No automation stands in for it.
+Release acceptance covers a Linux x64 server and a native Linux arm64 server.
+Windows, macOS, and Linux desktop browsers are clients. Linux x64 and arm64 are
+built, tested, packaged, and smoke-launched on native CI runners. The arm64 job
+must report `aarch64`; emulation does not substitute for it. Both jobs also run
+a headless browser flow against the packaged jar. Browser tooling stays in the
+hosted runner's temporary directory and is not part of the app or release jar.
 
 ## Candidate under test
 
-- Commit SHA: `46b202f` (full `-Psmoke clean verify` green: 383 unit +
-  4 smoke, fmt, license)
+- Commit SHA: pending
 - Artifact: `target/jahaziel.jar`
-  (`SHA-256 2A39DD81FCB10C0AA7A33C3BBEF22BD0D0644C261A5E08347FE7A5E0A44C5EBE`)
-- Changes since the last acceptance run: first acceptance for the
-  single-jar layout (one pom, flat `src/`, platform abstraction, bare-jar
-  full-stack boot, CLI verbs, smoke gate, template seeds, demo mode,
-  VitePress site). No previous acceptance recorded.
+- Artifact SHA-256: pending
+- Workbench bundle size: recorded by CI
+- Server target: Linux x64 / Linux arm64
 
-## Checklist
+## Packaged workflow checklist
 
-1. `java -jar jahaziel.jar init` scaffolds `.env`.
-2. Bare `java -jar jahaziel.jar` serves `http://localhost:11451`.
-3. Health endpoint returns 200.
-4. Login flow completes (or stays off with a clear message when
-   `.env` is incomplete).
-5. Workspace create/start/stop/destroy round-trips.
-6. IDE opens over the correct REH mode for the combo.
-7. Terminal runs a command; port forward serves.
-8. Snapshot create/restore round-trips.
-9. Backup and restore round-trip per `docs/operations/backup.md`.
-10. Nothing written outside `./data/`.
+1. Initialize a fresh data directory and start the packaged jar.
+2. Confirm sign-in and authenticated workbench routes.
+3. Apply each supported template family and verify separate workspace homes.
+4. Open, edit, and save a text file; verify ETag conflicts after an external edit.
+5. Explicitly enable an available language pack and verify a diagnostic arrives over its authenticated language-service stream.
+6. Verify unauthenticated and cross-workspace file access is rejected.
+7. Open a terminal; verify input, output, resize, reconnect buffer, close, and process cleanup.
+8. Run and stop a template task; inspect bounded output and exit status.
+9. Open a registered preview port, verify the workbench changes its status as
+   the listener starts and stops, and verify workspace-scoped authorization.
+10. In an existing repository, inspect status and diff, stage and unstage files, and commit staged changes.
+11. Restart the jar and confirm file content and workspace identity recover.
+12. Interrupt the server while a workspace is starting or active; confirm it reports a recoverable failure, preserves files, and starts successfully on retry.
+13. Leave a run task with child processes active, abruptly stop the jar, and confirm startup recovery stops only the recorded Linux session, including its child processes. Confirm the workbench restores the latest run with its previous bounded output and interruption reason, and a stale or mismatched process marker never stops its PID.
+14. Exercise path traversal, symlink escape, cross-workspace Git/file access, WebSocket authorization, and secret-redaction checks.
+15. Confirm normal build does not download IDE servers or language packs and the jar contains no toolchains.
+16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
+17. Back up and restore `data/` and `.env` according to `docs/operations/backup.md`.
+
+The optional catalog includes an opt-in Go 1.27.3 SDK and gopls v0.24.0 build
+for Linux x64 and arm64. Its displayed download size covers the Go SDK only;
+verified Go module downloads and temporary build space are additional. First
+release scope provides clangd diagnostics on Linux x64; arm64 acceptance checks
+an available cross-architecture language pack. C/C++ diagnostics on arm64 are
+deferred until a small app-managed artifact can be pinned without depending on
+a distro-specific package or downloading the full LLVM distribution.
 
 ## Results
 
-| Date | Commit SHA | Artifact SHA-256 (prefix) | Combo | REH | Result | Signed off by |
-|---|---|---|---|---|---|---|
-| — | `46b202f` | `2A39DD81…` | Windows x64 | win32-x64 | untested | — |
-| — | `46b202f` | `2A39DD81…` | macOS arm64 | darwin-arm64 | untested | — |
-| — | `46b202f` | `2A39DD81…` | Linux x64 | linux-x64 | untested | — |
-| — | `46b202f` | `2A39DD81…` | Windows arm64 | win32-arm64 | untested | — |
-| — | `46b202f` | `2A39DD81…` | macOS x64 | darwin-x64 | untested | — |
-| — | `46b202f` | `2A39DD81…` | Linux arm64 | linux-arm64 | untested | — |
+| Date | Commit SHA | Artifact SHA-256 prefix | Native host | Result | Signed off by |
+|---|---|---|---|---|---|
+| — | — | — | Linux x64 | pending CI and human review | — |
+| — | — | — | Linux arm64 | native CI and acceptance pending | — |

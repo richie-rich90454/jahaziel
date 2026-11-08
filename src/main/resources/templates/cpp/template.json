@@ -1,0 +1,12 @@
+{
+  "name": "cpp",
+  "description": "C++ starter with no external dependencies.",
+  "vcpuCount": 2,
+  "memoryMib": 4096,
+  "ports": [],
+  "languagePacks": ["cpp"],
+  "starterFiles": {
+    "README.md": "# C++\n\nBuild with `clang++ -std=c++20 -Wall -Wextra -pedantic main.cpp -o app`, then run `./app`.\n",
+    "main.cpp": "#include <iostream>\n\nint main() {\n    std::cout << \"Hello from Jahaziel\\n\";\n    return 0;\n}\n"
+  }
+}

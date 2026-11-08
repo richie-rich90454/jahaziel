@@ -29,13 +29,22 @@ public final class WorkspacePaths {
   }
 
   /**
-   * Returns the persistent home folder path. Homes are per user.
+   * Returns the persistent home folder path. Homes are per workspace so projects never share a
+   * writable tree by accident.
    *
    * @param storageRoot the storage root
-   * @param ownerId the owning user identifier
+   * @param workspaceId the workspace identifier
    * @return the home path
    */
-  public static String homePath(String storageRoot, UserId ownerId) {
+  public static String homePath(String storageRoot, WorkspaceId workspaceId) {
+    return root(storageRoot)
+        + "/workspaces/"
+        + Objects.requireNonNull(workspaceId, "workspaceId").value()
+        + "/home";
+  }
+
+  /** Returns the pre-isolation shared home layout for a safe one-time data migration. */
+  public static String legacyHomePath(String storageRoot, UserId ownerId) {
     return root(storageRoot)
         + "/workspaces/"
         + Objects.requireNonNull(ownerId, "ownerId").value()

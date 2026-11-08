@@ -178,7 +178,7 @@ public final class SnapshotServiceImpl implements SnapshotService {
   private WorkspaceHandle handleOf(Workspace workspace) {
     return new WorkspaceHandle(
         workspace.id().value(),
-        Path.of(WorkspacePaths.homePath(storageRoot, workspace.owner())),
+        Path.of(WorkspacePaths.homePath(storageRoot, workspace.id())),
         Path.of(WorkspacePaths.jailPath(storageRoot, workspace.id())));
   }
 }

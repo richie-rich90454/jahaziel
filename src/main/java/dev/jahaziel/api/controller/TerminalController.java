@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** User-facing terminal session endpoints. PTY relay itself runs in the workspace VM. */
+/** User-facing terminal session endpoints. PTYs run in the trusted host account. */
 @RestController
 @RequestMapping("/api/v1")
 public class TerminalController {

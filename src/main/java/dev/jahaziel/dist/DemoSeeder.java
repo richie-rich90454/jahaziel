@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.dist;
 
+import dev.jahaziel.identity.domain.DemoIdentity;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.persistence.AppUserEntity;
 import dev.jahaziel.identity.persistence.AppUserRepository;
@@ -13,10 +14,9 @@ import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -24,11 +24,10 @@ import org.springframework.stereotype.Component;
  * jahaziel.demo} is true; every step is existence-checked, so restarts are idempotent.
  */
 @Component
-@ConditionalOnProperty(name = "jahaziel.demo", havingValue = "true")
+@Conditional(DemoModeEnabledCondition.class)
 public final class DemoSeeder implements ApplicationRunner {
   /** Fixed demo identity, also used as the demo admin fallback. */
-  public static final UserId DEMO_USER =
-      new UserId(UUID.fromString("00000000-0000-4000-8000-000000000001"));
+  public static final UserId DEMO_USER = DemoIdentity.USER_ID;
 
   /** Name of the seeded workspace. */
   public static final String DEMO_WORKSPACE = "demo";

@@ -40,11 +40,11 @@ import org.springframework.context.ConfigurableApplicationContext;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DevConnectLoginTest {
+  private static final MockBasisAuth IDP = startIdp();
   private static final int PORT = freePort();
   private static final Path TMP = tempDir();
   private static final JarDataDir DATA = JarDataDir.resolve(TMP.resolve("data").toString());
   private static final DevKeys.Keys KEYS = DevKeys.ensure(DATA.keys());
-  private static final MockBasisAuth IDP = startIdp();
   private static final HttpClient HTTP =
       HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
 
@@ -245,7 +245,8 @@ class DevConnectLoginTest {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(URI.create(url))
             .POST(HttpRequest.BodyPublishers.ofString(body))
-            .header("Content-Type", "application/json");
+            .header("Content-Type", "application/json")
+            .header("Origin", base());
     if (cookie != null) {
       request.header("Cookie", cookie);
     }

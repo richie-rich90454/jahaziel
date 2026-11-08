@@ -46,7 +46,8 @@ class FolderStorageTest {
         storage.prepare(
             workspaceId, ownerId, new ImageRef("base-image:2026.09"), new QuotaBytes(4096));
     assertEquals(workspaceId, handle.workspaceId());
-    assertEquals(Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home"), handle.homePath());
+    assertEquals(
+        Path.of("/var/lib/jahaziel/workspaces/" + workspaceId + "/home"), handle.homePath());
     assertEquals(Path.of("/var/lib/jahaziel/jail/" + workspaceId), handle.jailPath());
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
@@ -81,8 +82,9 @@ class FolderStorageTest {
     WorkspaceHandle handle = handle();
     SnapshotHandle snap = storage.snapshot(handle, new SnapshotTag("daily"));
     assertEquals(
-        Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/snaps/" + workspaceId + "/daily"),
+        Path.of("/var/lib/jahaziel/workspaces/" + workspaceId + "/snaps/daily"),
         snap.snapshotPath());
+    verify(commands).run(List.of("mkdir", "-p", handle.homePath().toString()));
     verify(commands).run(List.of("mkdir", "-p", snap.snapshotPath().getParent().toString()));
     verify(commands)
         .run(List.of("cp", "-a", handle.homePath() + "/.", snap.snapshotPath().toString()));
@@ -96,15 +98,16 @@ class FolderStorageTest {
     storage.restore(handle, snap);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-    verify(commands, org.mockito.Mockito.times(8)).run(captor.capture());
+    verify(commands, org.mockito.Mockito.times(9)).run(captor.capture());
     List<List<String>> calls = captor.getAllValues();
-    assertEquals(List.of("rm", "-rf", stagedOf(handle).toString()), calls.get(0));
-    assertEquals(List.of("rm", "-rf", retiredOf(handle).toString()), calls.get(1));
-    assertEquals("cp", calls.get(3).get(0));
-    assertEquals("mv", calls.get(5).get(0));
+    assertEquals(List.of("mkdir", "-p", handle.homePath().toString()), calls.get(0));
+    assertEquals(List.of("rm", "-rf", stagedOf(handle).toString()), calls.get(1));
+    assertEquals(List.of("rm", "-rf", retiredOf(handle).toString()), calls.get(2));
+    assertEquals("cp", calls.get(4).get(0));
     assertEquals("mv", calls.get(6).get(0));
+    assertEquals("mv", calls.get(7).get(0));
     Path retired = retiredOf(handle);
-    assertEquals(List.of("rm", "-rf", retired.toString()), calls.get(7));
+    assertEquals(List.of("rm", "-rf", retired.toString()), calls.get(8));
   }
 
   private static Path stagedOf(WorkspaceHandle handle) {
@@ -124,10 +127,20 @@ class FolderStorageTest {
   }
 
   @Test
-  void destroyRemovesJailOnly() {
+  void destroyRemovesJailAndWorkspaceData() {
     WorkspaceHandle handle = handle();
     storage.destroy(handle);
     verify(commands).run(List.of("rm", "-rf", handle.jailPath().toString()));
+    verify(commands).run(List.of("rm", "-rf", handle.homePath().getParent().toString()));
+  }
+
+  @Test
+  void destroyCanRetainSnapshots() {
+    WorkspaceHandle handle = handle();
+    storage.destroy(handle, true);
+    verify(commands).run(List.of("rm", "-rf", handle.jailPath().toString()));
+    verify(commands).run(List.of("rm", "-rf", handle.homePath().toString()));
+    verify(commands, never()).run(List.of("rm", "-rf", handle.homePath().getParent().toString()));
   }
 
   @Test
@@ -159,7 +172,7 @@ class FolderStorageTest {
   }
 
   private Path homePath() {
-    return Path.of("/var/lib/jahaziel/workspaces/" + ownerId + "/home");
+    return Path.of("/var/lib/jahaziel/workspaces/" + workspaceId + "/home");
   }
 
   private WorkspaceHandle handle() {

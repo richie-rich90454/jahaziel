@@ -39,13 +39,10 @@ cp shell/jahaziel-shell-integration.sh "$WORK/root/etc/profile.d/"
 cp shell/jahaziel-sync.py "$WORK/root/usr/local/bin/jahaziel-sync"
 cp shell/jahaziel-init.sh "$WORK/root/usr/local/bin/jahaziel-init"
 chmod 0755 "$WORK/root/usr/local/bin/jahaziel-sync" "$WORK/root/usr/local/bin/jahaziel-init"
-tar --use-compress-program="zstd -19" -xf ../../ide/out/jahaziel-code-server.tar.zst \
-  -C "$WORK/root/opt"
-mv "$WORK/root/opt/vscode-reh-web-linux-x64" "$WORK/root/opt/jahaziel-code-server"
 
-# The supervisor is our own process manager, so the fat jar ships in the image.
+# The browser workbench runs in the host jar; the guest image needs no IDE server.
 mkdir -p "$WORK/root/opt/jahaziel" "$WORK/root/etc/jahaziel/services"
-cp "$ROOT/../dist/target/jahaziel.jar" "$WORK/root/opt/jahaziel/jahaziel.jar"
+cp "$ROOT/../target/jahaziel.jar" "$WORK/root/opt/jahaziel/jahaziel.jar"
 cp "$ROOT/../ops/services/"*.service "$WORK/root/etc/jahaziel/services/"
 cp "$ROOT/../ops/services/"*.timer "$WORK/root/etc/jahaziel/services/" 2>/dev/null || true
 in_image useradd -r -m -s /bin/bash jahaziel-guest

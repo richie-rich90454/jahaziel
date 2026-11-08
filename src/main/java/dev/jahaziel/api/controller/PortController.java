@@ -15,10 +15,12 @@ import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.networking.api.PortStatusProbe;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class PortController {
   private final PortService ports;
+  private final PortStatusProbe portStatus;
   private final UserService users;
   private final AuthorizationService auth;
   private final GatewayRouteService routes;
@@ -52,6 +55,7 @@ public class PortController {
    * Creates the controller.
    *
    * @param ports the port service
+   * @param portStatus the loopback listener check
    * @param users the user lookup for URL slugs
    * @param auth the authorization checks
    * @param routes the gateway route reconciler
@@ -61,6 +65,7 @@ public class PortController {
    */
   public PortController(
       PortService ports,
+      PortStatusProbe portStatus,
       UserService users,
       AuthorizationService auth,
       GatewayRouteService routes,
@@ -68,6 +73,7 @@ public class PortController {
       GatewayEndpoint endpoint,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
     this.ports = ports;
+    this.portStatus = Objects.requireNonNull(portStatus, "portStatus");
     this.users = users;
     this.auth = auth;
     this.routes = routes;
@@ -109,7 +115,11 @@ public class PortController {
     PortBinding binding = ports.registerPort(user, request.port(), workspace, request.protocol());
     routes.reconcile();
     return PortDto.from(
-        binding, users.slug(user), endpoint, token(user, workspace, binding.port()));
+        binding,
+        users.slug(user),
+        endpoint,
+        token(user, workspace, binding.port()),
+        portStatus.isListening(binding.port()));
   }
 
   /**
@@ -130,18 +140,25 @@ public class PortController {
   }
 
   private List<PortDto> describe(UserId user, WorkspaceId workspace) {
-    return ports.bindingsByWorkspace(workspace).stream()
-        .map(
-            binding -> {
-              // The slug belongs to the port's owner, not to a grantee reading the workspace.
-              UserId portOwner = new UserId(binding.userId());
-              return PortDto.from(
-                  binding,
-                  users.slug(portOwner),
-                  endpoint,
-                  token(portOwner, workspace, binding.port()));
-            })
-        .toList();
+    List<PortBinding> bindings = ports.bindingsByWorkspace(workspace);
+    List<PortDto> result = new ArrayList<>(bindings.size());
+    for (int index = 0; index < bindings.size(); index++) {
+      PortBinding binding = bindings.get(index);
+      // The slug belongs to the port's owner, not to a grantee reading the workspace.
+      UserId portOwner = new UserId(binding.userId());
+      Boolean listening =
+          index < PortService.MAX_PORTS_PER_WORKSPACE
+              ? portStatus.isListening(binding.port())
+              : null;
+      result.add(
+          PortDto.from(
+              binding,
+              users.slug(portOwner),
+              endpoint,
+              token(portOwner, workspace, binding.port()),
+              listening));
+    }
+    return List.copyOf(result);
   }
 
   private String token(UserId user, WorkspaceId workspace, int port) {

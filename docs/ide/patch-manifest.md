@@ -7,6 +7,10 @@
 
 # IDE patch manifest
 
+> Historical record only. The tracked VS Code fork build tree and patch stack
+> have been removed. No current command uses these instructions. Existing
+> ignored IDE outputs are left untouched.
+
 One coherent change per patch, applied in order by `ide/build.sh`. The
 stack must apply cleanly to the pinned upstream tag; `build.sh` fails
 closed when a patch does not.

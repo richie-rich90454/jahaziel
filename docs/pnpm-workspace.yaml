@@ -1,0 +1,18 @@
+#
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+
+packages: []
+storeDir: ../.cache/pnpm-home/store
+networkConcurrency: 1
+fetchTimeout: 120000
+fetchRetries: 1
+verifyDepsBeforeRun: false
+supportedArchitectures:
+  os:
+    - win32
+    - linux
+  cpu:
+    - x64
+    - arm64

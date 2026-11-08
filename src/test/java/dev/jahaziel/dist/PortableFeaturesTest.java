@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -152,7 +153,11 @@ class PortableFeaturesTest {
 
   @Test
   void terminalsCanBeOpenedListedAndClosed() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("linux"),
+        "PTY integration test requires the Linux server runtime");
     String id = createWorkspace();
+    assertEquals(200, post("/api/v1/workspaces/" + id + "/start", ownerToken, "").status());
     Response opened = post("/api/v1/workspaces/" + id + "/terminals", ownerToken, "");
     assertEquals(201, opened.status(), opened.body());
     String sessionId = json(opened.body()).get("sessionId").asString();

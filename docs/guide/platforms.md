@@ -9,19 +9,16 @@
 
 Last verified against version 0.1.0-SNAPSHOT.
 
-One jar runs everywhere. Only the REH binary and the terminal shell differ.
+Jahaziel servers run on Linux x64 and arm64. Windows, macOS, and Linux
+desktops connect through a supported browser; they do not host a Jahaziel
+server in this release.
 
-| OS | Arch | REH variant | Backend | Jar mode |
-|---|---|---|---|---|
-| Windows | x64 | win32-x64 | local (no isolation) | fat or slim |
-| Windows | arm64 | win32-arm64 | local (no isolation) | fat or slim |
-| macOS | x64 | darwin-x64 | local (no isolation) | fat or download |
-| macOS | arm64 | darwin-arm64 | local (no isolation) | fat or download |
-| Linux | x64 | linux-x64 | firecracker (KVM) or local | fat or slim |
-| Linux | arm64 | linux-arm64 | firecracker (KVM) or local | fat or slim |
+| Server | Arch | Browser clients |
+|---|---|---|
+| Linux | x64 | Windows, macOS, Linux |
+| Linux | arm64 | Windows, macOS, Linux |
 
-Port is `11451` on all six. The `local` backend runs workspaces as host
-processes with no filesystem isolation — see the
-[threat model](../security/threat-model.md). All OS branching lives in
-`dev.jahaziel.platform`; see
-[platform architecture](../architecture/platform.md).
+Port `11451` serves the UI, APIs, terminal WebSocket, and workspace preview
+gateway. The local backend runs terminal and task processes under the same
+OS account as Jahaziel. It is for trusted users only; see the
+[threat model](../security/threat-model.md).

@@ -9,7 +9,7 @@
 
 ## Change
 
-<!-- One logical change per commit, one file per commit. -->
+<!-- Keep this focused on one cohesive behavior, with related code, docs, and verification. -->
 
 ## Why
 

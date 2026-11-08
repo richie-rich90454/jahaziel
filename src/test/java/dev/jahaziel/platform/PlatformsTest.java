@@ -9,12 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Detection, variants, and path conversions. No servers start here. */
+/** Host detection and path conversions. No servers start here. */
 class PlatformsTest {
   @TempDir private Path tmp;
 
@@ -24,18 +23,15 @@ class PlatformsTest {
         Platforms.detect("Windows 11", "amd64", tmp.resolve("jar"), tmp.resolve("data").toString());
     assertEquals(Platform.Os.WINDOWS, win.os());
     assertEquals(Platform.Arch.X64, win.arch());
-    assertEquals("win32-x64", win.rehVariant());
     assertEquals(";", win.pathSeparator());
 
     Platform mac = Platforms.detect("Mac OS X", "aarch64", tmp.resolve("jar"), null);
     assertEquals(Platform.Os.MACOS, mac.os());
     assertEquals(Platform.Arch.ARM64, mac.arch());
-    assertEquals("darwin-arm64", mac.rehVariant());
     assertEquals(":", mac.pathSeparator());
 
     Platform linux = Platforms.detect("Linux", "x86_64", tmp.resolve("jar"), null);
     assertEquals(Platform.Os.LINUX, linux.os());
-    assertEquals("linux-x64", linux.rehVariant());
   }
 
   @Test
@@ -47,11 +43,9 @@ class PlatformsTest {
   }
 
   @Test
-  void allSixVariants() {
-    assertEquals(
-        "win32-arm64", Platforms.detect("Windows Server", "arm64", tmp, null).rehVariant());
-    assertEquals("darwin-x64", Platforms.detect("darwin", "x64", tmp, null).rehVariant());
-    assertEquals("linux-arm64", Platforms.detect("Linux", "aarch64", tmp, null).rehVariant());
+  void detectsBothLinuxServerArchitectures() {
+    assertEquals(Platform.Arch.X64, Platforms.detect("Linux", "x86_64", tmp, null).arch());
+    assertEquals(Platform.Arch.ARM64, Platforms.detect("Linux", "aarch64", tmp, null).arch());
   }
 
   @Test
@@ -59,9 +53,8 @@ class PlatformsTest {
     IllegalStateException failure =
         assertThrows(
             IllegalStateException.class, () -> Platforms.detect("Haiku", "sparc", tmp, null));
-    assertTrue(failure.getMessage().contains("win32-x64"));
-    assertTrue(failure.getMessage().contains("darwin-arm64"));
-    assertTrue(failure.getMessage().contains("linux-x64"));
+    assertTrue(failure.getMessage().contains("Linux x64"));
+    assertTrue(failure.getMessage().contains("Linux arm64"));
     assertTrue(failure.getMessage().contains("Haiku"));
   }
 
@@ -102,16 +95,5 @@ class PlatformsTest {
     assertEquals(expected, env.get("TEMP"));
     assertEquals(expected, env.get("TMP"));
     assertEquals(expected, env.get("TMPDIR"));
-  }
-
-  @Test
-  void rehLayoutAndArgs() {
-    Platform platform =
-        Platforms.detect("Linux", "x86_64", tmp.resolve("jar"), tmp.resolve("data").toString());
-    assertTrue(platform.rehExecutable().startsWith(platform.rehDir()));
-    List<String> args = platform.rehLaunchArgs(tmp.resolve("ws"), 11451);
-    assertTrue(args.contains("11451"));
-    assertTrue(args.contains("--without-connection-token"));
-    assertTrue(platform.terminal(tmp).size() >= 2);
   }
 }

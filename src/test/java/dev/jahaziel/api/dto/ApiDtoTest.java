@@ -97,13 +97,14 @@ class ApiDtoTest {
         new PortBinding(UUID.randomUUID(), 8080, UUID.randomUUID(), "http", Instant.now());
     PortDto withToken =
         PortDto.from(
-            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), "tok");
+            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), "tok", true);
     assertEquals(8080, withToken.port());
     assertEquals("http", withToken.protocol());
     assertEquals("https://richard-8080.code.example.com/?token=tok", withToken.url());
+    assertEquals(true, withToken.listening());
     PortDto withoutToken =
         PortDto.from(
-            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), null);
+            binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), null, false);
     assertNull(withoutToken.url());
     assertEquals(binding.registeredAt(), withoutToken.registeredAt());
   }

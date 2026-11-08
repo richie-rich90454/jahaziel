@@ -70,8 +70,16 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
 
   @Override
   public void destroy(WorkspaceHandle handle) {
+    destroy(handle, false);
+  }
+
+  @Override
+  public void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
     requirePrepared(handle);
     prepared.remove(handle.workspaceId());
+    if (!keepSnapshots) {
+      snapshots.remove(handle.workspaceId());
+    }
   }
 
   @Override
@@ -111,7 +119,7 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
     WorkspaceHandle handle =
         new WorkspaceHandle(
             workspaceId,
-            Path.of("/workspaces/" + ownerId + "/home"),
+            Path.of("/workspaces/" + workspaceId + "/home"),
             Path.of("/jail/" + workspaceId));
     prepared.put(workspaceId, handle);
     return handle;

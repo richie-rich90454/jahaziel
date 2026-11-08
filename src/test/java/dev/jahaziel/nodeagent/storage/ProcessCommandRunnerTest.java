@@ -23,14 +23,14 @@ class ProcessCommandRunnerTest {
 
   @Test
   void runEchoSucceeds() {
-    String out = runner.run(List.of("cmd", "/c", "echo hello"));
+    String out = runner.run(shellCommand("echo hello"));
     assertEquals("hello", out);
   }
 
   @Test
   void runNonZeroThrowsWithOutput() {
     StorageException failure =
-        assertThrows(StorageException.class, () -> runner.run(List.of("cmd", "/c", "exit 1")));
+        assertThrows(StorageException.class, () -> runner.run(shellCommand("exit 1")));
     assertTrue(failure.getMessage().contains("exit 1"));
     assertEquals(1, failure.exitCode());
   }
@@ -81,7 +81,7 @@ class ProcessCommandRunnerTest {
   void interruptedRunRestoresFlag() throws Exception {
     Thread.currentThread().interrupt();
     try {
-      assertThrows(StorageException.class, () -> runner.run(List.of("cmd", "/c", "echo hi")));
+      assertThrows(StorageException.class, () -> runner.run(shellCommand("echo hi")));
       assertTrue(Thread.currentThread().isInterrupted());
     } finally {
       Thread.interrupted();
@@ -97,5 +97,12 @@ class ProcessCommandRunnerTest {
     } finally {
       Thread.interrupted();
     }
+  }
+
+  private static List<String> shellCommand(String command) {
+    if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
+      return List.of("cmd.exe", "/c", command);
+    }
+    return List.of("/bin/sh", "-c", command);
   }
 }

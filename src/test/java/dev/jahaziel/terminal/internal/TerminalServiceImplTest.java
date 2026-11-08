@@ -7,12 +7,22 @@ package dev.jahaziel.terminal.internal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
 import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
+import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
+import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
+import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
+import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import dev.jahaziel.workspace.domain.WorkspaceState;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,5 +68,52 @@ class TerminalServiceImplTest {
     assertEquals(1, found.size());
     assertEquals(first.id(), found.get(0).id());
     assertTrue(service.listByWorkspace(new WorkspaceId(UUID.randomUUID())).isEmpty());
+  }
+
+  @Test
+  void terminalEnvironmentContainsOnlyServerOwnedValues() {
+    Path home = Path.of("/data/workspaces/example/home");
+
+    assertEquals(
+        Map.of(
+            "HOME", home.toString(),
+            "PATH", "/usr/local/bin:/usr/bin:/bin",
+            "TERM", "xterm-256color",
+            "LANG", "C.UTF-8"),
+        TerminalServiceImpl.terminalEnvironment(home));
+  }
+
+  @Test
+  void refusesTerminalsForAWorkspaceThatHasNotStarted() {
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
+    WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
+    Workspace workspace = mock(Workspace.class);
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    when(workspace.state()).thenReturn(new WorkspaceState.Requested(java.time.Instant.now()));
+    TerminalServiceImpl guarded = new TerminalServiceImpl(directories, registry, workspaces);
+
+    IllegalWorkspaceStateException failure =
+        assertThrows(
+            IllegalWorkspaceStateException.class, () -> guarded.open(workspaceId, userId, 30, 120));
+
+    assertEquals(workspaceId, failure.workspaceId());
+    assertEquals("open terminal", failure.action());
+  }
+
+  @Test
+  void stoppingWorkspaceClosesTheDoorToNewTerminals() {
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
+    WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
+    Workspace workspace = mock(Workspace.class);
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    when(workspace.state()).thenReturn(new WorkspaceState.Active(java.time.Instant.now()));
+    TerminalServiceImpl guarded = new TerminalServiceImpl(directories, registry, workspaces);
+
+    guarded.closeByWorkspace(workspaceId);
+
+    assertThrows(
+        IllegalWorkspaceStateException.class, () -> guarded.open(workspaceId, userId, 30, 120));
   }
 }

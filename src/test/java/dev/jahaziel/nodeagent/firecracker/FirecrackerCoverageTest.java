@@ -17,6 +17,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -78,10 +79,11 @@ class FirecrackerCoverageTest {
 
   @Test
   void bootRoundTripOverUnixSocket() throws Exception {
-    Path socketPath = root.resolve("api.sock");
+    Path socketPath = shortSocketPath("api");
     AtomicReference<String> lastRequest = new AtomicReference<>("");
     Thread server =
-        Thread.ofVirtual()
+        Thread.ofPlatform()
+            .daemon()
             .start(
                 () -> {
                   try (ServerSocketChannel serverCh =
@@ -119,14 +121,16 @@ class FirecrackerCoverageTest {
     } finally {
       server.interrupt();
       server.join(2000);
+      java.nio.file.Files.deleteIfExists(socketPath);
     }
   }
 
   @Test
   void bootRefusesErrorStatus() throws Exception {
-    Path socketPath = root.resolve("err.sock");
+    Path socketPath = shortSocketPath("err");
     Thread server =
-        Thread.ofVirtual()
+        Thread.ofPlatform()
+            .daemon()
             .start(
                 () -> {
                   try (ServerSocketChannel serverCh =
@@ -150,7 +154,16 @@ class FirecrackerCoverageTest {
     } finally {
       server.interrupt();
       server.join(2000);
+      java.nio.file.Files.deleteIfExists(socketPath);
     }
+  }
+
+  private static Path shortSocketPath(String prefix) {
+    Path directory =
+        java.io.File.separatorChar == '\\'
+            ? Path.of(System.getProperty("java.io.tmpdir"))
+            : Path.of("/tmp");
+    return directory.resolve("jhz-" + prefix + "-" + UUID.randomUUID() + ".sock");
   }
 
   @Test

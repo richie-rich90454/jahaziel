@@ -80,7 +80,7 @@ class WorkspaceServiceImplTest {
     assertEquals(
         "/var/lib/jahaziel/jail/" + workspace.id().value(), machineCaptor.getValue().getJailPath());
     assertEquals(
-        "/var/lib/jahaziel/workspaces/" + owner.value() + "/home",
+        "/var/lib/jahaziel/workspaces/" + workspace.id().value() + "/home",
         machineCaptor.getValue().getHomePath());
   }
 

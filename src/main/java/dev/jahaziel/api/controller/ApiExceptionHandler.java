@@ -10,11 +10,15 @@ import dev.jahaziel.extension.api.ExtensionPolicyNotFoundException;
 import dev.jahaziel.identity.api.DevConnectException;
 import dev.jahaziel.identity.api.LoginRejectedException;
 import dev.jahaziel.identity.api.UserNotFoundException;
+import dev.jahaziel.language.api.LanguagePackInstallException;
 import dev.jahaziel.node.api.NodeNotFoundException;
 import dev.jahaziel.policy.api.PolicyNotFoundException;
 import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.snapshot.api.SnapshotNotFoundException;
+import dev.jahaziel.terminal.api.TerminalLimitException;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
+import dev.jahaziel.terminal.api.TerminalUnavailableException;
+import dev.jahaziel.workspace.api.WorkspaceFileConflictException;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
 import dev.jahaziel.workspace.domain.IllegalWorkspaceStateException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -97,6 +101,33 @@ public class ApiExceptionHandler {
     return error("NODE_AGENT_UNREACHABLE", "Node agent not responding");
   }
 
+  /** Maps terminal host failures to 503. */
+  @ExceptionHandler(TerminalUnavailableException.class)
+  @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+  public ApiError terminalUnavailable(TerminalUnavailableException failure) {
+    return error("TERMINAL_UNAVAILABLE", failure.getMessage());
+  }
+
+  /** Maps terminal capacity failures to 429. */
+  @ExceptionHandler(TerminalLimitException.class)
+  @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+  public ApiError terminalLimit(TerminalLimitException failure) {
+    return error("TERMINAL_LIMIT", failure.getMessage());
+  }
+
+  /** Maps opt-in language-tool download failures without returning source or filesystem details. */
+  @ExceptionHandler(LanguagePackInstallException.class)
+  @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+  public ApiError languagePackInstallFailed(LanguagePackInstallException failure) {
+    String trace = UUID.randomUUID().toString();
+    log.warn("language-pack installation failed {}", trace, failure);
+    return new ApiError(
+        "LANGUAGE_PACK_INSTALL_FAILED",
+        "Language pack could not be installed; retry or inspect the server log",
+        trace,
+        Map.of());
+  }
+
   /** Maps illegal lifecycle transitions to 409. */
   @ExceptionHandler(IllegalWorkspaceStateException.class)
   @ResponseStatus(HttpStatus.CONFLICT)
@@ -104,7 +135,14 @@ public class ApiExceptionHandler {
     return error("STATE_CONFLICT", "Workspace state does not allow this action");
   }
 
-  /** Maps bad input to 400. */
+  /** Maps stale editor saves to 412 so the workbench can offer a reload or merge. */
+  @ExceptionHandler(WorkspaceFileConflictException.class)
+  @ResponseStatus(HttpStatus.PRECONDITION_FAILED)
+  public ApiError fileConflict(WorkspaceFileConflictException failure) {
+    return error("FILE_CONFLICT", failure.getMessage());
+  }
+
+  /** Maps bad input to 400 without exposing local filesystem paths or process details. */
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public ApiError badInput(IllegalArgumentException failure) {

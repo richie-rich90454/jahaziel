@@ -13,10 +13,10 @@ One jar plus one `.env` file, serving port 11451.
 
 ## 1. Install
 
-Build once with Java 25:
+Build the workbench and jar with existing JDK 25, Node 24+, and pnpm:
 
 ```bash
-./mvnw -q -DskipTests package   # produces target/jahaziel.jar
+./dev.ps1 build                 # produces target/jahaziel.jar
 ```
 
 Copy `target/jahaziel.jar` into an empty folder on the machine, then:
@@ -34,8 +34,8 @@ values are present.
 java -jar jahaziel.jar   # serves http://localhost:11451
 ```
 
-Only Java 25 is required on the machine. First run creates `./data/`
-beside the jar.
+The server needs Java 25 on Linux x64 or arm64. Windows/macOS computers
+use a browser client. First run creates `./data/` beside the jar.
 
 ## 3. Data layout
 
@@ -44,15 +44,14 @@ Everything the runtime owns lives under `./data/`:
 | Path | Contents |
 |---|---|
 | `data/workspaces/` | workspace homes |
-| `data/images/` | base images |
-| `data/jail/` | per-workspace sandboxes |
+| `data/language-packs/` | opt-in, shared language tools |
+| `data/jail/` | per-workspace backend metadata |
 | `data/audit/` | audit staging |
 | `data/sync/` | file-sync state |
 | `data/keys/` | server keys |
 | `data/logs/` | server logs |
 | `data/plugins/` | installed plugins |
 | `data/templates/` | seeded workspace templates |
-| `data/ide/` | REH tarball and extracted IDE server |
 | `data/tmp/` | the JVM temp dir the server forces at launch |
 | `data/backups/` | scheduled backups |
 | `data/dumps/` | diagnostics dumps |
@@ -61,7 +60,8 @@ Everything the runtime owns lives under `./data/`:
 | `data/jahaziel.db` | SQLite file, created once, never cleared |
 
 `doctor` reports `tmpdir` as `data/tmp` because the launch path sets
-`java.io.tmpdir` there before Spring starts; nothing else is required.
+`java.io.tmpdir` there before Spring starts. It also reports the selected
+backend and application/workspace/language-pack disk usage.
 
 Back up `./data/` plus `.env`; that is the whole install. See
 `docs/operations/backup.md`.

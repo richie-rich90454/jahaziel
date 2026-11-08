@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.EnumSet;
 import java.util.UUID;
@@ -37,12 +38,16 @@ class NodeAgentFinalTest {
   void sampleWithPlainBeanAndNoLoad() {
     OperatingSystemMXBean plain = mock(OperatingSystemMXBean.class);
     when(plain.getSystemLoadAverage()).thenReturn(-1.0);
-    try (var factory = Mockito.mockStatic(ManagementFactory.class)) {
-      factory.when(ManagementFactory::getOperatingSystemMXBean).thenReturn(plain);
-      HostSample sample = new NodeMetricsCollector(tmp).sample();
-      assertEquals(0, sample.memoryUsedBytes());
-      assertEquals(0, sample.memoryTotalBytes());
-      assertEquals(0, sample.loadAverage1m());
+    try (var paths = Mockito.mockStatic(Paths.class, Mockito.CALLS_REAL_METHODS)) {
+      paths.when(() -> Paths.get("/proc/meminfo")).thenReturn(tmp.resolve("missing-meminfo"));
+      paths.when(() -> Paths.get("/proc/stat")).thenReturn(tmp.resolve("missing-stat"));
+      try (var factory = Mockito.mockStatic(ManagementFactory.class)) {
+        factory.when(ManagementFactory::getOperatingSystemMXBean).thenReturn(plain);
+        HostSample sample = new NodeMetricsCollector(tmp).sample();
+        assertEquals(0, sample.memoryUsedBytes());
+        assertEquals(0, sample.memoryTotalBytes());
+        assertEquals(0, sample.loadAverage1m());
+      }
     }
   }
 
