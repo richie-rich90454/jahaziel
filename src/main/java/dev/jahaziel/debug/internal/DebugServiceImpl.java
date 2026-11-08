@@ -129,6 +129,16 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   }
 
   @Override
+  public List<Session> list(WorkspaceId workspaceId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    return active.values().stream()
+        .filter(session -> session.workspaceId.equals(workspaceId))
+        .map(AdapterSession::view)
+        .sorted(java.util.Comparator.comparing(Session::startedAt).reversed())
+        .toList();
+  }
+
+  @Override
   public Session stop(WorkspaceId workspaceId, UUID sessionId) {
     AdapterSession session = requireSession(workspaceId, sessionId);
     if (session != null) session.close("STOPPED", "");
@@ -445,8 +455,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     try {
       String payload;
       while ((payload = readDapMessage(session.input)) != null) {
-        validateAdapterMessage(payload);
-        session.publish(payload);
+        session.publish(normalizeAdapterMessage(session, payload));
       }
       if (!session.closed) session.close("EXITED", "debug adapter closed its DAP stream");
     } catch (IOException failure) {
@@ -454,7 +463,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     }
   }
 
-  private void validateAdapterMessage(String payload) throws IOException {
+  private String normalizeAdapterMessage(AdapterSession session, String payload)
+      throws IOException {
     JsonNode message;
     try {
       message = json.readTree(payload);
@@ -470,6 +480,49 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       if (command.equals("runInTerminal") || command.equals("startDebugging")) {
         throw new IOException("debug adapter requested a server-side process");
       }
+    }
+    normalizeSourcePaths(session.home, message);
+    try {
+      return json.writeValueAsString(message);
+    } catch (JacksonException invalid) {
+      throw new IOException("debug adapter returned invalid DAP JSON", invalid);
+    }
+  }
+
+  private void normalizeSourcePaths(Path home, JsonNode current) throws IOException {
+    if (current instanceof ObjectNode object) {
+      JsonNode source = object.get("source");
+      if (source instanceof ObjectNode sourceObject) {
+        JsonNode path = sourceObject.get("path");
+        if (path != null && path.isString()) {
+          String relative = workspaceRelativeSourcePath(home, path.asString());
+          if (relative == null) sourceObject.remove("path");
+          else sourceObject.put("path", relative);
+        }
+      }
+      for (JsonNode value : object.values()) normalizeSourcePaths(home, value);
+    } else if (current instanceof ArrayNode values) {
+      for (JsonNode value : values) normalizeSourcePaths(home, value);
+    }
+  }
+
+  static String workspaceRelativeSourcePath(Path home, String source) {
+    try {
+      Path normalizedHome = home.toAbsolutePath().normalize();
+      Path requested = Path.of(source.replace('\\', '/'));
+      Path candidate =
+          requested.isAbsolute()
+              ? requested.normalize()
+              : normalizedHome.resolve(requested).normalize();
+      if (!candidate.startsWith(normalizedHome)) return null;
+      if (Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+        Path real = candidate.toRealPath();
+        if (!real.startsWith(normalizedHome)) return null;
+        candidate = real;
+      }
+      return normalizedHome.relativize(candidate).toString().replace('\\', '/');
+    } catch (IOException | RuntimeException invalid) {
+      return null;
     }
   }
 
@@ -739,11 +792,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       closed = true;
       state = finalState;
       error = safeError;
+      stopProcess(process);
+      registration.close();
       closeQuietly(socket);
       closeQuietly(input);
       closeQuietly(output);
-      stopProcess(process);
-      registration.close();
       deleteSessionDirectory(sessionHome);
       active.remove(id, this);
       remember(view());
