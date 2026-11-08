@@ -33,6 +33,11 @@ boundaries:
   processes under the Jahaziel service account; it does not claim hostile
   multi-tenant isolation.
 - `dev.jahaziel.terminal` manages PTYs and authenticated terminal streams.
+- `dev.jahaziel.debug` manages workspace-authorized Debug Adapter Protocol
+  sessions. The server launches only administrator-configured adapters and
+  exposes each active session through a workspace- and session-bound
+  WebSocket. The workbench debugger currently supports launch flows; adapter
+  installation and attach support are not provided.
 - `dev.jahaziel.language` manages explicitly selected, pinned language packs
   and their authenticated language-service streams.
 - `dev.jahaziel.networking` and `dev.jahaziel.gateway` manage preview ports
