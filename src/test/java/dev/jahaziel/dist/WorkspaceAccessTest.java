@@ -44,9 +44,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * End-to-end workspace access: a registered port is reachable through the fixed preview host at
- * its workspace-and-port path, authenticated by the scoped token the API returned. The token binds
- * one user, one workspace, and one port; anything else is refused.
+ * End-to-end workspace access: a registered port is reachable through the fixed preview host at its
+ * workspace-and-port path, authenticated by the scoped token the API returned. The token binds one
+ * user, one workspace, and one port; anything else is refused.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkspaceAccessTest {
