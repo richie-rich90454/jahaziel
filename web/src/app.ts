@@ -43,7 +43,11 @@ interface OpenDocument {
   wrapper: HTMLDivElement;
   view: EditorView;
   dirty: boolean;
+  recoveredDraft: boolean;
+  conflictRemoteVersion: string | null;
+  conflictRemoteContent: string | null;
 }
+interface LocalDraft { content: string; updatedAt: number; }
 
 const byId = <T extends HTMLElement>(id: string): T => {
   const found = document.getElementById(id);
@@ -73,6 +77,13 @@ const state = {
   gitHasStaged: false,
   languageServices: null as LanguageServices | null,
   languagePacks: [] as LanguagePack[],
+  activePanel: "files" as "files" | "editor" | "run" | "languages" | "git" | "terminal" | "preview",
+  previewPort: null as number | null,
+  previewUrl: null as string | null,
+  terminalModifiers: { ctrl: false, alt: false },
+  draftTimers: new Map<string, number>(),
+  pendingDrafts: new Map<string, string>(),
+  draftStorageWarningShown: false,
 };
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<{ body: T; response: Response }> {
@@ -129,10 +140,90 @@ function errorText(failure: unknown): string {
   return failure instanceof Error ? failure.message : "Something went wrong.";
 }
 
+function localDraftKey(workspaceId: string, path: string): string | null {
+  if (!state.user) return null;
+  return `jahaziel:draft:${encodeURIComponent(state.user.email)}:${workspaceId}:${encodeURIComponent(path)}`;
+}
+
+function readLocalDraft(workspaceId: string, path: string): LocalDraft | null {
+  const key = localDraftKey(workspaceId, path);
+  if (!key) return null;
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return null;
+    const draft = JSON.parse(value) as Partial<LocalDraft>;
+    if (typeof draft.content !== "string" || typeof draft.updatedAt !== "number") {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return { content: draft.content, updatedAt: draft.updatedAt };
+  } catch {
+    return null;
+  }
+}
+
+function persistLocalDraft(key: string): void {
+  const content = state.pendingDrafts.get(key);
+  if (content === undefined) return;
+  state.draftTimers.delete(key);
+  state.pendingDrafts.delete(key);
+  try {
+    localStorage.setItem(key, JSON.stringify({ content, updatedAt: Date.now() } satisfies LocalDraft));
+  } catch {
+    if (!state.draftStorageWarningShown) {
+      state.draftStorageWarningShown = true;
+      toast("Browser recovery storage is full or unavailable. Save this file to the server.", "error");
+    }
+  }
+}
+
+function scheduleLocalDraft(workspaceId: string, path: string, content: string): void {
+  const key = localDraftKey(workspaceId, path);
+  if (!key) return;
+  const existing = state.draftTimers.get(key);
+  if (existing !== undefined) window.clearTimeout(existing);
+  state.pendingDrafts.set(key, content);
+  state.draftTimers.set(key, window.setTimeout(() => persistLocalDraft(key), 250));
+}
+
+function clearLocalDraft(workspaceId: string, path: string): void {
+  const key = localDraftKey(workspaceId, path);
+  if (!key) return;
+  const timer = state.draftTimers.get(key);
+  if (timer !== undefined) window.clearTimeout(timer);
+  state.draftTimers.delete(key);
+  state.pendingDrafts.delete(key);
+  try { localStorage.removeItem(key); } catch { /* Browser storage can be disabled. */ }
+}
+
+function flushLocalDrafts(): void {
+  for (const [key, timer] of state.draftTimers) {
+    window.clearTimeout(timer);
+    persistLocalDraft(key);
+  }
+}
+
 function setPage(page: "home" | "workbench"): void {
   homePage.hidden = page !== "home";
   workbenchPage.hidden = page !== "workbench";
   app.dataset.page = page;
+}
+
+function setPanel(panel: typeof state.activePanel): void {
+  state.activePanel = panel;
+  workbenchPage.dataset.activePanel = panel;
+  document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]").forEach((item) => {
+    item.setAttribute("aria-pressed", String(item.dataset.panel === panel));
+  });
+  if (panel === "preview") {
+    if (state.previewPort === null) {
+      state.previewPort = state.workspace?.ports.find((port) => port.listening === true)?.port ?? null;
+    }
+    renderPreviewPanel();
+  }
+  if (panel === "terminal") window.requestAnimationFrame(() => {
+    try { state.fitAddon?.fit(); } catch { /* Panel has no measurable size yet. */ }
+  });
 }
 
 async function loadIdentity(): Promise<void> {
@@ -271,7 +362,10 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
       && state.workspace && state.workspace.workspaceId !== workspace.workspaceId
       && !window.confirm("Some files have unsaved changes. Leave this workspace?")) return;
+  if (state.workspace?.workspaceId !== workspace.workspaceId) flushLocalDrafts();
   state.workspace = workspace;
+  state.previewPort = null;
+  state.previewUrl = null;
   state.languageServices?.close();
   state.languageServices = new LanguageServices(
     workspace.workspaceId,
@@ -296,6 +390,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   void refreshPortStatuses().catch(() => undefined);
   if (navigate) history.pushState({ workspaceId: workspace.workspaceId }, "", `#workspace/${workspace.workspaceId}`);
   setPage("workbench");
+  setPanel("files");
   refreshGitSafely();
   await refreshFiles();
   await refreshTasks();
@@ -720,18 +815,79 @@ function renderPreviewLinks(workspace: Workspace): void {
   container.replaceChildren();
   byId<HTMLButtonElement>("refresh-preview-ports").hidden = workspace.ports.length === 0;
   for (const port of workspace.ports) {
-    const link = document.createElement("a");
+    const link = document.createElement("button");
+    link.type = "button";
     link.className = "preview-chip";
-    link.href = port.url;
-    link.target = "_blank";
-    link.rel = "noreferrer";
     link.textContent = `:${port.port} Preview ↗`;
+    link.disabled = port.listening !== true;
+    link.title = port.listening === true ? `Open preview on port ${port.port}` : `Port ${port.port} is not listening`;
+    link.addEventListener("click", () => openPreview(port));
     const status = document.createElement("span");
     status.className = "preview-port-status";
     status.dataset.listening = String(port.listening === true);
     status.textContent = port.listening === null ? "CHECKING" : port.listening ? "LISTENING" : "NOT LISTENING";
     container.append(link, status);
   }
+  renderPreviewPanel();
+}
+
+function renderPreviewPanel(): void {
+  const workspace = state.workspace;
+  const select = byId<HTMLSelectElement>("preview-port-select");
+  select.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select a listening port";
+  placeholder.disabled = true;
+  select.append(placeholder);
+  for (const port of workspace?.ports ?? []) {
+    const option = document.createElement("option");
+    option.value = String(port.port);
+    option.textContent = `:${port.port} · ${port.listening === true ? "listening" : port.listening === false ? "not listening" : "not checked"}`;
+    option.disabled = port.listening !== true;
+    select.append(option);
+  }
+  const current = workspace?.ports.find((port) => port.port === state.previewPort && port.listening === true);
+  const frame = byId<HTMLIFrameElement>("preview-frame");
+  const link = byId<HTMLAnchorElement>("preview-new-tab");
+  const empty = byId("preview-empty");
+  const reload = byId<HTMLButtonElement>("preview-reload");
+  if (!current) {
+    const selected = workspace?.ports.find((port) => port.port === state.previewPort);
+    byId("preview-state").textContent = selected
+      ? `Port :${selected.port} is not listening.`
+      : "Select a listening port to open its preview.";
+    frame.hidden = true;
+    empty.hidden = false;
+    reload.disabled = true;
+    link.href = "#";
+    link.setAttribute("aria-disabled", "true");
+    select.value = "";
+    select.disabled = !workspace?.ports.some((port) => port.listening === true);
+    return;
+  }
+  select.value = String(current.port);
+  byId("preview-state").textContent = `Listening on :${current.port}`;
+  empty.hidden = true;
+  frame.hidden = false;
+  if (state.previewUrl !== current.url || !frame.src || frame.src === window.location.href) {
+    state.previewUrl = current.url;
+    frame.src = current.url;
+  }
+  reload.disabled = false;
+  link.href = current.url;
+  link.setAttribute("aria-disabled", "false");
+  select.disabled = false;
+}
+
+function openPreview(port: PortEntry): void {
+  if (port.listening !== true) {
+    toast(`Port ${port.port} is not listening yet. Start the project task and check ports again.`, "error");
+    return;
+  }
+  state.previewPort = port.port;
+  state.previewUrl = null;
+  setPanel("preview");
 }
 
 async function refreshPortStatuses(): Promise<void> {
@@ -901,18 +1057,25 @@ async function languageFor(path: string) {
 
 async function openDocument(path: string): Promise<void> {
   const existing = state.openDocuments.get(path);
-  if (existing) { activateDocument(path); return; }
+  if (existing) {
+    activateDocument(path);
+    if (window.matchMedia("(max-width: 900px)").matches) setPanel("editor");
+    return;
+  }
   const workspace = state.workspace;
   if (!workspace) return;
   const query = new URLSearchParams({ path });
   const { body, response } = await api<DocumentBody>(`/api/v1/workspaces/${workspace.workspaceId}/files/document?${query}`);
+  const localDraft = readLocalDraft(workspace.workspaceId, path);
+  const initialContent = localDraft?.content ?? body.content;
+  const recoveredDraft = localDraft !== null && localDraft.content !== body.content;
   const wrapper = document.createElement("div");
   wrapper.className = "editor-instance";
   const documentState = {} as OpenDocument;
   const [editor, language] = await Promise.all([import("codemirror"), languageFor(path)]);
   const { EditorView } = editor;
   const view = new EditorView({
-    doc: body.content,
+    doc: initialContent,
     parent: wrapper,
     extensions: [
       editor.basicSetup,
@@ -920,6 +1083,9 @@ async function openDocument(path: string): Promise<void> {
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         documentState.dirty = update.state.doc.toString() !== documentState.savedContent;
+        documentState.recoveredDraft = false;
+        if (documentState.dirty) scheduleLocalDraft(workspace.workspaceId, path, update.state.doc.toString());
+        else clearLocalDraft(workspace.workspaceId, path);
         state.languageServices?.changeDocument(path, update.state.doc.toString());
         renderTabs();
         updateSaveState();
@@ -934,11 +1100,15 @@ async function openDocument(path: string): Promise<void> {
     savedContent: body.content,
     wrapper,
     view,
-    dirty: false,
+    dirty: initialContent !== body.content,
+    recoveredDraft,
+    conflictRemoteVersion: null,
+    conflictRemoteContent: null,
   });
   state.openDocuments.set(path, documentState);
   state.selectedPath = path;
   activateDocument(path);
+  if (window.matchMedia("(max-width: 900px)").matches) setPanel("editor");
 }
 
 function activateDocument(path: string): void {
@@ -981,6 +1151,7 @@ function renderTabs(): void {
     close.addEventListener("click", (event) => {
       event.stopPropagation();
       if (opened.dirty && !window.confirm(`Discard unsaved changes to ${opened.path}?`)) return;
+      if (opened.dirty && state.workspace) clearLocalDraft(state.workspace.workspaceId, opened.path);
       opened.view.destroy();
       opened.wrapper.remove();
       state.openDocuments.delete(opened.path);
@@ -1004,8 +1175,48 @@ function renderTabs(): void {
 function updateSaveState(): void {
   const current = state.activePath ? state.openDocuments.get(state.activePath) : undefined;
   byId<HTMLButtonElement>("save-file").disabled = !current || !current.dirty;
-  byId("save-state").textContent = current?.dirty ? "Unsaved changes" : current ? "Saved" : "";
+  byId("save-state").textContent = current?.dirty
+    ? current.recoveredDraft ? "Recovered local draft · unsaved" : "Unsaved changes · saved locally"
+    : current ? "Saved" : "";
   byId("save-state").className = current?.dirty ? "save-state dirty" : "save-state";
+  const conflict = byId("save-conflict-actions");
+  conflict.hidden = current?.conflictRemoteVersion === null || current?.conflictRemoteContent === null || !current;
+}
+
+function useServerVersion(): void {
+  const workspace = state.workspace;
+  const opened = state.activePath ? state.openDocuments.get(state.activePath) : undefined;
+  if (!workspace || !opened || opened.conflictRemoteVersion === null || opened.conflictRemoteContent === null) return;
+  if (opened.dirty && !window.confirm(`Discard your local edits to ${opened.path} and use the server version?`)) return;
+  opened.version = opened.conflictRemoteVersion;
+  opened.savedContent = opened.conflictRemoteContent;
+  opened.conflictRemoteVersion = null;
+  opened.conflictRemoteContent = null;
+  opened.recoveredDraft = false;
+  opened.view.dispatch({
+    changes: { from: 0, to: opened.view.state.doc.length, insert: opened.savedContent },
+  });
+  opened.dirty = false;
+  clearLocalDraft(workspace.workspaceId, opened.path);
+  renderTabs();
+  updateSaveState();
+  toast("Loaded the latest server version.");
+}
+
+function keepLocalVersion(): void {
+  const workspace = state.workspace;
+  const opened = state.activePath ? state.openDocuments.get(state.activePath) : undefined;
+  if (!workspace || !opened || opened.conflictRemoteVersion === null || opened.conflictRemoteContent === null) return;
+  opened.version = opened.conflictRemoteVersion;
+  opened.savedContent = opened.conflictRemoteContent;
+  opened.conflictRemoteVersion = null;
+  opened.conflictRemoteContent = null;
+  opened.recoveredDraft = false;
+  opened.dirty = opened.view.state.doc.toString() !== opened.savedContent;
+  if (opened.dirty) scheduleLocalDraft(workspace.workspaceId, opened.path, opened.view.state.doc.toString());
+  renderTabs();
+  updateSaveState();
+  toast("Your edits are ready to save against the latest version. Review them, then choose Save.");
 }
 
 async function saveActiveDocument(): Promise<void> {
@@ -1022,6 +1233,8 @@ async function saveActiveDocument(): Promise<void> {
     opened.version = response.headers.get("ETag") || body.version;
     opened.savedContent = body.content;
     opened.dirty = false;
+    opened.recoveredDraft = false;
+    clearLocalDraft(workspace.workspaceId, path);
     state.languageServices?.saveDocument(path);
     renderTabs();
     updateSaveState();
@@ -1029,9 +1242,18 @@ async function saveActiveDocument(): Promise<void> {
     refreshGitSafely();
   } catch (failure) {
     if (failure instanceof Error && failure.message.startsWith("412")) {
+      const latest = await api<DocumentBody>(
+        `/api/v1/workspaces/${workspace.workspaceId}/files/document?${new URLSearchParams({ path })}`,
+      );
+      if (state.workspace?.workspaceId !== workspace.workspaceId || state.openDocuments.get(path) !== opened) return;
+      opened.conflictRemoteVersion = latest.response.headers.get("ETag") || latest.body.version;
+      opened.conflictRemoteContent = latest.body.content;
       byId("save-state").textContent = "Changed on disk — reload before saving";
       byId("save-state").className = "save-state conflict";
-      toast("This file changed outside the editor. Copy your edits before reloading.", "error");
+      updateSaveState();
+      byId("save-state").textContent = "Server version changed";
+      byId("save-state").className = "save-state conflict";
+      toast("Your local edits are preserved. Choose the server copy or keep your edits before saving again.", "error");
       return;
     }
     throw failure;
@@ -1138,6 +1360,9 @@ function closeTerminal(closeServerSession: boolean, refreshSessions = false): Pr
   byId<HTMLButtonElement>("close-terminal").hidden = true;
   byId<HTMLSelectElement>("terminal-session-select").hidden = true;
   byId<HTMLButtonElement>("terminal-reconnect").hidden = true;
+  byId("terminal-key-strip").hidden = true;
+  setTerminalModifier("ctrl", false);
+  setTerminalModifier("alt", false);
   const sessionId = state.terminalSessionId;
   state.terminalSessionId = null;
   byId("terminal-surface").replaceChildren();
@@ -1146,6 +1371,57 @@ function closeTerminal(closeServerSession: boolean, refreshSessions = false): Pr
       .then(() => refreshSessions ? refreshTerminalSessions() : undefined);
   }
   return Promise.resolve();
+}
+
+function setTerminalModifier(modifier: "ctrl" | "alt", enabled: boolean): void {
+  state.terminalModifiers[modifier] = enabled;
+  const button = document.querySelector<HTMLButtonElement>(`[data-terminal-modifier="${modifier}"]`);
+  button?.setAttribute("aria-pressed", String(enabled));
+}
+
+function applyTerminalModifiers(data: string): string {
+  let output = data;
+  if (state.terminalModifiers.ctrl) {
+    const chars = Array.from(output);
+    const first = chars.shift();
+    if (first) {
+      const code = first.toUpperCase().codePointAt(0) ?? 0;
+      if (code >= 64 && code <= 95) output = String.fromCodePoint(code - 64) + chars.join("");
+      else if (first === "?") output = "\u007f" + chars.join("");
+    }
+    setTerminalModifier("ctrl", false);
+  }
+  if (state.terminalModifiers.alt) {
+    output = `\u001b${output}`;
+    setTerminalModifier("alt", false);
+  }
+  return output;
+}
+
+function sendTerminalInput(data: string): void {
+  const socket = state.socket;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    toast("Open or reconnect a terminal session first.", "error");
+    return;
+  }
+  setTerminalModifier("ctrl", false);
+  setTerminalModifier("alt", false);
+  socket.send(JSON.stringify({ type: "input", data } satisfies StreamMessage));
+  state.terminal?.focus();
+}
+
+async function copyTerminalSelection(): Promise<void> {
+  const selection = state.terminal?.getSelection() ?? "";
+  if (!selection) {
+    toast("Select terminal text first.", "error");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(selection);
+    toast("Terminal selection copied.");
+  } catch {
+    toast("The browser did not allow clipboard access. Select and copy the text manually.", "error");
+  }
 }
 
 async function openTerminal(): Promise<void> {
@@ -1200,6 +1476,10 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
   terminal.open(byId("terminal-surface"));
   state.terminal = terminal;
   state.fitAddon = fit;
+  setPanel("terminal");
+  byId("terminal-key-strip").hidden = false;
+  setTerminalModifier("ctrl", false);
+  setTerminalModifier("alt", false);
   byId<HTMLButtonElement>("close-terminal").hidden = false;
   byId("terminal-state").textContent = "Connecting…";
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -1245,7 +1525,8 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
     if (state.socket === socket) byId("terminal-state").textContent = "Connection error";
   });
   terminal.onData((data) => {
-    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data } satisfies StreamMessage));
+    const input = applyTerminalModifiers(data);
+    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data: input } satisfies StreamMessage));
   });
   terminal.onResize(({ rows, cols }) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "resize", rows, cols } satisfies StreamMessage));
@@ -1259,6 +1540,7 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
 function backToWorkspaces(navigate = true): void {
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
       && !window.confirm("Some files have unsaved changes. Leave the workspace?")) return;
+  flushLocalDrafts();
   void closeTerminal(false);
   clearWorkspaceSearch();
   resetGitPanel();
@@ -1267,6 +1549,8 @@ function backToWorkspaces(navigate = true): void {
   state.activePath = null;
   state.selectedPath = null;
   state.workspace = null;
+  state.previewPort = null;
+  state.previewUrl = null;
   state.languageServices?.close();
   state.languageServices = null;
   state.languagePacks = [];
@@ -1274,11 +1558,42 @@ function backToWorkspaces(navigate = true): void {
   byId("language-diagnostics").replaceChildren();
   byId("language-state").textContent = "OPTIONAL";
   if (navigate) history.pushState({}, "", "/");
+  setPanel("files");
   setPage("home");
   renderWorkspaces().catch((failure) => toast(errorText(failure), "error"));
 }
 
 function wireUi(): void {
+  document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]").forEach((item) => {
+    item.addEventListener("click", () => setPanel(item.dataset.panel as typeof state.activePanel));
+  });
+  byId<HTMLSelectElement>("preview-port-select").addEventListener("change", (event) => {
+    const portNumber = Number((event.currentTarget as HTMLSelectElement).value);
+    const port = state.workspace?.ports.find((candidate) => candidate.port === portNumber);
+    if (port) openPreview(port);
+  });
+  byId("preview-reload").addEventListener("click", () => {
+    const frame = byId<HTMLIFrameElement>("preview-frame");
+    if (state.previewUrl) frame.src = state.previewUrl;
+  });
+  byId<HTMLAnchorElement>("preview-new-tab").addEventListener("click", (event) => {
+    if ((event.currentTarget as HTMLAnchorElement).getAttribute("aria-disabled") === "true") event.preventDefault();
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-terminal-modifier]").forEach((item) => {
+    item.addEventListener("click", () => {
+      const modifier = item.dataset.terminalModifier as "ctrl" | "alt";
+      setTerminalModifier(modifier, !state.terminalModifiers[modifier]);
+      state.terminal?.focus();
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-terminal-input]").forEach((item) => {
+    item.addEventListener("click", () => sendTerminalInput(item.dataset.terminalInput ?? ""));
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-terminal-shortcut]").forEach((item) => {
+    item.addEventListener("click", () => sendTerminalInput(String.fromCharCode((item.dataset.terminalShortcut ?? "c").charCodeAt(0) & 0x1f)));
+  });
+  byId("terminal-copy-selection").addEventListener("click", () => void copyTerminalSelection());
+  window.addEventListener("pagehide", flushLocalDrafts);
   byId("workspace-form").addEventListener("submit", (event) => createWorkspace(event as SubmitEvent).catch((failure) => toast(errorText(failure), "error")));
   byId("new-file").addEventListener("click", () => createFile().catch((failure) => toast(errorText(failure), "error")));
   byId("new-folder").addEventListener("click", () => createFolder().catch((failure) => toast(errorText(failure), "error")));
@@ -1295,6 +1610,8 @@ function wireUi(): void {
     }
   });
   byId("save-file").addEventListener("click", () => saveActiveDocument().catch((failure) => toast(errorText(failure), "error")));
+  byId("use-server-version").addEventListener("click", useServerVersion);
+  byId("keep-local-version").addEventListener("click", keepLocalVersion);
   byId("runtime-toggle").addEventListener("click", () => toggleWorkspace().catch((failure) => toast(errorText(failure), "error")));
   byId("refresh-preview-ports").addEventListener("click", () =>
     refreshPortStatuses().catch((failure) => toast(errorText(failure), "error")),
