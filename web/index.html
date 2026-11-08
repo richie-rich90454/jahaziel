@@ -85,6 +85,7 @@
           <button type="button" data-panel="editor" aria-pressed="false">Editor</button>
           <button type="button" data-panel="run" aria-pressed="false">Run</button>
           <button type="button" data-panel="languages" aria-pressed="false">Languages</button>
+          <button type="button" data-panel="debug" aria-pressed="false">Debug</button>
           <button type="button" data-panel="git" aria-pressed="false">Git</button>
           <button type="button" data-panel="terminal" aria-pressed="false">Terminal</button>
           <button type="button" data-panel="preview" aria-pressed="false">Preview</button>
@@ -114,6 +115,89 @@
               <button id="task-stop" class="text-action" type="button" hidden>Stop task</button>
               <div id="task-correlation" class="operation-ref" hidden></div>
               <pre id="task-output" class="task-output" hidden></pre>
+            </section>
+            <section class="debug-panel" aria-label="Debugger">
+              <div class="panel-heading"><div><span class="panel-glyph">◆</span><span>DEBUG</span></div><span id="debug-state" class="panel-meta" role="status">NOT RUNNING</span></div>
+              <div class="debug-launch-form">
+                <label class="debug-field" for="debug-language">Language
+                  <select id="debug-language">
+                    <option value="node">Node / TypeScript</option>
+                    <option value="python">Python</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C / C++</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                  </select>
+                </label>
+                <label id="debug-program-field" class="debug-field" for="debug-program">Program path
+                  <input id="debug-program" type="text" maxlength="4096" placeholder="src/index.ts" autocomplete="off" />
+                </label>
+                <label id="debug-main-class-field" class="debug-field" for="debug-main-class" hidden>Java main class
+                  <input id="debug-main-class" type="text" maxlength="512" placeholder="com.example.Main" autocomplete="off" />
+                </label>
+                <label class="debug-field" for="debug-working-directory">Working directory
+                  <input id="debug-working-directory" type="text" maxlength="4096" value="." autocomplete="off" />
+                </label>
+                <label class="debug-field" for="debug-arguments">Arguments (JSON string array)
+                  <input id="debug-arguments" type="text" maxlength="8192" value="[]" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="debug-check"><input id="debug-stop-on-entry" type="checkbox" /> Stop on entry</label>
+              </div>
+              <div class="debug-actions">
+                <button id="debug-start" class="button button-primary" type="button">Start debugging</button>
+                <button id="debug-reconnect" class="button button-quiet" type="button" hidden>Reconnect</button>
+                <button id="debug-stop" class="button button-quiet" type="button" disabled>Stop</button>
+              </div>
+              <div class="debug-controls" role="group" aria-label="Debugger controls">
+                <button type="button" data-debug-command="continue" disabled>Continue</button>
+                <button type="button" data-debug-command="pause" disabled>Pause</button>
+                <button type="button" data-debug-command="next" disabled>Step over</button>
+                <button type="button" data-debug-command="stepIn" disabled>Step in</button>
+                <button type="button" data-debug-command="stepOut" disabled>Step out</button>
+              </div>
+              <section class="debug-subpanel" aria-label="Breakpoints">
+                <h3>BREAKPOINTS</h3>
+                <label class="debug-field" for="debug-breakpoint-path">Workspace file
+                  <input id="debug-breakpoint-path" type="text" maxlength="4096" placeholder="Open a workspace file" autocomplete="off" />
+                </label>
+                <div class="debug-inline-form">
+                  <label class="debug-field" for="debug-breakpoint-lines">Line numbers
+                    <input id="debug-breakpoint-lines" type="text" maxlength="512" placeholder="12, 24" autocomplete="off" />
+                  </label>
+                  <button id="debug-apply-breakpoints" type="button" disabled>Set</button>
+                </div>
+                <ul id="debug-breakpoint-list" class="debug-list"></ul>
+              </section>
+              <div class="debug-inspect-grid">
+                <section class="debug-subpanel" aria-label="Call stack">
+                  <h3>CALL STACK</h3>
+                  <ul id="debug-stack" class="debug-list"><li class="debug-empty">Pause to inspect frames.</li></ul>
+                </section>
+                <section class="debug-subpanel" aria-label="Variables">
+                  <h3>VARIABLES</h3>
+                  <ul id="debug-variables" class="debug-list"><li class="debug-empty">No frame selected.</li></ul>
+                </section>
+              </div>
+              <section class="debug-subpanel" aria-label="Watches">
+                <h3>WATCHES</h3>
+                <form id="debug-watch-form" class="debug-inline-form">
+                  <label class="debug-field" for="debug-watch-expression">Expression
+                    <input id="debug-watch-expression" type="text" maxlength="512" placeholder="user.name" autocomplete="off" />
+                  </label>
+                  <button type="submit" disabled>Add</button>
+                </form>
+                <ul id="debug-watches" class="debug-list"><li class="debug-empty">Add an expression to inspect it when paused.</li></ul>
+              </section>
+              <section class="debug-subpanel" aria-label="Debug console">
+                <h3>DEBUG CONSOLE</h3>
+                <pre id="debug-console" class="debug-console" aria-live="polite">Debugger output will appear here.</pre>
+                <form id="debug-console-form" class="debug-inline-form">
+                  <label class="debug-field" for="debug-console-input">Evaluate
+                    <input id="debug-console-input" type="text" maxlength="4096" placeholder="Expression or command" autocomplete="off" />
+                  </label>
+                  <button type="submit" disabled>Send</button>
+                </form>
+              </section>
             </section>
             <section class="language-panel" aria-label="Language services">
               <div class="panel-heading"><div><span class="panel-glyph">λ</span><span>LANGUAGES</span></div><span id="language-state" class="panel-meta">OPTIONAL</span></div>
