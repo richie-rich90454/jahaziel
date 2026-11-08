@@ -8,13 +8,22 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /** Workspace-scoped Debug Adapter Protocol sessions. */
 public interface DebugService {
-  Set<String> LANGUAGES = Set.of("node", "python", "java", "cpp", "go", "rust");
+  Map<String, String> DAP_ADAPTER_IDS =
+      Map.of(
+          "node", "pwa-node",
+          "python", "debugpy",
+          "java", "java",
+          "cpp", "lldb",
+          "go", "go",
+          "rust", "lldb");
+  Set<String> LANGUAGES = DAP_ADAPTER_IDS.keySet();
 
   /** Starts a server-managed adapter for one launch inside the workspace. */
   Session start(WorkspaceId workspaceId, StartRequest request);
@@ -90,6 +99,7 @@ public interface DebugService {
       UUID id,
       UUID workspaceId,
       String languageId,
+      String adapterId,
       String state,
       String adapterVersion,
       Instant startedAt,
