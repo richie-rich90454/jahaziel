@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.zip.GZIPInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -86,6 +87,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
   private final ConcurrentMap<UUID, ToolStatus> liveStates = new ConcurrentHashMap<>();
   private final Set<UUID> installations = ConcurrentHashMap.newKeySet();
 
+  @Autowired
   public AgentToolServiceImpl(
       @Value("${jahaziel.storage.root:data}") String storageRoot, ObjectMapper json) {
     this(
