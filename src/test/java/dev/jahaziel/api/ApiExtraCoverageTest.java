@@ -148,7 +148,7 @@ class ApiExtraCoverageTest {
   }
 
   @Test
-  void workspaceDtoUrlUsesOwnerSlugForSharedViews() {
+  void workspaceDtoUrlUsesFixedPreviewHostForSharedViews() {
     var ports = mock(dev.jahaziel.networking.api.PortService.class);
     var users = mock(UserService.class);
     var tokens = mock(JwtService.class);
@@ -171,7 +171,9 @@ class ApiExtraCoverageTest {
     when(ports.bindingsByWorkspace(ws.id())).thenReturn(List.of(b));
     when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
     WorkspaceDto dto = f.forUser(viewer, view);
-    assertEquals("http://owner-slug-50326.localhost:11451/?token=tok", dto.ports().get(0).url());
+    assertEquals(
+        "http://preview.localhost:11451/" + ws.id().value() + "/50326/?token=tok",
+        dto.ports().get(0).url());
   }
 
   @Test
