@@ -64,6 +64,21 @@ only to loopback before enabling TCP. A DAP adapter runs under the Jahaziel
 service account with the same trust boundary as workspace processes.
 
 After configuring adapters, restart Jahaziel and open the **Debug** panel in a
-running workspace. This release supports launch sessions only. Adapter
-installation, `attach`, restart, and the `.vscode/launch.json` subset are not
-provided by the current implementation.
+running workspace. Adapter installation and process attach are not provided by
+the current implementation.
+
+The workbench can load a deliberately small `.vscode/launch.json` subset. The
+document must have version `0.2.0`, a `configurations` array, and only these
+configuration fields: `name`, `type`, `request`, `program`, `mainClass`,
+`cwd`, `args`, and `stopOnEntry`. `request` must be `launch`. Types map as
+follows: `node` or `pwa-node`, `python` or `debugpy`, `java`, `cppdbg`, `go`,
+and `lldb` (Rust). Java uses `mainClass`; the other types use `program`.
+`cwd` and `program` must be relative paths inside the workspace. The loader
+rejects environment variables, pre-launch tasks, arbitrary commands, attach
+configurations, unknown fields, duplicate names, and absolute or escaping
+paths. It does not expand VS Code variables such as `${workspaceFolder}`.
+
+Select **Load .vscode/launch.json**, then choose one of the supported entries.
+The chosen values populate the launch form, which Jahaziel validates again
+before starting the configured server adapter. This subset is not full VS
+Code launch configuration compatibility.
