@@ -4,8 +4,16 @@
   "vcpuCount": 1,
   "memoryMib": 1024,
   "ports": [8080],
+  "runTasks": [
+    {
+      "id": "preview",
+      "label": "Preview static site",
+      "command": ["python3", "-u", "-m", "http.server", "8080", "--bind", "0.0.0.0"],
+      "port": 8080
+    }
+  ],
   "starterFiles": {
-    "README.md": "# Static site\n\nServe this folder with any HTTP server.\n",
+    "README.md": "# Static site\n\nUse the Preview panel task to serve this folder on port 8080.\n",
     "index.html": "<!doctype html>\n<html lang=\"en\">\n  <head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>New site</title></head>\n  <body><main><h1>Hello from Jahaziel</h1><p>Your site is ready to edit.</p></main></body>\n</html>\n"
   }
 }
