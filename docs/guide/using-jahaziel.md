@@ -34,6 +34,26 @@ use a sanitized process environment and skip repository hooks. Clone
 repositories, configure credentials, and run hooks from the workspace
 terminal.
 
+## OpenCode on iPad and desktop
+
+OpenCode is the only coding-agent CLI in the current catalog. When you first
+open a workspace, Jahaziel starts installing the pinned Linux binary and its
+search helper into your per-user data area. The terminal panel shows download
+progress and the installed version. Once ready, choose **Open OpenCode** to
+launch it in an authenticated terminal rooted at the active workspace.
+
+Sign in to an AI provider from the OpenCode TUI using your own provider
+account. Jahaziel does not collect or share provider credentials. Your
+OpenCode profile is kept under `data/users/<your-user-id>/profile/` and is
+available from your other workspaces on this Jahaziel server. Updating
+reinstalls the catalog's pinned version; removing OpenCode deletes its managed
+executables but keeps your profile and provider sign-in. Claude Code is not
+available in the current product catalog.
+
+On iPad, use the terminal key strip for keys such as Ctrl, Esc, Tab, and the
+arrow keys. Terminal clipboard output is offered as a user-confirmed copy
+action so the page does not silently replace your clipboard.
+
 ## Language diagnostics
 
 The Language panel lists pinned server-managed tools that can be enabled for a
