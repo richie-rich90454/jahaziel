@@ -11,9 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class DebugServiceImplTest {
+  @TempDir Path temporaryDirectory;
+
   @Test
   void readsContentLengthFramedUtf8Messages() throws Exception {
     String payload = "{\"type\":\"event\",\"event\":\"output\",\"body\":\"✓\"}";
@@ -55,6 +60,22 @@ class DebugServiceImplTest {
     assertThrows(
         IOException.class,
         () -> DebugServiceImpl.readDapMessage(ascii("Content-Length: 5\r\n\r\n{}")));
+  }
+
+  @Test
+  void normalizesAdapterSourcePathsAndHidesPathsOutsideTheWorkspace() throws IOException {
+    Path home = temporaryDirectory.resolve("workspace");
+    Path source = home.resolve("src/main.js");
+    Files.createDirectories(source.getParent());
+    Files.writeString(source, "console.log('ok');");
+
+    assertEquals(
+        "src/main.js", DebugServiceImpl.workspaceRelativeSourcePath(home, source.toString()));
+    assertEquals("src/main.js", DebugServiceImpl.workspaceRelativeSourcePath(home, "src/main.js"));
+    assertNull(
+        DebugServiceImpl.workspaceRelativeSourcePath(
+            home, temporaryDirectory.resolve("secret.txt").toString()));
+    assertNull(DebugServiceImpl.workspaceRelativeSourcePath(home, "../../secret.txt"));
   }
 
   private static ByteArrayInputStream ascii(String value) {
