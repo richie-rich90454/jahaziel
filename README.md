@@ -12,9 +12,9 @@
 [![Linux x64 and arm64](https://img.shields.io/badge/server-Linux%20x64%20%2B%20arm64-2f6f62)](docs/guide/platforms.md)
 [![Java 25+](https://img.shields.io/badge/Java-25%2B-2f6f62)](docs/deployment/single-server.md)
 
-**A lightweight, self-hosted browser IDE for source code stored on a Linux server.**
+**An iPad-first, self-hosted browser IDE for source code stored on a Linux server.**
 
-Jahaziel gives trusted users persistent workspaces with a browser editor, terminal, run tasks, previews, and optional language diagnostics. The server is one Java application; developers connect from a modern browser without needing a local IDE or SSH for normal editor sessions.
+Jahaziel gives trusted users persistent workspaces with a browser editor, terminal, run tasks, previews, and optional language diagnostics. The server is one Java application; developers connect from iPad Safari, Chrome, or Edge, or from a desktop browser, without needing a local IDE or SSH for normal editor sessions.
 
 > [!WARNING]
 > Jahaziel runs workspace terminals, tasks, and Git operations as native Linux processes under the same service account. Use it with trusted users only. It does not provide operating-system isolation between workspaces or hostile multi-tenant security.
@@ -24,6 +24,7 @@ Jahaziel gives trusted users persistent workspaces with a browser editor, termin
 - **Edit server-side source in the browser.** Browse workspace files, edit with CodeMirror 6, and detect conflicting saves.
 - **Use a real Linux shell.** Open an authenticated xterm.js terminal when needed; terminal processes run in the workspace directory.
 - **Run and preview projects.** Start template tasks, inspect output, and open workspace-scoped preview links.
+- **Work from iPad.** Switch between files, editor, terminal, tasks, and preview with touch-sized controls; use the terminal shortcut strip when a hardware keyboard is not connected.
 - **Start from a useful template.** Create separate workspace homes from Node.js, Python, Java, C/C++, Go, Rust, static-site, or empty starters.
 - **Add language diagnostics when needed.** Select pinned language packs explicitly; Jahaziel caches them on the server and does not fetch them at startup.
 - **Keep source control close to the editor.** Review Git status and diffs, stage or unstage changes, and commit in an existing repository.
@@ -48,11 +49,12 @@ For a persistent server with real sign-in and HTTPS, follow the [Linux deploymen
 | Component | Supported target |
 |---|---|
 | Jahaziel server | Linux x86_64 or arm64 |
-| Browser workbench | Modern browsers on Windows, macOS, and Linux |
+| Primary browser clients | iPad Safari, Chrome, and Edge; touch-only and keyboard/trackpad workflows |
+| Desktop browser clients | Modern browsers on Windows, macOS, and Linux |
 | Workbench editor and terminal | CodeMirror 6 and xterm.js, served from the Jahaziel jar |
 | Workspace execution | Native Linux processes under the Jahaziel service account |
 
-The jar does not bundle a VS Code server or project runtimes. Install only the host runtimes needed for the projects users choose to run. Jahaziel never prefetches language packs; a language pack is downloaded only after someone explicitly selects it, and some packs include a pinned helper runtime.
+The jar does not bundle a VS Code server or project runtimes. Install only the host runtimes needed for the projects users choose to run. Jahaziel never prefetches language packs; a language pack is downloaded only after someone explicitly selects it, and some packs include a pinned helper runtime. Workspace processes, previews, and terminal tools share the Jahaziel service account, so this release is for mutually trusted teams.
 
 ## Build from source
 
@@ -84,7 +86,7 @@ The packaged application is written to `target/jahaziel.jar`. See [contributing]
 
 ## Project status
 
-Jahaziel is under active development. The project version is `0.1.0-SNAPSHOT`; workflow artifacts are build outputs for evaluation, not stable release packages. Review the [current plan](docs/plan.md) and [release acceptance checklist](docs/operations/acceptance.md) before deploying it for important work.
+Jahaziel is under active development. The project version is `0.1.0-SNAPSHOT`; workflow artifacts are build outputs for evaluation, not stable release packages. iPad support and Linux x64/arm64 deployment are release targets; a release still requires real-device iPad testing and native acceptance on both Linux architectures. Review the [current plan](docs/plan.md) and [release acceptance checklist](docs/operations/acceptance.md) before deploying it for important work.
 
 ## Contribute and get help
 
