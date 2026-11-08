@@ -24,8 +24,8 @@
   <packaging>jar</packaging>
 
   <name>Jahaziel</name>
-  <description>Self-hosted browser-based development platform: one Linux machine per developer.</description>
-  <url>https://github.com/example/jahaziel</url>
+  <description>Self-hosted browser IDE for trusted users working in persistent Linux workspaces.</description>
+  <url>https://github.com/richie-rich90454/jahaziel</url>
   <inceptionYear>2026</inceptionYear>
 
   <licenses>
