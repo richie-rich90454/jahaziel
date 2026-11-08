@@ -93,14 +93,16 @@ class ApiDtoTest {
 
   @Test
   void portIncludesTokenizedUrlOnlyWithToken() {
+    UUID workspace = UUID.randomUUID();
     PortBinding binding =
-        new PortBinding(UUID.randomUUID(), 8080, UUID.randomUUID(), "http", Instant.now());
+        new PortBinding(UUID.randomUUID(), 8080, workspace, "http", Instant.now());
     PortDto withToken =
         PortDto.from(
             binding, "richard", new GatewayEndpoint("https", "code.example.com", 443), "tok", true);
     assertEquals(8080, withToken.port());
     assertEquals("http", withToken.protocol());
-    assertEquals("https://richard-8080.code.example.com/?token=tok", withToken.url());
+    assertEquals(
+        "https://preview.code.example.com/" + workspace + "/8080/?token=tok", withToken.url());
     assertEquals(true, withToken.listening());
     PortDto withoutToken =
         PortDto.from(
