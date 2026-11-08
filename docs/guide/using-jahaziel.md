@@ -76,19 +76,23 @@ install and pin a compatible adapter and add its fixed absolute command to
 adapter is configured for a language, starting a session reports that the
 adapter is unavailable.
 
-Start a workspace, choose its language, and enter a workspace-relative
-program path (or a Java main class), working directory, and JSON argument
-array. **Start debugging** opens a workspace-scoped session. Use **Set** to
-send comma-separated line numbers for a workspace-relative file, then use
-Continue, Pause, and the step controls. Select a call-stack frame to inspect
-its variables; add watch expressions or evaluate an expression in the debug
-console. If the browser disconnects while the adapter remains active, use
-**Reconnect** to resume the DAP stream. Stop the session when finished.
+Start a workspace, then enter a workspace-relative program path (or Java
+main class), working directory, and JSON argument array. To use a supported
+`.vscode/launch.json` entry, select **Load .vscode/launch.json**, then choose a
+configuration; its fields populate the launch form. Unsupported fields and
+attach configurations are rejected. **Start debugging** opens a
+workspace-scoped session. Use **Set** to send comma-separated line numbers
+for a workspace-relative file, then use Continue, Pause, and the step
+controls. Select a call-stack frame to inspect its variables; add watch
+expressions or evaluate an expression in the debug console. If the browser
+disconnects while the adapter remains active, use **Reconnect** to resume the
+DAP stream. Stop the session when finished.
 
-This is a launch-only debugger slice. It does not read `.vscode/launch.json`,
-attach to existing processes, launch external terminals, install or update
-adapters, or provide editor-gutter breakpoints. Adapters run as the Jahaziel
-service account, with the same trusted-user boundary as terminals and tasks.
+This is a launch-only debugger slice. It does not attach to existing
+processes, launch external terminals, install or update adapters, or provide
+editor-gutter breakpoints. Adapters run as the Jahaziel service account, with
+the same trusted-user boundary as terminals and tasks. See the
+[supported launch configuration subset](./configuration.md#debug-adapters).
 
 ## Workspace states
 
