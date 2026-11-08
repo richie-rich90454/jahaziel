@@ -7,6 +7,7 @@ package dev.jahaziel.config;
 import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.administration.internal.AdminServiceImpl;
 import dev.jahaziel.administration.persistence.AdminActionRepository;
+import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.audit.internal.AuditCollectorJob;
 import dev.jahaziel.audit.internal.AuditRetentionJob;
@@ -298,8 +299,9 @@ public class AppConfig {
   public TerminalService terminals(
       WorkspaceDirectoryService directories,
       WorkspaceProcessRegistry processRegistry,
-      WorkspaceService workspaces) {
-    return new TerminalServiceImpl(directories, processRegistry, workspaces);
+      WorkspaceService workspaces,
+      AgentToolService agentTools) {
+    return new TerminalServiceImpl(directories, processRegistry, workspaces, agentTools);
   }
 
   /** Returns snapshots. */
