@@ -16,6 +16,9 @@ public interface AgentToolService {
   /** Starts or returns the current OpenCode installation operation for this user. */
   ToolStatus installOpenCode(UserId userId);
 
+  /** Explicitly reinstalls the catalog's pinned OpenCode version for this user. */
+  ToolStatus updateOpenCode(UserId userId);
+
   /** Removes the managed OpenCode executable while preserving the user's configuration. */
   ToolStatus removeOpenCode(UserId userId);
 
@@ -24,6 +27,9 @@ public interface AgentToolService {
 
   /** Returns the user-scoped configuration, data, and cache root for CLI sessions. */
   Path profileDirectory(UserId userId);
+
+  /** Creates the isolated user tool and CLI profile directories with owner-only permissions. */
+  void prepareProfile(UserId userId);
 
   /** One catalog entry and the current user's install status. */
   record ToolStatus(
