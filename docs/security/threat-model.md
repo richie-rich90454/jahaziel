@@ -36,6 +36,9 @@ The Firecracker backend is retained for separate verification and is not selecta
 | Terminal command selection | Server-selected fixed shell; the browser cannot pass an executable or argv |
 | Terminal session access | Authenticated WebSocket handshake bound to the authorized session and workspace |
 | Credential exposure to PTYs | Environment allowlist; application credentials are not copied into the child environment |
+| Debugger launch selection | The browser selects a supported language and workspace-relative launch fields; only fixed, absolute adapter commands configured by the server administrator may execute |
+| Debugger session access | Workspace authorization on REST operations; authenticated WebSocket handshake bound to the exact authorized workspace and running session; bounded DAP frames |
+| Debugger source paths | Workspace-rooted launch paths, symlink escape checks, and source path normalization before messages are returned to the browser |
 | Optional language tool integrity | Explicit selection, pinned versions and checksums before activation, and server-owned launch and initialization paths |
 
 ## Properties not defended
@@ -45,6 +48,7 @@ The Firecracker backend is retained for separate verification and is not selecta
 - Host CPU, memory, process-count, and network isolation for native tasks.
 - A compromised Linux kernel, service account, or Jahaziel JVM.
 - Hostile multi-tenant workloads. Do not use the default backend for these workloads.
+- Isolation of debugger adapters from the Jahaziel service account or other workspaces. An administrator-configured adapter runs as the same Linux account as Jahaziel.
 
 ## Attack surface inventory
 
@@ -57,6 +61,8 @@ The Firecracker backend is retained for separate verification and is not selecta
 | Run task API | Authenticated HTTP | Template-owned task IDs and server-selected executable/arguments |
 | Git API | Authenticated HTTP | Workspace read/write authorization, fixed Git subcommands, bounded output, no clone or remote credential endpoints |
 | Language-service stream | Authenticated WebSocket | Allowed language ID, selected pinned server-owned pack, bounded JSON-RPC, workspace-rooted URIs, and server-owned launch and initialization options |
+| Debug-session REST API | Authenticated HTTP | Read/write workspace authorization, server-owned adapter catalog, launch-only request shape, and bounded session limits |
+| Debug-session stream | Authenticated WebSocket | Authenticated principal, browser-origin policy, workspace write authorization, exact session binding, and bounded DAP messages |
 | Workspace preview | Gateway listener | Existing workspace-scoped token and port authorization |
 | Cookie-authenticated writes | Authenticated HTTP | Same-origin `Origin` validation and `Sec-Fetch-Site`; bearer-token clients are exempt because their credentials are explicitly attached |
 | Application data | Service-account filesystem | Configured data root, backups, diagnostics, file API confinement |
