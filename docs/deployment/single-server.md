@@ -261,6 +261,7 @@ sudo systemctl start jahaziel
 To restore an archive, first stop the service. The `restore` command extracts the archive over the install directory; it does not remove existing files that are absent from the archive. Preserve the current configuration and data in a uniquely named directory so the restored `data/` tree starts clean:
 
 ~~~bash
+set -euo pipefail
 sudo systemctl stop jahaziel
 restore_hold="/var/lib/jahaziel/pre-restore-$(date +%Y%m%d-%H%M%S)"
 sudo install --directory --owner=jahaziel --group=jahaziel --mode=0700 "$restore_hold"
@@ -268,11 +269,16 @@ sudo mv /var/lib/jahaziel/.env "$restore_hold/.env"
 sudo mv /var/lib/jahaziel/data "$restore_hold/data"
 sudo install --owner=jahaziel --group=jahaziel --mode=0600 /path/to/jahaziel-backup.tar.gz /var/lib/jahaziel/restore.tar.gz
 sudo -u jahaziel -- /usr/bin/java -jar /var/lib/jahaziel/jahaziel.jar restore /var/lib/jahaziel/restore.tar.gz
-sudo rm -- /var/lib/jahaziel/restore.tar.gz
 sudo systemctl start jahaziel
 ~~~
 
-Verify sign-in, workspace contents, and saved files before removing or archiving the `pre-restore-*` directory. Keep another protected copy of the current state if you need to roll back the restore. See the [backup operations guide](../operations/backup.md).
+The commands stop at the first failure, so a failed restore does not remove the archive or start Jahaziel against partial data. Verify sign-in, workspace contents, and saved files before removing the temporary archive copy. Keep or archive the `pre-restore-*` directory until you no longer need the previous state for rollback. After verification, remove the temporary archive copy:
+
+~~~bash
+sudo rm -- /var/lib/jahaziel/restore.tar.gz
+~~~
+
+Keep another protected copy of the current state if you need to roll back the restore. See the [backup operations guide](../operations/backup.md).
 
 ## 10. Upgrade safely
 
