@@ -1633,9 +1633,17 @@ function wireUi(): void {
   });
   document.addEventListener("keydown", (event) => {
     const keyboard = event as KeyboardEvent;
-    if ((keyboard.ctrlKey || keyboard.metaKey) && keyboard.key.toLowerCase() === "p") {
-      keyboard.preventDefault();
-      byId<HTMLInputElement>("workspace-search").focus();
+    if (keyboard.ctrlKey || keyboard.metaKey) {
+      const key = keyboard.key.toLowerCase();
+      if (key === "s") {
+        keyboard.preventDefault();
+        void saveActiveDocument().catch((failure) => toast(errorText(failure), "error"));
+      }
+      if (key === "p") {
+        keyboard.preventDefault();
+        if (window.matchMedia("(max-width: 900px)").matches) setPanel("files");
+        byId<HTMLInputElement>("workspace-search").focus();
+      }
     }
   });
 }
