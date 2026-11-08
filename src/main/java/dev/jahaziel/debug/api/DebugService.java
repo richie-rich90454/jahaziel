@@ -22,6 +22,9 @@ public interface DebugService {
   /** Returns the session only when it belongs to the specified workspace. */
   Session get(WorkspaceId workspaceId, UUID sessionId);
 
+  /** Returns currently active sessions belonging to the specified workspace. */
+  List<Session> list(WorkspaceId workspaceId);
+
   /** Stops a session only when it belongs to the specified workspace. */
   Session stop(WorkspaceId workspaceId, UUID sessionId);
 
