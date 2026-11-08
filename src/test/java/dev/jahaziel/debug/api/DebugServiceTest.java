@@ -8,9 +8,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DebugServiceTest {
+  @Test
+  void exposesOneServerOwnedDapAdapterIdForEachSupportedLanguage() {
+    assertEquals(
+        Map.of(
+            "node", "pwa-node",
+            "python", "debugpy",
+            "java", "java",
+            "cpp", "lldb",
+            "go", "go",
+            "rust", "lldb"),
+        DebugService.DAP_ADAPTER_IDS);
+    assertEquals(DebugService.DAP_ADAPTER_IDS.keySet(), DebugService.LANGUAGES);
+  }
+
   @Test
   void acceptsWorkspaceRelativeNodeLaunch() {
     var request =
