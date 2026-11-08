@@ -17,7 +17,8 @@ final class WorkspaceProcessLifecycleComposite implements WorkspaceProcessLifecy
   private final ObjectProvider<DebugServiceImpl> debugProcesses;
 
   WorkspaceProcessLifecycleComposite(
-      LanguageServerProcessManager languageProcesses, ObjectProvider<DebugServiceImpl> debugProcesses) {
+      LanguageServerProcessManager languageProcesses,
+      ObjectProvider<DebugServiceImpl> debugProcesses) {
     this.languageProcesses = Objects.requireNonNull(languageProcesses, "languageProcesses");
     this.debugProcesses = Objects.requireNonNull(debugProcesses, "debugProcesses");
   }
