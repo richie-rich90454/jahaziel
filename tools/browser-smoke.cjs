@@ -589,6 +589,10 @@ async function run() {
         + `cause=${failure.message}`,
     );
   }
+  assert.ok(
+    (await page.locator(".xterm-rows").textContent())?.includes(marker),
+    "terminal reconnect must keep prior command output visible beside fresh output",
+  );
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
