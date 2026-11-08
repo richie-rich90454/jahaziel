@@ -79,6 +79,22 @@ class LanguageStreamHandshakeInterceptorTest {
   }
 
   @Test
+  void acceptsPublicHttpsOriginBehindTlsTerminatingProxy() {
+    request = request("https://ide.example");
+    request.getHeaders().add("X-Forwarded-Proto", "https");
+    request.getHeaders().add("X-Forwarded-Host", "ide.example");
+
+    assertTrue(
+        interceptor.beforeHandshake(
+            request,
+            mock(ServerHttpResponse.class),
+            mock(WebSocketHandler.class),
+            new HashMap<>()));
+
+    verify(packs).artifactFor(workspaceId, "rust");
+  }
+
+  @Test
   void rejectsUnauthorizedAndStoppedWorkspaces() {
     when(authorization.isAllowed(owner, "write", workspaceId)).thenReturn(false);
     assertFalse(
