@@ -186,6 +186,10 @@ h1, h2, h3, p { margin-top: 0; }
 .task-button:disabled { cursor: wait; opacity: .6; }
 .task-output { max-height: 90px; overflow: auto; margin: 0 8px 8px; border: 1px solid #2e382d; padding: 6px; color: #a8b59f; background: #111611; white-space: pre-wrap; overflow-wrap: anywhere; font: 8px/1.45 var(--mono); }
 .debug-panel { flex: 0 1 430px; max-height: 48vh; overflow: auto; border-top: 1px solid var(--line-soft); background: #181e18; }
+.debug-config-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: center; padding: 0 9px 8px; }
+.debug-config-toolbar > .button { min-height: 30px; padding: 0 8px; font: 8px var(--mono); }
+.debug-config-toolbar .debug-field { font-size: 7px; }
+.debug-config-status { grid-column: 1 / -1; min-height: 1em; color: #879283; font: 7px/1.4 var(--mono); }
 .debug-launch-form { display: grid; gap: 7px; padding: 0 9px 8px; }
 .debug-field { display: grid; min-width: 0; gap: 4px; color: #8f9a89; font: 8px var(--mono); }
 .debug-field input, .debug-field select { width: 100%; min-width: 0; height: 28px; border: 1px solid #394334; border-radius: 3px; padding: 0 7px; color: #d6dfd0; background: #111611; font: 9px var(--mono); }
@@ -447,6 +451,10 @@ h1, h2, h3, p { margin-top: 0; }
   .language-pack-action { min-height: 40px; padding: 0 10px; font-size: 10px; }
   .language-diagnostic { min-height: 40px; padding: 7px; font-size: 10px; }
   .debug-panel { width: 100%; overflow: auto; }
+  .debug-config-toolbar { gap: 8px; padding: 0 12px 10px; }
+  .debug-config-toolbar > .button { min-height: 44px; padding: 0 10px; font-size: 10px; }
+  .debug-config-toolbar .debug-field { font-size: 9px; }
+  .debug-config-status { font-size: 9px; }
   .debug-launch-form { gap: 10px; padding: 0 12px 12px; }
   .debug-field { gap: 6px; font-size: 10px; }
   .debug-field input, .debug-field select { height: 44px; padding: 0 10px; font-size: 13px; }
