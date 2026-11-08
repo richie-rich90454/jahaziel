@@ -10,6 +10,7 @@ import dev.jahaziel.debug.api.DebugService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,11 @@ public final class DebugSessionController {
   public DebugSessionController(DebugService debug, AuthorizationService authorization) {
     this.debug = debug;
     this.authorization = authorization;
+  }
+
+  @GetMapping
+  public List<DebugService.Session> list(@PathVariable UUID id, Principal principal) {
+    return debug.list(require(principal, id, "read"));
   }
 
   @PostMapping
