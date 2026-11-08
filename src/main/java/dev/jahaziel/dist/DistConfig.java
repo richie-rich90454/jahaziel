@@ -9,6 +9,7 @@ import dev.jahaziel.gateway.auth.JwtVerifier;
 import dev.jahaziel.gateway.proxy.GatewayRelayFilter;
 import dev.jahaziel.gateway.proxy.GatewayServer;
 import dev.jahaziel.gateway.proxy.LoopbackTargetResolver;
+import dev.jahaziel.gateway.proxy.PreviewPathAdapter;
 import dev.jahaziel.gateway.routing.HostParser;
 import dev.jahaziel.gateway.routing.WorkspaceDirectory;
 import dev.jahaziel.nodeagent.audit.AuditSpool;
@@ -92,6 +93,24 @@ public class DistConfig {
    * @return the registration
    */
   @Bean
+  public FilterRegistrationBean<PreviewPathAdapter> previewPathAdapter(
+      @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
+      @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
+      @Value("${jahaziel.jwt.issuer:https://localhost}") String issuer,
+      @Value("${jahaziel.jwt.ttl-seconds:900}") long jwtTtlSeconds,
+      WorkspaceDirectory distRouteRegistry) {
+    RSAPublicKey key = JwtKeys.loadPublicKey(Path.of(publicKeyFile));
+    JwtVerifier verifier =
+        new JwtVerifier(
+            key, issuer, "jahaziel-code-server", java.time.Duration.ofSeconds(jwtTtlSeconds + 60));
+    FilterRegistrationBean<PreviewPathAdapter> registration =
+        new FilterRegistrationBean<>(
+            new PreviewPathAdapter("preview." + domain, distRouteRegistry, verifier));
+    registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    return registration;
+  }
+
+  @Bean
   public FilterRegistrationBean<GatewayRelayFilter> gatewayRelayFilter(
       @Value("${jahaziel.dist.domain:${jahaziel.domain}}") String domain,
       @Value("${jahaziel.jwt.public-key-file}") String publicKeyFile,
@@ -113,7 +132,7 @@ public class DistConfig {
             sessions,
             java.time.Duration.ofSeconds(jwtTtlSeconds));
     FilterRegistrationBean<GatewayRelayFilter> registration = new FilterRegistrationBean<>(filter);
-    registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
     return registration;
   }
 
