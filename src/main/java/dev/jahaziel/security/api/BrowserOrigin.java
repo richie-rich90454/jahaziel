@@ -25,11 +25,7 @@ public final class BrowserOrigin {
    * @return whether the optional browser origin matches the public request origin
    */
   public static boolean matchesIfPresent(
-      String origin,
-      String forwardedProto,
-      String forwardedHost,
-      String host,
-      URI requestUri) {
+      String origin, String forwardedProto, String forwardedHost, String host, URI requestUri) {
     if (origin == null || origin.isBlank()) return true;
     try {
       URI source = URI.create(origin);
