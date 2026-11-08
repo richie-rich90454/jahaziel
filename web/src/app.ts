@@ -47,7 +47,7 @@ interface TaskRun { id: string; workspaceId: string; taskId: string; label: stri
 interface GitChange { path: string; indexStatus: string; worktreeStatus: string; }
 interface GitStatus { repository: boolean; branch: string; changes: GitChange[]; }
 interface GitDiff { path: string; content: string; }
-interface DebugSession { id: string; workspaceId: string; languageId: string; state: string; adapterVersion: string; startedAt: string; error: string; }
+interface DebugSession { id: string; workspaceId: string; languageId: string; adapterId: string; state: string; adapterVersion: string; startedAt: string; error: string; }
 interface DapMessage {
   type: string;
   seq?: number;
@@ -1300,18 +1300,10 @@ async function startDebugSession(): Promise<void> {
   updateDebugControls();
   try {
     await openDebugSocket(session);
-    const adapterIds: Record<string, string> = {
-      node: "pwa-node",
-      python: "debugpy",
-      java: "java",
-      cpp: "lldb",
-      go: "go",
-      rust: "lldb",
-    };
     const initialize = await dapRequest("initialize", {
       clientID: "jahaziel",
       clientName: "Jahaziel",
-      adapterID: adapterIds[languageId],
+      adapterID: session.adapterId,
       pathFormat: "path",
       linesStartAt1: true,
       columnsStartAt1: true,
