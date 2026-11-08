@@ -317,6 +317,11 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (selected == null) throw new IllegalArgumentException("unknown workspace task");
     List<String> command = command(selected.path("command"));
     String label = requiredLabel(selected.path("label"));
+    Integer previewPort =
+        selected.path("port").isIntegralNumber() ? selected.path("port").intValue() : null;
+    if (previewPort != null && (previewPort < 1 || previewPort > 65535)) {
+      throw new IllegalArgumentException("task preview port must be between 1 and 65535");
+    }
     synchronized (lock(workspaceId.value())) {
       if (stoppingWorkspaces.contains(workspaceId.value())) {
         throw new IllegalStateException("workspace is stopping");
@@ -341,7 +346,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       Thread.ofPlatform()
           .daemon()
           .name("workspace-task-" + runId)
-          .start(() -> executeTask(workspaceId, runId, command));
+          .start(() -> executeTask(workspaceId, runId, command, previewPort));
       return taskRunFor(workspaceId, metadata(workspaceId));
     }
   }
@@ -501,12 +506,13 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (process.isAlive()) process.destroyForcibly();
   }
 
-  private void executeTask(WorkspaceId workspaceId, UUID runId, List<String> command) {
+  private void executeTask(
+      WorkspaceId workspaceId, UUID runId, List<String> command, Integer previewPort) {
     Process process = null;
     WorkspaceProcessRegistry.Registration registration = null;
     StringBuilder output = new StringBuilder();
     try {
-      process = start(workspaceId, command);
+      process = start(workspaceId, command, previewPort);
       if (processRegistry != null) {
         registration =
             processRegistry.track(workspaceId, WorkspaceProcessRegistry.Kind.TASK, process);
@@ -635,6 +641,10 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private Process start(WorkspaceId workspaceId, List<String> command) {
+    return start(workspaceId, command, null);
+  }
+
+  private Process start(WorkspaceId workspaceId, List<String> command, Integer previewPort) {
     if (Platforms.detect(null).os() != Platform.Os.LINUX) {
       throw new IllegalStateException("workspace tasks require a Linux server");
     }
@@ -649,6 +659,10 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     environment.put("PATH", "/usr/local/bin:/usr/bin:/bin");
     environment.put("TERM", "xterm-256color");
     environment.put("LANG", "C.UTF-8");
+    if (previewPort != null) {
+      environment.put("PORT", Integer.toString(previewPort));
+      environment.put("JAHZIEL_PREVIEW_BASE_PATH", "/" + workspaceId.value() + "/" + previewPort);
+    }
     try {
       return builder.start();
     } catch (IOException failure) {
