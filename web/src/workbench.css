@@ -234,8 +234,11 @@ h1, h2, h3, p { margin-top: 0; }
 .cm-editor .cm-focused { outline: none; }
 .cm-editor .cm-scroller { overflow: auto; }
 .terminal-dock { flex: 0 0 198px; min-height: 120px; border-top: 1px solid var(--line); background: #141914; }
-.terminal-heading { display: flex; justify-content: space-between; align-items: center; height: 31px; border-bottom: 1px solid #252d25; padding: 0 11px; color: #aeb9aa; font-size: 8px; }
+.terminal-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; height: 31px; border-bottom: 1px solid #252d25; padding: 0 11px; color: #aeb9aa; font-size: 8px; }
 .terminal-heading > div, .terminal-actions { display: flex; align-items: center; gap: 8px; }
+.terminal-actions { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.terminal-actions #opencode-status { max-width: 185px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-action:disabled { cursor: progress; opacity: .55; }
 .terminal-square { width: 7px; height: 7px; border: 1px solid var(--acid); }
 .terminal-state { color: #6f7b6c; font-size: 7px; }
 .terminal-action { border: 0; background: transparent; color: #9eaa99; cursor: pointer; font: 8px var(--mono); }
@@ -366,8 +369,8 @@ h1, h2, h3, p { margin-top: 0; }
   #workbench-page[data-active-panel="preview"] .statusbar { display: none; }
   #workbench-page[data-active-panel="editor"] .editor-surface-wrap { min-height: 0; }
   #workbench-page[data-active-panel="terminal"] .terminal-dock { min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; border-top: 0; }
-  #workbench-page[data-active-panel="terminal"] .terminal-heading { height: 45px; flex: 0 0 auto; padding: 0 11px; font-size: 10px; }
-  #workbench-page[data-active-panel="terminal"] .terminal-actions { gap: 7px; }
+  #workbench-page[data-active-panel="terminal"] .terminal-heading { height: auto; min-height: 45px; flex: 0 0 auto; flex-wrap: wrap; padding: 7px 11px; font-size: 10px; }
+  #workbench-page[data-active-panel="terminal"] .terminal-actions { flex: 1 1 100%; gap: 7px; justify-content: flex-start; }
   #workbench-page[data-active-panel="terminal"] .terminal-action { min-height: 38px; padding: 0 7px; font-size: 11px; }
   #workbench-page[data-active-panel="terminal"] .terminal-key-strip:not([hidden]) { display: flex; }
   #workbench-page[data-active-panel="terminal"] .terminal-key-strip button { min-height: 40px; min-width: 42px; }
