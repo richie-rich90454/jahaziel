@@ -63,7 +63,7 @@ pnpm --dir web run build
 ./mvnw -B verify -Psmoke '-Dtest=!GatewayRelayFilterTest'
 ~~~
 
-These commands use the locked web dependencies and the Maven wrapper. A normal build does not install a system toolchain or bundle language packs. Prefer the workflow artifact for a server install unless you need to build a specific source revision.
+The Maven command matches the current Linux CI verification profile, which excludes `GatewayRelayFilterTest`. These commands use the locked web dependencies and the Maven wrapper. A normal build does not install a system toolchain or bundle language packs. Prefer the workflow artifact for a server install unless you need to build a specific source revision.
 
 ## 3. Create the service account and install the jar
 
@@ -258,17 +258,21 @@ Backups contain a full copy of workspace data, so account for their size. Then r
 sudo systemctl start jahaziel
 ~~~
 
-To restore an archive, first stop the service. Install the archive where the `jahaziel` account can read it, then restore:
+To restore an archive, first stop the service. The `restore` command extracts the archive over the install directory; it does not remove existing files that are absent from the archive. Preserve the current configuration and data in a uniquely named directory so the restored `data/` tree starts clean:
 
 ~~~bash
 sudo systemctl stop jahaziel
+restore_hold="/var/lib/jahaziel/pre-restore-$(date +%Y%m%d-%H%M%S)"
+sudo install --directory --owner=jahaziel --group=jahaziel --mode=0700 "$restore_hold"
+sudo mv /var/lib/jahaziel/.env "$restore_hold/.env"
+sudo mv /var/lib/jahaziel/data "$restore_hold/data"
 sudo install --owner=jahaziel --group=jahaziel --mode=0600 /path/to/jahaziel-backup.tar.gz /var/lib/jahaziel/restore.tar.gz
 sudo -u jahaziel -- /usr/bin/java -jar /var/lib/jahaziel/jahaziel.jar restore /var/lib/jahaziel/restore.tar.gz
 sudo rm -- /var/lib/jahaziel/restore.tar.gz
 sudo systemctl start jahaziel
 ~~~
 
-Restore replaces the current `.env` and `data/` contents with the archived versions. Keep another copy of the current state before restoring. See the [backup operations guide](../operations/backup.md).
+Verify sign-in, workspace contents, and saved files before removing or archiving the `pre-restore-*` directory. Keep another protected copy of the current state if you need to roll back the restore. See the [backup operations guide](../operations/backup.md).
 
 ## 10. Upgrade safely
 
