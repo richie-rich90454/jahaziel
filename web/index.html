@@ -8,7 +8,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#151a15" />
     <meta name="description" content="Jahaziel is a lightweight remote source IDE for Linux workspaces." />
     <title>Jahaziel — Remote source IDE</title>
@@ -80,6 +80,15 @@
           <button id="refresh-preview-ports" class="button button-quiet preview-refresh" type="button" title="Check which preview ports are open">Check ports</button>
           <button id="runtime-toggle" class="button button-quiet" type="button">Start workspace</button>
         </div>
+        <nav class="workbench-panel-nav" aria-label="Workspace panels">
+          <button type="button" data-panel="files" aria-pressed="true">Files</button>
+          <button type="button" data-panel="editor" aria-pressed="false">Editor</button>
+          <button type="button" data-panel="run" aria-pressed="false">Run</button>
+          <button type="button" data-panel="languages" aria-pressed="false">Languages</button>
+          <button type="button" data-panel="git" aria-pressed="false">Git</button>
+          <button type="button" data-panel="terminal" aria-pressed="false">Terminal</button>
+          <button type="button" data-panel="preview" aria-pressed="false">Preview</button>
+        </nav>
         <div class="workbench-layout">
           <aside class="file-sidebar" aria-label="Workspace files">
             <div class="panel-heading"><div><span class="panel-glyph">▤</span><span>EXPLORER</span></div><span class="panel-meta">WORKSPACE</span></div>
@@ -135,7 +144,32 @@
               <div class="terminal-heading"><div><span class="terminal-square"></span><span>TERMINAL</span><span id="terminal-state" class="terminal-state">No session</span></div>
                 <div class="terminal-actions"><select id="terminal-session-select" class="terminal-session-select" aria-label="Detached terminal sessions" hidden disabled></select><button id="terminal-reconnect" class="terminal-action" type="button" hidden disabled>Reconnect</button><button id="terminal-new" class="terminal-action" type="button">＋ New terminal</button><button id="close-terminal" class="terminal-action terminal-close" type="button" hidden>×</button></div>
               </div>
+              <div id="terminal-key-strip" class="terminal-key-strip" aria-label="Terminal keyboard shortcuts">
+                <button type="button" data-terminal-modifier="ctrl" aria-pressed="false">Ctrl</button>
+                <button type="button" data-terminal-modifier="alt" aria-pressed="false">Alt</button>
+                <button type="button" data-terminal-input="\u001b">Esc</button>
+                <button type="button" data-terminal-input="\t">Tab</button>
+                <button type="button" data-terminal-input="\u001b[D" aria-label="Left arrow">←</button>
+                <button type="button" data-terminal-input="\u001b[A" aria-label="Up arrow">↑</button>
+                <button type="button" data-terminal-input="\u001b[B" aria-label="Down arrow">↓</button>
+                <button type="button" data-terminal-input="\u001b[C" aria-label="Right arrow">→</button>
+                <button type="button" data-terminal-shortcut="c">Ctrl+C</button>
+                <button type="button" data-terminal-shortcut="d">Ctrl+D</button>
+                <button type="button" data-terminal-shortcut="z">Ctrl+Z</button>
+                <button id="terminal-copy-selection" type="button">Copy selection</button>
+              </div>
               <div id="terminal-surface" class="terminal-surface"><div class="terminal-placeholder"><span>⌁</span><p>Open a terminal to run commands in this workspace.</p></div></div>
+            </section>
+            <section id="preview-dock" class="preview-dock" aria-label="Workspace preview" hidden>
+              <div class="preview-heading">
+                <label for="preview-port-select">Preview</label>
+                <select id="preview-port-select" aria-label="Preview port"></select>
+                <span id="preview-state">Choose a listening port.</span>
+                <button id="preview-reload" class="button button-quiet" type="button" disabled>Reload</button>
+                <a id="preview-new-tab" class="button button-quiet" href="#" target="_blank" rel="noreferrer" aria-disabled="true">Open in new tab</a>
+              </div>
+              <iframe id="preview-frame" title="Workspace preview" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-downloads" hidden></iframe>
+              <div id="preview-empty" class="preview-empty">Start a project task, then select a registered listening port.</div>
             </section>
             <footer class="statusbar"><span>JAHaziel</span><span id="status-language">REMOTE WORKSPACE</span><span>UTF-8</span><span>LINUX</span></footer>
           </section>
