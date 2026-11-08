@@ -69,6 +69,6 @@ class DebugSessionControllerTest {
 
   private DebugService.Session session() {
     return new DebugService.Session(
-        sessionId, workspace.value(), "node", "RUNNING", "1.0", Instant.now(), "");
+        sessionId, workspace.value(), "node", "pwa-node", "RUNNING", "1.0", Instant.now(), "");
   }
 }
