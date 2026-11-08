@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.agenttools.internal;
 
+import dev.jahaziel.agenttools.api.AgentToolBusyException;
 import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.identity.domain.UserId;
 import java.io.BufferedInputStream;
@@ -56,12 +57,28 @@ public final class AgentToolServiceImpl implements AgentToolService {
           new Artifact(
               "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-linux-x64.tar.gz",
               "588310a336fa3b9df36b3f0225b26f679d453efaad0cf3d66c3651ef3ec1647a",
-              79_600_000L),
+              79_600_000L,
+              "opencode"),
           "arm64",
           new Artifact(
               "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-linux-arm64.tar.gz",
               "fae5be262d693b7c5e562856cc473e59e741772936db0c0600ac0d5ed5bd088b",
-              78_500_000L));
+              78_500_000L,
+              "opencode"));
+  private static final Map<String, Artifact> RIPGREP_ARTIFACTS =
+      Map.of(
+          "x64",
+          new Artifact(
+              "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz",
+              "33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c",
+              2_300_000L,
+              "ripgrep-15.2.0-x86_64-unknown-linux-musl/rg"),
+          "arm64",
+          new Artifact(
+              "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz",
+              "800b1e7206afe799dfb5a6901f23147cfaabe0e52210538100f61e86e1740915",
+              1_900_000L,
+              "ripgrep-15.2.0-aarch64-unknown-linux-musl/rg"));
 
   private final Path storageRoot;
   private final ObjectMapper json;
@@ -76,7 +93,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
         json,
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build());
   }
 
@@ -95,9 +112,18 @@ public final class AgentToolServiceImpl implements AgentToolService {
 
   @Override
   public ToolStatus installOpenCode(UserId userId) {
+    return beginInstall(userId, false);
+  }
+
+  @Override
+  public ToolStatus updateOpenCode(UserId userId) {
+    return beginInstall(userId, true);
+  }
+
+  private ToolStatus beginInstall(UserId userId, boolean force) {
     Objects.requireNonNull(userId, "userId");
     ToolStatus current = current(userId);
-    if ("INSTALLED".equals(current.status()) || !installations.add(userId.value())) {
+    if ((!force && "INSTALLED".equals(current.status())) || !installations.add(userId.value())) {
       return current(userId);
     }
     String architecture = architecture();
@@ -116,38 +142,44 @@ public final class AgentToolServiceImpl implements AgentToolService {
               0,
               "OpenCode is available only on Linux x64 and arm64."));
     }
-    if ("INSTALLED".equals(current.status())) return current;
     Artifact artifact = ARTIFACTS.get(architecture);
+    long totalDownloadBytes = totalDownloadBytes(architecture);
     ToolStatus starting =
         new ToolStatus(
-            TOOL_ID,
-            "OpenCode",
-            VERSION,
-            architecture,
-            "INSTALLING",
-            artifact.downloadBytes(),
-            0,
-            0,
-            "");
+            TOOL_ID, "OpenCode", VERSION, architecture, "INSTALLING", totalDownloadBytes, 0, 0, "");
     remember(userId, starting);
-    Thread.ofVirtual()
-        .name("agent-tool-opencode-" + userId.value())
-        .start(() -> install(userId, architecture, artifact));
+    try {
+      Thread.ofVirtual()
+          .name("agent-tool-opencode-" + userId.value())
+          .start(() -> install(userId, architecture, artifact));
+    } catch (RuntimeException failure) {
+      installations.remove(userId.value());
+      return remember(
+          userId,
+          new ToolStatus(
+              TOOL_ID,
+              "OpenCode",
+              VERSION,
+              architecture,
+              "FAILED",
+              totalDownloadBytes(architecture),
+              0,
+              0,
+              "The OpenCode installer could not be started."));
+    }
     return starting;
   }
 
   @Override
   public ToolStatus removeOpenCode(UserId userId) {
     Objects.requireNonNull(userId, "userId");
-    if (installations.contains(userId.value())) {
-      throw new IllegalStateException("OpenCode installation is still running");
+    if (!installations.add(userId.value())) {
+      throw new AgentToolBusyException();
     }
-    Path binary = executablePath(userId);
     try {
-      if (Files.isSymbolicLink(binary)) {
-        throw new IllegalStateException("managed OpenCode path is not a plain file");
-      }
+      Path binary = executablePath(userId);
       Files.deleteIfExists(binary);
+      Files.deleteIfExists(ripgrepPath(userId));
       ToolStatus removed =
           new ToolStatus(
               TOOL_ID,
@@ -155,13 +187,15 @@ public final class AgentToolServiceImpl implements AgentToolService {
               VERSION,
               architecture(),
               "NOT_INSTALLED",
-              artifactForHost().downloadBytes(),
+              totalDownloadBytes(architecture()),
               0,
               0,
               "");
       return remember(userId, removed);
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot remove the managed OpenCode executable", failure);
+    } finally {
+      installations.remove(userId.value());
     }
   }
 
@@ -177,22 +211,57 @@ public final class AgentToolServiceImpl implements AgentToolService {
     return userRoot(userId).resolve("profile");
   }
 
+  @Override
+  public void prepareProfile(UserId userId) {
+    Objects.requireNonNull(userId, "userId");
+    try {
+      Path root = userRoot(userId);
+      ensureDirectory(root.getParent());
+      ensureDirectory(root);
+      ensureDirectory(executableDirectory(userId));
+      Path profile = profileDirectory(userId);
+      ensureDirectory(profile);
+      ensureDirectory(profile.resolve("config"));
+      ensureDirectory(profile.resolve("data"));
+      ensureDirectory(profile.resolve("cache"));
+    } catch (IOException failure) {
+      throw new UncheckedIOException("cannot prepare the per-user coding tool profile", failure);
+    }
+  }
+
   private void install(UserId userId, String architecture, Artifact artifact) {
     Path root = userRoot(userId);
     Path staging = root.resolve("staging-" + UUID.randomUUID());
+    Artifact ripgrepArtifact = RIPGREP_ARTIFACTS.get(architecture);
+    long totalDownloadBytes = totalDownloadBytes(architecture);
     try {
+      ensureDirectory(root.getParent());
       ensureDirectory(root);
       ensureDirectory(staging);
       Path archive = staging.resolve("opencode.tar.gz");
-      download(URI.create(artifact.url()), artifact, archive, userId);
+      download(URI.create(artifact.url()), artifact, archive, userId, 0, totalDownloadBytes);
       Path executable = staging.resolve("opencode");
-      extractExecutable(archive, executable);
+      extractExecutable(archive, executable, artifact.executableEntry());
       verifyExecutableArchitecture(executable, architecture);
       setExecutable(executable);
+      Path ripgrepArchive = staging.resolve("ripgrep.tar.gz");
+      download(
+          URI.create(ripgrepArtifact.url()),
+          ripgrepArtifact,
+          ripgrepArchive,
+          userId,
+          artifact.downloadBytes(),
+          totalDownloadBytes);
+      Path ripgrep = staging.resolve("rg");
+      extractExecutable(ripgrepArchive, ripgrep, ripgrepArtifact.executableEntry());
+      verifyExecutableArchitecture(ripgrep, architecture);
+      setExecutable(ripgrep);
       Path bin = root.resolve("bin");
       ensureDirectory(bin);
       Path replacement = bin.resolve("opencode.new");
+      Path ripgrepReplacement = bin.resolve("rg.new");
       Files.move(executable, replacement, StandardCopyOption.REPLACE_EXISTING);
+      Files.move(ripgrep, ripgrepReplacement, StandardCopyOption.REPLACE_EXISTING);
       try {
         Files.move(
             replacement,
@@ -202,7 +271,17 @@ public final class AgentToolServiceImpl implements AgentToolService {
       } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
         Files.move(replacement, bin.resolve("opencode"), StandardCopyOption.REPLACE_EXISTING);
       }
+      try {
+        Files.move(
+            ripgrepReplacement,
+            bin.resolve("rg"),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING);
+      } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+        Files.move(ripgrepReplacement, bin.resolve("rg"), StandardCopyOption.REPLACE_EXISTING);
+      }
       setExecutable(bin.resolve("opencode"));
+      setExecutable(bin.resolve("rg"));
       ToolStatus installed =
           new ToolStatus(
               TOOL_ID,
@@ -210,8 +289,8 @@ public final class AgentToolServiceImpl implements AgentToolService {
               VERSION,
               architecture,
               "INSTALLED",
-              artifact.downloadBytes(),
-              Files.size(bin.resolve("opencode")),
+              totalDownloadBytes,
+              Files.size(bin.resolve("opencode")) + Files.size(bin.resolve("rg")),
               100,
               "");
       remember(userId, installed);
@@ -232,7 +311,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
               VERSION,
               architecture,
               "FAILED",
-              artifact.downloadBytes(),
+              totalDownloadBytes,
               0,
               0,
               message));
@@ -248,11 +327,15 @@ public final class AgentToolServiceImpl implements AgentToolService {
     }
   }
 
-  private void download(URI uri, Artifact artifact, Path destination, UserId userId)
+  private void download(
+      URI uri,
+      Artifact artifact,
+      Path destination,
+      UserId userId,
+      long progressOffset,
+      long totalDownloadBytes)
       throws IOException, InterruptedException {
-    HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(5)).GET().build();
-    HttpResponse<InputStream> response =
-        http.send(request, HttpResponse.BodyHandlers.ofInputStream());
+    HttpResponse<InputStream> response = pinnedResponse(uri);
     try (InputStream input = response.body()) {
       URI finalUri = response.uri();
       if (response.statusCode() != 200
@@ -278,7 +361,9 @@ public final class AgentToolServiceImpl implements AgentToolService {
           }
           digest.update(buffer, 0, count);
           output.write(buffer, 0, count);
-          int progress = (int) Math.min(95, received * 95 / artifact.downloadBytes());
+          int progress =
+              (int)
+                  Math.min(95, (progressOffset + received) * 95 / Math.max(1, totalDownloadBytes));
           liveStates.put(
               userId.value(),
               new ToolStatus(
@@ -287,7 +372,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
                   VERSION,
                   architecture(),
                   "INSTALLING",
-                  artifact.downloadBytes(),
+                  totalDownloadBytes,
                   0,
                   progress,
                   ""));
@@ -300,7 +385,48 @@ public final class AgentToolServiceImpl implements AgentToolService {
     }
   }
 
+  private HttpResponse<InputStream> pinnedResponse(URI requested)
+      throws IOException, InterruptedException {
+    URI current = requested;
+    for (int redirect = 0; redirect <= 3; redirect++) {
+      if (!allowedDownloadUri(current)) {
+        throw new IOException("OpenCode download was rejected by the pinned source policy");
+      }
+      HttpRequest request =
+          HttpRequest.newBuilder(current).timeout(Duration.ofMinutes(5)).GET().build();
+      HttpResponse<InputStream> response =
+          http.send(request, HttpResponse.BodyHandlers.ofInputStream());
+      int status = response.statusCode();
+      if (status == 200) return response;
+      boolean redirectStatus =
+          status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+      if (!redirectStatus || redirect == 3) {
+        response.body().close();
+        throw new IOException("OpenCode download source returned an unexpected response");
+      }
+      String location = response.headers().firstValue("Location").orElse(null);
+      response.body().close();
+      if (location == null) {
+        throw new IOException("OpenCode download source returned an invalid redirect");
+      }
+      current = current.resolve(location);
+    }
+    throw new IOException("OpenCode download source exceeded the redirect limit");
+  }
+
+  private static boolean allowedDownloadUri(URI uri) {
+    return "https".equalsIgnoreCase(uri.getScheme())
+        && uri.getUserInfo() == null
+        && (uri.getPort() == -1 || uri.getPort() == 443)
+        && Set.of("github.com", "release-assets.githubusercontent.com").contains(uri.getHost());
+  }
+
   static void extractExecutable(Path archive, Path destination) throws IOException {
+    extractExecutable(archive, destination, "opencode");
+  }
+
+  static void extractExecutable(Path archive, Path destination, String expectedEntry)
+      throws IOException {
     boolean found = false;
     int entries = 0;
     try (InputStream input =
@@ -320,7 +446,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
         }
         int type = header[156] & 0xff;
         boolean regularFile = type == 0 || type == '0';
-        if (regularFile && (name.equals("opencode") || name.equals("./opencode"))) {
+        if (regularFile && name.equals(expectedEntry)) {
           if (found || size < 4 || size > MAX_EXECUTABLE_BYTES) {
             throw new IOException("OpenCode archive contains an invalid executable entry");
           }
@@ -365,7 +491,8 @@ public final class AgentToolServiceImpl implements AgentToolService {
     ToolStatus live = liveStates.get(userId.value());
     if (live != null) return live;
     Path binary = executablePath(userId);
-    if (Files.isRegularFile(binary, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(binary)) {
+    Path ripgrep = ripgrepPath(userId);
+    if (isManagedBinary(binary) && isManagedBinary(ripgrep)) {
       try {
         ToolStatus installed =
             new ToolStatus(
@@ -374,8 +501,8 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 VERSION,
                 architecture(),
                 "INSTALLED",
-                artifactForHost().downloadBytes(),
-                Files.size(binary),
+                totalDownloadBytes(architecture()),
+                Files.size(binary) + Files.size(ripgrep),
                 100,
                 "");
         return remember(userId, installed);
@@ -393,7 +520,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
               VERSION,
               architecture(),
               "FAILED",
-              artifactForHost().downloadBytes(),
+              totalDownloadBytes(architecture()),
               0,
               0,
               "Installation was interrupted by a server restart. Retry to continue."));
@@ -405,7 +532,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
         VERSION,
         architecture(),
         "NOT_INSTALLED",
-        artifactForHost().downloadBytes(),
+        totalDownloadBytes(architecture()),
         0,
         0,
         "");
@@ -422,6 +549,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
     Path target = root.resolve("opencode-status.json");
     Path temporary = root.resolve("opencode-status.tmp");
     try {
+      ensureDirectory(root.getParent());
       ensureDirectory(root);
       Files.writeString(temporary, json.writeValueAsString(status), StandardCharsets.UTF_8);
       try {
@@ -482,11 +610,35 @@ public final class AgentToolServiceImpl implements AgentToolService {
   }
 
   private Path executablePath(UserId userId) {
-    return executableDirectory(userId).resolve(TOOL_ID);
+    Path directory = executableDirectory(userId);
+    rejectSymbolicLink(directory);
+    Path binary = directory.resolve(TOOL_ID);
+    rejectSymbolicLink(binary);
+    return binary;
+  }
+
+  private Path ripgrepPath(UserId userId) {
+    Path directory = executableDirectory(userId);
+    rejectSymbolicLink(directory);
+    Path binary = directory.resolve("rg");
+    rejectSymbolicLink(binary);
+    return binary;
+  }
+
+  private static boolean isManagedBinary(Path path) {
+    return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path);
   }
 
   private Artifact artifactForHost() {
-    return ARTIFACTS.getOrDefault(architecture(), new Artifact("", "", 0));
+    return ARTIFACTS.getOrDefault(architecture(), new Artifact("", "", 0, "opencode"));
+  }
+
+  private static long totalDownloadBytes(String architecture) {
+    Artifact openCode = ARTIFACTS.get(architecture);
+    Artifact ripgrep = RIPGREP_ARTIFACTS.get(architecture);
+    return openCode == null || ripgrep == null
+        ? 0
+        : openCode.downloadBytes() + ripgrep.downloadBytes();
   }
 
   private static String architecture() {
@@ -622,7 +774,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
     }
   }
 
-  private record Artifact(String url, String sha256, long downloadBytes) {}
+  private record Artifact(String url, String sha256, long downloadBytes, String executableEntry) {}
 
   /** Counts decompressed bytes so a small gzip response cannot expand without a bound. */
   private static final class BoundedInputStream extends java.io.FilterInputStream {
