@@ -7,6 +7,7 @@ package dev.jahaziel.networking.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /** Validation and URL building of {@link GatewayEndpoint}. */
@@ -32,6 +33,17 @@ class GatewayEndpointTest {
   }
 
   @Test
+  void fixedHostPreviewUrlCarriesWorkspaceAndPortPath() {
+    UUID workspace = UUID.fromString("025e5a01-6ed2-4c4e-b67f-0ef57bf8cda2");
+    assertEquals(
+        "https://preview.code.example.com/" + workspace + "/3000/?token=tok",
+        new GatewayEndpoint("https", "code.example.com", 443).previewUrl(workspace, 3000, "tok"));
+    assertEquals(
+        "http://preview.localhost:8081/" + workspace + "/5000/?token=tok",
+        new GatewayEndpoint("http", "localhost", 8081).previewUrl(workspace, 5000, "tok"));
+  }
+
+  @Test
   void rejectsBadInputs() {
     assertThrows(IllegalArgumentException.class, () -> new GatewayEndpoint("ftp", "x.test", 8081));
     assertThrows(IllegalArgumentException.class, () -> new GatewayEndpoint(null, "x.test", 8081));
@@ -44,5 +56,10 @@ class GatewayEndpointTest {
     var endpoint = new GatewayEndpoint("http", "x.test", 8081);
     assertThrows(NullPointerException.class, () -> endpoint.url(null, 8081, "tok"));
     assertThrows(NullPointerException.class, () -> endpoint.url("slug", 8081, null));
+    assertThrows(
+        IllegalArgumentException.class, () -> endpoint.previewUrl(UUID.randomUUID(), 0, "tok"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> endpoint.previewUrl(UUID.randomUUID(), 8081, "unsafe&token"));
   }
 }
