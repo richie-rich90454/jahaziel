@@ -4,6 +4,8 @@
  */
 package dev.jahaziel.api.controller;
 
+import dev.jahaziel.agenttools.api.AgentToolBusyException;
+import dev.jahaziel.agenttools.api.AgentToolNotInstalledException;
 import dev.jahaziel.api.dto.ApiError;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.extension.api.ExtensionPolicyNotFoundException;
@@ -113,6 +115,13 @@ public class ApiExceptionHandler {
   @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
   public ApiError terminalLimit(TerminalLimitException failure) {
     return error("TERMINAL_LIMIT", failure.getMessage());
+  }
+
+  /** Maps managed tool lifecycle conflicts to 409. */
+  @ExceptionHandler({AgentToolBusyException.class, AgentToolNotInstalledException.class})
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public ApiError agentToolConflict(RuntimeException failure) {
+    return error("AGENT_TOOL_CONFLICT", failure.getMessage());
   }
 
   /** Maps opt-in language-tool download failures without returning source or filesystem details. */
