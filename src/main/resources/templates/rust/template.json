@@ -5,6 +5,10 @@
   "memoryMib": 4096,
   "ports": [],
   "languagePacks": ["rust"],
+  "runTasks": [
+    { "id": "run", "label": "Run Rust application", "command": ["cargo", "run"] },
+    { "id": "test", "label": "Run Rust tests", "command": ["cargo", "test"] }
+  ],
   "starterFiles": {
     "README.md": "# Rust\n\nBuild and run with `cargo run`.\n",
     "Cargo.toml": "[package]\nname = \"jahaziel-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
