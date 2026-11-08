@@ -82,6 +82,22 @@ class TerminalStreamHandshakeInterceptorTest {
   }
 
   @Test
+  void acceptsPublicHttpsOriginBehindTlsTerminatingProxy() {
+    request = request("https://ide.example", owner.value().toString());
+    request.getHeaders().add("X-Forwarded-Proto", "https");
+    request.getHeaders().add("X-Forwarded-Host", "ide.example");
+
+    assertTrue(
+        interceptor.beforeHandshake(
+            request,
+            mock(ServerHttpResponse.class),
+            mock(WebSocketHandler.class),
+            new HashMap<>()));
+
+    verify(authorization).isAllowed(owner, "write", workspaceId);
+  }
+
+  @Test
   void rejectsAWorkspaceWriterWithoutTerminalWriteAccess() {
     when(authorization.isAllowed(owner, "write", workspaceId)).thenReturn(false);
 
