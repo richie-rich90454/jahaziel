@@ -95,6 +95,7 @@ class DebugServiceProcessTest {
               workspaceId,
               new DebugService.StartRequest("node", "main.js", null, List.of(), ".", false));
       assertEquals("RUNNING", session.state());
+      assertEquals("pwa-node", session.adapterId());
       service.attach(workspaceId, session.id(), messages::add);
       service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
       service.send(
