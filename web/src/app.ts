@@ -46,6 +46,28 @@ interface TaskRun { id: string; workspaceId: string; taskId: string; label: stri
 interface GitChange { path: string; indexStatus: string; worktreeStatus: string; }
 interface GitStatus { repository: boolean; branch: string; changes: GitChange[]; }
 interface GitDiff { path: string; content: string; }
+interface DebugSession { id: string; workspaceId: string; languageId: string; state: string; adapterVersion: string; startedAt: string; error: string; }
+interface DapMessage {
+  type: string;
+  seq?: number;
+  request_seq?: number;
+  command?: string;
+  event?: string;
+  success?: boolean;
+  message?: string;
+  arguments?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+}
+interface DapFrame {
+  id: number;
+  name: string;
+  line?: number;
+  column?: number;
+  source?: { name?: string; path?: string };
+}
+interface DapVariable { name: string; value: string; type?: string; variablesReference?: number; }
+interface DapPending { resolve: (message: DapMessage) => void; reject: (failure: Error) => void; timer: number; }
+interface DapEventWaiter { resolve: () => void; reject: (failure: Error) => void; timer: number; }
 interface StreamMessage { type: "input" | "history" | "output" | "resize" | "exit"; data?: string; rows?: number; cols?: number; exitCode?: number; }
 interface OpenDocument {
   path: string;
@@ -90,7 +112,21 @@ const state = {
   gitHasStaged: false,
   languageServices: null as LanguageServices | null,
   languagePacks: [] as LanguagePack[],
-  activePanel: "files" as "files" | "editor" | "run" | "languages" | "git" | "terminal" | "preview",
+  activePanel: "files" as "files" | "editor" | "run" | "languages" | "debug" | "git" | "terminal" | "preview",
+  debugSession: null as DebugSession | null,
+  debugSocket: null as WebSocket | null,
+  debugSequence: 0,
+  dapPending: new Map<number, DapPending>(),
+  dapEventWaiters: new Map<string, DapEventWaiter[]>(),
+  dapEarlyEvents: new Set<string>(),
+  debugThreadId: null as number | null,
+  debugFrameId: null as number | null,
+  debugPaused: false,
+  debugFrames: [] as DapFrame[],
+  debugVariables: [] as DapVariable[],
+  debugWatches: [] as string[],
+  debugWatchValues: new Map<string, string>(),
+  debugBreakpoints: new Map<string, number[]>(),
   previewPort: null as number | null,
   previewUrl: null as string | null,
   terminalModifiers: { ctrl: false, alt: false },
@@ -366,6 +402,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
     }
     setPage("workbench");
     refreshGitSafely();
+    void refreshDebugSessions().catch((failure) => toast(errorText(failure), "error"));
     await refreshFiles();
     await refreshTasks();
     await refreshLanguagePacks();
@@ -376,7 +413,10 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
       && state.workspace && state.workspace.workspaceId !== workspace.workspaceId
       && !window.confirm("Some files have unsaved changes. Leave this workspace?")) return;
-  if (state.workspace?.workspaceId !== workspace.workspaceId) flushLocalDrafts();
+  if (state.workspace?.workspaceId !== workspace.workspaceId) {
+    flushLocalDrafts();
+    await stopDebugSession(false);
+  }
   state.workspace = workspace;
   state.previewPort = null;
   state.previewUrl = null;
@@ -387,6 +427,16 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
     renderLanguageDiagnostics,
   );
   state.languagePacks = [];
+  state.debugBreakpoints.clear();
+  state.debugWatches = [];
+  state.debugWatchValues.clear();
+  byId<HTMLInputElement>("debug-breakpoint-path").value = "";
+  byId<HTMLInputElement>("debug-breakpoint-lines").value = "";
+  byId("debug-stack").replaceChildren();
+  byId("debug-variables").replaceChildren();
+  byId("debug-watches").replaceChildren();
+  byId("debug-breakpoint-list").replaceChildren();
+  byId<HTMLPreElement>("debug-console").textContent = "Debugger output will appear here.";
   state.openDocuments.forEach((opened) => opened.view.destroy());
   state.openDocuments.clear();
   state.activePath = null;
@@ -406,6 +456,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   setPage("workbench");
   setPanel("files");
   refreshGitSafely();
+  void refreshDebugSessions().catch((failure) => toast(errorText(failure), "error"));
   await refreshFiles();
   await refreshTasks();
   await refreshLanguagePacks();
@@ -927,6 +978,594 @@ async function stopTask(runId: string): Promise<void> {
   }
 }
 
+function setDebugState(message: string): void {
+  byId("debug-state").textContent = message.toUpperCase();
+}
+
+function updateDebugControls(): void {
+  const connected = state.debugSocket?.readyState === WebSocket.OPEN;
+  const hasSession = state.debugSession !== null;
+  byId<HTMLButtonElement>("debug-start").disabled = hasSession;
+  byId<HTMLButtonElement>("debug-stop").disabled = !hasSession;
+  byId<HTMLButtonElement>("debug-reconnect").hidden = !hasSession || connected;
+  byId<HTMLButtonElement>("debug-reconnect").disabled = !hasSession;
+  byId<HTMLSelectElement>("debug-language").disabled = hasSession;
+  byId<HTMLInputElement>("debug-program").disabled = hasSession;
+  byId<HTMLInputElement>("debug-main-class").disabled = hasSession;
+  byId<HTMLInputElement>("debug-working-directory").disabled = hasSession;
+  byId<HTMLInputElement>("debug-arguments").disabled = hasSession;
+  byId<HTMLInputElement>("debug-stop-on-entry").disabled = hasSession;
+  byId<HTMLButtonElement>("debug-apply-breakpoints").disabled = !connected;
+  byId<HTMLFormElement>("debug-watch-form").querySelector<HTMLButtonElement>("button")!.disabled = !connected;
+  byId<HTMLFormElement>("debug-console-form").querySelector<HTMLButtonElement>("button")!.disabled = !connected;
+  document.querySelectorAll<HTMLButtonElement>("[data-debug-command]").forEach((item) => {
+    const paused = item.dataset.debugCommand !== "pause";
+    item.disabled = !connected || state.debugThreadId === null || state.debugPaused !== paused;
+  });
+}
+
+function configureDebugLanguageFields(): void {
+  const isJava = byId<HTMLSelectElement>("debug-language").value === "java";
+  byId("debug-program-field").hidden = isJava;
+  byId("debug-main-class-field").hidden = !isJava;
+}
+
+function clearDebugInspectors(): void {
+  state.debugThreadId = null;
+  state.debugFrameId = null;
+  state.debugPaused = false;
+  state.debugFrames = [];
+  state.debugVariables = [];
+  state.debugWatchValues.clear();
+  byId("debug-stack").replaceChildren();
+  byId("debug-variables").replaceChildren();
+  renderDebugWatches();
+  renderDebugBreakpoints();
+  updateDebugControls();
+}
+
+function appendDebugConsole(value: string): void {
+  const output = byId<HTMLPreElement>("debug-console");
+  if (output.textContent === "Debugger output will appear here.") output.textContent = "";
+  output.textContent = `${output.textContent ?? ""}${value}`.slice(-100_000);
+  output.scrollTop = output.scrollHeight;
+}
+
+function rejectDebugRequests(message: string): void {
+  for (const [sequence, pending] of state.dapPending) {
+    window.clearTimeout(pending.timer);
+    pending.reject(new Error(message));
+    state.dapPending.delete(sequence);
+  }
+  for (const waiters of state.dapEventWaiters.values()) {
+    for (const waiter of waiters) {
+      window.clearTimeout(waiter.timer);
+      waiter.reject(new Error(message));
+    }
+  }
+  state.dapEventWaiters.clear();
+}
+
+function openDebugSocket(session: DebugSession): Promise<void> {
+  const workspaceId = state.workspace?.workspaceId;
+  if (!workspaceId || workspaceId !== session.workspaceId) {
+    return Promise.reject(new Error("The debug session belongs to a different workspace."));
+  }
+  if (state.debugSocket?.readyState === WebSocket.OPEN) return Promise.resolve();
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(
+    `${protocol}//${window.location.host}/api/v1/workspaces/${encodeURIComponent(workspaceId)}/debug-sessions/${encodeURIComponent(session.id)}/stream`,
+  );
+  state.debugSocket = socket;
+  setDebugState("Connecting");
+  updateDebugControls();
+  return new Promise<void>((resolve, reject) => {
+    let opened = false;
+    socket.addEventListener("open", () => {
+      opened = true;
+      if (state.debugSocket !== socket) {
+        socket.close();
+        reject(new Error("The debug session changed while connecting."));
+        return;
+      }
+      setDebugState("Connected");
+      updateDebugControls();
+      resolve();
+    }, { once: true });
+    socket.addEventListener("message", (event) => handleDapMessage(socket, String(event.data)));
+    socket.addEventListener("error", () => {
+      if (!opened) reject(new Error("Could not connect to the debug stream."));
+    });
+    socket.addEventListener("close", () => {
+      if (state.debugSocket !== socket) return;
+      state.debugSocket = null;
+      rejectDebugRequests("The debug stream disconnected.");
+      updateDebugControls();
+      if (state.debugSession) setDebugState("Disconnected · reconnect available");
+      if (!opened) reject(new Error("The debug stream closed before connecting."));
+    });
+  });
+}
+
+function sendDap(message: Record<string, unknown>): void {
+  const socket = state.debugSocket;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    throw new Error("Reconnect the debug stream before sending debugger commands.");
+  }
+  socket.send(JSON.stringify(message));
+}
+
+function dapRequest(command: string, args: Record<string, unknown> = {}): Promise<DapMessage> {
+  const sequence = ++state.debugSequence;
+  return new Promise<DapMessage>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      state.dapPending.delete(sequence);
+      reject(new Error(`The debugger did not answer ${command}.`));
+    }, 30_000);
+    state.dapPending.set(sequence, { resolve, reject, timer });
+    try {
+      sendDap({ seq: sequence, type: "request", command, arguments: args });
+    } catch (failure) {
+      window.clearTimeout(timer);
+      state.dapPending.delete(sequence);
+      reject(failure instanceof Error ? failure : new Error("Could not send debugger request."));
+    }
+  });
+}
+
+function waitForDapEvent(name: string): Promise<void> {
+  if (state.dapEarlyEvents.delete(name)) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      const waiters = state.dapEventWaiters.get(name) ?? [];
+      state.dapEventWaiters.set(name, waiters.filter((item) => item.timer !== timer));
+      reject(new Error(`The debug adapter did not send the ${name} event.`));
+    }, 15_000);
+    const waiters = state.dapEventWaiters.get(name) ?? [];
+    waiters.push({ resolve, reject, timer });
+    state.dapEventWaiters.set(name, waiters);
+  });
+}
+
+function resolveDapEvent(name: string): void {
+  const waiters = state.dapEventWaiters.get(name);
+  const waiter = waiters?.shift();
+  if (!waiter) {
+    state.dapEarlyEvents.add(name);
+    return;
+  }
+  window.clearTimeout(waiter.timer);
+  waiter.resolve();
+  if (waiters?.length === 0) state.dapEventWaiters.delete(name);
+}
+
+function handleDapMessage(socket: WebSocket, payload: string): void {
+  if (state.debugSocket !== socket) return;
+  let message: DapMessage;
+  try {
+    message = JSON.parse(payload) as DapMessage;
+    if (!message || typeof message.type !== "string") throw new Error("invalid DAP message");
+  } catch {
+    socket.close(1007, "invalid debugger message");
+    return;
+  }
+  if (message.type === "response" && typeof message.request_seq === "number") {
+    const pending = state.dapPending.get(message.request_seq);
+    if (!pending) return;
+    state.dapPending.delete(message.request_seq);
+    window.clearTimeout(pending.timer);
+    if (message.success === false) pending.reject(new Error(message.message || `${message.command || "Debugger request"} failed.`));
+    else pending.resolve(message);
+    return;
+  }
+  if (message.type === "event" && message.event) {
+    if (message.event === "initialized") resolveDapEvent("initialized");
+    if (message.event === "output") {
+      const output = message.body?.output;
+      if (typeof output === "string") appendDebugConsole(output);
+    }
+    if (message.event === "stopped") {
+      const threadId = message.body?.threadId;
+      state.debugThreadId = typeof threadId === "number" ? threadId : null;
+      state.debugPaused = true;
+      setDebugState("Paused");
+      updateDebugControls();
+      void refreshDebugStack().catch((failure) => appendDebugConsole(`\n[debug] ${errorText(failure)}\n`));
+    }
+    if (message.event === "continued") {
+      clearDebugInspectors();
+      state.debugPaused = false;
+      const threadId = message.body?.threadId;
+      if (typeof threadId === "number") state.debugThreadId = threadId;
+      else void refreshDebugThread().catch(() => undefined);
+      setDebugState("Running");
+      updateDebugControls();
+    }
+    if (message.event === "exited") {
+      const code = message.body?.exitCode;
+      appendDebugConsole(`\n[debug] program exited${typeof code === "number" ? ` with code ${code}` : ""}\n`);
+    }
+    if (message.event === "terminated") {
+      appendDebugConsole("\n[debug] program terminated\n");
+      setDebugState("Finished");
+      window.setTimeout(() => { void stopDebugSession(false); }, 0);
+    }
+    return;
+  }
+  if (message.type === "request" && typeof message.seq === "number") {
+    try {
+      sendDap({
+        seq: ++state.debugSequence,
+        type: "response",
+        request_seq: message.seq,
+        command: message.command || "",
+        success: false,
+        message: "This adapter request is not supported by Jahaziel.",
+      });
+    } catch {
+      socket.close(1008, "unsupported adapter request");
+    }
+  }
+}
+
+async function startDebugSession(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  if (state.debugSession) await stopDebugSession(false);
+  const languageId = byId<HTMLSelectElement>("debug-language").value;
+  let argumentsList: unknown;
+  try {
+    argumentsList = JSON.parse(byId<HTMLInputElement>("debug-arguments").value || "[]") as unknown;
+  } catch {
+    throw new Error("Arguments must be a JSON array of strings, such as [\"--inspect\"].");
+  }
+  if (!Array.isArray(argumentsList) || argumentsList.some((value) => typeof value !== "string")) {
+    throw new Error("Arguments must be a JSON array of strings.");
+  }
+  const request = {
+    languageId,
+    program: languageId === "java" ? null : byId<HTMLInputElement>("debug-program").value.trim(),
+    mainClass: languageId === "java" ? byId<HTMLInputElement>("debug-main-class").value.trim() : null,
+    arguments: argumentsList,
+    workingDirectory: byId<HTMLInputElement>("debug-working-directory").value.trim() || ".",
+    stopOnEntry: byId<HTMLInputElement>("debug-stop-on-entry").checked,
+  };
+  const { body: session } = await api<DebugSession>(
+    `/api/v1/workspaces/${workspace.workspaceId}/debug-sessions`,
+    { method: "POST", body: JSON.stringify(request) },
+  );
+  if (state.workspace?.workspaceId !== workspace.workspaceId) {
+    await api(`/api/v1/workspaces/${workspace.workspaceId}/debug-sessions/${session.id}/stop`, { method: "POST" }).catch(() => undefined);
+    return;
+  }
+  state.debugSession = session;
+  state.debugSequence = 0;
+  state.dapEarlyEvents.clear();
+  clearDebugInspectors();
+  byId<HTMLPreElement>("debug-console").textContent = "";
+  byId<HTMLInputElement>("debug-breakpoint-path").value = state.activePath ?? "";
+  setPanel("debug");
+  updateDebugControls();
+  try {
+    await openDebugSocket(session);
+    const adapterIds: Record<string, string> = {
+      node: "pwa-node",
+      python: "debugpy",
+      java: "java",
+      cpp: "lldb",
+      go: "go",
+      rust: "lldb",
+    };
+    const initialize = await dapRequest("initialize", {
+      clientID: "jahaziel",
+      clientName: "Jahaziel",
+      adapterID: adapterIds[languageId],
+      pathFormat: "path",
+      linesStartAt1: true,
+      columnsStartAt1: true,
+      supportsVariableType: true,
+      supportsVariablePaging: true,
+      supportsRunInTerminalRequest: false,
+    });
+    const launchResponse = dapRequest("launch", {});
+    await waitForDapEvent("initialized");
+    await applyDebugBreakpoints(false);
+    if (initialize.body?.supportsConfigurationDoneRequest !== false) {
+      await dapRequest("configurationDone", {});
+    }
+    await launchResponse;
+    await refreshDebugThread();
+    setDebugState("Running");
+  } catch (failure) {
+    await stopDebugSession(false);
+    throw failure;
+  }
+}
+
+async function reconnectDebugSession(): Promise<void> {
+  const session = state.debugSession;
+  if (!session) return;
+  const { body: current } = await api<DebugSession>(
+    `/api/v1/workspaces/${session.workspaceId}/debug-sessions/${session.id}`,
+  );
+  if (current.state !== "RUNNING") {
+    await stopDebugSession(false);
+    throw new Error("This debug session has already ended.");
+  }
+  state.debugSession = current;
+  await openDebugSocket(current);
+  setDebugState("Reconnected");
+}
+
+async function refreshDebugSessions(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  const { body: sessions } = await api<DebugSession[]>(
+    `/api/v1/workspaces/${workspace.workspaceId}/debug-sessions`,
+  );
+  if (state.workspace?.workspaceId !== workspace.workspaceId) return;
+  const current =
+    sessions.find((session) => session.id === state.debugSession?.id) ?? sessions[0] ?? null;
+  if (state.debugSession && current?.id !== state.debugSession.id && state.debugSocket) {
+    state.debugSocket.close(1000, "debug session changed");
+    state.debugSocket = null;
+    rejectDebugRequests("The debug session changed.");
+  }
+  state.debugSession = current;
+  if (current) {
+    setDebugState(
+      state.debugSocket?.readyState === WebSocket.OPEN
+        ? "Connected"
+        : "Disconnected · reconnect available",
+    );
+  } else {
+    clearDebugInspectors();
+    setDebugState("Not running");
+  }
+  updateDebugControls();
+}
+
+async function stopDebugSession(notifyFailure: boolean): Promise<void> {
+  const session = state.debugSession;
+  state.debugSession = null;
+  const socket = state.debugSocket;
+  state.debugSocket = null;
+  if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, "debug session stopped");
+  rejectDebugRequests("The debug session was stopped.");
+  state.dapEarlyEvents.clear();
+  clearDebugInspectors();
+  if (session) {
+    try {
+      await api(`/api/v1/workspaces/${session.workspaceId}/debug-sessions/${session.id}/stop`, { method: "POST" });
+    } catch (failure) {
+      if (notifyFailure) toast(`Could not stop debugging: ${errorText(failure)}`, "error");
+    }
+  }
+  setDebugState("Not running");
+  updateDebugControls();
+}
+
+async function applyDebugBreakpoints(showToast = true): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace || !state.debugSession) return;
+  const path = byId<HTMLInputElement>("debug-breakpoint-path").value.trim() || state.activePath;
+  if (!path) {
+    if (showToast) throw new Error("Open a workspace file or enter a workspace-relative source path.");
+    return;
+  }
+  const lines = [...new Set(
+    byId<HTMLInputElement>("debug-breakpoint-lines").value
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map(Number)
+      .filter((line) => Number.isSafeInteger(line) && line > 0),
+  )];
+  const name = path.split("/").at(-1) || path;
+  const response = await dapRequest("setBreakpoints", {
+    source: { name, path },
+    breakpoints: lines.map((line) => ({ line })),
+    sourceModified: false,
+  });
+  state.debugBreakpoints.set(path, lines);
+  renderDebugBreakpoints();
+  if (showToast) {
+    const verified = response.body?.breakpoints;
+    const count = Array.isArray(verified) ? verified.filter((value) => (value as { verified?: unknown }).verified === true).length : lines.length;
+    toast(`${count} breakpoint${count === 1 ? "" : "s"} accepted for ${name}.`);
+  }
+}
+
+function renderDebugBreakpoints(): void {
+  const list = byId<HTMLUListElement>("debug-breakpoint-list");
+  list.replaceChildren();
+  for (const [path, lines] of state.debugBreakpoints) {
+    const item = document.createElement("li");
+    item.className = "debug-empty";
+    item.textContent = `${path}: ${lines.length ? lines.join(", ") : "cleared"}`;
+    list.append(item);
+  }
+}
+
+async function sendDebugControl(command: string): Promise<void> {
+  if (state.debugThreadId === null) throw new Error("Pause the program before using stepping controls.");
+  await dapRequest(command, { threadId: state.debugThreadId });
+  if (command === "continue") setDebugState("Running");
+}
+
+async function refreshDebugThread(): Promise<void> {
+  if (state.debugSocket?.readyState !== WebSocket.OPEN) return;
+  const { body } = await dapRequest("threads");
+  const threads = Array.isArray(body?.threads) ? body.threads : [];
+  const first = threads.find(
+    (thread): thread is { id: number } =>
+      typeof thread === "object" && thread !== null && typeof (thread as { id?: unknown }).id === "number",
+  );
+  if (state.debugThreadId === null && first) state.debugThreadId = first.id;
+  updateDebugControls();
+}
+
+async function refreshDebugStack(): Promise<void> {
+  if (state.debugThreadId === null || state.debugSocket?.readyState !== WebSocket.OPEN) return;
+  const { body } = await dapRequest("stackTrace", { threadId: state.debugThreadId, levels: 30 });
+  const frames = body?.stackFrames;
+  state.debugFrames = Array.isArray(frames)
+    ? frames.filter((frame): frame is DapFrame => typeof frame === "object" && frame !== null && typeof (frame as DapFrame).id === "number")
+    : [];
+  renderDebugStack();
+  if (state.debugFrames.length) await selectDebugFrame(state.debugFrames[0]);
+  else {
+    state.debugFrameId = null;
+    state.debugVariables = [];
+    renderDebugVariables();
+  }
+}
+
+function renderDebugStack(): void {
+  const list = byId<HTMLUListElement>("debug-stack");
+  list.replaceChildren();
+  if (state.debugFrames.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "debug-empty";
+    empty.textContent = "No frames are available.";
+    list.append(empty);
+    return;
+  }
+  for (const frame of state.debugFrames) {
+    const item = document.createElement("li");
+    const select = document.createElement("button");
+    const source = frame.source?.path || frame.source?.name || "unknown source";
+    select.textContent = `${frame.name} · ${source}${frame.line ? `:${frame.line}` : ""}`;
+    select.setAttribute("aria-current", String(frame.id === state.debugFrameId));
+    select.addEventListener("click", () => {
+      void selectDebugFrame(frame).catch((failure) => toast(errorText(failure), "error"));
+      if (frame.source?.path && !frame.source.path.startsWith("/")) {
+        void openDocument(frame.source.path).catch((failure) => toast(errorText(failure), "error"));
+      }
+    });
+    item.append(select);
+    list.append(item);
+  }
+}
+
+async function selectDebugFrame(frame: DapFrame): Promise<void> {
+  state.debugFrameId = frame.id;
+  renderDebugStack();
+  const { body } = await dapRequest("scopes", { frameId: frame.id });
+  const scopes = Array.isArray(body?.scopes) ? body.scopes : [];
+  const references = scopes
+    .map((scope) => (scope as { variablesReference?: unknown }).variablesReference)
+    .filter((reference): reference is number => typeof reference === "number" && reference > 0);
+  if (references.length === 0) {
+    state.debugVariables = [];
+    renderDebugVariables();
+  } else {
+    const variables = await dapRequest("variables", { variablesReference: references[0] });
+    const values = variables.body?.variables;
+    state.debugVariables = Array.isArray(values)
+      ? values.filter((value): value is DapVariable => typeof value === "object" && value !== null && typeof (value as DapVariable).name === "string")
+      : [];
+    renderDebugVariables();
+  }
+  await refreshDebugWatches();
+}
+
+function renderDebugVariables(): void {
+  const list = byId<HTMLUListElement>("debug-variables");
+  list.replaceChildren();
+  if (state.debugVariables.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "debug-empty";
+    empty.textContent = "No variables in this scope.";
+    list.append(empty);
+    return;
+  }
+  for (const variable of state.debugVariables) {
+    const item = document.createElement("li");
+    item.className = "debug-watch-row";
+    const name = document.createElement("span");
+    name.className = "debug-watch-expression";
+    name.textContent = variable.name;
+    const value = document.createElement("span");
+    value.className = "debug-watch-value";
+    value.textContent = variable.value;
+    if (variable.type) value.title = variable.type;
+    item.append(name, value);
+    list.append(item);
+  }
+}
+
+function renderDebugWatches(): void {
+  const list = byId<HTMLUListElement>("debug-watches");
+  list.replaceChildren();
+  if (state.debugWatches.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "debug-empty";
+    empty.textContent = "Add an expression to inspect it when paused.";
+    list.append(empty);
+    return;
+  }
+  for (const expression of state.debugWatches) {
+    const item = document.createElement("li");
+    item.className = "debug-watch-row";
+    const name = document.createElement("span");
+    name.className = "debug-watch-expression";
+    name.textContent = expression;
+    const value = document.createElement("span");
+    value.className = "debug-watch-value";
+    value.textContent = state.debugWatchValues.get(expression) ?? "—";
+    item.append(name, value);
+    list.append(item);
+  }
+}
+
+async function refreshDebugWatches(): Promise<void> {
+  if (state.debugFrameId === null || state.debugSocket?.readyState !== WebSocket.OPEN) return;
+  for (const expression of state.debugWatches) {
+    try {
+      const { body } = await dapRequest("evaluate", {
+        expression,
+        frameId: state.debugFrameId,
+        context: "watch",
+      });
+      state.debugWatchValues.set(expression, typeof body?.result === "string" ? body.result : "<no value>");
+    } catch (failure) {
+      state.debugWatchValues.set(expression, errorText(failure));
+    }
+  }
+  renderDebugWatches();
+}
+
+async function addDebugWatch(event: SubmitEvent): Promise<void> {
+  event.preventDefault();
+  const input = byId<HTMLInputElement>("debug-watch-expression");
+  const expression = input.value.trim();
+  if (!expression) return;
+  if (state.debugWatches.length >= 32) throw new Error("A debug session can track up to 32 watch expressions.");
+  if (!state.debugWatches.includes(expression)) state.debugWatches.push(expression);
+  input.value = "";
+  renderDebugWatches();
+  await refreshDebugWatches();
+}
+
+async function evaluateDebugConsole(event: SubmitEvent): Promise<void> {
+  event.preventDefault();
+  const input = byId<HTMLInputElement>("debug-console-input");
+  const expression = input.value.trim();
+  if (!expression) return;
+  input.value = "";
+  try {
+    const { body } = await dapRequest("evaluate", {
+      expression,
+      ...(state.debugFrameId === null ? {} : { frameId: state.debugFrameId }),
+      context: "repl",
+    });
+    const result = typeof body?.result === "string" ? body.result : "<no value>";
+    appendDebugConsole(`> ${expression}\n${result}\n`);
+  } catch (failure) {
+    appendDebugConsole(`> ${expression}\n[error] ${errorText(failure)}\n`);
+  }
+}
+
 function renderPreviewLinks(workspace: Workspace): void {
   const container = byId("preview-links");
   container.replaceChildren();
@@ -1234,6 +1873,7 @@ function activateDocument(path: string): void {
   state.openDocuments.forEach((opened) => { opened.wrapper.hidden = opened.path !== path; });
   state.activePath = path;
   byId("active-file").textContent = path;
+  byId<HTMLInputElement>("debug-breakpoint-path").value = path;
   byId("editor-empty").hidden = true;
   byId("status-language").textContent = languageName(path);
   if (state.workspace && !["ready", "active", "idle"].includes(state.workspace.state)) {
@@ -1658,6 +2298,7 @@ function backToWorkspaces(navigate = true): void {
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
       && !window.confirm("Some files have unsaved changes. Leave the workspace?")) return;
   flushLocalDrafts();
+  void stopDebugSession(false);
   void closeTerminal(false);
   clearWorkspaceSearch();
   resetGitPanel();
@@ -1696,6 +2337,33 @@ function wireUi(): void {
   byId<HTMLAnchorElement>("preview-new-tab").addEventListener("click", (event) => {
     if ((event.currentTarget as HTMLAnchorElement).getAttribute("aria-disabled") === "true") event.preventDefault();
   });
+  byId<HTMLSelectElement>("debug-language").addEventListener("change", configureDebugLanguageFields);
+  byId<HTMLButtonElement>("debug-start").addEventListener("click", () =>
+    startDebugSession().catch((failure) => toast(errorText(failure), "error")),
+  );
+  byId<HTMLButtonElement>("debug-reconnect").addEventListener("click", () =>
+    reconnectDebugSession().catch((failure) => toast(errorText(failure), "error")),
+  );
+  byId<HTMLButtonElement>("debug-stop").addEventListener("click", () =>
+    void stopDebugSession(true),
+  );
+  byId<HTMLButtonElement>("debug-apply-breakpoints").addEventListener("click", () =>
+    applyDebugBreakpoints().catch((failure) => toast(errorText(failure), "error")),
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-debug-command]").forEach((item) => {
+    item.addEventListener("click", () => {
+      const command = item.dataset.debugCommand;
+      if (command) sendDebugControl(command).catch((failure) => toast(errorText(failure), "error"));
+    });
+  });
+  byId<HTMLFormElement>("debug-watch-form").addEventListener("submit", (event) =>
+    addDebugWatch(event as SubmitEvent).catch((failure) => toast(errorText(failure), "error")),
+  );
+  byId<HTMLFormElement>("debug-console-form").addEventListener("submit", (event) =>
+    evaluateDebugConsole(event as SubmitEvent).catch((failure) => toast(errorText(failure), "error")),
+  );
+  configureDebugLanguageFields();
+  updateDebugControls();
   document.querySelectorAll<HTMLButtonElement>("[data-terminal-modifier]").forEach((item) => {
     item.addEventListener("click", () => {
       const modifier = item.dataset.terminalModifier as "ctrl" | "alt";
