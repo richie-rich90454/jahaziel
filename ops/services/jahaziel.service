@@ -1,0 +1,28 @@
+# Copyright 2026 The Jahaziel Authors
+# SPDX-License-Identifier: Apache-2.0
+# Single-jar Linux deployment. See docs/deployment/single-server.md.
+[Unit]
+Description=Jahaziel browser development environment
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=jahaziel
+Group=jahaziel
+WorkingDirectory=/var/lib/jahaziel
+ExecStartPre=/usr/bin/java -jar /var/lib/jahaziel/jahaziel.jar doctor
+ExecStart=/usr/bin/java -Dserver.address=127.0.0.1 -jar /var/lib/jahaziel/jahaziel.jar
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/jahaziel
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
