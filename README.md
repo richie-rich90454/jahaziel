@@ -26,6 +26,7 @@ Jahaziel gives trusted users persistent workspaces with a browser editor, termin
 - **Run and preview projects.** Start template tasks, inspect output, and open workspace-scoped preview links.
 - **Work from iPad.** Switch between files, editor, terminal, tasks, and preview with touch-sized controls; use the terminal shortcut strip when a hardware keyboard is not connected.
 - **Start from a useful template.** Create separate workspace homes from Node.js, Python, Java, C/C++, Go, Rust, static-site, or empty starters.
+- **Use a coding agent in the workspace.** OpenCode is installed once into the user's private Jahaziel data area and can be launched from an authenticated terminal across that user's workspaces; provider sign-in stays in the OpenCode TUI.
 - **Add language diagnostics when needed.** Select pinned language packs explicitly; Jahaziel caches them on the server and does not fetch them at startup.
 - **Keep source control close to the editor.** Review Git status and diffs, stage or unstage changes, and commit in an existing repository.
 - **Keep operations small.** Deploy one jar behind one HTTPS reverse proxy. Workspace files, SQLite state, keys, logs, and optional language packs live under the data directory.
@@ -55,6 +56,8 @@ For a persistent server with real sign-in and HTTPS, follow the [Linux deploymen
 | Workspace execution | Native Linux processes under the Jahaziel service account |
 
 The jar does not bundle a VS Code server or project runtimes. Install only the host runtimes needed for the projects users choose to run. Jahaziel never prefetches language packs; a language pack is downloaded only after someone explicitly selects it, and some packs include a pinned helper runtime. Workspace processes, previews, and terminal tools share the Jahaziel service account, so this release is for mutually trusted teams.
+
+OpenCode is the only coding-agent CLI in the current catalog. Jahaziel provisions it per user on first workspace use, keeps its executable and profile under the configured data directory, and does not share provider credentials between users. Claude Code is unavailable in the current product because the required hosted-product commercial agreement has not been obtained.
 
 ## Build from source
 
