@@ -4,10 +4,11 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Jahaziel',
-  description: 'A lightweight remote source IDE for Linux servers, built for browser-based development.',
+  description: 'A lightweight self-hosted browser IDE for trusted users working on Linux servers.',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/quick-start' },
+      { text: 'Deploy', link: '/deployment/single-server' },
       { text: 'Architecture', link: '/architecture/overview' },
       { text: 'Operations', link: '/operations/acceptance' },
       { text: 'Reference', link: '/reference/cli' },
@@ -44,7 +45,7 @@ export default defineConfig({
         },
       ],
       '/deployment/': [
-        { text: 'Single-server deployment', link: '/deployment/single-server' },
+        { text: 'Linux server deployment', link: '/deployment/single-server' },
       ],
       '/operations/': [
         { text: 'Overview', link: '/operations/' },
