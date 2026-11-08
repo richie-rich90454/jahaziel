@@ -21,4 +21,16 @@ class WorkspaceDirectoryTest {
     directory.unregister("richard", 8080);
     assertTrue(directory.lookup("richard", 8080).isEmpty());
   }
+
+  @Test
+  void resolvesSlugOnlyForTheMatchingWorkspacePort() {
+    WorkspaceDirectory directory = new WorkspaceDirectory();
+    UUID workspace = UUID.randomUUID();
+    directory.register("richard", 8080, workspace);
+
+    assertEquals("richard", directory.lookupSlug(workspace, 8080).orElseThrow());
+    assertTrue(directory.lookupSlug(UUID.randomUUID(), 8080).isEmpty());
+    assertTrue(directory.lookupSlug(workspace, 8081).isEmpty());
+    assertTrue(directory.lookupSlug(workspace, 0).isEmpty());
+  }
 }
