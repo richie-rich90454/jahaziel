@@ -43,7 +43,7 @@ class DebugStreamHandshakeInterceptorTest {
     when(debug.get(workspace, sessionId))
         .thenReturn(
             new DebugService.Session(
-                sessionId, workspace.value(), "node", "RUNNING", "1.0", Instant.now(), ""));
+                sessionId, workspace.value(), "node", "pwa-node", "RUNNING", "1.0", Instant.now(), ""));
   }
 
   @Test
@@ -88,7 +88,7 @@ class DebugStreamHandshakeInterceptorTest {
     when(debug.get(workspace, sessionId))
         .thenReturn(
             new DebugService.Session(
-                sessionId, workspace.value(), "node", "STOPPED", "1.0", Instant.now(), ""));
+                sessionId, workspace.value(), "node", "pwa-node", "STOPPED", "1.0", Instant.now(), ""));
     assertFalse(
         interceptor.beforeHandshake(
             request,
@@ -102,7 +102,7 @@ class DebugStreamHandshakeInterceptorTest {
     when(debug.get(workspace, sessionId))
         .thenReturn(
             new DebugService.Session(
-                sessionId, UUID.randomUUID(), "node", "RUNNING", "1.0", Instant.now(), ""));
+                sessionId, UUID.randomUUID(), "node", "pwa-node", "RUNNING", "1.0", Instant.now(), ""));
 
     assertFalse(
         interceptor.beforeHandshake(
