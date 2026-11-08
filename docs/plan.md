@@ -12,7 +12,7 @@ The workbench uses CodeMirror 6 and xterm.js as same-origin browser assets. It d
 
 The touch workbench keeps workspace, file, task, terminal, and preview controls available without hover. The terminal includes a shortcut strip for keys that are awkward on a tablet. Preview URLs use one fixed `preview.<JAHAZIEL_DOMAIN>` host and workspace/port paths; included templates and task adapters receive `JAHZIEL_PREVIEW_BASE_PATH`. Projects that hard-code root-relative asset paths may need configuration before path-based previews work.
 
-OpenCode is managed once per user across that user's workspaces; Claude Code is an explicit optional install. Each user's configuration and credentials stay under the configured data directory, never in a server-wide shared profile. DAP debugging uses server allowlists and workspace-rooted launch configurations; browser clients cannot provide arbitrary executables or remote attach targets.
+OpenCode is the only coding-agent CLI in the current product catalog. It is managed once per user across that user's workspaces; each user's configuration and credentials stay under the configured data directory, never in a server-wide shared profile. Claude Code is unavailable unless Jahaziel's operator obtains the required commercial agreement and deliberately revises this product decision. DAP debugging uses server allowlists and workspace-rooted launch configurations; browser clients cannot provide arbitrary executables or remote attach targets.
 
 ## Development and disk constraints
 
@@ -96,7 +96,7 @@ OpenCode is managed once per user across that user's workspaces; Claude Code is 
 1. Keep navigation and file actions available without hover, preserve safe-area insets, and resize editor, terminal, task, debug, and preview panels for compact widths and multitasking layouts.
 2. Complete real-device acceptance for Safari, Chrome, and Edge on the current and two previous major iPadOS versions. Cover touch-only input, external keyboard and trackpad, the virtual keyboard, Split View, Stage Manager, tab suspension, TUI interaction, and reconnect recovery.
 3. Discover template tasks, package scripts, Make, Maven/Gradle, Cargo, and Go tasks as server-side identifiers. Launch only discovered or server-managed task definitions; resolve package-manager commands from project metadata and support pnpm 12.
-4. Manage OpenCode once per user across that user's workspaces and offer Claude Code as an explicit optional install. Pin versions and verify catalog artifacts before installation; expose progress and storage usage, keep credentials per user, and require explicit upgrades and removal.
+4. Manage OpenCode once per user across that user's workspaces. Pin versions and verify catalog artifacts before installation; expose progress and storage usage, keep credentials per user, and require explicit upgrades and removal. Do not offer Claude Code while the hosted-product commercial agreement is absent.
 5. Add DAP sessions for the six starter languages. Allow only server-managed adapters and workspace-rooted launch configurations; reject unsupported fields, arbitrary executable paths, and remote attach targets.
 6. Keep terminal TUI, breakpoints, call stack, variables, watches, debug console, and preview controls usable by touch as well as keyboard and trackpad.
 
