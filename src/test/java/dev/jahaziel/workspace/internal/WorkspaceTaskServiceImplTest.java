@@ -87,6 +87,72 @@ class WorkspaceTaskServiceImplTest {
   }
 
   @Test
+  void discoversSafePackageTasksUsingTheDeclaredPnpmManager() throws Exception {
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(template.resolve("template.json"), "{\"name\":\"node\",\"ports\":[3000]}");
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    Path data = temp.resolve("data");
+    WorkspaceTaskService service =
+        new WorkspaceTaskServiceImpl(
+            data.toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            mock(WorkspaceService.class),
+            new WorkspaceDirectoryServiceImpl(data.toString()));
+
+    service.initialize(id, "node");
+    Path home = new WorkspaceDirectoryServiceImpl(data.toString()).home(id);
+    Files.writeString(
+        home.resolve("package.json"),
+        """
+        {"packageManager":"pnpm@12.14.0","scripts":{"dev":"vite --host 0.0.0.0","test":"vitest run","preinstall":"echo unsafe"},"devDependencies":{"vite":"1.0.0"}}
+        """);
+    Files.writeString(home.resolve("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+
+    List<WorkspaceTaskService.Task> tasks = service.tasks(id);
+
+    assertTrue(
+        tasks.contains(
+            new WorkspaceTaskService.Task(
+                "discovered-package-ZGV2", "Start development server (pnpm)", 5173)));
+    assertTrue(
+        tasks.contains(
+            new WorkspaceTaskService.Task("discovered-package-dGVzdA", "Run tests (pnpm)", null)));
+    assertFalse(tasks.stream().anyMatch(task -> task.label().contains("unsafe")));
+    assertFalse(tasks.stream().anyMatch(task -> task.id().contains("preinstall")));
+  }
+
+  @Test
+  void discoversOnlySyntacticallySafeMakeTargetsAndCommonBuildMarkers() throws Exception {
+    Path template = Files.createDirectories(temp.resolve("templates/empty"));
+    Files.writeString(template.resolve("template.json"), "{\"name\":\"empty\"}");
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    Path data = temp.resolve("data");
+    WorkspaceTaskService service =
+        new WorkspaceTaskServiceImpl(
+            data.toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            mock(WorkspaceService.class),
+            new WorkspaceDirectoryServiceImpl(data.toString()));
+
+    service.initialize(id, "empty");
+    Path home = new WorkspaceDirectoryServiceImpl(data.toString()).home(id);
+    Files.writeString(
+        home.resolve("Makefile"), ".PHONY: test\ntest:\n\t@echo test\nrelease;rm: test\n");
+    Files.writeString(home.resolve("Cargo.toml"), "[package]\nname = \"example\"\n");
+    Files.writeString(home.resolve("go.mod"), "module example.test/app\n");
+
+    List<WorkspaceTaskService.Task> tasks = service.tasks(id);
+
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Make target: test")));
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Cargo tests")));
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Go tests")));
+    assertFalse(
+        tasks.stream().anyMatch(task -> task.label().equals("Run Make target: release;rm")));
+  }
+
+  @Test
   void treatsMissingLanguagePackDeclarationAsUnrestricted() throws Exception {
     Path template = Files.createDirectories(temp.resolve("templates/empty"));
     Files.writeString(template.resolve("template.json"), "{\"name\":\"empty\"}");
