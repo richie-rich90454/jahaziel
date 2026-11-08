@@ -97,6 +97,21 @@ class DebugStreamHandshakeInterceptorTest {
             new HashMap<>()));
   }
 
+  @Test
+  void rejectsAStatusThatDoesNotMatchTheAuthorizedWorkspace() {
+    when(debug.get(workspace, sessionId))
+        .thenReturn(
+            new DebugService.Session(
+                sessionId, UUID.randomUUID(), "node", "RUNNING", "1.0", Instant.now(), ""));
+
+    assertFalse(
+        interceptor.beforeHandshake(
+            request,
+            mock(ServerHttpResponse.class),
+            mock(WebSocketHandler.class),
+            new HashMap<>()));
+  }
+
   private ServerHttpRequest request(String origin) {
     ServerHttpRequest request = mock(ServerHttpRequest.class);
     HttpHeaders headers = new HttpHeaders();
