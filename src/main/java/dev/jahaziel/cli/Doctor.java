@@ -446,20 +446,26 @@ public final class Doctor {
     Path root = dataDir.toAbsolutePath().normalize();
     Path workspaces = root.resolve("workspaces");
     Path packs = root.resolve("language-packs");
+    Path users = root.resolve("users");
     try {
       Files.createDirectories(workspaces);
       Files.createDirectories(packs);
-      if (!Files.isWritable(root) || !Files.isWritable(workspaces) || !Files.isWritable(packs)) {
+      Files.createDirectories(users);
+      if (!Files.isWritable(root)
+          || !Files.isWritable(workspaces)
+          || !Files.isWritable(packs)
+          || !Files.isWritable(users)) {
         return new Check(
             "storage",
             false,
-            "data, workspace, or language-pack directory is not writable",
+            "data, workspace, language-pack, or user-tool directory is not writable",
             "fix ownership and permissions under " + root);
       }
       long appBytes = directoryBytes(root);
       long workspaceBytes = directoryBytes(workspaces);
       long packBytes = directoryBytes(packs);
       String packSummary = managedPackSummary(packs);
+      String userSummary = userStorageSummary(users);
       return new Check(
           "storage",
           true,
@@ -469,12 +475,16 @@ public final class Doctor {
               + workspaceBytes
               + " bytes, language-pack cache="
               + packBytes
-              + " bytes; writable paths: data="
+              + " bytes; "
+              + userSummary
+              + "; writable paths: data="
               + root
               + ", workspaces="
               + workspaces
               + ", language packs="
               + packs
+              + ", user tools="
+              + users
               + "; "
               + packSummary,
           "");
@@ -496,6 +506,30 @@ public final class Doctor {
               + ")",
           "check permissions and available disk space under " + root);
     }
+  }
+
+  static String userStorageSummary(Path root) throws IOException {
+    if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)) {
+      return "per-user agent/profile storage=none";
+    }
+    List<String> users = new ArrayList<>();
+    try (Stream<Path> entries = Files.list(root)) {
+      for (Path entry :
+          entries
+              .filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+              .filter(path -> !Files.isSymbolicLink(path))
+              .sorted()
+              .toList()) {
+        String name = entry.getFileName().toString();
+        try {
+          UUID.fromString(name);
+        } catch (IllegalArgumentException invalidUserDirectory) {
+          continue;
+        }
+        users.add(name + ":" + directoryBytes(entry) + " bytes");
+      }
+    }
+    return "per-user agent/profile storage=" + (users.isEmpty() ? "none" : String.join(",", users));
   }
 
   static String managedPackSummary(Path root) throws IOException {
