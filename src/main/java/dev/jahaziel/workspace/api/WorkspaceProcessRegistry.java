@@ -15,7 +15,8 @@ public interface WorkspaceProcessRegistry {
     TERMINAL,
     TASK,
     SETUP,
-    LANGUAGE_SERVER
+    LANGUAGE_SERVER,
+    DEBUG_ADAPTER
   }
 
   /** Records a process and returns a handle that removes its marker when it exits. */
