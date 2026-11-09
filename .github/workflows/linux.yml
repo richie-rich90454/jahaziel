@@ -43,6 +43,7 @@ jobs:
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
+          pnpm run test:launch-config
           pnpm run build
       - name: Verify, package, and smoke launch the jar
         # The user-protected gateway filter test class is excluded from this Linux sweep.
