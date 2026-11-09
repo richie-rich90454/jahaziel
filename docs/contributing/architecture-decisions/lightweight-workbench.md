@@ -22,9 +22,7 @@ The following direct dependencies are approved for this design:
 
 - **CodeMirror 6** and its HTML, JavaScript, JSON, and Python language
   packages provide browser editing and syntax support without a bundled
-  server-side IDE or compiler. Its existing `@codemirror/view` package is
-  pinned directly so the workbench can implement accessible editor gutters
-  without introducing another editor runtime.
+  server-side IDE or compiler.
 - **xterm.js** and its fit addon render interactive terminal output; the
   server-side **pty4j** dependency owns the Linux pseudo-terminal.
 - **Spring WebSocket** carries authenticated terminal and language-service
