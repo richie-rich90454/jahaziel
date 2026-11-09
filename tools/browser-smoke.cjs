@@ -19,6 +19,8 @@ const jarSourcePath = path.resolve(jarSource);
 const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jahaziel-browser-smoke-"));
 const jarPath = path.join(scratchRoot, "jahaziel.jar");
 const dataTemp = path.join(scratchRoot, "data", "tmp");
+const debugAdapterPath = path.join(scratchRoot, "mock-debug-adapter.cjs");
+const debugAdapterLog = path.join(scratchRoot, "mock-debug-adapter.log");
 const serverLogs = [];
 let server = null;
 let browser = null;
@@ -184,6 +186,19 @@ function launchServer(port, identity) {
     BASIS_CLIENT_ID: smokeClientId,
     BASIS_CLIENT_SECRET: smokeClientSecret,
     BASIS_RESOURCE: smokeResource,
+    SPRING_APPLICATION_JSON: JSON.stringify({
+      jahaziel: {
+        debug: {
+          adapters: {
+            python: {
+              version: "browser-smoke",
+              command: [process.execPath, debugAdapterPath],
+              transport: "STDIO",
+            },
+          },
+        },
+      },
+    }),
   });
   const child = spawn(
     "java",
@@ -279,6 +294,86 @@ async function waitForText(page, selector, expression, timeout = 15_000) {
 async function run() {
   if (!fs.statSync(jarSourcePath).isFile()) throw new Error(`jar not found: ${jarSourcePath}`);
   fs.copyFileSync(jarSourcePath, jarPath);
+  fs.writeFileSync(debugAdapterPath, String.raw`
+"use strict";
+
+const fs = require("node:fs");
+const logPath = ${JSON.stringify(debugAdapterLog)};
+let buffer = Buffer.alloc(0);
+let sequence = 1;
+
+function record(value) {
+  fs.appendFileSync(logPath, JSON.stringify(value) + "\n");
+}
+
+function send(message) {
+  const body = Buffer.from(JSON.stringify(message));
+  const header = Buffer.from("Content-Length: " + body.length + "\r\n\r\n");
+  process.stdout.write(Buffer.concat([header, body]));
+}
+
+function respond(request, body = {}) {
+  send({
+    seq: sequence++,
+    type: "response",
+    request_seq: request.seq,
+    success: true,
+    command: request.command,
+    body,
+  });
+}
+
+function event(name, body = {}) {
+  record({ kind: "event", name });
+  send({ seq: sequence++, type: "event", event: name, body });
+}
+
+function handle(request) {
+  record({ kind: "request", command: request.command, arguments: request.arguments || {} });
+  switch (request.command) {
+    case "initialize":
+      respond(request, { supportsConfigurationDoneRequest: true });
+      setTimeout(() => event("initialized"), 3000);
+      break;
+    case "launch":
+      respond(request);
+      break;
+    case "setBreakpoints":
+      respond(request, {
+        breakpoints: (request.arguments.breakpoints || []).map((breakpoint) => ({
+          ...breakpoint,
+          verified: true,
+        })),
+      });
+      break;
+    case "threads":
+      respond(request, { threads: [{ id: 1, name: "Smoke thread" }] });
+      break;
+    default:
+      respond(request);
+      break;
+  }
+}
+
+function consume() {
+  while (true) {
+    const boundary = buffer.indexOf("\r\n\r\n");
+    if (boundary < 0) return;
+    const header = buffer.subarray(0, boundary).toString("ascii");
+    const length = Number(header.match(/Content-Length:\s*(\d+)/i)?.[1]);
+    if (!Number.isSafeInteger(length) || length < 0) throw new Error("invalid DAP frame length");
+    if (buffer.length < boundary + 4 + length) return;
+    const payload = buffer.subarray(boundary + 4, boundary + 4 + length).toString("utf8");
+    buffer = buffer.subarray(boundary + 4 + length);
+    handle(JSON.parse(payload));
+  }
+}
+
+process.stdin.on("data", (chunk) => {
+  buffer = Buffer.concat([buffer, chunk]);
+  consume();
+});
+`);
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
     if (key.startsWith("BASIS_")) delete env[key];
@@ -480,6 +575,41 @@ async function run() {
     .filter({ hasText: "main.py" });
   await syntaxDiagnostic.first().waitFor({ state: "visible", timeout: 45_000 });
 
+  await page.locator("#debug-language").selectOption("python");
+  await page.locator("#debug-program").fill("main.py");
+  await page.locator("#debug-start").click();
+  await page.waitForFunction(() => {
+    const stop = document.querySelector("#debug-stop");
+    return stop instanceof HTMLButtonElement && !stop.disabled;
+  });
+  const pendingBreakpoint = page.getByRole("button", {
+    name: "Set breakpoint at main.py, line 1",
+  });
+  await pendingBreakpoint.click();
+  await waitForText(page, "#debug-breakpoint-list", "main\\.py: 1");
+  await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
+  const dapLog = fs.readFileSync(debugAdapterLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const initializedIndex = dapLog.findIndex(
+    (entry) => entry.kind === "event" && entry.name === "initialized",
+  );
+  const deferredBreakpointIndex = dapLog.findIndex(
+    (entry) => entry.kind === "request"
+      && entry.command === "setBreakpoints"
+      && entry.arguments.source?.path === "main.py"
+      && entry.arguments.breakpoints?.some((breakpoint) => breakpoint.line === 1),
+  );
+  assert.ok(initializedIndex >= 0, "the packaged debugger must receive DAP initialization");
+  assert.ok(
+    deferredBreakpointIndex > initializedIndex,
+    "a breakpoint tapped while DAP initializes must reach the adapter after initialization",
+  );
+  assert.equal(await pendingBreakpoint.getAttribute("aria-pressed"), "true");
+  await page.locator("#debug-stop").click();
+  await waitForText(page, "#debug-state", "^NOT RUNNING$");
+
   await page.locator("#task-list button").filter({ hasText: "Run example" }).click();
   await waitForText(page, "#task-output", "Hello from Jahaziel", 15_000);
   const latestTaskUrl = `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`;
@@ -631,7 +761,7 @@ async function run() {
   await recoveredPage.locator(".tree-item").filter({ hasText: "README.md" }).click();
   await recoveredPage.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
   assert.deepEqual(pageErrors, [], "the browser workbench must not raise uncaught errors");
-  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
+  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, deferred debugger breakpoints, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
 }
 
 run()
