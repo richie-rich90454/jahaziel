@@ -28,6 +28,9 @@ public interface DebugService {
   /** Starts a server-managed adapter for one launch inside the workspace. */
   Session start(WorkspaceId workspaceId, StartRequest request);
 
+  /** Attaches a server-managed adapter to a live target issued for this workspace. */
+  Session attachToTarget(WorkspaceId workspaceId, AttachRequest request);
+
   /** Returns the session only when it belongs to the specified workspace. */
   Session get(WorkspaceId workspaceId, UUID sessionId);
 
@@ -91,6 +94,13 @@ public interface DebugService {
         throw new IllegalArgumentException(name + " must stay inside the workspace");
       }
       return path.normalize().toString().replace('\\', '/');
+    }
+  }
+
+  /** The browser supplies only an opaque target id, never a process id or endpoint. */
+  record AttachRequest(UUID targetId) {
+    public AttachRequest {
+      if (targetId == null) throw new IllegalArgumentException("debug target is required");
     }
   }
 
