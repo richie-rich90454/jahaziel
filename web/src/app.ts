@@ -1947,6 +1947,9 @@ async function openDocument(path: string): Promise<void> {
       editor.basicSetup,
       language,
       EditorView.updateListener.of((update) => {
+        if (update.docChanged || update.viewportChanged) {
+          window.requestAnimationFrame(() => refreshBreakpointGutter(wrapper, path));
+        }
         if (!update.docChanged) return;
         documentState.dirty = update.state.doc.toString() !== documentState.savedContent;
         documentState.recoveredDraft = false;
@@ -1955,11 +1958,6 @@ async function openDocument(path: string): Promise<void> {
         state.languageServices?.changeDocument(path, update.state.doc.toString());
         renderTabs();
         updateSaveState();
-      }),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged || update.viewportChanged) {
-          window.requestAnimationFrame(() => refreshBreakpointGutter(wrapper, path));
-        }
       }),
     ],
   });
