@@ -35,6 +35,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -62,6 +63,23 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   private static final int MAX_DAP_HEADER_BYTES = 8192;
   private static final int MAX_REPLAY_BYTES = 1024 * 1024;
   private static final int MAX_RECENT_SESSIONS = 128;
+  private static final Set<String> ALLOWED_CLIENT_REQUESTS =
+      Set.of(
+          "initialize",
+          "launch",
+          "configurationDone",
+          "setBreakpoints",
+          "source",
+          "threads",
+          "stackTrace",
+          "scopes",
+          "variables",
+          "evaluate",
+          "continue",
+          "pause",
+          "next",
+          "stepIn",
+          "stepOut");
 
   private final DebugAdapterProperties adapters;
   private final WorkspaceDirectoryService directories;
@@ -330,12 +348,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     if (command.isBlank() || command.length() > 128) {
       throw new IllegalArgumentException("DAP request command is invalid");
     }
-    if (command.equals("attach")
-        || command.equals("runInTerminal")
-        || command.equals("startDebugging")) {
-      throw new IllegalArgumentException(
-          "remote attach and server-side terminal requests are not allowed");
-    }
+    if (!ALLOWED_CLIENT_REQUESTS.contains(command))
+      throw new IllegalArgumentException("DAP request is not supported by the workbench");
     if (command.equals("launch")) {
       if (session.launchSent)
         throw new IllegalArgumentException("debug launch was already requested");
@@ -343,8 +357,6 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       session.launchSent = true;
     } else if (command.equals("setBreakpoints") || command.equals("source")) {
       constrainSourcePath(session, message);
-    } else if (command.equals("restart")) {
-      throw new IllegalArgumentException("debug adapter restart is not supported");
     }
     return message;
   }
