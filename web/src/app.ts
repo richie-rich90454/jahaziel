@@ -115,6 +115,7 @@ const state = {
   languagePacks: [] as LanguagePack[],
   activePanel: "files" as "files" | "editor" | "run" | "languages" | "debug" | "git" | "terminal" | "preview",
   debugSession: null as DebugSession | null,
+  debugInitialized: false,
   debugLaunchConfigurations: [] as DebugLaunchConfiguration[],
   debugSocket: null as WebSocket | null,
   debugSequence: 0,
@@ -1291,6 +1292,7 @@ async function startDebugSession(): Promise<void> {
     return;
   }
   state.debugSession = session;
+  state.debugInitialized = false;
   state.debugSequence = 0;
   state.dapEarlyEvents.clear();
   clearDebugInspectors();
@@ -1313,6 +1315,7 @@ async function startDebugSession(): Promise<void> {
     });
     const launchResponse = dapRequest("launch", {});
     await waitForDapEvent("initialized");
+    state.debugInitialized = true;
     const selectedBreakpointPath =
       byId<HTMLInputElement>("debug-breakpoint-path").value.trim() || state.activePath;
     await applyDebugBreakpoints(false);
@@ -1341,6 +1344,7 @@ async function reconnectDebugSession(): Promise<void> {
   }
   state.debugSession = current;
   await openDebugSocket(current);
+  state.debugInitialized = true;
   await applyStoredDebugBreakpoints();
   setDebugState("Reconnected");
 }
@@ -1376,6 +1380,7 @@ async function refreshDebugSessions(): Promise<void> {
 async function stopDebugSession(notifyFailure: boolean): Promise<void> {
   const session = state.debugSession;
   state.debugSession = null;
+  state.debugInitialized = false;
   const socket = state.debugSocket;
   state.debugSocket = null;
   if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, "debug session stopped");
@@ -1446,7 +1451,7 @@ async function toggleDebugBreakpoint(path: string, line: number): Promise<void> 
   if (state.activePath === path) {
     byId<HTMLInputElement>("debug-breakpoint-lines").value = next.join(", ");
   }
-  if (state.debugSession && state.debugSocket?.readyState === WebSocket.OPEN) {
+  if (state.debugInitialized && state.debugSocket?.readyState === WebSocket.OPEN) {
     await sendDebugBreakpointSet(path, next);
   }
 }
