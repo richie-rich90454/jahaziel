@@ -82,16 +82,19 @@ main class), working directory, and JSON argument array. To use a supported
 configuration; its fields populate the launch form. Unsupported fields and
 attach configurations are rejected. **Start debugging** opens a
 workspace-scoped session. Use **Set** to send comma-separated line numbers
-for a workspace-relative file, then use Continue, Pause, and the step
-controls. Select a call-stack frame to inspect its variables; add watch
-expressions or evaluate an expression in the debug console. If the browser
-disconnects while the adapter remains active, use **Reconnect** to resume the
-DAP stream. Stop the session when finished.
+for a workspace-relative file, or tap/click a line number in the editor to
+toggle a breakpoint in that source file. Gutter markers and the breakpoint
+list stay in sync across open files and are re-sent when the DAP stream
+reconnects. Use Continue, Pause, and the step controls. Select a call-stack
+frame to inspect its variables; add watch expressions or evaluate an
+expression in the debug console. If the browser disconnects while the adapter
+remains active, use **Reconnect** to resume the DAP stream. Stop the session
+when finished.
 
 This is a launch-only debugger slice. It does not attach to existing
-processes, launch external terminals, install or update adapters, or provide
-editor-gutter breakpoints. Adapters run as the Jahaziel service account, with
-the same trusted-user boundary as terminals and tasks. See the
+processes, launch external terminals, or install or update adapters. Adapters
+run as the Jahaziel service account, with the same trusted-user boundary as
+terminals and tasks. See the
 [supported launch configuration subset](./configuration.md#debug-adapters).
 
 ## Workspace states
