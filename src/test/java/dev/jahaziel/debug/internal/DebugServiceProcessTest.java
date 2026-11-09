@@ -6,6 +6,7 @@ package dev.jahaziel.debug.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -116,6 +117,18 @@ class DebugServiceProcessTest {
       JsonNode source = stack.path("body").path("stackFrames").get(0).path("source");
       assertEquals("main.js", source.path("path").asString());
       assertNotNull(service.get(workspaceId, session.id()));
+      for (String unsupported :
+          List.of(
+              "attach",
+              "runInTerminal",
+              "startDebugging",
+              "restart",
+              "writeMemory",
+              "terminate")) {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.send(workspaceId, session.id(), request(4, unsupported, Map.of())));
+      }
     } finally {
       service.closeAll();
     }
