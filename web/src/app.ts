@@ -1313,7 +1313,10 @@ async function startDebugSession(): Promise<void> {
     });
     const launchResponse = dapRequest("launch", {});
     await waitForDapEvent("initialized");
+    const selectedBreakpointPath =
+      byId<HTMLInputElement>("debug-breakpoint-path").value.trim() || state.activePath;
     await applyDebugBreakpoints(false);
+    await applyStoredDebugBreakpoints(selectedBreakpointPath);
     if (initialize.body?.supportsConfigurationDoneRequest !== false) {
       await dapRequest("configurationDone", {});
     }
@@ -1338,6 +1341,7 @@ async function reconnectDebugSession(): Promise<void> {
   }
   state.debugSession = current;
   await openDebugSocket(current);
+  await applyStoredDebugBreakpoints();
   setDebugState("Reconnected");
 }
 
@@ -1404,19 +1408,67 @@ async function applyDebugBreakpoints(showToast = true): Promise<void> {
       .map(Number)
       .filter((line) => Number.isSafeInteger(line) && line > 0),
   )];
+  state.debugBreakpoints.set(path, lines);
+  refreshBreakpointGutterForPath(path);
+  renderDebugBreakpoints();
+  const response = await sendDebugBreakpointSet(path, lines);
+  if (showToast) {
+    const verified = response.body?.breakpoints;
+    const count = Array.isArray(verified) ? verified.filter((value) => (value as { verified?: unknown }).verified === true).length : lines.length;
+    const name = path.split("/").at(-1) || path;
+    toast(`${count} breakpoint${count === 1 ? "" : "s"} accepted for ${name}.`);
+  }
+}
+
+async function sendDebugBreakpointSet(path: string, lines: number[]): Promise<DapMessage> {
   const name = path.split("/").at(-1) || path;
-  const response = await dapRequest("setBreakpoints", {
+  return dapRequest("setBreakpoints", {
     source: { name, path },
     breakpoints: lines.map((line) => ({ line })),
     sourceModified: false,
   });
-  state.debugBreakpoints.set(path, lines);
-  renderDebugBreakpoints();
-  if (showToast) {
-    const verified = response.body?.breakpoints;
-    const count = Array.isArray(verified) ? verified.filter((value) => (value as { verified?: unknown }).verified === true).length : lines.length;
-    toast(`${count} breakpoint${count === 1 ? "" : "s"} accepted for ${name}.`);
+}
+
+async function applyStoredDebugBreakpoints(skipPath?: string | null): Promise<void> {
+  for (const [path, lines] of state.debugBreakpoints) {
+    if (path !== skipPath) await sendDebugBreakpointSet(path, lines);
   }
+}
+
+async function toggleDebugBreakpoint(path: string, line: number): Promise<void> {
+  const lines = new Set(state.debugBreakpoints.get(path) ?? []);
+  if (lines.has(line)) lines.delete(line);
+  else lines.add(line);
+  const next = [...lines].sort((left, right) => left - right);
+  state.debugBreakpoints.set(path, next);
+  refreshBreakpointGutterForPath(path);
+  renderDebugBreakpoints();
+  if (state.activePath === path) {
+    byId<HTMLInputElement>("debug-breakpoint-lines").value = next.join(", ");
+  }
+  if (state.debugSession && state.debugSocket?.readyState === WebSocket.OPEN) {
+    await sendDebugBreakpointSet(path, next);
+  }
+}
+
+function refreshBreakpointGutterForPath(path: string): void {
+  const opened = state.openDocuments.get(path);
+  if (opened) refreshBreakpointGutter(opened.wrapper, path);
+}
+
+function refreshBreakpointGutter(wrapper: HTMLElement, path: string): void {
+  const active = new Set(state.debugBreakpoints.get(path) ?? []);
+  wrapper.querySelectorAll<HTMLElement>(".cm-lineNumbers .cm-gutterElement").forEach((element) => {
+    const line = Number(element.textContent?.trim());
+    if (!Number.isSafeInteger(line) || line < 1) return;
+    const enabled = active.has(line);
+    element.classList.toggle("cm-debug-breakpoint", enabled);
+    element.dataset.debugLine = String(line);
+    element.setAttribute("role", "button");
+    element.setAttribute("tabindex", "0");
+    element.setAttribute("aria-label", `${enabled ? "Clear" : "Set"} breakpoint at ${path}, line ${line}`);
+    element.setAttribute("aria-pressed", String(enabled));
+  });
 }
 
 function renderDebugBreakpoints(): void {
@@ -1872,6 +1924,20 @@ async function openDocument(path: string): Promise<void> {
   const wrapper = document.createElement("div");
   wrapper.className = "editor-instance";
   const documentState = {} as OpenDocument;
+  const toggleFromGutter = (event: Event): void => {
+    if (!(event.target instanceof Element)) return;
+    const gutterLine = event.target.closest<HTMLElement>(".cm-lineNumbers .cm-gutterElement");
+    if (!gutterLine) return;
+    const line = Number(gutterLine.dataset.debugLine || gutterLine.textContent?.trim());
+    if (!Number.isSafeInteger(line) || line < 1) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void toggleDebugBreakpoint(path, line).catch((failure) => toast(errorText(failure), "error"));
+  };
+  wrapper.addEventListener("click", toggleFromGutter, true);
+  wrapper.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") toggleFromGutter(event);
+  }, true);
   const [editor, language] = await Promise.all([import("codemirror"), languageFor(path)]);
   const { EditorView } = editor;
   const view = new EditorView({
@@ -1890,6 +1956,11 @@ async function openDocument(path: string): Promise<void> {
         renderTabs();
         updateSaveState();
       }),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged || update.viewportChanged) {
+          window.requestAnimationFrame(() => refreshBreakpointGutter(wrapper, path));
+        }
+      }),
     ],
   });
   wrapper.hidden = true;
@@ -1906,6 +1977,7 @@ async function openDocument(path: string): Promise<void> {
     conflictRemoteContent: null,
   });
   state.openDocuments.set(path, documentState);
+  refreshBreakpointGutter(wrapper, path);
   state.selectedPath = path;
   activateDocument(path);
   if (window.matchMedia("(max-width: 900px)").matches) setPanel("editor");
@@ -1918,6 +1990,7 @@ function activateDocument(path: string): void {
   state.activePath = path;
   byId("active-file").textContent = path;
   byId<HTMLInputElement>("debug-breakpoint-path").value = path;
+  byId<HTMLInputElement>("debug-breakpoint-lines").value = (state.debugBreakpoints.get(path) ?? []).join(", ");
   byId("editor-empty").hidden = true;
   byId("status-language").textContent = languageName(path);
   if (state.workspace && !["ready", "active", "idle"].includes(state.workspace.state)) {
@@ -1926,6 +1999,7 @@ function activateDocument(path: string): void {
   } else {
     state.languageServices?.openDocument(languageIdForPath(path), path, next.view.state.doc.toString());
   }
+  refreshBreakpointGutter(next.wrapper, path);
   renderTabs();
   updateSaveState();
   window.requestAnimationFrame(() => next.view.requestMeasure());
