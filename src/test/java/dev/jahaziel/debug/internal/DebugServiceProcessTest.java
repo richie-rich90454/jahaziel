@@ -119,12 +119,7 @@ class DebugServiceProcessTest {
       assertNotNull(service.get(workspaceId, session.id()));
       for (String unsupported :
           List.of(
-              "attach",
-              "runInTerminal",
-              "startDebugging",
-              "restart",
-              "writeMemory",
-              "terminate")) {
+              "attach", "runInTerminal", "startDebugging", "restart", "writeMemory", "terminate")) {
         assertThrows(
             IllegalArgumentException.class,
             () -> service.send(workspaceId, session.id(), request(4, unsupported, Map.of())));
