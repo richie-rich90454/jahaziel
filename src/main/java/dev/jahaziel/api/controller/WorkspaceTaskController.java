@@ -46,6 +46,17 @@ public final class WorkspaceTaskController {
     return tasks.tasks(require(principal, id, "read"));
   }
 
+  @GetMapping("/tasks/debug-targets")
+  public List<DebugTargetView> debugTargets(@PathVariable UUID id, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "read");
+    return tasks.debugTargets(workspace).stream()
+        .map(
+            target ->
+                new DebugTargetView(
+                    target.id(), target.taskRunId(), target.languageId(), target.label()))
+        .toList();
+  }
+
   @PostMapping("/tasks/{taskId}/run")
   public WorkspaceTaskService.TaskRun run(
       @PathVariable UUID id, @PathVariable String taskId, Principal principal) {
@@ -90,4 +101,7 @@ public final class WorkspaceTaskController {
       throw new AccessDeniedException(user, permission);
     return workspace;
   }
+
+  /** Browser-visible target metadata intentionally excludes the operating-system process id. */
+  public record DebugTargetView(UUID id, UUID taskRunId, String languageId, String label) {}
 }
