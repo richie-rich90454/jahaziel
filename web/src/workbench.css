@@ -204,6 +204,7 @@ h1, h2, h3, p { margin-top: 0; }
 .debug-controls button:disabled, .debug-inline-form > button:disabled { opacity: .45; cursor: not-allowed; }
 .debug-subpanel { min-width: 0; border-top: 1px solid #2b342a; padding: 8px 9px; }
 .debug-subpanel h3 { margin: 0 0 6px; color: #82917b; font: 8px var(--mono); letter-spacing: .08em; }
+.debug-breakpoint-hint { margin: 0 0 7px; color: #899588; font: 8px/1.45 var(--mono); }
 .debug-inline-form { display: flex; align-items: flex-end; gap: 5px; }
 .debug-inline-form .debug-field { flex: 1 1 auto; }
 .debug-list { display: grid; gap: 2px; max-height: 150px; overflow: auto; list-style: none; margin: 5px 0 0; padding: 0; }
@@ -259,6 +260,10 @@ h1, h2, h3, p { margin-top: 0; }
 .editor-empty span { color: #758073; font-size: 10px; }
 .editor-instance > .cm-editor { height: 100%; background: #171c17; color: #dce4d8; font-family: var(--mono); font-size: 12px; }
 .cm-editor .cm-gutters { border-right: 1px solid #242c24; background: #171c17; color: #5d6959; }
+.cm-editor .cm-lineNumbers .cm-gutterElement { position: relative; box-sizing: border-box; cursor: pointer; padding-inline-start: 12px; }
+.cm-editor .cm-lineNumbers .cm-gutterElement.cm-debug-breakpoint { color: #f0a191; }
+.cm-editor .cm-lineNumbers .cm-gutterElement.cm-debug-breakpoint::before { position: absolute; top: 50%; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); content: ""; transform: translateY(-50%); }
+.cm-editor .cm-lineNumbers .cm-gutterElement:focus-visible { outline: 2px solid var(--acid); outline-offset: -2px; border-radius: 2px; }
 .cm-editor .cm-activeLineGutter, .cm-editor .cm-activeLine { background: #222a21; }
 .cm-editor .cm-cursor { border-left-color: var(--acid); }
 .cm-editor .cm-selectionBackground, .cm-editor ::selection { background: #566a4d !important; }
@@ -465,6 +470,7 @@ h1, h2, h3, p { margin-top: 0; }
   .debug-controls button, .debug-inline-form > button { min-height: 44px; padding: 0 8px; font-size: 10px; }
   .debug-subpanel { padding: 11px 12px; }
   .debug-subpanel h3 { margin-bottom: 8px; font-size: 10px; }
+  .debug-breakpoint-hint { margin-bottom: 9px; font-size: 10px; }
   .debug-list { max-height: 22vh; gap: 4px; }
   .debug-list button { min-height: 40px; padding: 7px; font-size: 10px; }
   .debug-empty { padding: 7px; font-size: 10px; }
@@ -485,6 +491,7 @@ h1, h2, h3, p { margin-top: 0; }
 @media (pointer: coarse) {
   .button, .login-link, .workspace-actions .button, input, select { min-height: 44px; }
   .tree-item, .task-button, .git-action, .text-action { touch-action: manipulation; }
+  .cm-editor .cm-lineNumbers .cm-gutterElement { touch-action: manipulation; }
   .editor-tab { min-height: 44px; }
   .terminal-surface { -webkit-user-select: text; user-select: text; }
 }
