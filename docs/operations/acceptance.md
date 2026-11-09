@@ -45,7 +45,8 @@ the real-iPad acceptance gate below.
 16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
 17. Back up and restore `data/` and `.env` according to `docs/operations/backup.md`.
 18. Configure verified, version-pinned DAP adapters for Node.js, Python, Java, C/C++, Go, and Rust. For each language, launch a workspace program, set and hit a breakpoint, inspect the call stack and variables, evaluate a watch and console expression, step and continue, reconnect the stream, stop the session, and confirm its adapter process exits. Repeat with missing adapters, invalid workspace paths, symlink escapes, unauthorized users, mismatched session/workspace IDs, and server restart; confirm errors are bounded and adapter processes do not survive workspace shutdown.
-19. Load a supported `.vscode/launch.json` entry and confirm its workspace-relative fields populate the launch form. Confirm invalid versions, unknown fields, attach requests, absolute or escaping paths, environment blocks, and arbitrary executable fields are rejected. Confirm unsupported DAP requests such as `restart` and `runInTerminal` fail without starting another process.
+19. Attach to a debug-enabled process in the authorized workspace for each of the six supported languages. Confirm the user can select only server-verified workspace processes, that remote targets and arbitrary PIDs are rejected, and that workspace stop or session close ends the attached adapter cleanly.
+20. Load a supported `.vscode/launch.json` entry and confirm its workspace-relative fields populate the launch form. Confirm invalid versions, unknown fields, absolute or escaping paths, environment blocks, arbitrary executable fields, and remote attach targets are rejected. Confirm unsupported DAP requests such as `restart` and `runInTerminal` fail without starting another process.
 
 ## iPad release gate
 
