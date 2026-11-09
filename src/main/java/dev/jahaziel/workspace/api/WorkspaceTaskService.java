@@ -23,6 +23,12 @@ public interface WorkspaceTaskService {
   /** Returns the safe task labels that may be run; no command data is exposed. */
   List<Task> tasks(WorkspaceId workspaceId);
 
+  /** Returns active targets created by server-declared debuggable tasks. */
+  List<DebugTarget> debugTargets(WorkspaceId workspaceId);
+
+  /** Resolves one target only while it remains active in the specified workspace. */
+  DebugTarget debugTarget(WorkspaceId workspaceId, UUID targetId);
+
   /**
    * Returns packs declared by this workspace's server-managed template. An empty list means the
    * template places no restriction on the server catalog.
@@ -56,6 +62,17 @@ public interface WorkspaceTaskService {
       String status, String output, String error, Instant updatedAt, UUID correlationId) {}
 
   record Task(String id, String label, Integer port) {}
+
+  /** Internal attach details for a live server-owned task process. */
+  record DebugTarget(
+      UUID id,
+      UUID workspaceId,
+      UUID taskRunId,
+      String languageId,
+      String label,
+      long processId,
+      Integer debugPort,
+      String program) {}
 
   record TaskRun(
       UUID id,
