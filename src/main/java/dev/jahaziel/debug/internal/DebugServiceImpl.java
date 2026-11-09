@@ -11,6 +11,8 @@ import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
 import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceTaskService;
+import dev.jahaziel.workspace.api.WorkspaceTaskService.DebugTarget;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceState;
 import jakarta.annotation.PreDestroy;
@@ -67,6 +69,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       Set.of(
           "initialize",
           "launch",
+          "attach",
           "configurationDone",
           "setBreakpoints",
           "source",
@@ -85,6 +88,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   private final WorkspaceDirectoryService directories;
   private final WorkspaceService workspaces;
   private final WorkspaceProcessRegistry processRegistry;
+  private final WorkspaceTaskService tasks;
   private final ObjectMapper json;
   private final Path storageRoot;
   private final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
@@ -99,12 +103,14 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       WorkspaceDirectoryService directories,
       WorkspaceService workspaces,
       WorkspaceProcessRegistry processRegistry,
+      WorkspaceTaskService tasks,
       ObjectMapper json,
       @Value("${jahaziel.storage.root:data}") String storageRoot) {
     this.adapters = Objects.requireNonNull(adapters, "adapters");
     this.directories = Objects.requireNonNull(directories, "directories");
     this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
     this.processRegistry = Objects.requireNonNull(processRegistry, "processRegistry");
+    this.tasks = Objects.requireNonNull(tasks, "tasks");
     this.json = Objects.requireNonNull(json, "json");
     if (storageRoot == null || storageRoot.isBlank()) {
       throw new IllegalArgumentException("storageRoot must not be blank");
@@ -131,7 +137,41 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
               >= MAX_SESSIONS_PER_WORKSPACE) {
         throw new IllegalStateException("debug session limit reached");
       }
-      return launch(workspaceId, request, adapter);
+      return launch(workspaceId, request.languageId(), request, null, adapter);
+    }
+  }
+
+  @Override
+  public Session attachToTarget(WorkspaceId workspaceId, AttachRequest request) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    Objects.requireNonNull(request, "request");
+    ensureWorkspaceCanRun(workspaceId);
+    DebugTarget target = tasks.debugTarget(workspaceId, request.targetId());
+    if (target == null || !workspaceId.value().equals(target.workspaceId())) {
+      throw new IllegalArgumentException("debug target not found");
+    }
+    DebugAdapterProperties.Adapter adapter = adapters.adapters().get(target.languageId());
+    if (adapter == null) {
+      throw new IllegalStateException("debug adapter is not installed for " + target.languageId());
+    }
+    if (target.processId() < 1
+        || (Set.of("java", "python").contains(target.languageId())
+            && (target.debugPort() == null
+                || target.debugPort() < 1
+                || target.debugPort() > 65535))) {
+      throw new IllegalStateException("debug target is not ready for attachment");
+    }
+    synchronized (active) {
+      if (closed) throw new IllegalStateException("debug services are shutting down");
+      if (stoppingWorkspaces.contains(workspaceId)) {
+        throw new IllegalStateException("workspace is stopping");
+      }
+      if (active.size() >= MAX_SESSIONS
+          || active.values().stream().filter(value -> value.workspaceId.equals(workspaceId)).count()
+              >= MAX_SESSIONS_PER_WORKSPACE) {
+        throw new IllegalStateException("debug session limit reached");
+      }
+      return launch(workspaceId, target.languageId(), null, target, adapter);
     }
   }
 
@@ -226,7 +266,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   }
 
   private Session launch(
-      WorkspaceId workspaceId, StartRequest request, DebugAdapterProperties.Adapter adapter) {
+      WorkspaceId workspaceId,
+      String languageId,
+      StartRequest request,
+      DebugTarget attachTarget,
+      DebugAdapterProperties.Adapter adapter) {
     Path home;
     Path cwd;
     Path program = null;
@@ -235,9 +279,23 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       if (!Files.isDirectory(home, LinkOption.NOFOLLOW_LINKS)) {
         throw new IOException("workspace home is unavailable");
       }
-      cwd = resolveWorkspacePath(home, request.workingDirectory(), true, true);
-      if (request.program() != null) {
-        program = resolveWorkspacePath(home, request.program(), true, false);
+      if (request != null) {
+        cwd = resolveWorkspacePath(home, request.workingDirectory(), true, true);
+        if (request.program() != null) {
+          program = resolveWorkspacePath(home, request.program(), true, false);
+        }
+      } else {
+        cwd = home;
+        if (attachTarget.program() != null) {
+          program = Path.of(attachTarget.program()).toRealPath();
+          if (!program.startsWith(home) || !Files.isRegularFile(program, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("debug target program is outside the workspace");
+          }
+        }
+        if (Set.of("java", "python").contains(languageId)
+            && attachTarget.debugPort() == null) {
+          throw new IOException("debug target has no loopback debug port");
+        }
       }
     } catch (IOException failure) {
       throw new IllegalArgumentException("debug launch path is unavailable", failure);
@@ -276,7 +334,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
           new AdapterSession(
               id,
               workspaceId,
+              languageId,
               request,
+              attachTarget,
               adapter.version(),
               home,
               program,
@@ -350,10 +410,21 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     }
     if (!ALLOWED_CLIENT_REQUESTS.contains(command))
       throw new IllegalArgumentException("DAP request is not supported by the workbench");
-    if (command.equals("launch")) {
-      if (session.launchSent)
-        throw new IllegalArgumentException("debug launch was already requested");
-      message.set("arguments", launchArguments(session));
+    if (command.equals("launch") || command.equals("attach")) {
+      if (session.launchSent) {
+        throw new IllegalArgumentException("debug start request was already sent");
+      }
+      if (command.equals("launch")) {
+        if (session.attachTarget != null) {
+          throw new IllegalArgumentException("this debug session only permits attach");
+        }
+        message.set("arguments", launchArguments(session));
+      } else {
+        if (session.attachTarget == null) {
+          throw new IllegalArgumentException("this debug session only permits launch");
+        }
+        message.set("arguments", attachArguments(session));
+      }
       session.launchSent = true;
     } else if (command.equals("setBreakpoints") || command.equals("source")) {
       constrainSourcePath(session, message);
@@ -363,10 +434,10 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
 
   private ObjectNode launchArguments(AdapterSession session) {
     ObjectNode args = json.createObjectNode();
-    args.put("type", DebugService.DAP_ADAPTER_IDS.get(session.request.languageId()));
+    args.put("type", DebugService.DAP_ADAPTER_IDS.get(session.languageId));
     args.put("request", "launch");
     args.put("name", "Jahaziel workspace launch");
-    if (session.request.languageId().equals("java")) {
+    if (session.languageId.equals("java")) {
       args.put("mainClass", session.request.mainClass());
     } else {
       args.put("program", session.program.toString());
@@ -375,10 +446,47 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     ArrayNode values = args.putArray("args");
     session.request.arguments().forEach(values::add);
     args.put("stopOnEntry", session.request.stopOnEntry());
-    if (session.request.languageId().equals("go")) args.put("mode", "debug");
-    if (session.request.languageId().equals("node")
-        || session.request.languageId().equals("python")) {
+    if (session.languageId.equals("go")) args.put("mode", "debug");
+    if (session.languageId.equals("node") || session.languageId.equals("python")) {
       args.put("console", "internalConsole");
+    }
+    return args;
+  }
+
+  private ObjectNode attachArguments(AdapterSession session) {
+    DebugTarget target = session.attachTarget;
+    ObjectNode args = json.createObjectNode();
+    args.put("type", DebugService.DAP_ADAPTER_IDS.get(session.languageId));
+    args.put("request", "attach");
+    args.put("name", "Jahaziel workspace task attach");
+    args.put("stopOnEntry", false);
+    switch (session.languageId) {
+      case "node" -> {
+        args.put("processId", target.processId());
+        args.put("cwd", session.home.toString());
+        args.put("localRoot", session.home.toString());
+        args.put("remoteRoot", session.home.toString());
+      }
+      case "python" -> {
+        ObjectNode connect = args.putObject("connect");
+        connect.put("host", "127.0.0.1");
+        connect.put("port", target.debugPort());
+        args.put("justMyCode", false);
+      }
+      case "java" -> {
+        args.put("hostName", "127.0.0.1");
+        args.put("port", target.debugPort());
+      }
+      case "cpp", "rust" -> {
+        args.put("pid", target.processId());
+        args.put("program", session.program.toString());
+      }
+      case "go" -> {
+        args.put("mode", "local");
+        args.put("processId", target.processId());
+        args.put("cwd", session.home.toString());
+      }
+      default -> throw new IllegalStateException("unsupported debug attach language");
     }
     return args;
   }
@@ -700,7 +808,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   private final class AdapterSession {
     private final UUID id;
     private final WorkspaceId workspaceId;
+    private final String languageId;
     private final StartRequest request;
+    private final DebugTarget attachTarget;
     private final String adapterVersion;
     private final java.time.Instant startedAt = java.time.Instant.now();
     private final Path home;
@@ -723,7 +833,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     private AdapterSession(
         UUID id,
         WorkspaceId workspaceId,
+        String languageId,
         StartRequest request,
+        DebugTarget attachTarget,
         String adapterVersion,
         Path home,
         Path program,
@@ -736,7 +848,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         OutputStream output) {
       this.id = id;
       this.workspaceId = workspaceId;
+      this.languageId = languageId;
       this.request = request;
+      this.attachTarget = attachTarget;
       this.adapterVersion = adapterVersion;
       this.home = home;
       this.program = program;
@@ -753,8 +867,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       return new Session(
           id,
           workspaceId.value(),
-          request.languageId(),
-          DebugService.DAP_ADAPTER_IDS.get(request.languageId()),
+          languageId,
+          DebugService.DAP_ADAPTER_IDS.get(languageId),
           state,
           adapterVersion,
           startedAt,
