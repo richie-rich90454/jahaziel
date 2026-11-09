@@ -589,19 +589,22 @@ process.stdin.on("data", (chunk) => {
     const stop = document.querySelector("#debug-stop");
     return stop instanceof HTMLButtonElement && !stop.disabled;
   });
+  await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
   const pendingBreakpoint = page.getByRole("button", {
-    name: "Set breakpoint at main.py, line 1",
+    name: "Set breakpoint at README.md, line 1",
   });
   await pendingBreakpoint.click();
-  await waitForText(page, "#debug-breakpoint-list", "main\\.py: 1");
+  await waitForText(page, "#debug-breakpoint-list", "README\\.md: 1");
   assert.equal(
     await pendingBreakpoint.getAttribute("aria-pressed"),
     "true",
     "the breakpoint must be recorded before DAP initialization is released",
   );
+  await page.locator(".tree-item").filter({ hasText: "main.py" }).click();
+  await waitForText(page, "#active-file", "^main\\.py$");
   fs.writeFileSync(
     debugAdapterReleasePath,
-    "release initialization after the breakpoint is recorded",
+    "release initialization after the breakpoint file is no longer active",
   );
   await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
   const dapLog = fs.readFileSync(debugAdapterLog, "utf8")
@@ -614,7 +617,7 @@ process.stdin.on("data", (chunk) => {
   const deferredBreakpointIndex = dapLog.findIndex(
     (entry) => entry.kind === "request"
       && entry.command === "setBreakpoints"
-      && entry.arguments.source?.path === "main.py"
+      && path.basename(entry.arguments.source?.path || "") === "README.md"
       && entry.arguments.breakpoints?.some((breakpoint) => breakpoint.line === 1),
   );
   assert.ok(initializedIndex >= 0, "the packaged debugger must receive DAP initialization");
