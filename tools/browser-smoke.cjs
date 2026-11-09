@@ -21,6 +21,7 @@ const jarPath = path.join(scratchRoot, "jahaziel.jar");
 const dataTemp = path.join(scratchRoot, "data", "tmp");
 const debugAdapterPath = path.join(scratchRoot, "mock-debug-adapter.cjs");
 const debugAdapterLog = path.join(scratchRoot, "mock-debug-adapter.log");
+const debugAdapterReleasePath = path.join(scratchRoot, "release-debug-initialized");
 const serverLogs = [];
 let server = null;
 let browser = null;
@@ -299,6 +300,7 @@ async function run() {
 
 const fs = require("node:fs");
 const logPath = ${JSON.stringify(debugAdapterLog)};
+const releasePath = ${JSON.stringify(debugAdapterReleasePath)};
 let buffer = Buffer.alloc(0);
 let sequence = 1;
 
@@ -331,10 +333,15 @@ function event(name, body = {}) {
 function handle(request) {
   record({ kind: "request", command: request.command, arguments: request.arguments || {} });
   switch (request.command) {
-    case "initialize":
+    case "initialize": {
       respond(request, { supportsConfigurationDoneRequest: true });
-      setTimeout(() => event("initialized"), 3000);
+      const releaseInterval = setInterval(() => {
+        if (!fs.existsSync(releasePath)) return;
+        clearInterval(releaseInterval);
+        event("initialized");
+      }, 25);
       break;
+    }
     case "launch":
       respond(request);
       break;
@@ -587,6 +594,15 @@ process.stdin.on("data", (chunk) => {
   });
   await pendingBreakpoint.click();
   await waitForText(page, "#debug-breakpoint-list", "main\\.py: 1");
+  assert.equal(
+    await pendingBreakpoint.getAttribute("aria-pressed"),
+    "true",
+    "the breakpoint must be recorded before DAP initialization is released",
+  );
+  fs.writeFileSync(
+    debugAdapterReleasePath,
+    "release initialization after the breakpoint is recorded",
+  );
   await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
   const dapLog = fs.readFileSync(debugAdapterLog, "utf8")
     .trim()
@@ -606,7 +622,6 @@ process.stdin.on("data", (chunk) => {
     deferredBreakpointIndex > initializedIndex,
     "a breakpoint tapped while DAP initializes must reach the adapter after initialization",
   );
-  assert.equal(await pendingBreakpoint.getAttribute("aria-pressed"), "true");
   await page.locator("#debug-stop").click();
   await waitForText(page, "#debug-state", "^NOT RUNNING$");
 
