@@ -36,9 +36,9 @@ boundaries:
 - `dev.jahaziel.debug` manages workspace-authorized Debug Adapter Protocol
   sessions. The server launches only administrator-configured adapters and
   exposes each active session through a workspace- and session-bound
-  WebSocket. The workbench debugger supports a constrained launch
-  configuration subset; adapter installation and process attach are not
-  provided.
+  WebSocket. Launch configurations are workspace-rooted, and attach requests
+  resolve only opaque targets issued for active server-declared workspace
+  tasks; adapter installation remains administrator-managed.
 - `dev.jahaziel.language` manages explicitly selected, pinned language packs
   and their authenticated language-service streams.
 - `dev.jahaziel.networking` and `dev.jahaziel.gateway` manage preview ports
