@@ -1,18 +1,29 @@
 {
   "name": "python",
-  "description": "Python starter. Create a virtual environment when you are ready to install dependencies.",
+  "description": "Python starter with a workspace-local environment and pinned debugger setup.",
   "vcpuCount": 2,
   "memoryMib": 4096,
   "ports": [8000],
   "languagePacks": ["python"],
+  "setupSteps": [
+    { "command": ["python3", "-m", "venv", ".venv"] },
+    { "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] }
+  ],
   "runTasks": [
-    { "id": "example", "label": "Run example", "command": ["python3", "main.py"] },
-    { "id": "preview", "label": "Serve preview", "command": ["python3", "-u", "-m", "http.server", "8000", "--bind", "0.0.0.0"], "port": 8000 }
+    { "id": "example", "label": "Run example", "command": [".venv/bin/python", "main.py"] },
+    {
+      "id": "preview",
+      "label": "Start Python preview server",
+      "command": [".venv/bin/python", "-u", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}", "dev_server.py"],
+      "port": 8000,
+      "debug": { "language": "python", "executable": "python3", "program": "dev_server.py" }
+    }
   ],
   "starterFiles": {
-    "README.md": "# Python\n\nRun `python3 main.py` in the terminal. Use the Run panel to serve this workspace on port 8000.\n",
+    "README.md": "# Python\n\nWorkspace setup creates `.venv` and installs the pinned `debugpy` dependency. Setup needs access to PyPI. Run `.venv/bin/python main.py` in the terminal. Use the Run panel to serve this workspace on port 8000 and attach the debugger.\n",
     "main.py": "def main():\n    print('Hello from Jahaziel')\n\n\nif __name__ == '__main__':\n    main()\n",
     "index.html": "<!doctype html>\n<html lang=\"en\"><meta charset=\"utf-8\"><title>Jahaziel Python workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit index.html and reload this preview.</p></body></html>\n",
-    "requirements.txt": ""
+    "requirements.txt": "debugpy==1.8.22\n",
+    "dev_server.py": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nimport os\n\n\nclass Handler(BaseHTTPRequestHandler):\n    def do_GET(self):\n        body = b\"<!doctype html><html><meta charset='utf-8'><title>Python workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit dev_server.py and reload this preview.</p></body></html>\\n\"\n        self.send_response(200)\n        self.send_header(\"Content-Type\", \"text/html; charset=utf-8\")\n        self.send_header(\"Content-Length\", str(len(body)))\n        self.end_headers()\n        self.wfile.write(body)\n\n\nport = int(os.environ.get(\"PORT\", \"8000\"))\nserver = ThreadingHTTPServer((\"0.0.0.0\", port), Handler)\nprint(f\"Listening on 0.0.0.0:{port}\", flush=True)\nserver.serve_forever()\n"
   }
 }
