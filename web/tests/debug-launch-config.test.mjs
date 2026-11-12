@@ -20,6 +20,7 @@ test("parses supported launch configurations with safe defaults", () => {
 
   assert.deepEqual(node, {
     name: "Node app",
+    request: "launch",
     languageId: "node",
     program: "src/main.ts",
     mainClass: null,
@@ -32,11 +33,33 @@ test("parses supported launch configurations with safe defaults", () => {
   assert.equal(java.workingDirectory, "server");
 });
 
-test("rejects attach configurations, unsupported fields, and unknown adapter types", () => {
-  assert.throws(
-    () => parseDebugLaunchConfigurations(launchFile({ name: "Attach", type: "node", request: "attach", program: "app.js" })),
-    /attach is not supported/,
+test("accepts server-target attach configurations and rejects arbitrary attach targets", () => {
+  const [attach] = parseDebugLaunchConfigurations(
+    launchFile({ name: "Attach to node task", type: "pwa-node", request: "attach" }),
   );
+  assert.deepEqual(attach, {
+    name: "Attach to node task",
+    request: "attach",
+    languageId: "node",
+    program: null,
+    mainClass: null,
+    workingDirectory: ".",
+    arguments: [],
+    stopOnEntry: false,
+  });
+  for (const target of [
+    { processId: 1234 },
+    { hostName: "example.com", port: 5005 },
+    { command: "/bin/sh" },
+  ]) {
+    assert.throws(
+      () => parseDebugLaunchConfigurations(launchFile({ name: "Attach", type: "node", request: "attach", ...target })),
+      /attach entries may define only/,
+    );
+  }
+});
+
+test("rejects unsupported launch fields and unknown adapter types", () => {
   assert.throws(
     () => parseDebugLaunchConfigurations(launchFile({ name: "Node", type: "node", request: "launch", program: "app.js", env: { TOKEN: "secret" } })),
     /unsupported fields/,
