@@ -59,6 +59,28 @@ class DebugSessionControllerTest {
   }
 
   @Test
+  void attachesToAnOpaqueTargetOnlyWithWorkspaceWritePermission() {
+    UUID targetId = UUID.randomUUID();
+    DebugService.AttachRequest request = new DebugService.AttachRequest(targetId);
+    when(authorization.isAllowed(owner, "write", workspace)).thenReturn(true);
+    when(debug.attachToTarget(workspace, request)).thenReturn(session());
+
+    assertEquals(sessionId, controller.attach(workspace.value(), request, principal).id());
+    verify(debug).attachToTarget(workspace, request);
+  }
+
+  @Test
+  void rejectsAttachWithoutWorkspaceWritePermission() {
+    DebugService.AttachRequest request = new DebugService.AttachRequest(UUID.randomUUID());
+    when(authorization.isAllowed(owner, "write", workspace)).thenReturn(false);
+
+    assertThrows(
+        AccessDeniedException.class,
+        () -> controller.attach(workspace.value(), request, principal));
+    verify(debug, never()).attachToTarget(workspace, request);
+  }
+
+  @Test
   void stopsOnlyAWorkspaceAuthorizedByWritePermission() {
     when(authorization.isAllowed(owner, "write", workspace)).thenReturn(true);
     when(debug.stop(workspace, sessionId)).thenReturn(session());
