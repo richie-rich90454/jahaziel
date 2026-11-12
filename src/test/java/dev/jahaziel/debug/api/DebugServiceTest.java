@@ -92,4 +92,11 @@ class DebugServiceTest {
         IllegalArgumentException.class,
         () -> new DebugService.StartRequest("java", null, "../Main", List.of(), ".", false));
   }
+
+  @Test
+  void attachRequestRequiresAnOpaqueTargetId() {
+    var targetId = java.util.UUID.randomUUID();
+    assertEquals(targetId, new DebugService.AttachRequest(targetId).targetId());
+    assertThrows(IllegalArgumentException.class, () -> new DebugService.AttachRequest(null));
+  }
 }
