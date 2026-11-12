@@ -3,21 +3,23 @@
   "description": "C++ starter with no external dependencies.",
   "vcpuCount": 2,
   "memoryMib": 4096,
-  "ports": [],
+  "ports": [8080],
   "languagePacks": ["cpp"],
   "runTasks": [
     {
       "id": "run",
-      "label": "Compile and run C++ program",
+      "label": "Compile and start C++ preview server",
       "command": [
         "/bin/sh",
         "-lc",
-        "clang++ -std=c++20 -Wall -Wextra -pedantic main.cpp -o .jahaziel-app && ./.jahaziel-app"
-      ]
+        "clang++ -g -std=c++20 -Wall -Wextra -pedantic main.cpp -o .jahaziel-app && exec ./.jahaziel-app"
+      ],
+      "port": 8080,
+      "debug": { "language": "cpp", "executable": ".jahaziel-app", "program": ".jahaziel-app" }
     }
   ],
   "starterFiles": {
-    "README.md": "# C++\n\nBuild with `clang++ -std=c++20 -Wall -Wextra -pedantic main.cpp -o app`, then run `./app`.\n",
-    "main.cpp": "#include <iostream>\n\nint main() {\n    std::cout << \"Hello from Jahaziel\\n\";\n    return 0;\n}\n"
+    "README.md": "# C++\n\nStart the preview server from the Run panel. It listens on port 8080 and supports attach debugging while it is running.\n",
+    "main.cpp": "#include <arpa/inet.h>\n#include <netinet/in.h>\n#include <sys/socket.h>\n#include <unistd.h>\n\n#include <cstdlib>\n#include <iostream>\n#include <string>\n\nint main() {\n  const char* configuredPort = std::getenv(\"PORT\");\n  const int port = configuredPort == nullptr ? 8080 : std::atoi(configuredPort);\n  const int server = ::socket(AF_INET, SOCK_STREAM, 0);\n  if (server < 0) { std::perror(\"socket\"); return 1; }\n  int reuse = 1;\n  ::setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));\n\n  sockaddr_in address{};\n  address.sin_family = AF_INET;\n  address.sin_addr.s_addr = htonl(INADDR_ANY);\n  address.sin_port = htons(static_cast<unsigned short>(port));\n  if (::bind(server, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {\n    std::perror(\"bind\"); ::close(server); return 1;\n  }\n  if (::listen(server, 32) < 0) { std::perror(\"listen\"); ::close(server); return 1; }\n  std::cout << \"Listening on 0.0.0.0:\" << port << std::endl;\n\n  const std::string body = \"<!doctype html><html><meta charset='utf-8'><title>C++ workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit main.cpp and reload this preview.</p></body></html>\\n\";\n  while (true) {\n    const int client = ::accept(server, nullptr, nullptr);\n    if (client < 0) continue;\n    char request[1024];\n    (void)::recv(client, request, sizeof(request), 0);\n    const std::string response = \"HTTP/1.1 200 OK\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: \"\n        + std::to_string(body.size()) + \"\\r\\nConnection: close\\r\\n\\r\\n\" + body;\n    (void)::send(client, response.data(), response.size(), MSG_NOSIGNAL);\n    ::close(client);\n  }\n}\n"
   }
 }
