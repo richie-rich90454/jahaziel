@@ -150,6 +150,14 @@
                 </label>
                 <label class="debug-check"><input id="debug-stop-on-entry" type="checkbox" /> Stop on entry</label>
               </div>
+              <div class="debug-attach-form">
+                <label class="debug-field" for="debug-attach-target">Attach to a running task
+                  <select id="debug-attach-target" aria-label="Running workspace debug target">
+                    <option value="">Start a debuggable task first</option>
+                  </select>
+                </label>
+                <button id="debug-attach" class="button button-quiet" type="button" disabled>Attach</button>
+              </div>
               <div class="debug-actions">
                 <button id="debug-start" class="button button-primary" type="button">Start debugging</button>
                 <button id="debug-reconnect" class="button button-quiet" type="button" hidden>Reconnect</button>
