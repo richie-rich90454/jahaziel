@@ -44,9 +44,7 @@ public final class DebugSessionController {
 
   @PostMapping("/attach")
   public DebugService.Session attach(
-      @PathVariable UUID id,
-      @RequestBody DebugService.AttachRequest request,
-      Principal principal) {
+      @PathVariable UUID id, @RequestBody DebugService.AttachRequest request, Principal principal) {
     return debug.attachToTarget(require(principal, id, "write"), request);
   }
 
