@@ -61,7 +61,7 @@ The Firecracker backend is retained for separate verification and is not selecta
 | Run task API | Authenticated HTTP | Template-owned task IDs and server-selected executable/arguments |
 | Git API | Authenticated HTTP | Workspace read/write authorization, fixed Git subcommands, bounded output, no clone or remote credential endpoints |
 | Language-service stream | Authenticated WebSocket | Allowed language ID, selected pinned server-owned pack, bounded JSON-RPC, workspace-rooted URIs, and server-owned launch and initialization options |
-| Debug-session REST API | Authenticated HTTP | Read/write workspace authorization, server-owned adapter catalog, launch-only request shape, and bounded session limits |
+| Debug-session REST API | Authenticated HTTP | Read/write workspace authorization, server-owned adapter catalog, workspace-rooted launch fields, opaque task-issued attach targets, and bounded session limits |
 | Debug-session stream | Authenticated WebSocket | Authenticated principal, browser-origin policy, workspace write authorization, exact session binding, and bounded DAP messages |
 | Workspace preview | Gateway listener | Existing workspace-scoped token and port authorization |
 | Cookie-authenticated writes | Authenticated HTTP | Same-origin `Origin` validation and `Sec-Fetch-Site`; bearer-token clients are exempt because their credentials are explicitly attached |
