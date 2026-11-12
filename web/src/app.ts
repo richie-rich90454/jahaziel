@@ -42,6 +42,7 @@ interface AgentToolStatus {
   error: string;
 }
 interface WorkspaceTask { id: string; label: string; port: number | null; }
+interface DebugTarget { id: string; taskRunId: string; languageId: string; label: string; }
 interface SetupStatus { status: string; output: string; error: string; updatedAt: string; correlationId?: string | null; }
 interface TaskRun { id: string; workspaceId: string; taskId: string; label: string; status: string; output: string; exitCode: number | null; }
 interface GitChange { path: string; indexStatus: string; worktreeStatus: string; }
@@ -115,6 +116,7 @@ const state = {
   languagePacks: [] as LanguagePack[],
   activePanel: "files" as "files" | "editor" | "run" | "languages" | "debug" | "git" | "terminal" | "preview",
   debugSession: null as DebugSession | null,
+  debugTargets: [] as DebugTarget[],
   debugInitialized: false,
   debugLaunchConfigurations: [] as DebugLaunchConfiguration[],
   debugSocket: null as WebSocket | null,
@@ -418,10 +420,18 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
       && !window.confirm("Some files have unsaved changes. Leave this workspace?")) return;
   if (state.workspace?.workspaceId !== workspace.workspaceId) {
     flushLocalDrafts();
-    await stopDebugSession(false);
+    if (!await stopDebugSession(true)) {
+      const currentWorkspaceId = state.workspace?.workspaceId;
+      if (!navigate && currentWorkspaceId) {
+        history.replaceState({ workspaceId: currentWorkspaceId }, "", `#workspace/${currentWorkspaceId}`);
+      }
+      return;
+    }
   }
   state.workspace = workspace;
   clearDebugLaunchConfigurations();
+  state.debugTargets = [];
+  renderDebugTargets();
   state.previewPort = null;
   state.previewUrl = null;
   state.languageServices?.close();
@@ -731,8 +741,61 @@ async function refreshTasks(): Promise<void> {
   }
   const latestRun = latestRunResult.body;
   renderTaskRun(latestRun);
+  await refreshDebugTargets().catch(() => {
+    state.debugTargets = [];
+    renderDebugTargets();
+  });
   if (latestRun?.status === "RUNNING") void pollTaskRun(workspace.workspaceId, latestRun);
   if (setup.status === "RUNNING" && !state.setupPolling) void pollSetup(workspace.workspaceId);
+}
+
+async function refreshDebugTargets(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  const { body } = await api<DebugTarget[]>(
+    `/api/v1/workspaces/${workspace.workspaceId}/tasks/debug-targets`,
+  );
+  if (state.workspace?.workspaceId !== workspace.workspaceId) return;
+  state.debugTargets = body;
+  renderDebugTargets();
+}
+
+function renderDebugTargets(): void {
+  const select = byId<HTMLSelectElement>("debug-attach-target");
+  const previous = select.value;
+  select.replaceChildren();
+  if (state.debugTargets.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Start a debuggable task first";
+    select.append(option);
+  } else {
+    const languages: Record<string, string> = {
+      node: "Node / TypeScript", python: "Python", java: "Java",
+      cpp: "C / C++", go: "Go", rust: "Rust",
+    };
+    for (const target of state.debugTargets) {
+      const option = document.createElement("option");
+      option.value = target.id;
+      option.textContent = `${target.label} · ${languages[target.languageId] ?? target.languageId}`;
+      select.append(option);
+    }
+    if (state.debugTargets.some((target) => target.id === previous)) select.value = previous;
+  }
+  const selectedConfig = state.debugLaunchConfigurations.find(
+    (configuration) => configuration.name === byId<HTMLSelectElement>("debug-launch-config").value,
+  );
+  if (selectedConfig?.request === "attach") {
+    const matchingTarget = state.debugTargets.find(
+      (target) => target.languageId === selectedConfig.languageId,
+    );
+    if (matchingTarget) {
+      select.value = matchingTarget.id;
+      byId("debug-launch-config-status").textContent =
+        `${selectedConfig.name} selected. Attach to the matching running task.`;
+    }
+  }
+  updateDebugAttachControl();
 }
 
 async function pollSetup(workspaceId: string): Promise<void> {
@@ -954,6 +1017,7 @@ async function pollTaskRun(workspaceId: string, initialRun: TaskRun): Promise<vo
       if (state.workspace?.workspaceId === workspaceId && state.taskRunId === initialRun.id) {
         renderTaskRun(current);
       }
+      await refreshDebugTargets().catch(() => undefined);
       await refreshPortStatuses().catch(() => undefined);
     }
   } catch (failure) {
@@ -996,6 +1060,8 @@ function updateDebugControls(): void {
   byId<HTMLButtonElement>("debug-reconnect").hidden = !hasSession || connected;
   byId<HTMLButtonElement>("debug-reconnect").disabled = !hasSession;
   byId<HTMLSelectElement>("debug-language").disabled = hasSession;
+  byId<HTMLSelectElement>("debug-attach-target").disabled = hasSession || state.debugTargets.length === 0;
+  updateDebugAttachControl();
   byId<HTMLInputElement>("debug-program").disabled = hasSession;
   byId<HTMLInputElement>("debug-main-class").disabled = hasSession;
   byId<HTMLInputElement>("debug-working-directory").disabled = hasSession;
@@ -1008,6 +1074,12 @@ function updateDebugControls(): void {
     const paused = item.dataset.debugCommand !== "pause";
     item.disabled = !connected || state.debugThreadId === null || state.debugPaused !== paused;
   });
+}
+
+function updateDebugAttachControl(): void {
+  const selectedTargetId = byId<HTMLSelectElement>("debug-attach-target").value;
+  byId<HTMLButtonElement>("debug-attach").disabled =
+    state.debugSession !== null || !state.debugTargets.some((target) => target.id === selectedTargetId);
 }
 
 function configureDebugLanguageFields(): void {
@@ -1047,12 +1119,26 @@ function applyDebugLaunchConfiguration(name: string): void {
   const configuration = state.debugLaunchConfigurations.find((item) => item.name === name);
   if (!configuration) return;
   byId<HTMLSelectElement>("debug-language").value = configuration.languageId;
+  if (configuration.request === "attach") {
+    byId<HTMLSelectElement>("debug-attach-target").value =
+      state.debugTargets.find((target) => target.languageId === configuration.languageId)?.id ?? "";
+    byId("debug-launch-config-status").textContent = state.debugTargets.some(
+      (target) => target.languageId === configuration.languageId,
+    )
+      ? `${configuration.name} selected. Attach to the matching running task.`
+      : `${configuration.name} selected. Start a debuggable ${configuration.languageId} task first.`;
+    configureDebugLanguageFields();
+    updateDebugControls();
+    return;
+  }
   byId<HTMLInputElement>("debug-program").value = configuration.program ?? "";
   byId<HTMLInputElement>("debug-main-class").value = configuration.mainClass ?? "";
   byId<HTMLInputElement>("debug-working-directory").value = configuration.workingDirectory;
   byId<HTMLInputElement>("debug-arguments").value = JSON.stringify(configuration.arguments);
   byId<HTMLInputElement>("debug-stop-on-entry").checked = configuration.stopOnEntry;
+  byId("debug-launch-config-status").textContent = `${configuration.name} launch settings loaded.`;
   configureDebugLanguageFields();
+  updateDebugControls();
 }
 
 function clearDebugLaunchConfigurations(): void {
@@ -1261,37 +1347,47 @@ function handleDapMessage(socket: WebSocket, payload: string): void {
   }
 }
 
-async function startDebugSession(): Promise<void> {
+async function startDebugSession(attachTargetId?: string): Promise<void> {
   const workspace = state.workspace;
   if (!workspace) return;
-  if (state.debugSession) await stopDebugSession(false);
-  const languageId = byId<HTMLSelectElement>("debug-language").value;
-  let argumentsList: unknown;
-  try {
-    argumentsList = JSON.parse(byId<HTMLInputElement>("debug-arguments").value || "[]") as unknown;
-  } catch {
-    throw new Error("Arguments must be a JSON array of strings, such as [\"--inspect\"].");
+  if (state.debugSession && !await stopDebugSession(true)) return;
+  let requestMode: "launch" | "attach" = attachTargetId ? "attach" : "launch";
+  let requestBody: Record<string, unknown>;
+  if (attachTargetId) {
+    requestBody = { targetId: attachTargetId };
+  } else {
+    const languageId = byId<HTMLSelectElement>("debug-language").value;
+    let argumentsList: unknown;
+    try {
+      argumentsList = JSON.parse(byId<HTMLInputElement>("debug-arguments").value || "[]") as unknown;
+    } catch {
+      throw new Error("Arguments must be a JSON array of strings, such as [\"--inspect\"].");
+    }
+    if (!Array.isArray(argumentsList) || argumentsList.some((value) => typeof value !== "string")) {
+      throw new Error("Arguments must be a JSON array of strings.");
+    }
+    requestBody = {
+      languageId,
+      program: languageId === "java" ? null : byId<HTMLInputElement>("debug-program").value.trim(),
+      mainClass: languageId === "java" ? byId<HTMLInputElement>("debug-main-class").value.trim() : null,
+      arguments: argumentsList,
+      workingDirectory: byId<HTMLInputElement>("debug-working-directory").value.trim() || ".",
+      stopOnEntry: byId<HTMLInputElement>("debug-stop-on-entry").checked,
+    };
   }
-  if (!Array.isArray(argumentsList) || argumentsList.some((value) => typeof value !== "string")) {
-    throw new Error("Arguments must be a JSON array of strings.");
-  }
-  const request = {
-    languageId,
-    program: languageId === "java" ? null : byId<HTMLInputElement>("debug-program").value.trim(),
-    mainClass: languageId === "java" ? byId<HTMLInputElement>("debug-main-class").value.trim() : null,
-    arguments: argumentsList,
-    workingDirectory: byId<HTMLInputElement>("debug-working-directory").value.trim() || ".",
-    stopOnEntry: byId<HTMLInputElement>("debug-stop-on-entry").checked,
-  };
   const { body: session } = await api<DebugSession>(
-    `/api/v1/workspaces/${workspace.workspaceId}/debug-sessions`,
-    { method: "POST", body: JSON.stringify(request) },
+    `/api/v1/workspaces/${workspace.workspaceId}/debug-sessions${attachTargetId ? "/attach" : ""}`,
+    { method: "POST", body: JSON.stringify(requestBody) },
   );
   if (state.workspace?.workspaceId !== workspace.workspaceId) {
     await api(`/api/v1/workspaces/${workspace.workspaceId}/debug-sessions/${session.id}/stop`, { method: "POST" }).catch(() => undefined);
     return;
   }
   state.debugSession = session;
+  if (attachTargetId) {
+    byId<HTMLSelectElement>("debug-language").value = session.languageId;
+    configureDebugLanguageFields();
+  }
   state.debugInitialized = false;
   state.debugSequence = 0;
   state.dapEarlyEvents.clear();
@@ -1313,7 +1409,7 @@ async function startDebugSession(): Promise<void> {
       supportsVariablePaging: true,
       supportsRunInTerminalRequest: false,
     });
-    const launchResponse = dapRequest("launch", {});
+    const startResponse = dapRequest(requestMode, {});
     await waitForDapEvent("initialized");
     state.debugInitialized = true;
     const selectedBreakpointPath =
@@ -1323,7 +1419,7 @@ async function startDebugSession(): Promise<void> {
     if (initialize.body?.supportsConfigurationDoneRequest !== false) {
       await dapRequest("configurationDone", {});
     }
-    await launchResponse;
+    await startResponse;
     await refreshDebugThread();
     setDebugState("Running");
   } catch (failure) {
@@ -1377,8 +1473,32 @@ async function refreshDebugSessions(): Promise<void> {
   updateDebugControls();
 }
 
-async function stopDebugSession(notifyFailure: boolean): Promise<void> {
+async function stopDebugSession(notifyFailure: boolean): Promise<boolean> {
   const session = state.debugSession;
+  if (session) {
+    try {
+      const { body: stopped } = await api<DebugSession>(
+        `/api/v1/workspaces/${session.workspaceId}/debug-sessions/${session.id}/stop`,
+        { method: "POST" },
+      );
+      if (stopped.state === "FAILED") {
+        state.debugSession = stopped;
+        setDebugState(
+          stopped.error || "The debugger did not confirm disconnect; the workspace task is still running.",
+        );
+        updateDebugControls();
+        if (notifyFailure) {
+          toast(stopped.error || "The debugger did not confirm disconnect.", "error");
+        }
+        return false;
+      }
+    } catch (failure) {
+      setDebugState(`Stop request failed: ${errorText(failure)}`);
+      updateDebugControls();
+      if (notifyFailure) toast(`Could not stop debugging: ${errorText(failure)}`, "error");
+      return false;
+    }
+  }
   state.debugSession = null;
   state.debugInitialized = false;
   const socket = state.debugSocket;
@@ -1387,15 +1507,9 @@ async function stopDebugSession(notifyFailure: boolean): Promise<void> {
   rejectDebugRequests("The debug session was stopped.");
   state.dapEarlyEvents.clear();
   clearDebugInspectors();
-  if (session) {
-    try {
-      await api(`/api/v1/workspaces/${session.workspaceId}/debug-sessions/${session.id}/stop`, { method: "POST" });
-    } catch (failure) {
-      if (notifyFailure) toast(`Could not stop debugging: ${errorText(failure)}`, "error");
-    }
-  }
   setDebugState("Not running");
   updateDebugControls();
+  return true;
 }
 
 async function applyDebugBreakpoints(showToast = true): Promise<void> {
@@ -2415,11 +2529,17 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
   await refreshTerminalSessions();
 }
 
-function backToWorkspaces(navigate = true): void {
+async function backToWorkspaces(navigate = true): Promise<void> {
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
-      && !window.confirm("Some files have unsaved changes. Leave the workspace?")) return;
+      && !window.confirm("Some files have unsaved changes. Leave this workspace?")) return;
   flushLocalDrafts();
-  void stopDebugSession(false);
+  if (!await stopDebugSession(true)) {
+    const currentWorkspaceId = state.workspace?.workspaceId;
+    if (!navigate && currentWorkspaceId) {
+      history.replaceState({ workspaceId: currentWorkspaceId }, "", `#workspace/${currentWorkspaceId}`);
+    }
+    return;
+  }
   void closeTerminal(false);
   clearWorkspaceSearch();
   resetGitPanel();
@@ -2428,6 +2548,8 @@ function backToWorkspaces(navigate = true): void {
   state.activePath = null;
   state.selectedPath = null;
   state.workspace = null;
+  state.debugTargets = [];
+  renderDebugTargets();
   clearDebugLaunchConfigurations();
   state.previewPort = null;
   state.previewUrl = null;
@@ -2460,6 +2582,7 @@ function wireUi(): void {
     if ((event.currentTarget as HTMLAnchorElement).getAttribute("aria-disabled") === "true") event.preventDefault();
   });
   byId<HTMLSelectElement>("debug-language").addEventListener("change", configureDebugLanguageFields);
+  byId<HTMLSelectElement>("debug-attach-target").addEventListener("change", updateDebugControls);
   byId<HTMLButtonElement>("debug-load-launch-config").addEventListener("click", async (event) => {
     const control = event.currentTarget as HTMLButtonElement;
     control.disabled = true;
@@ -2473,6 +2596,10 @@ function wireUi(): void {
   byId<HTMLButtonElement>("debug-start").addEventListener("click", () =>
     startDebugSession().catch((failure) => toast(errorText(failure), "error")),
   );
+  byId<HTMLButtonElement>("debug-attach").addEventListener("click", () => {
+    const targetId = byId<HTMLSelectElement>("debug-attach-target").value;
+    if (targetId) startDebugSession(targetId).catch((failure) => toast(errorText(failure), "error"));
+  });
   byId<HTMLButtonElement>("debug-reconnect").addEventListener("click", () =>
     reconnectDebugSession().catch((failure) => toast(errorText(failure), "error")),
   );
@@ -2533,7 +2660,7 @@ function wireUi(): void {
   byId("refresh-preview-ports").addEventListener("click", () =>
     refreshPortStatuses().catch((failure) => toast(errorText(failure), "error")),
   );
-  byId("back-home").addEventListener("click", () => backToWorkspaces());
+  byId("back-home").addEventListener("click", () => void backToWorkspaces());
   byId("terminal-new").addEventListener("click", () => openTerminal().catch((failure) => toast(errorText(failure), "error")));
   byId("terminal-opencode").addEventListener("click", () => launchOpenCode().catch((failure) => toast(errorText(failure), "error")));
   byId("opencode-update").addEventListener("click", () => updateOpenCode().catch((failure) => toast(errorText(failure), "error")));
@@ -2571,7 +2698,7 @@ function wireUi(): void {
 function restoreWorkspaceFromLocation(): void {
   const match = /^#workspace\/([^/]+)$/.exec(window.location.hash);
   if (!match) {
-    if (state.workspace) backToWorkspaces(false);
+    if (state.workspace) void backToWorkspaces(false);
     return;
   }
   const workspaceId = match[1];
