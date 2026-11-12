@@ -5,6 +5,7 @@
 
 export interface DebugLaunchConfiguration {
   name: string;
+  request: "launch" | "attach";
   languageId: "node" | "python" | "java" | "cpp" | "go" | "rust";
   program: string | null;
   mainClass: string | null;
@@ -56,7 +57,16 @@ export function parseDebugLaunchConfigurations(content: string): DebugLaunchConf
   const names = new Set<string>();
   return value.configurations.map((item, index) => {
     const label = `configuration ${index + 1}`;
-    if (!isRecord(item) || hasUnknownKeys(item, configurationKeys)) {
+    if (!isRecord(item)) {
+      throw new Error(`${label} contains unsupported fields.`);
+    }
+    if (
+      item.request === "attach"
+      && hasUnknownKeys(item, new Set(["name", "type", "request"]))
+    ) {
+      throw new Error(`${label} attach entries may define only name, type, and request.`);
+    }
+    if (hasUnknownKeys(item, configurationKeys)) {
       throw new Error(`${label} contains unsupported fields.`);
     }
     const name = item.name;
@@ -64,13 +74,29 @@ export function parseDebugLaunchConfigurations(content: string): DebugLaunchConf
     if (typeof name !== "string" || name.trim().length === 0 || name.length > 128 || names.has(name)) {
       throw new Error(`${label} must have a unique name of at most 128 characters.`);
     }
-    if (item.request !== "launch") {
-      throw new Error(`${label} must use request "launch"; attach is not supported.`);
-    }
     if (!languageId) {
       throw new Error(`${label} uses an unsupported debugger type.`);
     }
     names.add(name);
+
+    if (item.request === "attach") {
+      if (hasUnknownKeys(item, new Set(["name", "type", "request"]))) {
+        throw new Error(`${label} attach entries may define only name, type, and request.`);
+      }
+      return {
+        name,
+        request: "attach",
+        languageId,
+        program: null,
+        mainClass: null,
+        workingDirectory: ".",
+        arguments: [],
+        stopOnEntry: false,
+      };
+    }
+    if (item.request !== "launch") {
+      throw new Error(`${label} request must be "launch" or "attach".`);
+    }
 
     const workingDirectory =
       item.cwd === undefined ? "." : workspaceRelativePath(item.cwd, `${label} cwd`, true);
@@ -97,6 +123,7 @@ export function parseDebugLaunchConfigurations(content: string): DebugLaunchConf
       }
       return {
         name,
+        request: "launch",
         languageId,
         program: null,
         mainClass: item.mainClass,
@@ -111,6 +138,7 @@ export function parseDebugLaunchConfigurations(content: string): DebugLaunchConf
     const program = workspaceRelativePath(item.program, `${label} program`, false);
     return {
       name,
+      request: "launch",
       languageId,
       program,
       mainClass: null,
