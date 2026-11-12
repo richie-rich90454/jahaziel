@@ -6,7 +6,13 @@
   "ports": [3000],
   "languagePacks": ["typescript"],
   "runTasks": [
-    { "id": "start", "label": "Start preview server", "command": ["node", "src/server.js"], "port": 3000 },
+    {
+      "id": "start",
+      "label": "Start preview server",
+      "command": ["node", "src/server.js"],
+      "port": 3000,
+      "debug": { "language": "node", "executable": "node", "program": "src/server.js" }
+    },
     { "id": "typescript-example", "label": "Run TypeScript example", "command": ["node", "src/index.ts"] }
   ],
   "starterFiles": {
