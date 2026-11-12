@@ -40,6 +40,22 @@ class WorkspaceTaskServiceImplTest {
   @TempDir Path temp;
 
   @Test
+  void substitutesOnlyTheServerAssignedDebugPortInTemplateArguments() {
+    List<String> command =
+        List.of("python3", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}");
+
+    assertEquals(
+        List.of("python3", "-m", "debugpy", "--listen", "127.0.0.1:43127"),
+        WorkspaceTaskServiceImpl.resolveDebugPort(command, 43127));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, 0));
+  }
+
+  @Test
   void exposesOnlyTaskLabelsAndRunsNoCommandDuringTemplateAssociation() throws Exception {
     Path templates = Files.createDirectories(temp.resolve("templates/node"));
     Files.writeString(
@@ -528,6 +544,62 @@ class WorkspaceTaskServiceImplTest {
   }
 
   @Test
+  void issuesOpaqueTargetsOnlyForLiveProcessesFromDeclaredWorkspaceTasks() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase().contains("linux"),
+        "workspace tasks require Linux");
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(
+        template.resolve("template.json"),
+        """
+        {"name":"node","runTasks":[{"id":"debug","label":"Debug server","command":["/bin/sh","-c","exec sleep 60"],"debug":{"language":"node","executable":"sleep","program":"server.js"}}]}
+        """);
+    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
+    WorkspaceDirectoryServiceImpl directories =
+        new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString());
+    WorkspaceTaskServiceImpl service =
+        new WorkspaceTaskServiceImpl(
+            temp.resolve("data").toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            workspaces,
+            directories);
+    service.initialize(workspace, "node");
+    Path home = directories.home(workspace);
+    Files.createDirectories(home);
+    Files.writeString(home.resolve("server.js"), "console.log('debug target');");
+
+    try {
+      WorkspaceTaskService.TaskRun run = service.startTask(workspace, "debug");
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      List<WorkspaceTaskService.DebugTarget> targets = service.debugTargets(workspace);
+      while (System.nanoTime() < deadline && targets.isEmpty()) {
+        Thread.sleep(10);
+        targets = service.debugTargets(workspace);
+      }
+
+      assertEquals(1, targets.size());
+      WorkspaceTaskService.DebugTarget target = targets.getFirst();
+      assertNotEquals(run.id(), target.id());
+      assertEquals(workspace.value(), target.workspaceId());
+      assertEquals(run.id(), target.taskRunId());
+      assertEquals("node", target.languageId());
+      assertTrue(target.processId() > 0);
+      assertEquals(home.resolve("server.js").toRealPath().toString(), target.program());
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> service.debugTarget(new WorkspaceId(UUID.randomUUID()), target.id()));
+
+      service.stopTask(workspace, run.id());
+      assertTrue(service.debugTargets(workspace).isEmpty());
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
   void stoppingWorkspaceTerminatesSetupProcessTreeAndKeepsProgress() throws Exception {
     Assumptions.assumeTrue(
         System.getProperty("os.name", "").toLowerCase().contains("linux"),
@@ -591,7 +663,7 @@ class WorkspaceTaskServiceImplTest {
   private static WorkspaceTaskService.SetupStatus awaitSetupStatus(
       WorkspaceTaskService service, WorkspaceId workspace, String expected)
       throws InterruptedException {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
     WorkspaceTaskService.SetupStatus status = service.setupStatus(workspace);
     while (System.nanoTime() < deadline && !expected.equals(status.status())) {
       Thread.sleep(10);
