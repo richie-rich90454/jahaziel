@@ -39,11 +39,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +69,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
   private static final int MAX_DAP_HEADER_BYTES = 8192;
   private static final int MAX_REPLAY_BYTES = 1024 * 1024;
   private static final int MAX_RECENT_SESSIONS = 128;
+  private static final AtomicInteger SERVER_DAP_SEQUENCE = new AtomicInteger(1_000_000_000);
   private static final Set<String> ALLOWED_CLIENT_REQUESTS =
       Set.of(
           "initialize",
@@ -240,7 +245,12 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       active.values().stream()
           .filter(session -> session.workspaceId.equals(workspaceId))
           .toList()
-          .forEach(session -> session.close("STOPPED", "workspace stopped"));
+          .forEach(
+              session -> {
+                session.close("STOPPED", "workspace stopped");
+                session.closeAdapterAfterFailedDetach(
+                    "workspace stopped before debugger disconnect was confirmed");
+              });
     }
   }
 
@@ -260,7 +270,12 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     synchronized (active) {
       active.values().stream()
           .toList()
-          .forEach(session -> session.close("STOPPED", "server stopped"));
+          .forEach(
+              session -> {
+                session.close("STOPPED", "server stopped");
+                session.closeAdapterAfterFailedDetach(
+                    "server stopped before debugger disconnect was confirmed");
+              });
     }
     readers.shutdownNow();
   }
@@ -288,12 +303,12 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         cwd = home;
         if (attachTarget.program() != null) {
           program = Path.of(attachTarget.program()).toRealPath();
-          if (!program.startsWith(home) || !Files.isRegularFile(program, LinkOption.NOFOLLOW_LINKS)) {
+          if (!program.startsWith(home)
+              || !Files.isRegularFile(program, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("debug target program is outside the workspace");
           }
         }
-        if (Set.of("java", "python").contains(languageId)
-            && attachTarget.debugPort() == null) {
+        if (Set.of("java", "python").contains(languageId) && attachTarget.debugPort() == null) {
           throw new IOException("debug target has no loopback debug port");
         }
       }
@@ -564,7 +579,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     try {
       String payload;
       while ((payload = readDapMessage(session.input)) != null) {
-        session.publish(normalizeAdapterMessage(session, payload));
+        String normalized = normalizeAdapterMessage(session, payload);
+        session.publish(normalized);
+        session.observeServerResponse(normalized);
       }
       if (!session.closed) session.close("EXITED", "debug adapter closed its DAP stream");
     } catch (IOException failure) {
@@ -822,6 +839,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     private final Socket socket;
     private final InputStream input;
     private final OutputStream output;
+    private final Map<Integer, CompletableFuture<Boolean>> pendingServerResponses =
+        new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
     private final Deque<String> replay = new ArrayDeque<>();
     private int replayBytes;
@@ -911,6 +930,23 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
 
     private synchronized void close(String finalState, String safeError) {
       if (closed) return;
+      if (attachTarget != null && !detachTarget()) {
+        state = "FAILED";
+        error = "debug adapter did not confirm disconnect; workspace task was left untouched";
+        log.warn(
+            "debug adapter did not confirm detach sessionId={} workspaceId={}", id, workspaceId);
+        remember(view());
+        return;
+      }
+      finishClose(finalState, safeError);
+    }
+
+    private synchronized void closeAdapterAfterFailedDetach(String safeError) {
+      if (closed) return;
+      finishClose("FAILED", safeError);
+    }
+
+    private void finishClose(String finalState, String safeError) {
       closed = true;
       state = finalState;
       error = safeError;
@@ -924,5 +960,53 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
       remember(view());
       listeners.clear();
     }
+
+    private void observeServerResponse(String payload) {
+      try {
+        JsonNode message = json.readTree(payload);
+        if (!message.path("type").asString("").equals("response")
+            || !message.path("request_seq").canConvertToInt()) return;
+        CompletableFuture<Boolean> response =
+            pendingServerResponses.get(message.path("request_seq").intValue());
+        if (response != null) response.complete(message.path("success").asBoolean(false));
+      } catch (JacksonException invalid) {
+        // Adapter messages are validated before they reach this observer.
+      }
+    }
+
+    private boolean detachTarget() {
+      if (!process.isAlive()) return true;
+      int sequence = nextServerDapSequence();
+      CompletableFuture<Boolean> response = new CompletableFuture<>();
+      pendingServerResponses.put(sequence, response);
+      try {
+        ObjectNode disconnect = json.createObjectNode();
+        disconnect.put("seq", sequence);
+        disconnect.put("type", "request");
+        disconnect.put("command", "disconnect");
+        ObjectNode arguments = disconnect.putObject("arguments");
+        arguments.put("terminateDebuggee", false);
+        arguments.put("suspendDebuggee", false);
+        writeDapMessage(output, json.writeValueAsBytes(disconnect));
+        if (!response.get(2, TimeUnit.SECONDS)) return false;
+        if (!process.waitFor(500, TimeUnit.MILLISECONDS)) stopProcess(process);
+        return true;
+      } catch (IOException failure) {
+        log.debug("could not send DAP detach request sessionId={}", id);
+        return false;
+      } catch (ExecutionException | TimeoutException failure) {
+        return false;
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        return false;
+      } finally {
+        pendingServerResponses.remove(sequence, response);
+      }
+    }
+  }
+
+  private static int nextServerDapSequence() {
+    return SERVER_DAP_SEQUENCE.updateAndGet(
+        current -> current >= Integer.MAX_VALUE - 1 ? 1_000_000_000 : current + 1);
   }
 }
