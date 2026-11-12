@@ -3,15 +3,25 @@
   "description": "Go starter with one runnable package.",
   "vcpuCount": 2,
   "memoryMib": 4096,
-  "ports": [],
+  "ports": [8080],
   "languagePacks": ["go"],
   "runTasks": [
-    { "id": "run", "label": "Run Go application", "command": ["go", "run", "."] },
+    {
+      "id": "run",
+      "label": "Start Go preview server",
+      "command": [
+        "/bin/sh",
+        "-lc",
+        "go build -gcflags=\"all=-N -l\" -o .jahaziel-app . && exec ./.jahaziel-app"
+      ],
+      "port": 8080,
+      "debug": { "language": "go", "executable": ".jahaziel-app", "program": ".jahaziel-app" }
+    },
     { "id": "test", "label": "Run Go tests", "command": ["go", "test", "./..."] }
   ],
   "starterFiles": {
-    "README.md": "# Go\n\nRun with `go run .`.\n",
+    "README.md": "# Go\n\nStart the preview server from the Run panel. It listens on port 8080 and supports attach debugging while it is running.\n",
     "go.mod": "module example.com/jahaziel-app\n\ngo 1.23\n",
-    "main.go": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Jahaziel\")\n}\n"
+    "main.go": "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"os\"\n)\n\nfunc main() {\n\tport := os.Getenv(\"PORT\")\n\tif port == \"\" { port = \"8080\" }\n\thttp.HandleFunc(\"/\", func(w http.ResponseWriter, _ *http.Request) {\n\t\tw.Header().Set(\"Content-Type\", \"text/html; charset=utf-8\")\n\t\tfmt.Fprintln(w, \"<!doctype html><html><meta charset='utf-8'><title>Go workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit main.go and reload this preview.</p></body></html>\")\n\t})\n\taddress := \":\" + port\n\tfmt.Println(\"Listening on 0.0.0.0\" + address)\n\tif err := http.ListenAndServe(\"0.0.0.0\"+address, nil); err != nil { panic(err) }\n}\n"
   }
 }
