@@ -79,23 +79,43 @@ adapter is unavailable.
 Start a workspace, then enter a workspace-relative program path (or Java
 main class), working directory, and JSON argument array. To use a supported
 `.vscode/launch.json` entry, select **Load .vscode/launch.json**, then choose a
-configuration; its fields populate the launch form. Unsupported fields and
-attach configurations are rejected. **Start debugging** opens a
-workspace-scoped session. Use **Set** to send comma-separated line numbers
-for a workspace-relative file, or tap/click a line number in the editor to
-toggle a breakpoint in that source file. Gutter markers and the breakpoint
-list stay in sync across open files and are re-sent when the DAP stream
-reconnects. Use Continue, Pause, and the step controls. Select a call-stack
-frame to inspect its variables; add watch expressions or evaluate an
-expression in the debug console. If the browser disconnects while the adapter
-remains active, use **Reconnect** to resume the DAP stream. Stop the session
-when finished.
+configuration. Launch entries populate the launch form. Attach entries select
+the matching server-managed task target. An attach entry may contain only
+`name`, `type`, and `request`; Jahaziel rejects process ids, host names, ports,
+commands, and other arbitrary attach fields.
 
-This is a launch-only debugger slice. It does not attach to existing
-processes, launch external terminals, or install or update adapters. Adapters
-run as the Jahaziel service account, with the same trusted-user boundary as
-terminals and tasks. See the
-[supported launch configuration subset](./configuration.md#debug-adapters).
+The Node, Python, Java, C/C++, Go, and Rust starter templates provide a
+long-running preview task that can be attached from **Attach to a running
+task**. Run the task first, wait for it to appear in the picker, then select
+**Attach**. Only a live process started by a server-declared debuggable task is
+eligible. The browser receives an opaque target id; Jahaziel resolves its
+process and adapter arguments on the server. Stopping an attached debug
+session sends a detach request and leaves the task running.
+If the adapter does not confirm disconnect, the failed session stays visible
+so you can retry; Jahaziel leaves the workspace task untouched.
+
+Python workspace setup creates a local `.venv` and installs the pinned
+`debugpy` dependency; setup needs access to PyPI. Python attach uses a
+loopback `debugpy` endpoint. Java uses a
+server-assigned loopback JDWP port. Node uses the adapter's process attach
+support. Go, C/C++, and Rust attach to the task process through the configured
+Delve or LLDB adapter. Linux ptrace policy can restrict adapters attaching to
+a process started by a sibling service process; the server administrator must
+ensure the host allows this trusted-service debugging workflow. See the
+[Linux Yama ptrace documentation](https://docs.kernel.org/admin-guide/LSM/Yama.html).
+
+Use **Set** to send comma-separated line numbers for a workspace-relative
+file, or tap/click a line number in the editor to toggle a breakpoint in that
+source file. Gutter markers and the breakpoint list stay in sync across open
+files and are re-sent when the DAP stream reconnects. Use Continue, Pause, and
+the step controls. Select a call-stack frame to inspect its variables; add
+watch expressions or evaluate an expression in the debug console. If the
+browser disconnects while the adapter remains active, use **Reconnect** to
+resume the DAP stream.
+
+Adapters and debug-enabled tasks run as the Jahaziel service account, with the
+same trusted-user boundary as terminals and workspace tasks. See the
+[supported launch and attach configuration subset](./configuration.md#debug-adapters).
 
 ## Workspace states
 
