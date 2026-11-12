@@ -61,6 +61,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       Set.of("cpp", "java", "go", "rust", "typescript", "python");
   private static final Set<String> DEBUG_LANGUAGE_IDS =
       Set.of("node", "python", "java", "cpp", "go", "rust");
+  private static final Set<String> DEBUG_PORT_LANGUAGE_IDS = Set.of("java", "python");
+  private static final String DEBUG_PORT_PLACEHOLDER = "${JAHZIEL_DEBUG_PORT}";
   private static final Map<String, String> PACKAGE_SCRIPT_LABELS =
       Map.of(
           "dev", "Start development server",
@@ -338,9 +340,18 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       return null;
     }
     String command = process.info().command().orElse("");
-    if (command.isBlank() || !Path.of(command).getFileName().toString().equals(definition.debug().executable())) {
+    Path commandPath;
+    try {
+      commandPath = command.isBlank() ? null : Path.of(command).getFileName();
+    } catch (RuntimeException invalidCommand) {
       return null;
     }
+    if (commandPath == null || !isDebugExecutable(commandPath, definition.debug())) {
+      return null;
+    }
+    Integer debugPort = debugPortsByRun.get(runId);
+    if (DEBUG_PORT_LANGUAGE_IDS.contains(definition.debug().language())
+        && (debugPort == null || debugPort < 1 || debugPort > 65535)) return null;
     String program = null;
     if (definition.debug().program() != null) {
       try {
@@ -362,7 +373,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         definition.debug().language(),
         definition.label(),
         process.pid(),
-        debugPortsByRun.get(runId),
+        debugPort,
         program);
   }
 
@@ -397,8 +408,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (node == null || node.isNull()) return null;
     String language = node.path("language").asString("");
     String executable = node.path("executable").asString("");
-    if (!DEBUG_LANGUAGE_IDS.contains(language)
-        || !executable.matches("[A-Za-z0-9._-]{1,128}")) {
+    if (!DEBUG_LANGUAGE_IDS.contains(language) || !executable.matches("[A-Za-z0-9._-]{1,128}")) {
       throw new IllegalArgumentException("template task has an invalid debug definition");
     }
     String program = null;
@@ -673,14 +683,15 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       throw new IllegalArgumentException("task preview port must be between 1 and 65535");
     }
     Integer debugPort = null;
-    if (selected.debug() != null
-        && Set.of("java", "python").contains(selected.debug().language())) {
+    if (selected.debug() != null && DEBUG_PORT_LANGUAGE_IDS.contains(selected.debug().language())) {
       try {
         debugPort = availableLoopbackPort();
       } catch (IOException failure) {
         throw new IllegalStateException("a Java debug port is unavailable", failure);
       }
     }
+    List<String> taskCommand =
+        selected.debug() == null ? command : resolveDebugPort(command, debugPort);
     synchronized (lock(workspaceId.value())) {
       if (stoppingWorkspaces.contains(workspaceId.value())) {
         throw new IllegalStateException("workspace is stopping");
@@ -713,9 +724,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
           .daemon()
           .name("workspace-task-" + runId)
           .start(
-              () ->
-                  executeTask(
-                      workspaceId, runId, command, previewPort, selectedDebugPort));
+              () -> executeTask(workspaceId, runId, taskCommand, previewPort, selectedDebugPort));
       return taskRunFor(workspaceId, metadata(workspaceId));
     }
   }
@@ -1058,6 +1067,25 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
   }
 
+  static List<String> resolveDebugPort(List<String> command, Integer debugPort) {
+    boolean usesDebugPort =
+        command.stream().anyMatch(value -> value.contains(DEBUG_PORT_PLACEHOLDER));
+    if (!usesDebugPort) return command;
+    if (debugPort == null || debugPort < 1 || debugPort > 65535) {
+      throw new IllegalArgumentException(
+          "template task requires a valid server-assigned debug port");
+    }
+    return command.stream()
+        .map(value -> value.replace(DEBUG_PORT_PLACEHOLDER, Integer.toString(debugPort)))
+        .toList();
+  }
+
+  private static boolean isDebugExecutable(Path commandPath, TaskDebugDefinition debug) {
+    String name = commandPath.toString();
+    if (name.equals(debug.executable())) return true;
+    return debug.language().equals("python") && name.matches("python(?:3(?:\\.\\d+)*)?");
+  }
+
   private void forgetDebugTarget(UUID runId) {
     taskDefinitionsByRun.remove(runId);
     taskWorkspacesByRun.remove(runId);
@@ -1362,11 +1390,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private record TaskDefinition(
-      String id,
-      String label,
-      Integer port,
-      List<String> command,
-      TaskDebugDefinition debug) {}
+      String id, String label, Integer port, List<String> command, TaskDebugDefinition debug) {}
 
   private record TaskDebugDefinition(String language, String executable, String program) {}
 
