@@ -8,12 +8,18 @@
   "runTasks": [
     {
       "id": "run",
-      "label": "Compile and run Java program",
-      "command": ["/bin/sh", "-lc", "javac Main.java && java Main"]
+      "label": "Compile and start Java preview server",
+      "command": [
+        "/bin/sh",
+        "-lc",
+        "javac -g Main.java && exec java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:$JAHZIEL_DEBUG_PORT Main"
+      ],
+      "port": 8080,
+      "debug": { "language": "java", "executable": "java" }
     }
   ],
   "starterFiles": {
-    "README.md": "# Java\n\nCompile with `javac Main.java` and run with `java Main`.\n",
-    "Main.java": "public class Main {\n  public static void main(String[] args) {\n    System.out.println(\"Hello from Jahaziel\");\n  }\n}\n"
+    "README.md": "# Java\n\nStart the preview server from the Run panel. The app listens on port 8080 and supports attach debugging while it is running.\n",
+    "Main.java": "import com.sun.net.httpserver.HttpServer;\nimport java.net.InetSocketAddress;\nimport java.nio.charset.StandardCharsets;\n\npublic class Main {\n  public static void main(String[] args) throws Exception {\n    int port = Integer.parseInt(System.getenv().getOrDefault(\"PORT\", \"8080\"));\n    HttpServer server = HttpServer.create(new InetSocketAddress(\"0.0.0.0\", port), 0);\n    server.createContext(\"/\", exchange -> {\n      byte[] body = \"<!doctype html><html><meta charset='utf-8'><title>Java workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit Main.java and reload this preview.</p></body></html>\\n\".getBytes(StandardCharsets.UTF_8);\n      exchange.getResponseHeaders().set(\"Content-Type\", \"text/html; charset=utf-8\");\n      exchange.sendResponseHeaders(200, body.length);\n      try (var output = exchange.getResponseBody()) { output.write(body); }\n    });\n    server.start();\n    System.out.println(\"Listening on 0.0.0.0:\" + port);\n    Thread.currentThread().join();\n  }\n}\n"
   }
 }
