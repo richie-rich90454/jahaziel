@@ -3,15 +3,21 @@
   "description": "Rust starter with no external crates.",
   "vcpuCount": 2,
   "memoryMib": 4096,
-  "ports": [],
+  "ports": [8080],
   "languagePacks": ["rust"],
   "runTasks": [
-    { "id": "run", "label": "Run Rust application", "command": ["cargo", "run"] },
+    {
+      "id": "run",
+      "label": "Start Rust preview server",
+      "command": ["/bin/sh", "-lc", "cargo build && exec target/debug/jahaziel-app"],
+      "port": 8080,
+      "debug": { "language": "rust", "executable": "jahaziel-app", "program": "target/debug/jahaziel-app" }
+    },
     { "id": "test", "label": "Run Rust tests", "command": ["cargo", "test"] }
   ],
   "starterFiles": {
-    "README.md": "# Rust\n\nBuild and run with `cargo run`.\n",
+    "README.md": "# Rust\n\nStart the preview server from the Run panel. It listens on port 8080 and supports attach debugging while it is running.\n",
     "Cargo.toml": "[package]\nname = \"jahaziel-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
-    "src/main.rs": "fn main() {\n    println!(\"Hello from Jahaziel\");\n}\n"
+    "src/main.rs": "use std::env;\nuse std::io::{Read, Write};\nuse std::net::{TcpListener, TcpStream};\n\nfn respond(mut stream: TcpStream) {\n    let mut request = [0_u8; 1024];\n    let _ = stream.read(&mut request);\n    let body = \"<!doctype html><html><meta charset='utf-8'><title>Rust workspace</title><body><h1>Hello from Jahaziel</h1><p>Edit src/main.rs and reload this preview.</p></body></html>\\n\";\n    let response = format!(\"HTTP/1.1 200 OK\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{}\", body.len(), body);\n    let _ = stream.write_all(response.as_bytes());\n}\n\nfn main() -> std::io::Result<()> {\n    let port = env::var(\"PORT\").unwrap_or_else(|_| \"8080\".to_string());\n    let listener = TcpListener::bind(format!(\"0.0.0.0:{port}\"))?;\n    println!(\"Listening on 0.0.0.0:{port}\");\n    for connection in listener.incoming() {\n        if let Ok(stream) = connection { respond(stream); }\n    }\n    Ok(())\n}\n"
   }
 }
