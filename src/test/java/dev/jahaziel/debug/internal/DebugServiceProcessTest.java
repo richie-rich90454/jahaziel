@@ -5,11 +5,13 @@
 package dev.jahaziel.debug.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -17,6 +19,8 @@ import dev.jahaziel.debug.api.DebugService;
 import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceTaskService;
+import dev.jahaziel.workspace.api.WorkspaceTaskService.DebugTarget;
 import dev.jahaziel.workspace.domain.VirtualMachine;
 import dev.jahaziel.workspace.domain.VirtualMachineConfiguration;
 import dev.jahaziel.workspace.domain.VirtualMachineId;
@@ -31,12 +35,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -87,6 +93,7 @@ class DebugServiceProcessTest {
             directories,
             workspaces,
             registry,
+            mock(WorkspaceTaskService.class),
             new ObjectMapper(),
             temporaryDirectory.resolve("data").toString());
     BlockingQueue<String> messages = new LinkedBlockingQueue<>();
@@ -123,6 +130,301 @@ class DebugServiceProcessTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> service.send(workspaceId, session.id(), request(4, unsupported, Map.of())));
+      }
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
+  @Timeout(30)
+  void attachesOnlyToAnOpaqueWorkspaceTargetAndReplacesClientProcessFields() throws Exception {
+    WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
+    Path workspaceHome = temporaryDirectory.resolve("attach-workspace");
+    Files.createDirectories(workspaceHome);
+    Workspace workspace = readyWorkspace(workspaceId);
+    WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
+    when(directories.home(workspaceId)).thenReturn(workspaceHome);
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
+    when(registry.dedicatedSessionCommand(anyList()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(registry.track(any(), any(), any()))
+        .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
+    UUID targetId = UUID.randomUUID();
+    WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
+    when(tasks.debugTarget(eq(workspaceId), eq(targetId)))
+        .thenReturn(
+            new DebugTarget(
+                targetId,
+                workspaceId.value(),
+                UUID.randomUUID(),
+                "node",
+                "Start preview server",
+                ProcessHandle.current().pid(),
+                null,
+                null));
+    Path java =
+        Path.of(
+            System.getProperty("java.home"),
+            "bin",
+            System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java");
+    DebugAdapterProperties properties =
+        new DebugAdapterProperties(
+            Map.of(
+                "node",
+                new DebugAdapterProperties.Adapter(
+                    "fixture",
+                    List.of(
+                        java.toString(),
+                        "-cp",
+                        Path.of("target", "test-classes").toAbsolutePath().toString(),
+                        FakeDapAdapter.class.getName()),
+                    DebugAdapterProperties.Transport.STDIO)));
+    DebugServiceImpl service =
+        new DebugServiceImpl(
+            properties,
+            directories,
+            workspaces,
+            registry,
+            tasks,
+            new ObjectMapper(),
+            temporaryDirectory.resolve("attach-data").toString());
+    BlockingQueue<String> messages = new LinkedBlockingQueue<>();
+    try {
+      DebugService.Session session =
+          service.attachToTarget(workspaceId, new DebugService.AttachRequest(targetId));
+      service.attach(workspaceId, session.id(), messages::add);
+      service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
+      awaitResponse(messages, 1);
+      service.send(
+          workspaceId,
+          session.id(),
+          request(
+              2,
+              "attach",
+              Map.of("processId", 999999, "hostName", "attacker.invalid", "port", 7000)));
+
+      JsonNode attached = awaitEvent(messages, "output");
+      String echo = attached.path("body").path("output").asString("");
+      assertTrue(echo.contains("processId=" + ProcessHandle.current().pid()));
+      assertTrue(
+          !echo.contains("999999") && !echo.contains("attacker.invalid") && !echo.contains("7000"));
+      assertEquals("RUNNING", service.get(workspaceId, session.id()).state());
+      assertEquals("STOPPED", service.stop(workspaceId, session.id()).state());
+      assertTrue(ProcessHandle.current().isAlive());
+      JsonNode disconnected = awaitEvent(messages, "output");
+      assertTrue(
+          disconnected
+              .path("body")
+              .path("output")
+              .asString("")
+              .contains("terminateDebuggee=false"));
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
+  @Timeout(20)
+  void retainsUnconfirmedDetachForRetryAndCleansTheAdapterWhenTheServerStops() throws Exception {
+    WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
+    Path workspaceHome = temporaryDirectory.resolve("unconfirmed-detach-workspace");
+    Files.createDirectories(workspaceHome);
+    Workspace workspace = readyWorkspace(workspaceId);
+    WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
+    when(directories.home(workspaceId)).thenReturn(workspaceHome);
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
+    when(registry.dedicatedSessionCommand(anyList()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    AtomicReference<Process> adapterProcess = new AtomicReference<>();
+    when(registry.track(any(), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              adapterProcess.set(invocation.getArgument(2));
+              return mock(WorkspaceProcessRegistry.Registration.class);
+            });
+    UUID targetId = UUID.randomUUID();
+    WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
+    when(tasks.debugTarget(eq(workspaceId), eq(targetId)))
+        .thenReturn(
+            new DebugTarget(
+                targetId,
+                workspaceId.value(),
+                UUID.randomUUID(),
+                "node",
+                "Start preview server",
+                ProcessHandle.current().pid(),
+                null,
+                null));
+    Path java =
+        Path.of(
+            System.getProperty("java.home"),
+            "bin",
+            System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java");
+    DebugAdapterProperties properties =
+        new DebugAdapterProperties(
+            Map.of(
+                "node",
+                new DebugAdapterProperties.Adapter(
+                    "fixture",
+                    List.of(
+                        java.toString(),
+                        "-cp",
+                        Path.of("target", "test-classes").toAbsolutePath().toString(),
+                        FakeDapAdapter.class.getName(),
+                        "ignore-disconnect"),
+                    DebugAdapterProperties.Transport.STDIO)));
+    DebugServiceImpl service =
+        new DebugServiceImpl(
+            properties,
+            directories,
+            workspaces,
+            registry,
+            tasks,
+            new ObjectMapper(),
+            temporaryDirectory.resolve("unconfirmed-detach-data").toString());
+    BlockingQueue<String> messages = new LinkedBlockingQueue<>();
+    try {
+      DebugService.Session session =
+          service.attachToTarget(workspaceId, new DebugService.AttachRequest(targetId));
+      service.attach(workspaceId, session.id(), messages::add);
+      service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
+      awaitResponse(messages, 1);
+      service.send(workspaceId, session.id(), request(2, "attach", Map.of()));
+      awaitEvent(messages, "output");
+
+      DebugService.Session failedStop = service.stop(workspaceId, session.id());
+
+      assertEquals("FAILED", failedStop.state());
+      assertEquals(failedStop.id(), service.get(workspaceId, session.id()).id());
+      assertTrue(adapterProcess.get().isAlive());
+      assertTrue(ProcessHandle.current().isAlive());
+    } finally {
+      service.closeAll();
+    }
+    assertFalse(adapterProcess.get().isAlive());
+  }
+
+  @Test
+  @Timeout(45)
+  void selectsTheFixedAttachShapeForEverySupportedLanguage() throws Exception {
+    WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
+    Path workspaceHome = temporaryDirectory.resolve("language-attach-workspace");
+    Files.createDirectories(workspaceHome);
+    Path executable = workspaceHome.resolve("debug-app");
+    Files.writeString(executable, "server-managed program fixture");
+    Workspace workspace = readyWorkspace(workspaceId);
+    WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
+    when(directories.home(workspaceId)).thenReturn(workspaceHome);
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspaceId)).thenReturn(workspace);
+    WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
+    when(registry.dedicatedSessionCommand(anyList()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(registry.track(any(), any(), any()))
+        .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
+    WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
+    List<String> languages = List.of("node", "python", "java", "cpp", "go", "rust");
+    Map<String, DebugTarget> targets = new HashMap<>();
+    for (int index = 0; index < languages.size(); index++) {
+      String language = languages.get(index);
+      UUID id = UUID.randomUUID();
+      Integer debugPort = language.equals("java") ? Integer.valueOf(43000) : null;
+      if (language.equals("python")) debugPort = 43001;
+      DebugTarget target =
+          new DebugTarget(
+              id,
+              workspaceId.value(),
+              UUID.randomUUID(),
+              language,
+              language + " preview task",
+              5000L + index,
+              debugPort,
+              language.equals("cpp") || language.equals("rust") ? executable.toString() : null);
+      targets.put(language, target);
+      when(tasks.debugTarget(eq(workspaceId), eq(id))).thenReturn(target);
+    }
+
+    Path java =
+        Path.of(
+            System.getProperty("java.home"),
+            "bin",
+            System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java");
+    DebugAdapterProperties.Adapter fixture =
+        new DebugAdapterProperties.Adapter(
+            "fixture",
+            List.of(
+                java.toString(),
+                "-cp",
+                Path.of("target", "test-classes").toAbsolutePath().toString(),
+                FakeDapAdapter.class.getName()),
+            DebugAdapterProperties.Transport.STDIO);
+    Map<String, DebugAdapterProperties.Adapter> configuredAdapters = new HashMap<>();
+    languages.forEach(language -> configuredAdapters.put(language, fixture));
+    DebugServiceImpl service =
+        new DebugServiceImpl(
+            new DebugAdapterProperties(configuredAdapters),
+            directories,
+            workspaces,
+            registry,
+            tasks,
+            new ObjectMapper(),
+            temporaryDirectory.resolve("language-attach-data").toString());
+    try {
+      for (String language : languages) {
+        DebugTarget target = targets.get(language);
+        BlockingQueue<String> messages = new LinkedBlockingQueue<>();
+        DebugService.Session session =
+            service.attachToTarget(workspaceId, new DebugService.AttachRequest(target.id()));
+        service.attach(workspaceId, session.id(), messages::add);
+        service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
+        awaitResponse(messages, 1);
+        service.send(
+            workspaceId,
+            session.id(),
+            request(
+                2,
+                "attach",
+                Map.of(
+                    "processId",
+                    999999,
+                    "pid",
+                    999999,
+                    "hostName",
+                    "attacker.invalid",
+                    "port",
+                    7000,
+                    "program",
+                    "/outside/attacker")));
+
+        String echo = awaitEvent(messages, "output").path("body").path("output").asString("");
+        if (List.of("node", "go").contains(language)) {
+          assertTrue(echo.contains("processId=" + target.processId()), language);
+        }
+        if (List.of("cpp", "rust").contains(language)) {
+          assertTrue(echo.contains("pid=" + target.processId()), language);
+          assertTrue(echo.contains("program=" + executable.toRealPath()), language);
+        }
+        if (language.equals("java")) {
+          assertTrue(echo.contains("hostName=127.0.0.1"), language);
+          assertTrue(echo.contains("port=" + target.debugPort()), language);
+        }
+        if (language.equals("python")) {
+          assertTrue(echo.contains("host=127.0.0.1"), language);
+          assertTrue(echo.contains("port=" + target.debugPort()), language);
+        }
+        if (language.equals("go")) assertTrue(echo.contains("mode=local"));
+        assertTrue(
+            !echo.contains("999999")
+                && !echo.contains("attacker.invalid")
+                && !echo.contains("7000")
+                && !echo.contains("/outside/attacker"),
+            language);
+        service.stop(workspaceId, session.id());
       }
     } finally {
       service.closeAll();
@@ -188,6 +490,7 @@ class DebugServiceProcessTest {
 
     public static void main(String[] args) throws Exception {
       int sequence = 1;
+      boolean ignoreDisconnect = args.length > 0 && args[0].equals("ignore-disconnect");
       while (true) {
         String payload = readFrame(System.in);
         if (payload == null) return;
@@ -220,6 +523,59 @@ class DebugServiceProcessTest {
                   + ",\"type\":\"event\",\"event\":\"output\",\"body\":{\"output\":\""
                   + escapeJson(launchProgram)
                   + "\"}}");
+        } else if (command.equals("attach")) {
+          String processId = value(payload, "processId");
+          String pid = value(payload, "pid");
+          String host = value(payload, "host");
+          String hostName = value(payload, "hostName");
+          String port = value(payload, "port");
+          String program = value(payload, "program");
+          String mode = value(payload, "mode");
+          writeFrame(
+              System.out,
+              "{\"seq\":" + sequence++ + ",\"type\":\"event\",\"event\":\"initialized\"}");
+          writeFrame(
+              System.out,
+              "{\"seq\":"
+                  + sequence++
+                  + ",\"type\":\"response\",\"request_seq\":"
+                  + requestSequence
+                  + ",\"command\":\"attach\",\"success\":true}");
+          writeFrame(
+              System.out,
+              "{\"seq\":"
+                  + sequence++
+                  + ",\"type\":\"event\",\"event\":\"output\",\"body\":{\"output\":\"processId="
+                  + processId
+                  + ";pid="
+                  + pid
+                  + ";host="
+                  + host
+                  + ";hostName="
+                  + hostName
+                  + ";port="
+                  + port
+                  + ";program="
+                  + escapeJson(program)
+                  + ";mode="
+                  + mode
+                  + "\"}}");
+        } else if (command.equals("disconnect")) {
+          if (ignoreDisconnect) continue;
+          writeFrame(
+              System.out,
+              "{\"seq\":"
+                  + sequence++
+                  + ",\"type\":\"event\",\"event\":\"output\",\"body\":{\"output\":\"terminateDebuggee="
+                  + value(payload, "terminateDebuggee")
+                  + "\"}}");
+          writeFrame(
+              System.out,
+              "{\"seq\":"
+                  + sequence++
+                  + ",\"type\":\"response\",\"request_seq\":"
+                  + requestSequence
+                  + ",\"command\":\"disconnect\",\"success\":true}");
         } else if (command.equals("stackTrace")) {
           writeFrame(
               System.out,
@@ -267,6 +623,8 @@ class DebugServiceProcessTest {
         }
         return result.toString();
       }
+      if (json.startsWith("true", start)) return "true";
+      if (json.startsWith("false", start)) return "false";
       int end = start;
       while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
       return json.substring(start, end);
