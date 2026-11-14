@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Database-backed DevConnect login. Transactional, so Spring proxies it. */
@@ -132,6 +133,7 @@ public class DevConnectServiceImpl implements DevConnectService {
     }
 
     AppUserEntity user = provision(info.sub(), info.email(), info.name());
+    applyAdminBootstrap(user, info.emailVerified(), idToken);
     Instant now = clock.instant();
     BffSessionEntity session = new BffSessionEntity();
     session.setSessionId(Pkce.state());
@@ -177,6 +179,59 @@ public class DevConnectServiceImpl implements DevConnectService {
           "DevConnect is not configured: set BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI,"
               + " BASIS_CLIENT_ID, BASIS_CLIENT_SECRET, and BASIS_RESOURCE");
     }
+  }
+
+  private void applyAdminBootstrap(AppUserEntity user, boolean emailVerified, Jwt idToken) {
+    String bootstrapEmail = props.getAdminBootstrapEmail();
+    if (bootstrapEmail == null || bootstrapEmail.isBlank()) return;
+    if (!emailVerified) return;
+    if (!bootstrapEmail.trim().equalsIgnoreCase(user.getEmail())) return;
+    Instant now = clock.instant();
+    UserRoleEntity existing = null;
+    try {
+      existing = roles.findById(new UserRoleEntity.Id(user.getUserId(), "ROLE_ADMIN")).orElse(null);
+    } catch (RuntimeException ignored) {
+      existing = null;
+    }
+    if (existing == null) {
+      UserRoleEntity role = new UserRoleEntity();
+      role.setId(new UserRoleEntity.Id(user.getUserId(), "ROLE_ADMIN"));
+      role.setGrantedAt(now);
+      role.setGrantedBy("admin-bootstrap");
+      roles.save(role);
+    }
+    boolean mfaAssured = isMfaAssured(idToken);
+    if (mfaAssured && !user.isMfaEnabled()) {
+      user.setMfaEnabled(true);
+      users.save(user);
+    }
+  }
+
+  private boolean isMfaAssured(Jwt idToken) {
+    if (idToken == null) return false;
+    String requiredAcr = props.getAdminRequiredAcr();
+    if (requiredAcr != null && !requiredAcr.isBlank()) {
+      String acr = idToken.getClaimAsString("acr");
+      if (requiredAcr.trim().equalsIgnoreCase(acr)) return true;
+    }
+    Object amrClaim = idToken.getClaims().get("amr");
+    List<String> amr = new java.util.ArrayList<>();
+    if (amrClaim instanceof List<?> list) {
+      for (Object value : list) if (value != null) amr.add(String.valueOf(value));
+    } else if (amrClaim instanceof String text && !text.isBlank()) {
+      for (String part : text.split("[\\s,]+")) if (!part.isBlank()) amr.add(part);
+    }
+    for (String value : amr) {
+      String normalized = value.toLowerCase(java.util.Locale.ROOT);
+      if (normalized.equals("mfa")
+          || normalized.equals("otp")
+          || normalized.equals("totp")
+          || normalized.contains("mfa")) {
+        return true;
+      }
+    }
+    // Without a configured ACR and no MFA AMR, do not assert MFA assurance.
+    return false;
   }
 
   private AppUserEntity provision(String subject, String email, String displayName) {
