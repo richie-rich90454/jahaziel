@@ -535,7 +535,7 @@ class WorkspaceTaskServiceImplTest {
         completed = service.taskRun(started.id());
       }
 
-      assertEquals("COMPLETED", completed.status());
+      assertEquals("SUCCEEDED", completed.status());
       assertTrue(completed.output().contains("3000"));
       assertTrue(completed.output().contains("/" + workspace.value() + "/3000"));
     } finally {
