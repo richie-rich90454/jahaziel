@@ -642,9 +642,60 @@ process.stdin.on("data", (chunk) => {
   assert.equal(completedTask.status, "SUCCEEDED", "completed tasks must expose success status");
   assert.equal(completedTask.exitCode, 0, "completed tasks must expose their exit code");
 
-  await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
-  await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
+  await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
+  await waitForText(page, "#task-output", "Listening on 0\\.0\\.0\\.0:8000", 20_000);
   await waitForText(page, "#preview-links", "LISTENING", 15_000);
+  const debugTargetsResponse = await page.request.get(
+    `${origin}/api/v1/workspaces/${workspaceId}/tasks/debug-targets`,
+  );
+  assert.equal(debugTargetsResponse.status(), 200, "running debuggable tasks must be discoverable");
+  const debugTargets = await debugTargetsResponse.json();
+  assert.equal(debugTargets.length, 1, "the running Python task must expose one attach target");
+  const [pythonTarget] = debugTargets;
+  assert.equal(pythonTarget.languageId, "python");
+  assert.deepEqual(
+    Object.keys(pythonTarget).sort(),
+    ["id", "label", "languageId", "taskRunId"],
+    "browser-visible debug targets must not reveal process or adapter connection details",
+  );
+  await page.locator('.workbench-panel-nav [data-panel="debug"]').click();
+  await page.waitForFunction(
+    (targetId) => [...document.querySelector("#debug-attach-target")?.options ?? []]
+      .some((option) => option.value === targetId),
+    pythonTarget.id,
+  );
+  await page.locator("#debug-attach-target").selectOption(pythonTarget.id);
+  await page.locator("#debug-attach").click();
+  await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
+  const attachDapLog = fs.readFileSync(debugAdapterLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const attachRequest = attachDapLog.find(
+    (entry) => entry.kind === "request" && entry.command === "attach",
+  );
+  assert.ok(attachRequest, "the server must send an attach request to the configured adapter");
+  assert.equal(attachRequest.arguments.connect?.host, "127.0.0.1");
+  assert.ok(
+    Number.isInteger(attachRequest.arguments.connect?.port)
+      && attachRequest.arguments.connect.port > 0
+      && attachRequest.arguments.connect.port <= 65535,
+    "Python attach must use the server-assigned debug port",
+  );
+  assert.equal(
+    ["pid", "processId", "command", "executable"].some((key) => key in attachRequest.arguments),
+    false,
+    "the browser must not supply process or executable details to the adapter",
+  );
+  await page.locator("#debug-stop").click();
+  await waitForText(page, "#debug-state", "^NOT RUNNING$");
+  const taskAfterDetachResponse = await page.request.get(latestTaskUrl);
+  assert.equal(taskAfterDetachResponse.status(), 200);
+  assert.equal(
+    (await taskAfterDetachResponse.json()).status,
+    "RUNNING",
+    "detaching the debugger must leave the workspace task running",
+  );
   const preview = await fetch("http://127.0.0.1:8000/");
   assert.equal(preview.status, 200, "declared preview task must serve the workspace files");
   assert.match(await preview.text(), /Jahaziel Python workspace/);
@@ -744,8 +795,8 @@ process.stdin.on("data", (chunk) => {
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
-  await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
-  await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
+  await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
+  await waitForText(page, "#task-output", "Listening on 0\\.0\\.0\\.0:8000", 20_000);
   await waitForText(page, "#preview-links", "LISTENING", 15_000);
   const runningTaskResponse = await page.request.get(
     `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
@@ -779,7 +830,7 @@ process.stdin.on("data", (chunk) => {
   await recoveredPage.locator(".tree-item").filter({ hasText: "README.md" }).click();
   await recoveredPage.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
   assert.deepEqual(pageErrors, [], "the browser workbench must not raise uncaught errors");
-  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, deferred debugger breakpoints, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
+  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, debugger launch and live-task attach, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
 }
 
 run()
