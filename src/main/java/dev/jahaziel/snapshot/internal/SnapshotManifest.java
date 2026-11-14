@@ -73,8 +73,7 @@ final class SnapshotManifest {
       totals.logicalBytes = Math.addExact(totals.logicalBytes, logicalSize);
     }
 
-    totals.physicalBytes =
-        Math.addExact(totals.physicalBytes, allocatedBytes(path, logicalSize));
+    totals.physicalBytes = Math.addExact(totals.physicalBytes, allocatedBytes(path, logicalSize));
     updateManifest(manifest, type, relative, logicalSize, contentHash);
 
     if (attributes.isDirectory()) {
@@ -83,8 +82,7 @@ final class SnapshotManifest {
         stream.forEach(children::add);
       }
       children.sort(
-          (left, right) ->
-              left.getFileName().toString().compareTo(right.getFileName().toString()));
+          (left, right) -> left.getFileName().toString().compareTo(right.getFileName().toString()));
       for (Path child : children) {
         visit(root, child, manifest, totals);
       }
@@ -134,7 +132,11 @@ final class SnapshotManifest {
   }
 
   private static void updateManifest(
-      MessageDigest manifest, byte type, String relativePath, long logicalSize, byte[] contentHash) {
+      MessageDigest manifest,
+      byte type,
+      String relativePath,
+      long logicalSize,
+      byte[] contentHash) {
     byte[] name = relativePath.getBytes(StandardCharsets.UTF_8);
     manifest.update(type);
     manifest.update(ByteBuffer.allocate(Integer.BYTES).putInt(name.length).array());
