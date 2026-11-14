@@ -30,8 +30,8 @@ public interface WorkspaceProcessRegistry {
   List<String> dedicatedSessionCommand(List<String> command);
 
   /**
-   * Lists live members of the server-managed process groups for one workspace. Only processes
-   * whose root still matches its persisted identity are included.
+   * Lists live members of the server-managed process groups for one workspace. Only processes whose
+   * root still matches its persisted identity are included.
    *
    * @param workspaceId the workspace whose processes may be inspected
    * @param kinds the managed process categories to include
