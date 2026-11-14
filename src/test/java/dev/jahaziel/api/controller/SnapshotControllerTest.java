@@ -9,8 +9,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -144,11 +144,7 @@ class SnapshotControllerTest {
   void deletesWorkspaceSnapshot() throws Exception {
     SnapshotId snapshotId = new SnapshotId(UUID.randomUUID());
     mvc.perform(
-            delete(
-                    "/api/v1/workspaces/"
-                        + workspaceId.value()
-                        + "/snapshots/"
-                        + snapshotId.value())
+            delete("/api/v1/workspaces/" + workspaceId.value() + "/snapshots/" + snapshotId.value())
                 .principal(principal))
         .andExpect(status().isNoContent());
     verify(snapshots).delete(workspaceId, snapshotId);
