@@ -52,6 +52,7 @@ public final class WorkspaceProcessRegistryImpl
   private static final Duration GRACEFUL_STOP = Duration.ofMillis(750);
   private static final Duration FORCE_STOP = Duration.ofMillis(750);
   private static final int MAX_MARKERS = 4096;
+  private static final int MAX_DISCOVERY_PROCESSES = 4096;
 
   private final Path storageRoot;
   private final ConcurrentMap<UUID, LiveRegistration> live = new ConcurrentHashMap<>();
@@ -88,7 +89,8 @@ public final class WorkspaceProcessRegistryImpl
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot persist workspace process identity", failure);
     }
-    LiveRegistration registration = new LiveRegistration(id, marker, handle, identity);
+    LiveRegistration registration =
+        new LiveRegistration(id, marker, handle, identity, workspaceId.value(), kind);
     live.put(id, registration);
     if (!handle.isAlive()) {
       registration.close();
@@ -119,6 +121,52 @@ public final class WorkspaceProcessRegistryImpl
     isolated.add("--");
     isolated.addAll(command);
     return List.copyOf(isolated);
+  }
+
+  @Override
+  public List<TrackedProcess> trackedProcessTree(WorkspaceId workspaceId, Set<Kind> kinds) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    Objects.requireNonNull(kinds, "kinds");
+    if (kinds.isEmpty()) return List.of();
+
+    Map<TrackedProcess, TrackedProcess> result = new LinkedHashMap<>();
+    for (LiveRegistration registration : live.values()) {
+      if (!workspaceId.value().equals(registration.workspaceId)
+          || !kinds.contains(registration.kind)
+          || registration.closed.get()) continue;
+      ProcessHandle root = ProcessHandle.of(registration.identity.pid()).orElse(null);
+      if (root == null || !matches(root, registration.identity)) continue;
+
+      Map<Long, ProcessHandle> members = new LinkedHashMap<>();
+      members.put(root.pid(), root);
+      if (isLinux()
+          && registration.identity.sessionId() == registration.identity.pid()
+          && ownLinuxSession(root.pid()) == registration.identity.sessionId()) {
+        processesInSession(registration.identity.sessionId()).stream()
+            .limit(MAX_DISCOVERY_PROCESSES)
+            .forEach(process -> members.putIfAbsent(process.pid(), process));
+      } else {
+        try {
+          root.descendants()
+              .limit(MAX_DISCOVERY_PROCESSES)
+              .forEach(process -> members.putIfAbsent(process.pid(), process));
+        } catch (RuntimeException inaccessibleTree) {
+          // The verified root remains useful when the host cannot enumerate its descendants.
+        }
+      }
+
+      members.values().stream()
+          .filter(ProcessHandle::isAlive)
+          .limit(MAX_DISCOVERY_PROCESSES)
+          .map(process -> new TrackedProcess(registration.kind, process.pid()))
+          .forEach(process -> result.putIfAbsent(process, process));
+      if (result.size() >= MAX_DISCOVERY_PROCESSES) break;
+    }
+    return result.keySet().stream()
+        .sorted(
+            java.util.Comparator.comparing((TrackedProcess process) -> process.kind().ordinal())
+                .thenComparingLong(TrackedProcess::processId))
+        .toList();
   }
 
   @Override
@@ -512,14 +560,23 @@ public final class WorkspaceProcessRegistryImpl
     private final Path marker;
     private final ProcessHandle process;
     private final ProcessIdentity identity;
+    private final UUID workspaceId;
+    private final Kind kind;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private LiveRegistration(
-        UUID id, Path marker, ProcessHandle process, ProcessIdentity identity) {
+        UUID id,
+        Path marker,
+        ProcessHandle process,
+        ProcessIdentity identity,
+        UUID workspaceId,
+        Kind kind) {
       this.id = id;
       this.marker = marker;
       this.process = process;
       this.identity = identity;
+      this.workspaceId = workspaceId;
+      this.kind = kind;
     }
 
     @Override
