@@ -41,8 +41,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SnapshotExtraCoverageTest {
-  @org.junit.jupiter.api.io.TempDir
-  java.nio.file.Path tempDir;
+  @org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir;
+
   @Test
   void kindsRoundTripAndUnknown() {
     assertEquals("auto", SnapshotKinds.toString(SnapshotKind.AUTO));
@@ -157,8 +157,7 @@ class SnapshotExtraCoverageTest {
     when(ws.owner()).thenReturn(new dev.jahaziel.identity.domain.UserId(UUID.randomUUID()));
     when(workspaces.get(wid)).thenReturn(ws);
     when(storage.snapshot(any(), any()))
-        .thenReturn(
-            new SnapshotHandle(UUID.randomUUID(), tempDir, Instant.now()));
+        .thenReturn(new SnapshotHandle(UUID.randomUUID(), tempDir, Instant.now()));
     SnapshotEntity older = new SnapshotEntity();
     older.setSnapshotId(UUID.randomUUID());
     older.setWorkspaceId(wid.value());
