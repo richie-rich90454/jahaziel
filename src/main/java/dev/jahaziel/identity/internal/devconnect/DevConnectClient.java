@@ -185,7 +185,9 @@ public final class DevConnectClient {
           "DevConnect UserInfo from " + document.userinfoEndpoint() + " lacks sub or email");
     }
     String name = textOrNull(node, "name");
-    return new UserInfo(sub, email, name == null || name.isBlank() ? email : name);
+    boolean emailVerified = Boolean.parseBoolean(textOrNull(node, "email_verified"));
+    return new UserInfo(
+        sub, email, name == null || name.isBlank() ? email : name, emailVerified);
   }
 
   /**
@@ -350,5 +352,10 @@ public final class DevConnectClient {
    * @param email the email, used once to join a legacy account
    * @param name the display name
    */
-  public record UserInfo(String sub, String email, String name) {}
+  public record UserInfo(String sub, String email, String name, boolean emailVerified) {
+    /** Compatibility constructor for callers that do not provide verification state. */
+    public UserInfo(String sub, String email, String name) {
+      this(sub, email, name, false);
+    }
+  }
 }
