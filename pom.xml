@@ -235,6 +235,7 @@
             extraction outside per-test temp dirs so @TempDir cleanup never trips over it. -->
           <systemPropertyVariables>
             <org.sqlite.tmpdir>${project.build.directory}/sqlite-native</org.sqlite.tmpdir>
+            <jahaziel.dist.sync-port>0</jahaziel.dist.sync-port>
           </systemPropertyVariables>
           <!-- Lets TestEnv tweak process env vars in tests; composed with the JaCoCo agent
             below (propertyName) so coverage keeps working. -->
