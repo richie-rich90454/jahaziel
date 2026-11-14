@@ -31,10 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Database-backed snapshots over workspace storage. Sizes and manifest hashes stay zero and empty
- * until verification measures them.
- */
+/** Database-backed snapshots over workspace storage. */
 public final class SnapshotServiceImpl implements SnapshotService {
   private final SnapshotRepository snapshots;
   private final WorkspaceService workspaces;
@@ -87,6 +84,17 @@ public final class SnapshotServiceImpl implements SnapshotService {
     Workspace workspace = workspaces.get(workspaceId);
     var handle = handleOf(workspace);
     SnapshotHandle snapshot = storage.snapshot(handle, new SnapshotTag(tag));
+    SnapshotManifest.Measurement measurement;
+    try {
+      measurement = SnapshotManifest.measure(snapshot.snapshotPath());
+    } catch (RuntimeException failure) {
+      try {
+        storage.deleteSnapshot(snapshot);
+      } catch (RuntimeException cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
+    }
     Optional<SnapshotId> parent =
         snapshots.findByWorkspaceId(workspaceId.value()).stream()
             .max((left, right) -> left.getCreatedAt().compareTo(right.getCreatedAt()))
@@ -100,10 +108,10 @@ public final class SnapshotServiceImpl implements SnapshotService {
             Instant.now(),
             createdBy,
             snapshot.snapshotPath(),
-            0,
-            0,
+            measurement.logicalBytes(),
+            measurement.physicalBytes(),
             parent,
-            "");
+            measurement.sha256());
     snapshots.save(SnapshotMapper.toEntity(metadata));
     audit.append(
         new AuditRecord(
@@ -161,8 +169,13 @@ public final class SnapshotServiceImpl implements SnapshotService {
   }
 
   @Override
-  public void delete(SnapshotId snapshotId) {
+  public void delete(WorkspaceId workspaceId, SnapshotId snapshotId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    Objects.requireNonNull(snapshotId, "snapshotId");
     SnapshotEntity row = rowOf(snapshotId);
+    if (!row.getWorkspaceId().equals(workspaceId.value())) {
+      throw new SnapshotNotFoundException(snapshotId);
+    }
     storage.deleteSnapshot(
         new SnapshotHandle(
             row.getSnapshotId(), Path.of(row.getSnapshotPath()), row.getCreatedAt()));
