@@ -25,8 +25,8 @@ import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -65,8 +65,7 @@ class SnapshotServiceImplTest {
     Path snapshotPath = temporaryDirectory.resolve("daily");
     Files.createDirectories(snapshotPath.resolve("src"));
     Files.writeString(snapshotPath.resolve("src/Main.java"), "class Main {}\n");
-    SnapshotHandle handle =
-        new SnapshotHandle(UUID.randomUUID(), snapshotPath, Instant.now());
+    SnapshotHandle handle = new SnapshotHandle(UUID.randomUUID(), snapshotPath, Instant.now());
     when(storage.snapshot(any(), any())).thenReturn(handle);
     when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of());
     SnapshotMetadata metadata = service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x");
@@ -117,8 +116,7 @@ class SnapshotServiceImplTest {
     SnapshotId id = new SnapshotId(UUID.randomUUID());
     when(snapshots.findById(id.value())).thenReturn(Optional.empty());
     assertThrows(SnapshotNotFoundException.class, () -> service.restore(workspaceId, id));
-    assertThrows(
-        SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
+    assertThrows(SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
     verify(storage, never()).restore(any(), any());
   }
 
