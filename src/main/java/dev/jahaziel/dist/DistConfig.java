@@ -42,9 +42,11 @@ public class DistConfig {
    * @return the running server, stopped with the context
    */
   @Bean(destroyMethod = "stop")
-  public SyncServer distSyncServer(@Value("${jahaziel.storage.root}") String storageRoot)
+  public SyncServer distSyncServer(
+      @Value("${jahaziel.storage.root}") String storageRoot,
+      @Value("${jahaziel.dist.sync-port:" + SyncServer.LOOPBACK_PORT + "}") int syncPort)
       throws java.io.IOException {
-    SyncServer sync = new SyncServer(SyncServer.LOOPBACK_PORT, Path.of(storageRoot, "sync"));
+    SyncServer sync = new SyncServer(syncPort, Path.of(storageRoot, "sync"));
     sync.start();
     return sync;
   }
