@@ -25,15 +25,14 @@ import dev.jahaziel.spi.SnapshotTag;
 import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SnapshotJobsCoverageGapTest {
-  @org.junit.jupiter.api.io.TempDir
-  java.nio.file.Path tempDir;
+  @org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir;
+
   private SnapshotServiceImpl service(
       SnapshotRepository snapshots, WorkspaceService workspaces, WorkspaceStorage storage) {
     return new SnapshotServiceImpl(snapshots, workspaces, storage, mock(AuditService.class), "/r");
