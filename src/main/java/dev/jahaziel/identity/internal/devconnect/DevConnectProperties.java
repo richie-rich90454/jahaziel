@@ -37,6 +37,12 @@ public class DevConnectProperties {
   /** How long a half-finished login may be resumed. */
   private Duration pendingTtl = Duration.ofMinutes(10);
 
+  /** Optional verified email that receives ROLE_ADMIN on first verified login. */
+  private String adminBootstrapEmail;
+
+  /** Optional ACR value that proves MFA for the bootstrapped admin. */
+  private String adminRequiredAcr;
+
   /** Required: the IdP issuer URL. */
   public String getAuthIssuer() {
     return authIssuer;
@@ -115,6 +121,26 @@ public class DevConnectProperties {
   /** Sets the pending-login lifetime. */
   public void setPendingTtl(Duration pendingTtl) {
     this.pendingTtl = pendingTtl;
+  }
+
+  /** Returns the optional verified email that receives ROLE_ADMIN on first verified login. */
+  public String getAdminBootstrapEmail() {
+    return adminBootstrapEmail;
+  }
+
+  /** Sets the optional verified email that receives ROLE_ADMIN on first verified login. */
+  public void setAdminBootstrapEmail(String adminBootstrapEmail) {
+    this.adminBootstrapEmail = adminBootstrapEmail;
+  }
+
+  /** Returns the optional ACR value that proves MFA for the bootstrapped admin. */
+  public String getAdminRequiredAcr() {
+    return adminRequiredAcr;
+  }
+
+  /** Sets the optional ACR value that proves MFA for the bootstrapped admin. */
+  public void setAdminRequiredAcr(String adminRequiredAcr) {
+    this.adminRequiredAcr = adminRequiredAcr;
   }
 
   /**
