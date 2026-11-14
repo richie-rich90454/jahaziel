@@ -186,8 +186,7 @@ public final class DevConnectClient {
     }
     String name = textOrNull(node, "name");
     boolean emailVerified = Boolean.parseBoolean(textOrNull(node, "email_verified"));
-    return new UserInfo(
-        sub, email, name == null || name.isBlank() ? email : name, emailVerified);
+    return new UserInfo(sub, email, name == null || name.isBlank() ? email : name, emailVerified);
   }
 
   /**
