@@ -41,6 +41,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SnapshotExtraCoverageTest {
+  @org.junit.jupiter.api.io.TempDir
+  java.nio.file.Path tempDir;
   @Test
   void kindsRoundTripAndUnknown() {
     assertEquals("auto", SnapshotKinds.toString(SnapshotKind.AUTO));
@@ -156,7 +158,7 @@ class SnapshotExtraCoverageTest {
     when(workspaces.get(wid)).thenReturn(ws);
     when(storage.snapshot(any(), any()))
         .thenReturn(
-            new SnapshotHandle(UUID.randomUUID(), java.nio.file.Path.of("/s"), Instant.now()));
+            new SnapshotHandle(UUID.randomUUID(), tempDir, Instant.now()));
     SnapshotEntity older = new SnapshotEntity();
     older.setSnapshotId(UUID.randomUUID());
     older.setWorkspaceId(wid.value());
@@ -249,8 +251,8 @@ class SnapshotExtraCoverageTest {
             "");
     when(snapshots.list(wid)).thenReturn(List.of(auto1, auto2, oldPre, freshPre, manual));
     job.run(JobContext.now());
-    verify(snapshots, times(1)).delete(auto1.id());
-    verify(snapshots, times(1)).delete(oldPre.id());
+    verify(snapshots, times(1)).delete(wid, auto1.id());
+    verify(snapshots, times(1)).delete(wid, oldPre.id());
     assertEquals(Duration.ofHours(24), job.period());
     assertEquals(JobScope.CLUSTER, job.scope());
     assertThrows(
