@@ -6,8 +6,8 @@
   "ports": [8000],
   "languagePacks": ["python"],
   "setupSteps": [
-    { "command": ["python3", "-m", "venv", ".venv"] },
-    { "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] }
+    { "id": "venv", "command": ["python3", "-m", "venv", ".venv"] },
+    { "id": "install", "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] }
   ],
   "runTasks": [
     { "id": "example", "label": "Run example", "command": [".venv/bin/python", "main.py"] },
