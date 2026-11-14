@@ -67,11 +67,11 @@ public final class SnapshotRetentionJob implements PlatformJob {
               .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
               .toList();
       for (int i = autoRetentionCount; i < autos.size(); i++) {
-        snapshots.delete(autos.get(i).id());
+        snapshots.delete(autos.get(i).workspaceId(), autos.get(i).id());
       }
       for (SnapshotMetadata meta : all) {
         if (meta.kind() == SnapshotKind.PRE_DELETE && meta.createdAt().isBefore(cutoff)) {
-          snapshots.delete(meta.id());
+          snapshots.delete(meta.workspaceId(), meta.id());
         }
       }
     }
