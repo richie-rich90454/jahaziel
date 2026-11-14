@@ -89,8 +89,12 @@ public interface DebugService {
       if (value == null || value.isBlank() || value.length() > 4096 || value.indexOf('\0') >= 0) {
         throw new IllegalArgumentException(name + " must be a relative workspace path");
       }
-      Path path = Path.of(value.replace('\\', '/'));
-      if (path.isAbsolute() || path.normalize().startsWith("..")) {
+      String portable = value.replace('\\', '/');
+      Path path = Path.of(portable);
+      if (path.isAbsolute()
+          || portable.matches("^[A-Za-z]:.*")
+          || portable.startsWith("//")
+          || path.normalize().startsWith("..")) {
         throw new IllegalArgumentException(name + " must stay inside the workspace");
       }
       return path.normalize().toString().replace('\\', '/');
