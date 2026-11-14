@@ -32,6 +32,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SnapshotJobsCoverageGapTest {
+  @org.junit.jupiter.api.io.TempDir
+  java.nio.file.Path tempDir;
   private SnapshotServiceImpl service(
       SnapshotRepository snapshots, WorkspaceService workspaces, WorkspaceStorage storage) {
     return new SnapshotServiceImpl(snapshots, workspaces, storage, mock(AuditService.class), "/r");
@@ -62,7 +64,7 @@ class SnapshotJobsCoverageGapTest {
     when(ws.owner()).thenReturn(new UserId(UUID.randomUUID()));
     when(workspaces.get(wid)).thenReturn(ws);
     when(storage.snapshot(any(), any()))
-        .thenReturn(new SnapshotHandle(UUID.randomUUID(), Path.of("/s"), Instant.now()));
+        .thenReturn(new SnapshotHandle(UUID.randomUUID(), tempDir, Instant.now()));
     SnapshotEntity older = new SnapshotEntity();
     older.setSnapshotId(UUID.randomUUID());
     older.setWorkspaceId(wid.value());
