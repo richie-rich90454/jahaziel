@@ -1045,7 +1045,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     Map<String, String> environment = builder.environment();
     environment.clear();
     environment.put("HOME", home.toString());
-    environment.put("PATH", "/usr/local/bin:/usr/bin:/bin");
+    environment.put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
     environment.put("TERM", "xterm-256color");
     environment.put("LANG", "C.UTF-8");
     if (previewPort != null) {
@@ -1388,8 +1388,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private static String safeMessage(Throwable failure) {
-    String message = failure.getMessage();
-    return message == null || message.isBlank() ? "setup failed" : SecretRedactor.redact(message);
+    StringBuilder message = new StringBuilder();
+    Throwable current = failure;
+    while (current != null) {
+      if (current.getMessage() != null && !current.getMessage().isBlank()) {
+        if (message.length() > 0) message.append(": ");
+        message.append(current.getMessage());
+      }
+      current = current.getCause();
+    }
+    String text = message.length() == 0 ? "setup failed" : message.toString();
+    return SecretRedactor.redact(text);
   }
 
   private static Integer safeExit(Process process) {
