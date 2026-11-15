@@ -224,6 +224,25 @@ final class TemplateSeeds {
         hash = tokens[1];
       }
     }
+    if (version == null) {
+      Matcher versionMatcher = VERSION_FIELD.matcher(text);
+      if (versionMatcher.find()) {
+        String raw = versionMatcher.group(1).trim();
+        if (raw.startsWith("\"")) {
+          raw = raw.substring(1, raw.length() - 1);
+        }
+        if (!raw.isBlank()) {
+          version = raw;
+        }
+      }
+    }
+    if (hash == null) {
+      Matcher hashMatcher =
+          Pattern.compile("\"(?:sha256|hash|digest|sha)\"\\s*:\\s*\"([^\"]+)\"").matcher(text);
+      if (hashMatcher.find()) {
+        hash = hashMatcher.group(1);
+      }
+    }
     if (version == null || hash == null) {
       return null;
     }
