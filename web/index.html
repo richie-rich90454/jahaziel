@@ -115,6 +115,10 @@
               <button id="task-stop" class="text-action" type="button" hidden>Stop task</button>
               <div id="task-correlation" class="operation-ref" hidden></div>
               <pre id="task-output" class="task-output" hidden></pre>
+              <section class="run-history-panel" aria-label="Run history">
+                <h3>RUN HISTORY</h3>
+                <ul id="run-history" class="debug-list"></ul>
+              </section>
             </section>
             <section class="debug-panel" aria-label="Debugger">
               <div class="panel-heading"><div><span class="panel-glyph">◆</span><span>DEBUG</span></div><span id="debug-state" class="panel-meta" role="status">NOT RUNNING</span></div>
@@ -265,14 +269,17 @@
               </div>
               <div id="terminal-surface" class="terminal-surface"><div class="terminal-placeholder"><span>⌁</span><p>Open a terminal to run commands in this workspace.</p></div></div>
             </section>
+            <div id="preview-resizer" class="preview-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize preview panel" tabindex="0"></div>
             <section id="preview-dock" class="preview-dock" aria-label="Workspace preview" hidden>
               <div class="preview-heading">
                 <label for="preview-port-select">Preview</label>
                 <select id="preview-port-select" aria-label="Preview port"></select>
                 <span id="preview-state">Choose a listening port.</span>
+                <button id="find-preview-ports" class="button button-quiet" type="button">Find preview ports</button>
                 <button id="preview-reload" class="button button-quiet" type="button" disabled>Reload</button>
                 <a id="preview-new-tab" class="button button-quiet" href="#" target="_blank" rel="noreferrer" aria-disabled="true">Open in new tab</a>
               </div>
+              <ul id="preview-candidates" class="debug-list" hidden></ul>
               <iframe id="preview-frame" title="Workspace preview" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-downloads" hidden></iframe>
               <div id="preview-empty" class="preview-empty">Start a project task, then select a registered listening port.</div>
             </section>
@@ -280,6 +287,12 @@
           </section>
         </div>
       </main>
+    </div>
+    <div id="quick-open-palette" class="quick-open-palette" hidden>
+      <div class="quick-open-dialog" role="dialog" aria-modal="true" aria-label="Quick open">
+        <input id="quick-open-input" type="search" placeholder="Open file or panel…" aria-label="Quick open" autocomplete="off" />
+        <ul id="quick-open-results" class="quick-open-results" aria-live="polite"></ul>
+      </div>
     </div>
     <script type="module" src="/src/app.ts"></script>
   </body>
