@@ -134,6 +134,8 @@ const state = {
   debugBreakpoints: new Map<string, number[]>(),
   previewPort: null as number | null,
   previewUrl: null as string | null,
+  runHistory: [] as TaskRun[],
+  quickOpenVisible: false,
   terminalModifiers: { ctrl: false, alt: false },
   draftTimers: new Map<string, number>(),
   pendingDrafts: new Map<string, string>(),
@@ -413,6 +415,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
     await refreshLanguagePacks();
     void refreshAgentToolStatus(true);
     await refreshTerminalSessions();
+    void autoReconnectTerminal().catch(() => undefined);
     return;
   }
   if ([...state.openDocuments.values()].some((opened) => opened.dirty)
@@ -476,6 +479,7 @@ async function openWorkspace(workspace: Workspace, navigate = true): Promise<voi
   await refreshLanguagePacks();
   void refreshAgentToolStatus(true);
   await refreshTerminalSessions();
+  void autoReconnectTerminal().catch(() => undefined);
   renderTabs();
 }
 
@@ -610,6 +614,16 @@ async function refreshTerminalSessions(): Promise<void> {
   }
 }
 
+async function autoReconnectTerminal(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace || state.terminalSessionId) return;
+  const detached = state.terminalSessions.filter((session) => session.sessionId !== state.terminalSessionId);
+  if (detached.length === 0) return;
+  const session = detached[0];
+  await closeTerminal(false);
+  await connectTerminal(session, workspace.workspaceId);
+}
+
 async function refreshLanguagePacks(): Promise<void> {
   if (!state.workspace || !state.languageServices) return;
   state.languagePacks = await state.languageServices.refresh();
@@ -740,6 +754,7 @@ async function refreshTasks(): Promise<void> {
     list.append(empty);
   }
   const latestRun = latestRunResult.body;
+  recordTaskRun(latestRun);
   renderTaskRun(latestRun);
   await refreshDebugTargets().catch(() => {
     state.debugTargets = [];
@@ -972,6 +987,7 @@ async function runTask(task: WorkspaceTask): Promise<void> {
   const workspace = state.workspace;
   if (!workspace) return;
   const { body: run } = await api<TaskRun>(`/api/v1/workspaces/${workspace.workspaceId}/tasks/${encodeURIComponent(task.id)}/run`, { method: "POST" });
+  recordTaskRun(run);
   renderTaskRun(run);
   void refreshPortStatuses().catch(() => undefined);
   await pollTaskRun(workspace.workspaceId, run);
@@ -1002,6 +1018,35 @@ function renderTaskRun(run: TaskRun | null): void {
   output.scrollTop = output.scrollHeight;
 }
 
+function recordTaskRun(run: TaskRun | null): void {
+  if (!run) return;
+  const existing = state.runHistory.findIndex((item) => item.id === run.id);
+  if (existing >= 0) state.runHistory[existing] = run;
+  else state.runHistory.unshift(run);
+  if (state.runHistory.length > 10) state.runHistory.length = 10;
+  renderRunHistory();
+}
+
+function renderRunHistory(): void {
+  const list = byId<HTMLUListElement>("run-history");
+  if (!list) return;
+  list.replaceChildren();
+  for (const run of state.runHistory) {
+    const item = document.createElement("li");
+    item.className = "debug-empty";
+    item.textContent = `${run.label} · ${run.status}${run.exitCode === null ? "" : ` · exit ${run.exitCode}`}`;
+    item.title = run.id;
+    item.addEventListener("click", () => renderTaskRun(run));
+    list.append(item);
+  }
+  if (state.runHistory.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "debug-empty";
+    empty.textContent = "No runs yet.";
+    list.append(empty);
+  }
+}
+
 async function pollTaskRun(workspaceId: string, initialRun: TaskRun): Promise<void> {
   if (state.taskPollingId === initialRun.id) return;
   state.taskPollingId = initialRun.id;
@@ -1015,6 +1060,7 @@ async function pollTaskRun(workspaceId: string, initialRun: TaskRun): Promise<vo
       const { body } = await api<TaskRun>(`/api/v1/workspaces/${workspaceId}/task-runs/${initialRun.id}`);
       current = body;
       if (state.workspace?.workspaceId === workspaceId && state.taskRunId === initialRun.id) {
+        recordTaskRun(current);
         renderTaskRun(current);
       }
       await refreshDebugTargets().catch(() => undefined);
@@ -1861,6 +1907,57 @@ function openPreview(port: PortEntry): void {
   setPanel("preview");
 }
 
+async function findPreviewPorts(): Promise<void> {
+  const workspace = state.workspace;
+  if (!workspace) return;
+  let candidates: Array<{ port: number; sources?: string[] }> = [];
+  try {
+    const { body } = await api<Array<{ port: number; sources?: string[] }>>(
+      `/api/v1/workspaces/${workspace.workspaceId}/ports/candidates`,
+    );
+    candidates = body ?? [];
+  } catch {
+    candidates = (workspace.ports ?? []).map((port) => ({ port: port.port, sources: ["tracked"] }));
+  }
+  const list = byId<HTMLUListElement>("preview-candidates");
+  list.replaceChildren();
+  if (candidates.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "debug-empty";
+    empty.textContent = "No candidate ports found in tracked processes.";
+    list.append(empty);
+    list.hidden = false;
+    return;
+  }
+  list.hidden = false;
+  for (const candidate of candidates) {
+    const item = document.createElement("li");
+    item.className = "debug-empty";
+    const sources = (candidate.sources ?? []).join(", ") || "tracked";
+    item.textContent = `:${candidate.port} · ${sources}`;
+    const register = document.createElement("button");
+    register.type = "button";
+    register.className = "text-action";
+    register.textContent = "Register & open";
+    register.addEventListener("click", async () => {
+      if (!window.confirm(`Register and open preview on port ${candidate.port}?`)) return;
+      try {
+        const { body: port } = await api<PortEntry>(
+          `/api/v1/workspaces/${workspace.workspaceId}/ports`,
+          { method: "POST", body: JSON.stringify({ port: candidate.port, protocol: "http" }) },
+        );
+        await refreshPortStatuses();
+        openPreview(port);
+        toast(`Registered port ${candidate.port}.`);
+      } catch (failure) {
+        toast(errorText(failure), "error");
+      }
+    });
+    item.append(register);
+    list.append(item);
+  }
+}
+
 async function refreshPortStatuses(): Promise<void> {
   const workspace = state.workspace;
   if (!workspace) return;
@@ -1942,6 +2039,79 @@ function scheduleWorkspaceSearch(runImmediately = false): void {
     }),
     runImmediately ? 0 : 250,
   );
+}
+
+function openQuickOpen(): void {
+  const palette = byId<HTMLElement>("quick-open-palette");
+  palette.hidden = false;
+  state.quickOpenVisible = true;
+  const input = byId<HTMLInputElement>("quick-open-input");
+  input.value = "";
+  input.focus();
+  renderQuickOpen("");
+}
+
+function closeQuickOpen(): void {
+  const palette = byId<HTMLElement>("quick-open-palette");
+  palette.hidden = true;
+  state.quickOpenVisible = false;
+}
+
+async function renderQuickOpen(query: string): Promise<void> {
+  const results = byId<HTMLUListElement>("quick-open-results");
+  results.replaceChildren();
+  const panels = ["files", "editor", "run", "languages", "debug", "git", "terminal", "preview"];
+  const trimmed = query.trim();
+  if (trimmed.length < 2) {
+    for (const panel of panels) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = `Panel: ${panel}`;
+      btn.addEventListener("click", () => { setPanel(panel as typeof state.activePanel); closeQuickOpen(); });
+      li.append(btn);
+      results.append(li);
+    }
+    for (const opened of state.openDocuments.keys()) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = `Open: ${opened}`;
+      btn.addEventListener("click", () => { void openDocument(opened).then(() => { activateDocument(opened); closeQuickOpen(); }); });
+      li.append(btn);
+      results.append(li);
+    }
+    return;
+  }
+  const workspace = state.workspace;
+  if (!workspace) return;
+  try {
+    const params = new URLSearchParams({ q: trimmed, limit: "30" });
+    const { body } = await api<SearchResult[]>(`/api/v1/workspaces/${workspace.workspaceId}/files/search?${params}`);
+    for (const match of body) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = `${match.path}${match.line ? `:${match.line}` : ""}`;
+      btn.addEventListener("click", () => {
+        void selectAndOpenFile(match.path);
+        closeQuickOpen();
+      });
+      li.append(btn);
+      results.append(li);
+    }
+    if (body.length === 0) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "No matching files.";
+      btn.disabled = true;
+      li.append(btn);
+      results.append(li);
+    }
+  } catch (failure) {
+    toast(errorText(failure), "error");
+  }
 }
 
 function clearWorkspaceSearch(): void {
@@ -2578,6 +2748,33 @@ function wireUi(): void {
     const frame = byId<HTMLIFrameElement>("preview-frame");
     if (state.previewUrl) frame.src = state.previewUrl;
   });
+  const resizer = byId<HTMLElement>("preview-resizer");
+  let resizing = false;
+  let startY = 0;
+  let startHeight = 0;
+  const onPointerMove = (event: PointerEvent) => {
+    if (!resizing) return;
+    const dock = byId<HTMLElement>("preview-dock");
+    const delta = startY - event.clientY;
+    const next = Math.max(120, startHeight + delta);
+    dock.style.height = `${next}px`;
+  };
+  const onPointerUp = () => {
+    resizing = false;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+  };
+  resizer.addEventListener("pointerdown", (event) => {
+    const dock = byId<HTMLElement>("preview-dock");
+    resizing = true;
+    startY = event.clientY;
+    startHeight = dock.getBoundingClientRect().height;
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  });
+  byId("find-preview-ports").addEventListener("click", () =>
+    findPreviewPorts().catch((failure) => toast(errorText(failure), "error")),
+  );
   byId<HTMLAnchorElement>("preview-new-tab").addEventListener("click", (event) => {
     if ((event.currentTarget as HTMLAnchorElement).getAttribute("aria-disabled") === "true") event.preventDefault();
   });
@@ -2653,6 +2850,16 @@ function wireUi(): void {
       scheduleWorkspaceSearch();
     }
   });
+  byId<HTMLInputElement>("quick-open-input").addEventListener("input", () => {
+    void renderQuickOpen(byId<HTMLInputElement>("quick-open-input").value);
+  });
+  byId<HTMLInputElement>("quick-open-input").addEventListener("keydown", (event) => {
+    const keyboard = event as KeyboardEvent;
+    if (keyboard.key === "Escape") closeQuickOpen();
+  });
+  byId<HTMLElement>("quick-open-palette").addEventListener("click", (event) => {
+    if (event.target === byId<HTMLElement>("quick-open-palette")) closeQuickOpen();
+  });
   byId("save-file").addEventListener("click", () => saveActiveDocument().catch((failure) => toast(errorText(failure), "error")));
   byId("use-server-version").addEventListener("click", useServerVersion);
   byId("keep-local-version").addEventListener("click", keepLocalVersion);
@@ -2688,8 +2895,7 @@ function wireUi(): void {
       }
       if (key === "p") {
         keyboard.preventDefault();
-        if (window.matchMedia("(max-width: 900px)").matches) setPanel("files");
-        byId<HTMLInputElement>("workspace-search").focus();
+        openQuickOpen();
       }
     }
   });
