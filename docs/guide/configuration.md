@@ -19,6 +19,8 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `BASIS_CLIENT_ID` | — | Confidential client id |
 | `BASIS_CLIENT_SECRET` | — | Confidential client secret (`init` generates one) |
 | `BASIS_RESOURCE` | — | API audience |
+| `BASIS_ADMIN_BOOTSTRAP_EMAIL` | — | Verified email that receives `ROLE_ADMIN` on first verified login |
+| `BASIS_ADMIN_REQUIRED_ACR` | — | ACR value proving MFA for the bootstrapped admin |
 | `PORT` | `11451` | API port (`--port` overrides) |
 | `JAHAZIEL_GATEWAY_PORT` | `8081` | Legacy standalone gateway socket (`--gateway-port` overrides; off unless enabled) |
 | `JAHAZIEL_DOMAIN` | `localhost` | Public domain for gateway URLs and token issuer (`--domain` overrides; browsers resolve `*.localhost` to loopback, so local runs need no setup; set a real domain with DNS for LAN/server runs) |
@@ -26,6 +28,7 @@ Last verified against version 0.1.0-SNAPSHOT.
 | `JAHAZIEL_DEMO` | `false` | Legacy demo flag (prefer `--demo`) |
 | `JAHAZIEL_BACKEND` | `local` | `local` is the only selectable backend in this release; Firecracker is retained for separate verification and is not selectable |
 | `JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE` | `/usr/bin/node` | Existing Node.js executable used by explicitly enabled TypeScript and Python language services; Jahaziel never installs it |
+| `JAHAZIEL_SHARE_SECRET` | — | HMAC secret for share links; generated in memory if unset, so revocation and signatures are lost on restart |
 
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
