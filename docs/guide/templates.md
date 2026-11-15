@@ -13,6 +13,9 @@ Pick a template when creating a workspace. The jar seeds its templates into
 `data/templates/` on first run; user edits win on later runs. Applying a
 template creates a workspace-specific home and materializes its starter files.
 Templates do not install language runtimes or dependencies during server startup.
+The Python and static-site templates require `python3` on the host; Jahaziel
+does not install it. Python setup also creates `.venv` and installs the
+pinned `debugpy` package from PyPI.
 
 | Template | Contents |
 |---|---|
