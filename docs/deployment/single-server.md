@@ -9,7 +9,7 @@
 
 This guide installs one Jahaziel jar as a systemd service on Ubuntu 26.04 LTS (the reference host) or another supported Linux x64 or arm64 host, stores its files in `/var/lib/jahaziel`, and serves it through Caddy over HTTPS. The browser workbench is designed first for iPad Safari, Chrome, and Edge, and also supports desktop browsers.
 
-Jahaziel is a remote source IDE for trusted users. Workspaces have separate homes, but terminals, tasks, and Git commands run as native processes under the same Linux service account. Do not expose this deployment to mutually untrusted users.
+Jahaziel is a remote source IDE for trusted users. Workspaces have separate homes, but terminals, tasks, Git, and debug adapters run as native processes under the same Linux service account. This trusted service-account process model is not per-user OS isolation; do not expose this deployment to mutually untrusted users.
 
 ## Deployment shape
 
@@ -34,6 +34,7 @@ Use Ubuntu 26.04 LTS on Linux x64 or arm64 for the documented reference deployme
 - `git`, used by the workbench Git panel and checked by `doctor`.
 - `tar`, used by the backup and restore commands.
 - `/bin/bash` or `/bin/sh`, plus `setsid` from `util-linux`, for terminal and task process management.
+- `python3`, required only for the Python and static-site starter templates; Jahaziel does not install it.
 
 Jahaziel does not install these tools. Node.js, Python, compilers, and other project runtimes are needed only for tasks or language packs that use them. See [templates](../guide/templates.md) and [language diagnostics](../guide/using-jahaziel.md#language-diagnostics).
 
@@ -108,13 +109,23 @@ BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback
 BASIS_CLIENT_ID=your-client-id
 BASIS_CLIENT_SECRET=your-client-secret
 BASIS_RESOURCE=your-registered-resource
+# Optional first-admin bootstrap (verified email plus IdP MFA ACR):
+# BASIS_ADMIN_BOOTSTRAP_EMAIL=admin@example.com
+# BASIS_ADMIN_REQUIRED_ACR=<idp-mfa-acr-value>
+# Optional: persist share-link signing across restarts:
+# JAHAZIEL_SHARE_SECRET=<long-random-secret>
 PORT=11451
 JAHAZIEL_DOMAIN=code.example.com
 JAHAZIEL_LOG_LEVEL=INFO
 JAHAZIEL_BACKEND=local
 ~~~
 
-Replace every example value. The redirect URL must match the provider's registered callback exactly. `BASIS_RESOURCE` must match the resource or audience configured with the provider. Keep `.env` private because it contains a client secret.
+Replace every example value. The redirect URL must match the provider's registered callback exactly. `BASIS_RESOURCE` must match the resource or audience configured with the provider. Keep `.env` private because it contains a client secret. Admin endpoints require
+`ROLE_ADMIN` and enrolled MFA. The optional bootstrap variables above
+grant that role to one verified email on its first verified login when the
+IdP's ACR matches; otherwise configure an administrator through your
+identity provider or database. Share links lose their in-memory revocation
+list and, without `JAHAZIEL_SHARE_SECRET`, their signing secret on restart.
 
 ~~~bash
 sudo chown jahaziel:jahaziel /var/lib/jahaziel/.env
@@ -209,7 +220,9 @@ Then complete a browser smoke check:
 6. Start a preview task, confirm it is reachable at `https://preview.code.example.com/{workspaceId}/{port}/`, and check both embedded and new-tab preview opening.
 7. Restart Jahaziel and verify the workspace and saved file remain.
 
-Node.js and Python starter tasks need their matching host runtimes. The application jar does not contain them.
+Node.js and Python starter tasks need their matching host runtimes. The Python
+and static-site templates need `python3`; the Node template needs Node.js 22.18.0
+or newer. The application jar does not contain them.
 
 ## 9. Back up and restore
 
