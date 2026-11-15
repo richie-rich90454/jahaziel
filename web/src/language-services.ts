@@ -26,6 +26,12 @@ export interface LanguageDiagnostic {
   message: string;
 }
 
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason: Error) => void;
+  timer: number;
+}
+
 interface Connection {
   languageId: string;
   socket: WebSocket;
@@ -34,6 +40,7 @@ interface Connection {
   activePath: string | null;
   version: number;
   changeTimer: number | null;
+  pendingRequests: Map<number, PendingRequest>;
 }
 
 interface LspMessage {
@@ -165,6 +172,7 @@ export class LanguageServices {
         textDocument: { uri: this.documentUri(connection.activePath) },
       });
     }
+    this.rejectPending(connection, "Language service closed");
     if (connection.socket.readyState === WebSocket.OPEN) {
       if (connection.initialized) this.send(connection, "shutdown", {}, this.nextRequestId++);
       this.send(connection, "exit");
@@ -172,6 +180,75 @@ export class LanguageServices {
     } else if (connection.socket.readyState === WebSocket.CONNECTING) {
       connection.socket.close();
     }
+  }
+
+  requestCompletion(pathOrParams: string | Record<string, unknown>, position?: { line: number; character: number }): Promise<unknown> {
+    const params = typeof pathOrParams === "string"
+      ? { textDocument: { uri: this.documentUri(pathOrParams) }, position: position ?? { line: 0, character: 0 } }
+      : pathOrParams;
+    return this.lspRequest("textDocument/completion", params);
+  }
+
+  completion(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestCompletion(...args);
+  }
+
+  sendCompletion(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestCompletion(...args);
+  }
+
+  requestHover(pathOrParams: string | Record<string, unknown>, position?: { line: number; character: number }): Promise<unknown> {
+    const params = typeof pathOrParams === "string"
+      ? { textDocument: { uri: this.documentUri(pathOrParams) }, position: position ?? { line: 0, character: 0 } }
+      : pathOrParams;
+    return this.lspRequest("textDocument/hover", params);
+  }
+
+  hover(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestHover(...args);
+  }
+
+  sendHover(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestHover(...args);
+  }
+
+  requestDefinition(pathOrParams: string | Record<string, unknown>, position?: { line: number; character: number }): Promise<unknown> {
+    const params = typeof pathOrParams === "string"
+      ? { textDocument: { uri: this.documentUri(pathOrParams) }, position: position ?? { line: 0, character: 0 } }
+      : pathOrParams;
+    return this.lspRequest("textDocument/definition", params);
+  }
+
+  definition(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestDefinition(...args);
+  }
+
+  sendDefinition(...args: [string | Record<string, unknown>, { line: number; character: number }?]): Promise<unknown> {
+    return this.requestDefinition(...args);
+  }
+
+  lspRequest(method: string, params?: unknown): Promise<unknown> {
+    const connection = this.connection;
+    if (!connection || !connection.initialized || connection.socket.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error("Language service is not connected"));
+    }
+    const id = this.nextRequestId++;
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        connection.pendingRequests.delete(id);
+        reject(new Error(`Language service did not answer ${method}.`));
+      }, 30000);
+      connection.pendingRequests.set(id, { resolve, reject, timer });
+      this.send(connection, method, params, id);
+    });
+  }
+
+  private rejectPending(connection: Connection, message: string): void {
+    for (const pending of connection.pendingRequests.values()) {
+      window.clearTimeout(pending.timer);
+      pending.reject(new Error(message));
+    }
+    connection.pendingRequests.clear();
   }
 
   private connect(languageId: string, path: string): void {
@@ -187,6 +264,7 @@ export class LanguageServices {
       activePath: path,
       version: 1,
       changeTimer: null,
+      pendingRequests: new Map<number, PendingRequest>(),
     };
     this.connection = connection;
     this.onStatus(`Connecting ${languageId} language service…`);
@@ -213,6 +291,7 @@ export class LanguageServices {
     });
     socket.addEventListener("close", () => {
       if (this.connection === connection) {
+        this.rejectPending(connection, "Language service disconnected");
         this.connection = null;
         this.onDiagnostics([]);
         this.onStatus("Language service disconnected");
@@ -245,6 +324,16 @@ export class LanguageServices {
       this.send(connection, "initialized", {});
       this.onStatus(`${connection.languageId} language service ready`);
       if (connection.activePath) this.didOpen(connection, connection.activePath, this.activeText);
+      return;
+    }
+    if (message.id !== undefined && message.id !== null && !message.method) {
+      const pending = connection.pendingRequests.get(Number(message.id));
+      if (pending) {
+        window.clearTimeout(pending.timer);
+        connection.pendingRequests.delete(Number(message.id));
+        if (message.error) pending.reject(new Error(message.error.message || "Language service request failed"));
+        else pending.resolve(message.result);
+      }
     }
   }
 
@@ -390,3 +479,4 @@ export class LanguageServices {
     return await response.json() as T;
   }
 }
+
