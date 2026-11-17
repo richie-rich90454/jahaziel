@@ -1498,8 +1498,13 @@ async function refreshDebugSessions(): Promise<void> {
     `/api/v1/workspaces/${workspace.workspaceId}/debug-sessions`,
   );
   if (state.workspace?.workspaceId !== workspace.workspaceId) return;
+  const activeSessions = sessions.filter(
+    (session) => session.state !== "STOPPED" && session.state !== "FAILED",
+  );
   const current =
-    sessions.find((session) => session.id === state.debugSession?.id) ?? sessions[0] ?? null;
+    activeSessions.find((session) => session.id === state.debugSession?.id)
+    ?? activeSessions[0]
+    ?? null;
   if (state.debugSession && current?.id !== state.debugSession.id && state.debugSocket) {
     state.debugSocket.close(1000, "debug session changed");
     state.debugSocket = null;
