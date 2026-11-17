@@ -810,7 +810,7 @@ function renderDebugTargets(): void {
         `${selectedConfig.name} selected. Attach to the matching running task.`;
     }
   }
-  updateDebugAttachControl();
+  updateDebugControls();
 }
 
 async function pollSetup(workspaceId: string): Promise<void> {
