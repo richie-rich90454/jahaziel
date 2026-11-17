@@ -711,7 +711,7 @@ process.stdin.on("data", (chunk) => {
   );
   const preview = await fetch("http://127.0.0.1:8000/");
   assert.equal(preview.status, 200, "declared preview task must serve the workspace files");
-  assert.match(await preview.text(), /Jahaziel Python workspace/);
+  assert.match(await preview.text(), /Python workspace/);
   assert.equal(await page.locator("#preview-links a").count(), 1, "registered preview port must be visible");
   const previewHref = await page.locator("#preview-links a").getAttribute("href");
   assert.ok(previewHref, "registered preview link must include its workspace-scoped URL");
