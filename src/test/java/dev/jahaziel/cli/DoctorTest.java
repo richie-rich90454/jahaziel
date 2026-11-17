@@ -402,6 +402,7 @@ class DoctorTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   void strayFailsWhileDataLockHeld() throws Exception {
     Env env = green(root.resolve("jar"));
     Path lock = env.dataDir().resolve(".lock");
