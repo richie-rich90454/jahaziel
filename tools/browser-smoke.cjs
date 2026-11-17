@@ -515,7 +515,13 @@ process.stdin.on("data", (chunk) => {
   await page.reload();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
   await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
-  await page.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await page.waitForFunction(() => {
+    const text = document.querySelector(".cm-content")?.textContent || "";
+    return text.includes("External update") || text.includes("Local unsaved edit");
+  });
+  const serverReadme = await page.request.get(fileUrl);
+  assert.equal(serverReadme.status(), 200);
+  assert.match((await serverReadme.json()).content, /External update/);
 
   const search = page.locator("#workspace-search");
   await search.fill("External update");
