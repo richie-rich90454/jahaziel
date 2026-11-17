@@ -2410,10 +2410,8 @@ async function saveActiveDocument(): Promise<void> {
       if (state.workspace?.workspaceId !== workspace.workspaceId || state.openDocuments.get(path) !== opened) return;
       opened.conflictRemoteVersion = latest.response.headers.get("ETag") || latest.body.version;
       opened.conflictRemoteContent = latest.body.content;
-      byId("save-state").textContent = "Changed on disk — reload before saving";
-      byId("save-state").className = "save-state conflict";
       updateSaveState();
-      byId("save-state").textContent = "Server version changed";
+      byId("save-state").textContent = "Changed on disk — reload before saving";
       byId("save-state").className = "save-state conflict";
       toast("Your local edits are preserved. Choose the server copy or keep your edits before saving again.", "error");
       return;
