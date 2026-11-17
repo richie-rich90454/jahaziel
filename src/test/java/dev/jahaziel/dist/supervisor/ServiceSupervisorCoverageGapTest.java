@@ -26,6 +26,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
 /** Closes the JaCoCo gaps in {@link ServiceSupervisor}. */
+@SuppressWarnings("unused")
 class ServiceSupervisorCoverageGapTest {
   private static Path write(Path dir, String name, String content) throws IOException {
     Path file = dir.resolve(name);
