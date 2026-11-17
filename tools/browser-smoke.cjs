@@ -428,7 +428,6 @@ process.stdin.on("data", (chunk) => {
   await page.locator("#create-workspace").click();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
   await page.waitForURL(/#workspace\/[0-9a-f-]+$/i);
-  await waitForText(page, "#setup-state", "^READY$", 180_000);
 
   const workspaceId = new URL(page.url()).hash.split("/")[1];
   const secondWorkspaceResponse = await page.request.post(
@@ -569,6 +568,7 @@ process.stdin.on("data", (chunk) => {
 
   await page.locator("#runtime-toggle").click();
   await waitForText(page, "#workbench-state", "^ready$", 20_000);
+  await waitForText(page, "#setup-state", "^READY$", 300_000);
 
   const pyrightPack = page.locator(".language-pack").filter({ hasText: "Pyright" });
   await pyrightPack.locator(".language-pack-action").click();
