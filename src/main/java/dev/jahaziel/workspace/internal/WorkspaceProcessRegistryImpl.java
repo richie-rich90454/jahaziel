@@ -90,7 +90,7 @@ public final class WorkspaceProcessRegistryImpl
       throw new UncheckedIOException("cannot persist workspace process identity", failure);
     }
     LiveRegistration registration =
-        new LiveRegistration(id, marker, handle, identity, workspaceId.value(), kind);
+        new LiveRegistration(id, marker, identity, workspaceId.value(), kind);
     live.put(id, registration);
     if (!handle.isAlive()) {
       registration.close();
@@ -124,6 +124,7 @@ public final class WorkspaceProcessRegistryImpl
   }
 
   @Override
+  @SuppressWarnings("null")
   public List<TrackedProcess> trackedProcessTree(WorkspaceId workspaceId, Set<Kind> kinds) {
     Objects.requireNonNull(workspaceId, "workspaceId");
     Objects.requireNonNull(kinds, "kinds");
@@ -430,6 +431,7 @@ public final class WorkspaceProcessRegistryImpl
     }
   }
 
+  @SuppressWarnings("null")
   private static boolean terminate(ProcessHandle handle, long sessionId) {
     Map<Long, ProcessHandle> processes = new LinkedHashMap<>();
     handle.descendants().forEach(process -> processes.put(process.pid(), process));
@@ -449,6 +451,7 @@ public final class WorkspaceProcessRegistryImpl
     return all.stream().noneMatch(ProcessHandle::isAlive);
   }
 
+  @SuppressWarnings("null")
   private static void awaitExit(List<ProcessHandle> processes, Duration duration) {
     long deadline = System.nanoTime() + duration.toNanos();
     while (processes.stream().anyMatch(ProcessHandle::isAlive) && System.nanoTime() < deadline) {
@@ -475,6 +478,7 @@ public final class WorkspaceProcessRegistryImpl
     return Platforms.detect(null).os() == Platform.Os.LINUX;
   }
 
+  @SuppressWarnings("null")
   private static List<ProcessHandle> processesInSession(long sessionId) {
     Path proc = Path.of("/proc");
     if (!Files.isDirectory(proc)) return List.of();
@@ -500,6 +504,7 @@ public final class WorkspaceProcessRegistryImpl
     return result;
   }
 
+  @SuppressWarnings("null")
   private static boolean terminateSession(long sessionId) {
     if (!isLinux() || sessionId <= 0) return true;
     List<ProcessHandle> session = processesInSession(sessionId);
@@ -533,6 +538,7 @@ public final class WorkspaceProcessRegistryImpl
   }
 
   @PreDestroy
+  @SuppressWarnings("null")
   public void closeAll() {
     live.values().forEach(LiveRegistration::stop);
   }
@@ -558,22 +564,15 @@ public final class WorkspaceProcessRegistryImpl
   private final class LiveRegistration implements Registration {
     private final UUID id;
     private final Path marker;
-    private final ProcessHandle process;
     private final ProcessIdentity identity;
     private final UUID workspaceId;
     private final Kind kind;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private LiveRegistration(
-        UUID id,
-        Path marker,
-        ProcessHandle process,
-        ProcessIdentity identity,
-        UUID workspaceId,
-        Kind kind) {
+        UUID id, Path marker, ProcessIdentity identity, UUID workspaceId, Kind kind) {
       this.id = id;
       this.marker = marker;
-      this.process = process;
       this.identity = identity;
       this.workspaceId = workspaceId;
       this.kind = kind;
