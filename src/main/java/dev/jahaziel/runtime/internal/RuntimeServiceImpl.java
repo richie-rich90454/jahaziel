@@ -141,7 +141,7 @@ public final class RuntimeServiceImpl implements RuntimeService {
     UUID correlationId =
         progress
             .snapshot(id)
-            .map(BootProgressService.Progress::correlationId)
+            .map((BootProgressService.Progress report) -> report.correlationId())
             .orElseGet(UUID::randomUUID);
     progress.clear(id);
     Workspace current;
