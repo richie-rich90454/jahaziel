@@ -778,8 +778,6 @@ process.stdin.on("data", (chunk) => {
 
   await page.reload();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
-  await page.locator("#terminal-reconnect").waitFor({ state: "visible", timeout: 20_000 });
-  await page.locator("#terminal-reconnect").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
   assert.ok(
     terminalFrames.some((frame) => frame.type === "history" && frame.containsMarker),
