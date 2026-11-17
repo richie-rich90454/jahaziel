@@ -599,9 +599,9 @@ process.stdin.on("data", (chunk) => {
     return stop instanceof HTMLButtonElement && !stop.disabled;
   });
   await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
-  const pendingBreakpoint = page.getByRole("button", {
-    name: "Set breakpoint at README.md, line 1",
-  });
+  const pendingBreakpoint = page.locator(
+    '.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]',
+  ).first();
   await pendingBreakpoint.click();
   await waitForText(page, "#debug-breakpoint-list", "README\\.md: 1");
   assert.equal(
