@@ -30,6 +30,7 @@ class AuditSpoolCoverageGapTest {
     spool.append(UUID.randomUUID(), "{\"a\":1}");
     AclFileAttributeView view = Files.getFileAttributeView(root, AclFileAttributeView.class);
     assumeTrue(view != null, "ACLs unsupported on " + root);
+    view = java.util.Objects.requireNonNull(view);
     List<AclEntry> original = new ArrayList<>(view.getAcl());
     UserPrincipal owner = Files.getOwner(root);
     List<AclEntry> updated = new ArrayList<>(original);
