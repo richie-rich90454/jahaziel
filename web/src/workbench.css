@@ -523,6 +523,7 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .run-history-panel { padding: 8px 10px; }
 .run-history-panel h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; opacity: 0.7; }
+.quick-open-palette[hidden] { display: none; }
 .quick-open-palette {
   position: fixed;
   inset: 0;
