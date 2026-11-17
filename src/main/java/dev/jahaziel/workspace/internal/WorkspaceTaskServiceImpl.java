@@ -414,7 +414,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     String program = null;
     JsonNode programNode = node.get("program");
     if (programNode != null && !programNode.isNull()) {
-      if (!programNode.isTextual() || programNode.asString().isBlank()) {
+      if (!programNode.isString() || programNode.asString().isBlank()) {
         throw new IllegalArgumentException("template debug program must be a relative path");
       }
       Path path = Path.of(programNode.asString().replace('\\', '/')).normalize();
@@ -511,7 +511,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (manager == null) return;
     for (String script : List.of("dev", "start", "preview", "serve", "test", "build")) {
       JsonNode value = scripts.get(script);
-      if (value == null || !value.isTextual() || value.asString().isBlank()) continue;
+      if (value == null || !value.isString() || value.asString().isBlank()) continue;
       if (result.stream()
           .anyMatch(
               configured ->
@@ -528,7 +528,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
 
   private static String packageManager(JsonNode packageJson, Path home) {
     JsonNode declared = packageJson.path("packageManager");
-    if (declared.isTextual()) {
+    if (declared.isString()) {
       String value = declared.asString();
       if (value.startsWith("pnpm@")) return "pnpm";
       if (value.startsWith("npm@")) return "npm";
@@ -798,6 +798,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
   }
 
+  @SuppressWarnings("null")
   private void closeTask(UUID runId, String reason) {
     cancelledRuns.add(runId);
     Process process = processes.remove(runId);
@@ -872,6 +873,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
   }
 
+  @SuppressWarnings("null")
   private static void stopProcessTree(Process process) {
     List<ProcessHandle> descendants = process.descendants().toList();
     descendants.forEach(ProcessHandle::destroy);
@@ -885,6 +887,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (process.isAlive()) process.destroyForcibly();
   }
 
+  @SuppressWarnings("null")
   private void executeTask(
       WorkspaceId workspaceId,
       UUID runId,
@@ -1278,7 +1281,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     List<String> result = new ArrayList<>();
     Set<String> unique = new java.util.HashSet<>();
     for (JsonNode pack : packs) {
-      if (!pack.isTextual()
+      if (!pack.isString()
           || !LANGUAGE_PACK_IDS.contains(pack.asString())
           || !unique.add(pack.asString())) {
         throw new IllegalArgumentException("template contains an invalid language pack");
@@ -1293,7 +1296,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       throw new IllegalArgumentException("template command must be a non-empty argument list");
     List<String> args = new ArrayList<>();
     for (JsonNode item : node) {
-      if (!item.isTextual()
+      if (!item.isString()
           || item.asString().isBlank()
           || item.asString().length() > 1024
           || item.asString().indexOf('\0') >= 0) {
