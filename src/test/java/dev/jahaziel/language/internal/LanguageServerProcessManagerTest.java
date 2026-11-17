@@ -59,6 +59,7 @@ class LanguageServerProcessManagerTest {
   void initializeUsesServerOwnedTypeScriptOptionsAndWorkspaceRoot() throws Exception {
     Path node = nodeExecutable();
     org.junit.jupiter.api.Assumptions.assumeTrue(node != null, "Node.js is available on PATH");
+    node = java.util.Objects.requireNonNull(node);
     Path workspace = temporary.resolve("workspace");
     Path captured = temporary.resolve("initialize.json");
     Files.createDirectories(workspace);
