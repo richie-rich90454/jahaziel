@@ -589,8 +589,8 @@ public final class Doctor {
         }
       }
     }
-    installed.sort(String::compareTo);
-    selected.sort(String::compareTo);
+    installed.sort((String left, String right) -> left.compareTo(right));
+    selected.sort((String left, String right) -> left.compareTo(right));
     return "installed managed packs="
         + (installed.isEmpty() ? "none" : String.join(",", installed))
         + "; selected packs="
