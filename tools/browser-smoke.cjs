@@ -712,8 +712,11 @@ process.stdin.on("data", (chunk) => {
   const preview = await fetch("http://127.0.0.1:8000/");
   assert.equal(preview.status, 200, "declared preview task must serve the workspace files");
   assert.match(await preview.text(), /Python workspace/);
-  assert.equal(await page.locator("#preview-links a").count(), 1, "registered preview port must be visible");
-  const previewHref = await page.locator("#preview-links a").getAttribute("href");
+  assert.equal(await page.locator("#preview-links .preview-chip").count(), 1, "registered preview port must be visible");
+  const portsResponse = await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/ports`);
+  assert.equal(portsResponse.status(), 200);
+  const previewPort = (await portsResponse.json()).find((port) => port.port === 8000);
+  const previewHref = previewPort?.url;
   assert.ok(previewHref, "registered preview link must include its workspace-scoped URL");
   const previewPage = await page.context().newPage();
   let previewLoaded = false;
