@@ -57,6 +57,7 @@ class PlatformsCoverageGapTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   void resolveJarDirFromJarSource(@TempDir Path dir) throws Exception {
     Path fakeJar = dir.resolve("app.jar");
     Files.createFile(fakeJar);
