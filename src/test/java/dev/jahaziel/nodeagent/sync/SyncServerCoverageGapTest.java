@@ -194,6 +194,7 @@ class SyncServerCoverageGapTest {
       throws Exception {
     AclFileAttributeView view = Files.getFileAttributeView(path, AclFileAttributeView.class);
     assumeTrue(view != null, "ACLs unsupported on " + path);
+    view = java.util.Objects.requireNonNull(view);
     List<AclEntry> original = new ArrayList<>(view.getAcl());
     UserPrincipal owner = Files.getOwner(path);
     List<AclEntry> updated = new ArrayList<>(original);
