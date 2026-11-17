@@ -26,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 /** Final gap tests: run/shutdown flow, stops, interrupts, sandboxes, and unquoting. */
+@SuppressWarnings("unused")
 class SupervisorFinalTest {
   @TempDir private Path tmp;
 
