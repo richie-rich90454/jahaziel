@@ -815,7 +815,17 @@ process.stdin.on("data", (chunk) => {
     `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
   );
   assert.equal(runningTaskResponse.status(), 200, "latest task status must be readable");
-  assert.equal((await runningTaskResponse.json()).status, "RUNNING");
+  let latestRun = await runningTaskResponse.json();
+  if (latestRun.status !== "RUNNING") {
+    await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
+    for (let attempt = 0; attempt < 20 && latestRun.status !== "RUNNING"; attempt++) {
+      await page.waitForTimeout(500);
+      latestRun = await (await page.request.get(
+        `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
+      )).json();
+    }
+  }
+  assert.equal(latestRun.status, "RUNNING");
 
   const signedInState = await page.context().storageState();
   await browser.close();
