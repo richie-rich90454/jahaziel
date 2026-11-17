@@ -671,7 +671,6 @@ process.stdin.on("data", (chunk) => {
     ["id", "label", "languageId", "taskRunId"],
     "browser-visible debug targets must not reveal process or adapter connection details",
   );
-  await page.locator('.workbench-panel-nav [data-panel="debug"]').click();
   await page.waitForFunction(
     (targetId) => [...document.querySelector("#debug-attach-target")?.options ?? []]
       .some((option) => option.value === targetId),
