@@ -325,6 +325,7 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
     }
   }
 
+  @SuppressWarnings("null")
   private static void terminateProcessTree(Process process) {
     List<ProcessHandle> descendants = process.descendants().toList();
     descendants.forEach(ProcessHandle::destroy);
