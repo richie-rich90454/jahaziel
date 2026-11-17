@@ -631,10 +631,6 @@ public final class AgentToolServiceImpl implements AgentToolService {
     return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path);
   }
 
-  private Artifact artifactForHost() {
-    return ARTIFACTS.getOrDefault(architecture(), new Artifact("", "", 0, "opencode"));
-  }
-
   private static long totalDownloadBytes(String architecture) {
     Artifact openCode = ARTIFACTS.get(architecture);
     Artifact ripgrep = RIPGREP_ARTIFACTS.get(architecture);
