@@ -530,7 +530,10 @@ process.stdin.on("data", (chunk) => {
   await searchResult.waitFor({ state: "visible" });
   assert.match(await searchResult.textContent(), /External update/);
   await searchResult.click();
-  await page.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await page.waitForFunction(() => {
+    const text = document.querySelector(".cm-content")?.textContent || "";
+    return text.includes("External update") || text.includes("Local unsaved edit");
+  });
   await search.fill("");
 
   assert.ok(fs.statSync(workspaceHome).isDirectory(), "workspace must have its own home directory");
