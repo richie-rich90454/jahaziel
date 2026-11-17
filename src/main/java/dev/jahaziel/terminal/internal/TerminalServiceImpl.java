@@ -14,7 +14,6 @@ import dev.jahaziel.security.api.SecretRedactor;
 import dev.jahaziel.terminal.api.TerminalLimitException;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
 import dev.jahaziel.terminal.api.TerminalService;
-import dev.jahaziel.terminal.api.TerminalService.StreamEvent;
 import dev.jahaziel.terminal.api.TerminalUnavailableException;
 import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
@@ -387,11 +386,11 @@ public final class TerminalServiceImpl implements TerminalService {
     }
     ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
     List<ProcessHandle> descendants = handle == null ? List.of() : handle.descendants().toList();
-    descendants.forEach(ProcessHandle::destroy);
+    descendants.forEach((ProcessHandle descendant) -> descendant.destroy());
     process.destroy();
     try {
       if (!process.waitFor(1, TimeUnit.SECONDS)) {
-        descendants.forEach(ProcessHandle::destroyForcibly);
+        descendants.forEach((ProcessHandle descendant) -> descendant.destroyForcibly());
         process.destroyForcibly();
       }
     } catch (InterruptedException failure) {
