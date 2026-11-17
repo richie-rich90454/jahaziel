@@ -5,8 +5,6 @@
 package dev.jahaziel.debug.internal;
 
 import dev.jahaziel.debug.api.DebugService;
-import dev.jahaziel.debug.api.DebugService.Session;
-import dev.jahaziel.debug.api.DebugService.StartRequest;
 import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
 import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
@@ -196,8 +194,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     Objects.requireNonNull(workspaceId, "workspaceId");
     return active.values().stream()
         .filter(session -> session.workspaceId.equals(workspaceId))
-        .map(AdapterSession::view)
-        .sorted(java.util.Comparator.comparing(Session::startedAt).reversed())
+        .map((AdapterSession session) -> session.view())
+        .sorted(java.util.Comparator.comparing((Session session) -> session.startedAt()).reversed())
         .toList();
   }
 
