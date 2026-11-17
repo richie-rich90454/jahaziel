@@ -676,6 +676,7 @@ process.stdin.on("data", (chunk) => {
       .some((option) => option.value === targetId),
     pythonTarget.id,
   );
+  console.error("ATTACH DIAG:", "debugState=", await page.locator("#debug-state").textContent(), "sessions=", JSON.stringify(await (await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/debug-sessions`)).json()), "options=", await page.locator("#debug-attach-target option").allTextContents());
   await page.locator("#debug-attach-target").selectOption(pythonTarget.id);
   await page.locator("#debug-attach").click();
   await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
