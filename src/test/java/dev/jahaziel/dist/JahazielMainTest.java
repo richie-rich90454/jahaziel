@@ -205,6 +205,7 @@ class JahazielMainTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   void launchRefusesLockedDataDir() throws Exception {
     Path home = Files.createTempDirectory("launch-locked-test");
     String previousUserDir = System.getProperty("user.dir");
