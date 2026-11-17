@@ -18,6 +18,7 @@ public final class DataLockHolder {
    *
    * @param args single path to the lock file
    */
+  @SuppressWarnings("unused")
   public static void main(String[] args) throws Exception {
     Path lock = Path.of(args[0]);
     Files.createDirectories(lock.toAbsolutePath().normalize().getParent());
