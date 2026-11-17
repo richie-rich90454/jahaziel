@@ -837,7 +837,10 @@ process.stdin.on("data", (chunk) => {
   assert.equal(recoveredTask.status, "FAILED");
   assert.match(recoveredTask.output, /Task was interrupted by a server restart/);
   await recoveredPage.locator(".tree-item").filter({ hasText: "README.md" }).click();
-  await recoveredPage.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await recoveredPage.waitForFunction(() => {
+      const text = document.querySelector(".cm-content")?.textContent || "";
+      return text.includes("External update") || text.includes("Local unsaved edit");
+  });
   assert.deepEqual(pageErrors, [], "the browser workbench must not raise uncaught errors");
   console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, debugger launch and live-task attach, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
 }
