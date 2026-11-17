@@ -53,7 +53,7 @@ final class LanguageProtocol {
       throw new IOException("language-server message must be a JSON-RPC object");
     }
     JsonNode methodNode = message.get("method");
-    String method = methodNode == null || !methodNode.isTextual() ? "" : methodNode.stringValue();
+    String method = methodNode == null || !methodNode.isString() ? "" : methodNode.stringValue();
     if (method.isEmpty()) {
       if (!message.has("id") || (!message.has("result") && !message.has("error"))) {
         throw new IOException("language-server response is invalid");
