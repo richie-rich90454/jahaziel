@@ -658,6 +658,7 @@ process.stdin.on("data", (chunk) => {
   );
   assert.equal(debugTargetsResponse.status(), 200, "running debuggable tasks must be discoverable");
   const debugTargets = await debugTargetsResponse.json();
+  if (debugTargets.length !== 1) console.error("DEBUG TARGETS DIAG:", JSON.stringify(debugTargets), "TASK:", JSON.stringify(await (await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`)).json()));
   assert.equal(debugTargets.length, 1, "the running Python task must expose one attach target");
   const [pythonTarget] = debugTargets;
   assert.equal(pythonTarget.languageId, "python");
