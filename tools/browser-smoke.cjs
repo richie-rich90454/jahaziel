@@ -652,7 +652,12 @@ process.stdin.on("data", (chunk) => {
   assert.equal(completedTask.exitCode, 0, "completed tasks must expose their exit code");
 
   await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
-  await waitForText(page, "#task-output", "Listening on 0\\.0\\.0\\.0:8000", 20_000);
+  try {
+    await waitForText(page, "#task-output", "Listening on 0\\.0\\.0\\.0:8000", 20_000);
+  } catch (failure) {
+    console.error("TASK OUTPUT DIAG:", JSON.stringify(await page.locator("#task-output").textContent()), "SETUP:", await page.locator("#setup-state").textContent());
+    throw failure;
+  }
   await waitForText(page, "#preview-links", "LISTENING", 15_000);
   const debugTargetsResponse = await page.request.get(
     `${origin}/api/v1/workspaces/${workspaceId}/tasks/debug-targets`,
