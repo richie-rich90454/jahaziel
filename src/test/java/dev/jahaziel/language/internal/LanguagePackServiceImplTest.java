@@ -347,6 +347,7 @@ class LanguagePackServiceImplTest {
   void typescriptPackVerifiesBothArchivesAndUsesThePinnedRuntimePath() throws Exception {
     Path node = nodeExecutable();
     Assumptions.assumeTrue(node != null, "Node.js is available on PATH");
+    node = java.util.Objects.requireNonNull(node);
     System.setProperty("os.name", "Linux");
     System.setProperty("os.arch", "amd64");
     String serverUrl = "https://example.invalid/typescript-language-server.tgz";
@@ -641,9 +642,9 @@ class LanguagePackServiceImplTest {
                 "gzip")));
   }
 
+  @SuppressWarnings("unchecked")
   private static HttpClient httpReturning(byte[] archive) throws Exception {
     HttpClient http = mock(HttpClient.class);
-    @SuppressWarnings("unchecked")
     HttpResponse<java.io.InputStream> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(200);
     when(response.body()).thenAnswer(ignored -> new ByteArrayInputStream(archive));
@@ -657,6 +658,7 @@ class LanguagePackServiceImplTest {
     return http;
   }
 
+  @SuppressWarnings("unchecked")
   private static HttpClient httpReturningUrls(Map<String, byte[]> archives) throws Exception {
     HttpClient http = mock(HttpClient.class);
     when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
@@ -665,7 +667,6 @@ class LanguagePackServiceImplTest {
               HttpRequest request = invocation.getArgument(0);
               byte[] archive = archives.get(request.uri().toString());
               if (archive == null) throw new IOException("unexpected archive request");
-              @SuppressWarnings("unchecked")
               HttpResponse<java.io.InputStream> response = mock(HttpResponse.class);
               when(response.statusCode()).thenReturn(200);
               when(response.body()).thenAnswer(ignored -> new ByteArrayInputStream(archive));
