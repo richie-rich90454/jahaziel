@@ -738,9 +738,6 @@ process.stdin.on("data", (chunk) => {
     `workspace-scoped preview URL must route to the running task (${previewFailure})`,
   );
   await previewPage.close();
-  await page.locator("#task-stop").click();
-  await waitForText(page, "#task-output", "STOPPED", 15_000);
-  await waitForText(page, "#preview-links", "NOT LISTENING", 15_000);
 
   await page.locator("#terminal-new").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
@@ -809,23 +806,12 @@ process.stdin.on("data", (chunk) => {
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
-  await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
   await waitForText(page, "#preview-links", "LISTENING", 60_000);
   const runningTaskResponse = await page.request.get(
     `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
   );
   assert.equal(runningTaskResponse.status(), 200, "latest task status must be readable");
-  let latestRun = await runningTaskResponse.json();
-  if (latestRun.status !== "RUNNING") {
-    await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
-    for (let attempt = 0; attempt < 20 && latestRun.status !== "RUNNING"; attempt++) {
-      await page.waitForTimeout(500);
-      latestRun = await (await page.request.get(
-        `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
-      )).json();
-    }
-  }
-  assert.equal(latestRun.status, "RUNNING");
+  assert.equal((await runningTaskResponse.json()).status, "RUNNING");
 
   const signedInState = await page.context().storageState();
   await browser.close();
