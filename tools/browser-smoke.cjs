@@ -653,12 +653,16 @@ process.stdin.on("data", (chunk) => {
 
   await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
   await waitForText(page, "#preview-links", "LISTENING", 60_000);
-  const debugTargetsResponse = await page.request.get(
-    `${origin}/api/v1/workspaces/${workspaceId}/tasks/debug-targets`,
-  );
-  assert.equal(debugTargetsResponse.status(), 200, "running debuggable tasks must be discoverable");
-  const debugTargets = await debugTargetsResponse.json();
-  if (debugTargets.length !== 1) console.error("DEBUG TARGETS DIAG:", JSON.stringify(debugTargets), "TASK:", JSON.stringify(await (await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`)).json()));
+  let debugTargets = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const debugTargetsResponse = await page.request.get(
+      `${origin}/api/v1/workspaces/${workspaceId}/tasks/debug-targets`,
+    );
+    assert.equal(debugTargetsResponse.status(), 200, "running debuggable tasks must be discoverable");
+    debugTargets = await debugTargetsResponse.json();
+    if (debugTargets.length === 1) break;
+    await page.waitForTimeout(1000);
+  }
   assert.equal(debugTargets.length, 1, "the running Python task must expose one attach target");
   const [pythonTarget] = debugTargets;
   assert.equal(pythonTarget.languageId, "python");
