@@ -133,6 +133,7 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
     }
   }
 
+  @SuppressWarnings("null")
   public void closeAll() {
     List<ProcessSession> closing;
     synchronized (sessions) {
@@ -360,7 +361,7 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
       }
       ObjectNode safeMessage = LanguageProtocol.parseClientMessage(jsonMessage, json);
       JsonNode methodNode = safeMessage.get("method");
-      String method = methodNode == null || !methodNode.isTextual() ? "" : methodNode.stringValue();
+      String method = methodNode == null || !methodNode.isString() ? "" : methodNode.stringValue();
       enforceWorkspaceRoot(method, safeMessage);
       if (!method.equals("initialize")) rewriteClientUris(safeMessage);
       byte[] body = json.writeValueAsBytes(safeMessage);
@@ -397,7 +398,7 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         var fields = List.copyOf(object.properties());
         for (var field : fields) {
           JsonNode value = field.getValue();
-          if (field.getKey().equals("uri") && value.isTextual()) {
+          if (field.getKey().equals("uri") && value.isString()) {
             Path file =
                 LanguageDocumentUris.toFilePath(value.stringValue(), workspaceId, workspaceHome);
             object.put(field.getKey(), file.toUri().toString());
@@ -424,12 +425,12 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         for (var field : fields) {
           JsonNode value = field.getValue();
           if ((field.getKey().equals("uri") || field.getKey().equals("rootUri"))
-              && value.isTextual()) {
+              && value.isString()) {
             object.put(field.getKey(), safeVirtualUri(value.stringValue()));
           } else if (field.getKey().startsWith("file:")) {
             JsonNode removed = object.remove(field.getKey());
             object.set(safeVirtualUri(field.getKey()), removed);
-          } else if (value.isTextual()) {
+          } else if (value.isString()) {
             String text = redactHostPath(value.stringValue());
             if (!text.equals(value.stringValue())) object.put(field.getKey(), text);
           } else {
@@ -439,7 +440,7 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
       } else if (node instanceof ArrayNode array) {
         for (int index = 0; index < array.size(); index++) {
           JsonNode value = array.get(index);
-          if (value.isTextual()) {
+          if (value.isString()) {
             array.set(index, json.valueToTree(redactHostPath(value.stringValue())));
           } else {
             rewriteServerUris(value);
@@ -472,6 +473,7 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
     }
 
     @Override
+    @SuppressWarnings("null")
     public void close() {
       if (closed) {
         return;
