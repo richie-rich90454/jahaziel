@@ -47,6 +47,7 @@ class NodeAgentServiceCoverageGapTest {
     Files.createDirectories(snaps);
     AclFileAttributeView view = Files.getFileAttributeView(snaps, AclFileAttributeView.class);
     assumeTrue(view != null, "ACLs unsupported on " + snaps);
+    view = java.util.Objects.requireNonNull(view);
     List<AclEntry> original = new ArrayList<>(view.getAcl());
     UserPrincipal owner = Files.getOwner(snaps);
     List<AclEntry> updated = new ArrayList<>(original);
