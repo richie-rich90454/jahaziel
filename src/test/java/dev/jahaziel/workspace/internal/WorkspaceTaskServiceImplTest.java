@@ -687,10 +687,10 @@ class WorkspaceTaskServiceImplTest {
   private static void awaitProcessExit(long pid) throws InterruptedException {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
     while (System.nanoTime() < deadline
-        && ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
+        && ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent()) {
       Thread.sleep(10);
     }
-    assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
+    assertFalse(ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent());
   }
 
   private static Workspace activeWorkspace(WorkspaceId id) {
