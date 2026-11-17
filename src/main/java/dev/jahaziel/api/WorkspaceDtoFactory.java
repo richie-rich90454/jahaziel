@@ -102,7 +102,7 @@ public final class WorkspaceDtoFactory {
   private Instant bootPhaseAt(WorkspaceView view) {
     return progress
         .snapshot(view.workspace().id())
-        .map(BootProgressService.Progress::updatedAt)
+        .map((BootProgressService.Progress report) -> report.updatedAt())
         .orElse(null);
   }
 
