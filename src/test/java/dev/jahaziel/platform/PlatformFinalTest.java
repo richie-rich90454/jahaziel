@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 /** Final gap tests: dotenv shapes, OS/arch operands, and jar-dir fallbacks. */
+@SuppressWarnings("unused")
 class PlatformFinalTest {
   @TempDir private Path tmp;
 
