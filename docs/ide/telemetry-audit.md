@@ -7,6 +7,9 @@
 
 # Historical telemetry audit
 
+> **Legacy reference — superseded and not part of the shipped product.** This audit covers a retired
+> IDE-server component. Kept for historical context only.
+
 > Archived review of the retired VS Code fork. Jahaziel no longer builds or
 > embeds that server. This audit does not describe the current browser
 > workbench; see [the current architecture](../architecture/ide.md).
