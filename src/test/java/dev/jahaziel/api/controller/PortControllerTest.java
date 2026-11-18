@@ -18,6 +18,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
+import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
@@ -58,6 +59,7 @@ class PortControllerTest {
         MockMvcBuilders.standaloneSetup(
                 new PortController(
                     ports,
+                    mock(PortCandidateService.class),
                     port -> true,
                     users,
                     auth,
@@ -67,6 +69,17 @@ class PortControllerTest {
                     900))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
+  }
+
+  @Test
+  void listsCandidatePorts() throws Exception {
+    UUID workspace = UUID.randomUUID();
+    UUID user = UUID.randomUUID();
+    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
+    mvc.perform(
+            get("/api/v1/workspaces/" + workspace + "/ports/candidates")
+                .principal(() -> user.toString()))
+        .andExpect(status().isOk());
   }
 
   @Test
