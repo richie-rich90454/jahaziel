@@ -4,8 +4,8 @@
  */
 package dev.jahaziel.workspace.internal;
 
-import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
+import dev.jahaziel.platform.spi.ProcessEnvironments;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import jakarta.annotation.PreDestroy;
@@ -105,22 +105,7 @@ public final class WorkspaceProcessRegistryImpl
     if (command.isEmpty() || command.stream().anyMatch(value -> value == null || value.isBlank())) {
       throw new IllegalArgumentException("managed process command must not be empty");
     }
-    if (Platforms.detect(null).os() != Platform.Os.LINUX) {
-      return List.copyOf(command);
-    }
-    Path setsid =
-        List.of(Path.of("/usr/bin/setsid"), Path.of("/bin/setsid")).stream()
-            .filter(Files::isExecutable)
-            .findFirst()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "workspace processes require the Linux setsid utility"));
-    List<String> isolated = new ArrayList<>(command.size() + 2);
-    isolated.add(setsid.toString());
-    isolated.add("--");
-    isolated.addAll(command);
-    return List.copyOf(isolated);
+    return ProcessEnvironments.forOs(Platforms.detect(null).os()).sessionWrapper(command);
   }
 
   @Override
@@ -475,13 +460,17 @@ public final class WorkspaceProcessRegistryImpl
   }
 
   private static boolean isLinux() {
-    return Platforms.detect(null).os() == Platform.Os.LINUX;
+    return procRoot() != null;
+  }
+
+  private static Path procRoot() {
+    return ProcessEnvironments.forOs(Platforms.detect(null).os()).processRoot();
   }
 
   @SuppressWarnings("null")
   private static List<ProcessHandle> processesInSession(long sessionId) {
-    Path proc = Path.of("/proc");
-    if (!Files.isDirectory(proc)) return List.of();
+    Path proc = procRoot();
+    if (proc == null || !Files.isDirectory(proc)) return List.of();
     List<ProcessHandle> result = new ArrayList<>();
     try (var entries = Files.list(proc)) {
       for (Path entry : entries.toList()) {
@@ -516,7 +505,9 @@ public final class WorkspaceProcessRegistryImpl
   }
 
   private static LinuxProcessIdentity linuxProcessIdentity(long pid) {
-    Path stat = Path.of("/proc", Long.toString(pid), "stat");
+    Path root = procRoot();
+    if (root == null) return null;
+    Path stat = root.resolve(Long.toString(pid)).resolve("stat");
     try {
       String value = Files.readString(stat, StandardCharsets.US_ASCII);
       int commandEnd = value.lastIndexOf(')');
