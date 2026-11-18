@@ -1096,6 +1096,8 @@ function syncTab(path: string): void {
 export function activateDocument(path: string): void {
   const next = runtime.openDocuments.get(path);
   if (!next) return;
+  for (const [otherPath, doc] of runtime.openDocuments) doc.wrapper.hidden = otherPath !== path;
+  next.view.dom.dataset.editorPath = path;
   setState("activePath", path);
   setState("activeFileLabel", path);
   setState("editorEmptyVisible", false);
