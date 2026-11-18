@@ -7,6 +7,9 @@
 
 # IDE server build (retired)
 
+> **Legacy reference — superseded and not part of the shipped product.** Jahaziel no longer builds
+> or bundles a VS Code-derived IDE server. Kept for historical context only.
+
 Jahaziel no longer builds or embeds a VS Code-derived remote extension host.
 The tracked `ide/` fork sources, build scripts, patch stack, and bundled REH
 packaging path have been removed. Existing ignored IDE build outputs remain
