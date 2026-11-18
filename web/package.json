@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:launch-config": "node --experimental-strip-types --test tests/debug-launch-config.test.mjs"
+    "test:launch-config": "node --experimental-strip-types --test tests/debug-launch-config.test.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@codemirror/lang-html": "6.4.12",
@@ -16,10 +17,16 @@
     "@codemirror/lang-python": "6.2.1",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "codemirror": "6.0.2"
+    "codemirror": "6.0.2",
+    "solid-js": "2.0.0"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "vite": "6.4.5"
+    "@playwright/test": "1.65.1",
+    "@tailwindcss/vite": "4.3.5",
+    "daisyui": "5.8.1",
+    "tailwindcss": "4.3.5",
+    "typescript": "6.0.3",
+    "vite": "8.3.8",
+    "vite-plugin-solid": "2.11.16"
   }
 }
