@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 The Jahaziel Authors
+  SPDX-License-Identifier: Apache-2.0
+  macOS launchd template. install.sh replaces __JAR_DIR__ before loading.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>dev.jahaziel</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/java</string>
+      <string>-Dserver.address=127.0.0.1</string>
+      <string>-jar</string>
+      <string>__JAR_DIR__/jahaziel.jar</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>__JAR_DIR__</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>__JAR_DIR__/data/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__JAR_DIR__/data/logs/launchd.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>JAVA_TOOL_OPTIONS</key>
+      <string>-Djava.io.tmpdir=__JAR_DIR__/data/tmp</string>
+    </dict>
+  </dict>
+</plist>
