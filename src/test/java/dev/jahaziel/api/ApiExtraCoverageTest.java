@@ -456,6 +456,7 @@ class ApiExtraCoverageTest {
     PortController c =
         new PortController(
             ports,
+            mock(dev.jahaziel.networking.api.PortCandidateService.class),
             port -> false,
             users,
             auth,
