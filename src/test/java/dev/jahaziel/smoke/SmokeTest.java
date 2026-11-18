@@ -174,11 +174,9 @@ class SmokeTest {
           get(http, "http://127.0.0.1:" + port + "/", Map.of("Accept", "text/html"));
       assertEquals(200, root.statusCode(), "/ must be 200, body: " + root.body());
       assertTrue(
-          root.body().contains("id=\"app\""),
-          "/ must mount the workbench application shell");
+          root.body().contains("id=\"app\""), "/ must mount the workbench application shell");
       assertTrue(
-          root.body().contains("src=\"/src/index.tsx\"")
-              || root.body().contains("assets/index-"),
+          root.body().contains("src=\"/src/index.tsx\"") || root.body().contains("assets/index-"),
           "workbench entry module must be referenced");
 
       Matcher script = Pattern.compile("<script[^>]+src=\"([^\"]+\\.js)\"").matcher(root.body());
