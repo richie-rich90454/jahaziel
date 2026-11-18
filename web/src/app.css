@@ -194,7 +194,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 
 .workbench-panel-nav { display: none; }
 .workbench-layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 252px minmax(0, 1fr); }
-.file-sidebar { position: relative; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); background: var(--color-base-100); overflow: hidden; }
+.file-sidebar { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--color-base-100); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .panel-heading { min-height: 40px; flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; color: var(--ink); font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--line-soft); }
 .panel-heading > div { display: flex; gap: 7px; align-items: center; }
 .panel-glyph { color: var(--accent); font-size: 14px; }
@@ -214,16 +214,22 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .search-result-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search-result small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font: 10px var(--mono); }
 .search-empty { padding: 9px; color: var(--muted); font: 11px var(--mono); }
-.file-tree { overflow: auto; flex: 1 1 auto; list-style: none; margin: 0; padding: 8px 8px 24px; }
+.file-tree { overflow: auto; flex: 0 0 auto; max-height: 260px; list-style: none; margin: 0; padding: 8px 8px 24px; }
 .file-tree ul { list-style: none; margin: 0; padding-left: 14px; }
 .tree-item { width: 100%; min-height: 40px; overflow: hidden; border: 0; padding: 8px 10px; background: transparent; color: var(--ink); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font: 12px var(--mono); }
 .tree-item:hover { background: var(--accent-soft); color: var(--accent); }
 .tree-directory > .tree-row .tree-item { font-weight: 600; }
 .tree-empty { padding: 6px 10px; color: var(--muted); font-size: 12px; }
 
-.task-panel, .language-panel, .debug-panel, .git-panel { flex: 0 0 auto; border-top: 1px solid var(--line); background: var(--color-base-200); }
-.task-panel, .language-panel, .git-panel { max-height: 210px; overflow: auto; }
-.debug-panel { flex: 0 1 420px; max-height: 48vh; overflow: auto; }
+/* Desktop: the sidebar is the only scroll container. Panels keep their natural
+   height so no control is clipped or compressed into a neighbouring panel. */
+.file-sidebar > * { flex: 0 0 auto; }
+.task-panel, .language-panel, .debug-panel, .git-panel {
+  max-height: none;
+  overflow: visible;
+  border-top: 1px solid var(--line);
+  background: var(--color-base-200);
+}
 .language-pack-list { display: grid; gap: 4px; list-style: none; margin: 0; padding: 6px 10px 10px; }
 .language-pack { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; border-bottom: 1px solid var(--line); padding: 6px 2px; }
 .language-pack-name { overflow: hidden; color: var(--ink); font: 12px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
@@ -417,6 +423,10 @@ button:active:not(:disabled) { transform: translateY(1px); }
   #workbench-page[data-active-panel="languages"] .file-sidebar > .language-panel,
   #workbench-page[data-active-panel="debug"] .file-sidebar > .debug-panel,
   #workbench-page[data-active-panel="git"] .file-sidebar > .git-panel { min-height: 0; max-height: none; flex: 1 1 auto; border-top: 0; }
+  #workbench-page[data-active-panel="run"] .file-sidebar > .task-panel,
+  #workbench-page[data-active-panel="languages"] .file-sidebar > .language-panel,
+  #workbench-page[data-active-panel="debug"] .file-sidebar > .debug-panel,
+  #workbench-page[data-active-panel="git"] .file-sidebar > .git-panel { overflow: auto; }
   #workbench-page[data-active-panel="run"] .file-sidebar > .panel-heading:first-child,
   #workbench-page[data-active-panel="run"] .file-sidebar > .project-root,
   #workbench-page[data-active-panel="run"] .file-sidebar > .workspace-search,
