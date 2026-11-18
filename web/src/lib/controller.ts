@@ -334,6 +334,12 @@ export async function openWorkspace(workspace: Workspace, navigate = true): Prom
   refreshGitSafely();
   void refreshDebugSessions().catch((failure) => toast(errorText(failure), "error"));
   await refreshFiles();
+  // The store can paint the workbench before the new workspace is committed to
+  // every reactive binding. A second pass guarantees starter files are visible.
+  if (state.files.length === 0) {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+    await refreshFiles();
+  }
   await refreshTasks();
   await refreshLanguagePacks();
   void refreshAgentToolStatus(true);
@@ -1359,6 +1365,7 @@ export function clearWorkspaceSearch(): void {
 export function openQuickOpen(): void {
   setState("quickOpenVisible", true);
   setState("quickOpenQuery", "");
+  byId("quick-open-palette").hidden = false;
   renderQuickOpen("");
   const input = byId<HTMLInputElement>("quick-open-input");
   input.value = "";
