@@ -1338,7 +1338,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private void write(Path path, WorkspaceMetadata state) {
-    Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+    Path temporary = path.resolveSibling(path.getFileName() + "." + UUID.randomUUID() + ".tmp");
     try {
       Files.writeString(temporary, json.writeValueAsString(state), StandardCharsets.UTF_8);
       try {
