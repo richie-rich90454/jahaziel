@@ -556,7 +556,7 @@ function bindRunPanel(): void {
 
 function bindDebugPanel(): void {
   bindText(byId("debug-state"), () => state.debugState);
-  bindText(byId("debug-config-status"), () => state.debugConfigStatus);
+  bindText(byId("debug-launch-config-status"), () => state.debugConfigStatus);
   bindHidden(byId("debug-launch-config-field"), () => state.debugConfigFieldHidden);
   bindHidden(byId<HTMLSelectElement>("debug-launch-config"), () => state.debugConfigSelectHidden);
   bindDisabled(byId<HTMLSelectElement>("debug-launch-config"), () => state.debugConfigSelectDisabled);
