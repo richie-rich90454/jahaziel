@@ -23,10 +23,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Discovers loopback listener ports owned by live workspace task/terminal process trees.
+ * Discovers listening ports owned by live workspace task/terminal process trees.
  *
  * <p>Read-only: parses {@code /proc/net/tcp} and per-process socket descriptors. Never registers a
- * port, opens a gateway route, or executes a command. On non-Linux hosts it returns no candidates.
+ * port, opens a gateway route, or executes a command. Candidate ports are suggestions only; a port
+ * must be explicitly registered and preview URLs remain workspace-authorized. On non-Linux hosts it
+ * returns no candidates.
  */
 @Service
 public final class PortCandidateServiceImpl implements PortCandidateService {
