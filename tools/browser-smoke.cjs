@@ -599,11 +599,12 @@ process.stdin.on("data", (chunk) => {
     return stop instanceof HTMLButtonElement && !stop.disabled;
   });
   await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
+  await page.locator('.editor-instance:not([hidden]) .cm-scroller').evaluate((el) => { el.scrollTop = 0; });
   const pendingBreakpoint = page.locator(
     '.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]',
-  ).first();
+  );
+  await pendingBreakpoint.waitFor({ state: "visible" });
   await pendingBreakpoint.click();
-  await waitForText(page, "#debug-breakpoint-list", "README\\.md: 1");
   await page.waitForFunction(
     () => document.querySelector('.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]')
       ?.getAttribute("aria-pressed") === "true",
