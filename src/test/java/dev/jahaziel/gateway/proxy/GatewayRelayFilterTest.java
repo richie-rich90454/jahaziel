@@ -323,6 +323,64 @@ class GatewayRelayFilterTest {
   }
 
   @Test
+  void relaysChunkedBackendBodiesWithoutDoubleFraming() throws Exception {
+    // The IDE answers with Transfer-Encoding: chunked. Forwarding that header while writing the
+    // already-framed bytes made the container frame them again, so every asset body arrived
+    // corrupted (browser: "Invalid or unexpected token").
+    String body = "globalThis.__jahaziel = {chunk:'work'};".repeat(64);
+    try (ServerSocket listener = new ServerSocket(0)) {
+      Thread backend =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try (Socket client = listener.accept()) {
+                      InputStream in = client.getInputStream();
+                      while (in.read() >= 0) {
+                        // drain the request head
+                      }
+                      OutputStream out = client.getOutputStream();
+                      out.write(
+                          ("HTTP/1.1 200 OK\r\n"
+                                  + "Content-Type: application/javascript; charset=utf-8\r\n"
+                                  + "Transfer-Encoding: chunked\r\n\r\n")
+                              .getBytes(StandardCharsets.US_ASCII));
+                      int half = body.length() / 2;
+                      for (String part :
+                          new String[] {body.substring(0, half), body.substring(half)}) {
+                        byte[] bytes = part.getBytes(StandardCharsets.UTF_8);
+                        out.write(
+                            (Integer.toHexString(bytes.length) + "\r\n")
+                                .getBytes(StandardCharsets.US_ASCII));
+                        out.write(bytes);
+                        out.write("\r\n".getBytes(StandardCharsets.US_ASCII));
+                      }
+                      out.write("0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+                      out.flush();
+                    } catch (IOException closed) {
+                      // the client hung up
+                    }
+                  });
+      UUID user = UUID.randomUUID();
+      UUID workspace = UUID.randomUUID();
+      JwtVerifier tokens = mock(JwtVerifier.class);
+      when(tokens.verify("tok")).thenReturn(session(user, workspace));
+      WorkspaceDirectory directory = mock(WorkspaceDirectory.class);
+      when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
+      TargetResolver targets = mock(TargetResolver.class);
+      when(targets.resolve(workspace, 8080))
+          .thenReturn(
+              new InetSocketAddress(InetAddress.getLoopbackAddress(), listener.getLocalPort()));
+      MockHttpServletRequest request = workspaceRequest("/asset.js?token=tok");
+      MockHttpServletResponse response = new MockHttpServletResponse();
+      filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
+      backend.join();
+      assertEquals(200, response.getStatus());
+      assertEquals(body, response.getContentAsString());
+      assertNull(response.getHeader("Transfer-Encoding"));
+    }
+  }
+
+  @Test
   void proxiesPostBodies() throws Exception {
     AtomicBody backend = new AtomicBody();
     HttpServer server = backendServer(backend);
