@@ -8,8 +8,9 @@ import com.pty4j.PtyProcess;
 import com.pty4j.PtyProcessBuilder;
 import com.pty4j.WinSize;
 import dev.jahaziel.agenttools.api.AgentToolService;
-import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
+import dev.jahaziel.platform.spi.ProcessEnvironment;
+import dev.jahaziel.platform.spi.ProcessEnvironments;
 import dev.jahaziel.security.api.SecretRedactor;
 import dev.jahaziel.terminal.api.TerminalLimitException;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
@@ -27,12 +28,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -266,26 +267,25 @@ public final class TerminalServiceImpl implements TerminalService {
   }
 
   private PtyProcess startPty(TerminalSession session) {
-    if (Platforms.detect(null).os() != Platform.Os.LINUX) {
-      throw new TerminalUnavailableException("interactive terminals require a Linux server");
+    ProcessEnvironment processEnvironment = ProcessEnvironments.forOs(Platforms.detect(null).os());
+    if (!processEnvironment.isSupported()) {
+      throw new TerminalUnavailableException(
+          "interactive terminals are not supported by " + processEnvironment.descriptor().name());
     }
     Path home = directories.home(session.workspaceId());
     try {
-      String shell = Files.isExecutable(Path.of("/bin/bash")) ? "/bin/bash" : "/bin/sh";
-      Map<String, String> environment;
-      if (agentTools == null) {
-        environment = terminalEnvironment(home);
-      } else {
+      Map<String, String> extra = new LinkedHashMap<String, String>();
+      if (agentTools != null) {
         agentTools.prepareProfile(session.userId());
-        environment =
-            terminalEnvironment(
-                home,
+        extra =
+            processEnvironment.toolEnvironment(
                 agentTools.executableDirectory(session.userId()),
                 agentTools.profileDirectory(session.userId()));
       }
-      return new PtyProcessBuilder(new String[] {shell, "-i"})
+      List<String> command = processEnvironment.shellCommand(new ArrayList<String>());
+      return new PtyProcessBuilder(command.toArray(new String[0]))
           .setDirectory(home.toString())
-          .setEnvironment(environment)
+          .setEnvironment(processEnvironment.environment(home, extra))
           .setInitialRows(session.rowCount())
           .setInitialColumns(session.colCount())
           .setRedirectErrorStream(true)
