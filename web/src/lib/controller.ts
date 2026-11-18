@@ -1247,6 +1247,8 @@ export async function openDocument(path: string): Promise<void> {
         wrapper.hidden = state.activePath !== path;
     });
     effect(() => {
+        // Reading the store establishes a dependency so CodeMirror's rebuilt gutter elements are
+        // re-decorated after every breakpoint change.
         void state.debugBreakpoints;
         refreshBreakpointGutter(wrapper, path);
     });
