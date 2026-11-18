@@ -144,6 +144,7 @@ class ServiceUnitTest {
   }
 
   @Test
+  @SuppressWarnings("null")
   void ordersUnitsByTheirLocalAfterDependencies(@TempDir Path dir) throws IOException {
     ServiceUnit gateway =
         ServiceUnit.parse(
