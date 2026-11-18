@@ -1064,6 +1064,7 @@ export async function openDocument(path: string): Promise<void> {
   });
   wrapper.hidden = true;
   effect(() => { wrapper.hidden = state.activePath !== path; });
+  effect(() => { void state.debugBreakpoints; refreshBreakpointGutter(wrapper, path); });
   byId("editor-surface").append(wrapper);
   Object.assign(documentState, {
     path,
