@@ -5,17 +5,17 @@
 
 import { errorText } from "../lib/api";
 import {
-  activateDocument,
-  closeTab,
-  keepLocalVersion,
-  saveActiveDocument,
-  useServerVersion,
+    activateDocument,
+    closeTab,
+    keepLocalVersion,
+    saveActiveDocument,
+    useServerVersion,
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, byId, effect, on } from "../lib/dom";
 import { state, toast } from "../lib/store";
 
 export function editorMarkup(): string {
-  return `
+    return `
     <div class="editor-chrome">
       <div id="editor-tabs" class="editor-tabs"></div>
       <div class="editor-controls">
@@ -37,52 +37,58 @@ export function editorMarkup(): string {
 }
 
 export function bindEditor(): void {
-  const tabs = byId("editor-tabs");
-  effect(() => {
-    const openDocuments = state.tabs;
-    tabs.replaceChildren(...openDocuments.map((tab) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `editor-tab${tab.path === state.activePath ? " active" : ""}`;
-      button.title = tab.path;
-      const label = document.createElement("span");
-      label.className = "tab-label";
-      label.textContent = tab.path.split("/").at(-1) || tab.path;
-      button.append(label);
-      if (tab.dirty) {
-        const dirty = document.createElement("span");
-        dirty.className = "tab-dirty";
-        dirty.setAttribute("aria-label", "Unsaved changes");
-        button.append(dirty);
-      }
-      on(button, "click", () => activateDocument(tab.path));
-      const close = document.createElement("span");
-      close.className = "tab-close";
-      close.textContent = "×";
-      close.setAttribute("role", "button");
-      close.setAttribute("aria-label", `Close ${tab.path}`);
-      on(close, "click", (event) => {
-        event.stopPropagation();
-        closeTab(tab.path);
-      });
-      button.append(close);
-      return button;
-    }));
-  });
+    const tabs = byId("editor-tabs");
+    effect(() => {
+        const openDocuments = state.tabs;
+        tabs.replaceChildren(
+            ...openDocuments.map((tab) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `editor-tab${tab.path === state.activePath ? " active" : ""}`;
+                button.title = tab.path;
+                const label = document.createElement("span");
+                label.className = "tab-label";
+                label.textContent = tab.path.split("/").at(-1) || tab.path;
+                button.append(label);
+                if (tab.dirty) {
+                    const dirty = document.createElement("span");
+                    dirty.className = "tab-dirty";
+                    dirty.setAttribute("aria-label", "Unsaved changes");
+                    button.append(dirty);
+                }
+                on(button, "click", () => activateDocument(tab.path));
+                const close = document.createElement("span");
+                close.className = "tab-close";
+                close.textContent = "×";
+                close.setAttribute("role", "button");
+                close.setAttribute("aria-label", `Close ${tab.path}`);
+                on(close, "click", (event) => {
+                    event.stopPropagation();
+                    closeTab(tab.path);
+                });
+                button.append(close);
+                return button;
+            }),
+        );
+    });
 
-  const saveState = byId("save-state");
-  effect(() => { saveState.textContent = state.saveState; });
-  effect(() => { saveState.className = state.saveStateClass; });
-  const saveButton = byId<HTMLButtonElement>("save-file");
-  bindDisabled(saveButton, () => state.saveDisabled);
-  on(saveButton, "click", () => {
-    void saveActiveDocument().catch((failure) => toast(errorText(failure), "error"));
-  });
+    const saveState = byId("save-state");
+    effect(() => {
+        saveState.textContent = state.saveState;
+    });
+    effect(() => {
+        saveState.className = state.saveStateClass;
+    });
+    const saveButton = byId<HTMLButtonElement>("save-file");
+    bindDisabled(saveButton, () => state.saveDisabled);
+    on(saveButton, "click", () => {
+        void saveActiveDocument().catch((failure) => toast(errorText(failure), "error"));
+    });
 
-  bindText(byId("active-file"), () => state.activeFileLabel);
-  bindText(byId("status-language"), () => state.statusLanguage);
-  bindHidden(byId("editor-empty"), () => !state.editorEmptyVisible);
-  bindHidden(byId("save-conflict-actions"), () => !state.conflictVisible);
-  on(byId("use-server-version"), "click", useServerVersion);
-  on(byId("keep-local-version"), "click", keepLocalVersion);
+    bindText(byId("active-file"), () => state.activeFileLabel);
+    bindText(byId("status-language"), () => state.statusLanguage);
+    bindHidden(byId("editor-empty"), () => !state.editorEmptyVisible);
+    bindHidden(byId("save-conflict-actions"), () => !state.conflictVisible);
+    on(byId("use-server-version"), "click", useServerVersion);
+    on(byId("keep-local-version"), "click", keepLocalVersion);
 }
