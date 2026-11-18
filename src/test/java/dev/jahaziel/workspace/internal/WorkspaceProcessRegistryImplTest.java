@@ -153,6 +153,7 @@ class WorkspaceProcessRegistryImplTest {
   }
 
   @Test
+  @SuppressWarnings("null")
   void restartRecoveryStopsOrphanedChildrenFromTheRecordedLinuxSession() throws Exception {
     Assumptions.assumeTrue(isLinux(), "Linux sessions are required for this recovery check");
     WorkspaceProcessRegistryImpl previousServer = new WorkspaceProcessRegistryImpl(temp.toString());
