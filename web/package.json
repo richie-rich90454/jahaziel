@@ -6,6 +6,8 @@
   "packageManager": "pnpm@12.14.0",
   "scripts": {
     "build": "tsc --noEmit && vite build",
+    "format": "oxfmt -c oxfmt.config.json --write src",
+    "format:check": "oxfmt -c oxfmt.config.json --check src",
     "preview": "vite preview --host 127.0.0.1",
     "test:launch-config": "node --experimental-strip-types --test tests/debug-launch-config.test.mjs",
     "test:e2e": "playwright test"
@@ -24,6 +26,7 @@
     "@playwright/test": "1.65.1",
     "@tailwindcss/vite": "4.3.5",
     "daisyui": "5.8.1",
+    "oxfmt": "0.79.0",
     "tailwindcss": "4.3.5",
     "typescript": "6.0.3",
     "vite": "8.3.8",
