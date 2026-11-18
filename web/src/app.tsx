@@ -15,9 +15,9 @@ import { bindSidebar, sidebarMarkup } from "./components/sidebar";
 import { bindTerminal, terminalMarkup } from "./components/terminal";
 
 export function App(): HTMLElement {
-  const root = document.createElement("div");
-  root.className = "app-root";
-  root.innerHTML = `
+    const root = document.createElement("div");
+    root.className = "app-root";
+    root.innerHTML = `
     <header class="topbar">
       <div class="brand-lockup">
         <span class="brand-mark" aria-hidden="true">J</span>
@@ -67,41 +67,53 @@ export function App(): HTMLElement {
 
     ${quickOpenMarkup()}
   `;
-  return root;
+    return root;
 }
 
 export function bindApp(): void {
-  bindHome();
-  bindSidebar();
-  bindEditor();
-  bindTerminal();
-  bindPreview();
-  bindQuickOpen();
+    bindHome();
+    bindSidebar();
+    bindEditor();
+    bindTerminal();
+    bindPreview();
+    bindQuickOpen();
 
-  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"))) {
-    on(button, "click", () => setPanel(button.dataset.panel as typeof state.activePanel));
-  }
-  on(byId("back-home"), "click", () => backToWorkspaces());
-  on(byId("runtime-toggle"), "click", () => {
-    void toggleWorkspace().catch((failure) => toast(errorText(failure), "error"));
-  });
-  effect(() => { byId("workbench-title").textContent = state.workbenchTitle; });
-  effect(() => { byId("workbench-state").textContent = state.workbenchState; });
-  effect(() => { byId("workbench-state").className = state.workbenchStateClass; });
-  effect(() => { byId("runtime-toggle").textContent = state.runtimeLabel; });
+    for (const button of Array.from(
+        document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"),
+    )) {
+        on(button, "click", () => setPanel(button.dataset.panel as typeof state.activePanel));
+    }
+    on(byId("back-home"), "click", () => backToWorkspaces());
+    on(byId("runtime-toggle"), "click", () => {
+        void toggleWorkspace().catch((failure) => toast(errorText(failure), "error"));
+    });
+    effect(() => {
+        byId("workbench-title").textContent = state.workbenchTitle;
+    });
+    effect(() => {
+        byId("workbench-state").textContent = state.workbenchState;
+    });
+    effect(() => {
+        byId("workbench-state").className = state.workbenchStateClass;
+    });
+    effect(() => {
+        byId("runtime-toggle").textContent = state.runtimeLabel;
+    });
 
-  effect(() => {
-    const items = state.toasts;
-    const home = byId("toasts");
-    const workbench = byId("workbench-toasts");
-    const target = state.page === "workbench" ? workbench : home;
-    const source = state.page === "workbench" ? home : workbench;
-    source.replaceChildren();
-    target.replaceChildren(...items.map((item) => {
-      const node = document.createElement("div");
-      node.className = `toast alert toast-${item.kind}`;
-      node.textContent = item.message;
-      return node;
-    }));
-  });
+    effect(() => {
+        const items = state.toasts;
+        const home = byId("toasts");
+        const workbench = byId("workbench-toasts");
+        const target = state.page === "workbench" ? workbench : home;
+        const source = state.page === "workbench" ? home : workbench;
+        source.replaceChildren();
+        target.replaceChildren(
+            ...items.map((item) => {
+                const node = document.createElement("div");
+                node.className = `toast alert toast-${item.kind}`;
+                node.textContent = item.message;
+                return node;
+            }),
+        );
+    });
 }
