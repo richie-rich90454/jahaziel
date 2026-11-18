@@ -102,7 +102,7 @@ export class LanguageServices {
   openDocument(languageId: string | null, path: string, text: string): void {
     if (new TextEncoder().encode(text).byteLength > MAX_DOCUMENT_BYTES) {
       this.close();
-      this.onStatus("Diagnostics paused · file exceeds 512 KB");
+      this.onStatus("Diagnostics paused, file exceeds 512 KB");
       this.onDiagnostics([]);
       return;
     }
@@ -138,7 +138,7 @@ export class LanguageServices {
   changeDocument(path: string, text: string): void {
     if (new TextEncoder().encode(text).byteLength > MAX_DOCUMENT_BYTES) {
       this.close();
-      this.onStatus("Diagnostics paused · file exceeds 512 KB");
+      this.onStatus("Diagnostics paused, file exceeds 512 KB");
       return;
     }
     this.activeText = text;
@@ -306,7 +306,7 @@ export class LanguageServices {
       return;
     }
     if (message.method === "jahaziel/sessionClosed") {
-      this.onStatus("Workspace stopped · language service closed");
+      this.onStatus("Workspace stopped, language service closed");
       connection.socket.close(1000, "workspace stopped");
       return;
     }
