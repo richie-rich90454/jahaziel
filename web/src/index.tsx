@@ -11,7 +11,7 @@ import { render } from "./lib/dom";
 
 const host = document.getElementById("app");
 if (host) {
-  render(() => App(), host);
-  bindApp();
-  void main();
+    render(() => App(), host);
+    bindApp();
+    void main();
 }
