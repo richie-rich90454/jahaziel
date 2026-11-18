@@ -201,8 +201,8 @@ public class DevConnectServiceImpl implements DevConnectService {
       roles.save(role);
     }
     boolean mfaAssured = isMfaAssured(idToken);
-    if (mfaAssured && !user.isMfaEnabled()) {
-      user.setMfaEnabled(true);
+    if (mfaAssured != user.isMfaEnabled()) {
+      user.setMfaEnabled(mfaAssured);
       users.save(user);
     }
   }
