@@ -14,6 +14,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
+import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.networking.api.PortStatusProbe;
 import dev.jahaziel.workspace.domain.WorkspaceId;
@@ -43,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class PortController {
   private final PortService ports;
+  private final PortCandidateService portCandidates;
   private final PortStatusProbe portStatus;
   private final UserService users;
   private final AuthorizationService auth;
@@ -55,6 +57,7 @@ public class PortController {
    * Creates the controller.
    *
    * @param ports the port service
+   * @param portCandidates the tracked-process listener discovery
    * @param portStatus the loopback listener check
    * @param users the user lookup for URL slugs
    * @param auth the authorization checks
@@ -65,6 +68,7 @@ public class PortController {
    */
   public PortController(
       PortService ports,
+      PortCandidateService portCandidates,
       PortStatusProbe portStatus,
       UserService users,
       AuthorizationService auth,
@@ -73,6 +77,7 @@ public class PortController {
       GatewayEndpoint endpoint,
       @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
     this.ports = ports;
+    this.portCandidates = Objects.requireNonNull(portCandidates, "portCandidates");
     this.portStatus = Objects.requireNonNull(portStatus, "portStatus");
     this.users = users;
     this.auth = auth;
@@ -95,6 +100,23 @@ public class PortController {
     WorkspaceId workspace = new WorkspaceId(id);
     require(user, workspace, "read");
     return describe(user, workspace);
+  }
+
+  /**
+   * Lists candidate preview ports owned by the workspace's live task/terminal process trees. No
+   * ports are registered or published by this read-only discovery.
+   *
+   * @param id the workspace identifier
+   * @param principal the acting user
+   * @return the candidate ports and their process sources
+   */
+  @GetMapping("/workspaces/{id}/ports/candidates")
+  public List<PortCandidateService.Candidate> candidates(
+      @PathVariable UUID id, Principal principal) {
+    UserId user = userId(principal);
+    WorkspaceId workspace = new WorkspaceId(id);
+    require(user, workspace, "read");
+    return portCandidates.candidates(workspace);
   }
 
   /**

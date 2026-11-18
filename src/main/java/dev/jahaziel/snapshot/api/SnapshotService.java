@@ -10,7 +10,7 @@ import dev.jahaziel.snapshot.domain.SnapshotMetadata;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.List;
 
-/** Workspace home snapshots. Sizes and manifest hashes arrive with verification. */
+/** Workspace home snapshots. */
 public interface SnapshotService {
   /**
    * Creates a snapshot.
@@ -42,7 +42,8 @@ public interface SnapshotService {
   /**
    * Deletes a snapshot.
    *
+   * @param workspaceId the workspace that owns the snapshot
    * @param snapshotId the snapshot
    */
-  void delete(SnapshotId snapshotId);
+  void delete(WorkspaceId workspaceId, SnapshotId snapshotId);
 }

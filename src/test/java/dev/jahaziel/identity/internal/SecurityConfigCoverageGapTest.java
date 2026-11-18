@@ -88,6 +88,7 @@ class SecurityConfigCoverageGapTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void chainCoversDemoBothSidesAndCsrfMatcher() throws Exception {
     JwtService tokens = mock(JwtService.class);
     UserService users = mock(UserService.class);

@@ -33,6 +33,12 @@ boundaries:
   processes under the Jahaziel service account; it does not claim hostile
   multi-tenant isolation.
 - `dev.jahaziel.terminal` manages PTYs and authenticated terminal streams.
+- `dev.jahaziel.debug` manages workspace-authorized Debug Adapter Protocol
+  sessions. The server launches only administrator-configured adapters and
+  exposes each active session through a workspace- and session-bound
+  WebSocket. Launch configurations are workspace-rooted, and attach requests
+  resolve only opaque targets issued for active server-declared workspace
+  tasks; adapter installation remains administrator-managed.
 - `dev.jahaziel.language` manages explicitly selected, pinned language packs
   and their authenticated language-service streams.
 - `dev.jahaziel.networking` and `dev.jahaziel.gateway` manage preview ports
@@ -43,9 +49,12 @@ boundaries:
   `dev.jahaziel.administration`, and `dev.jahaziel.monitoring` provide
   operations, diagnostics, and health reporting.
 
-ArchUnit checks enforce package boundaries. A package uses another package's
-public API rather than its internals. The former `dev.jahaziel.ide` integration
-is retired from normal startup and jar packaging; see the
+ArchUnit checks enforce package boundaries. Feature packages use another
+package's public API rather than its internals. The `dev.jahaziel.config`
+composition root is the explicit exception: it may wire internal beans into
+the application runtime, but feature packages do not depend on other
+features' internal APIs. The former `dev.jahaziel.ide` integration is retired
+from normal startup and jar packaging; see the
 [workbench architecture](ide.md) and [current plan](../plan.md).
 
 Further reading: [platform support](platform.md),

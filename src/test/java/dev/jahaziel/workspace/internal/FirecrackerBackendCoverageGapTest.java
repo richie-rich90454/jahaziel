@@ -31,6 +31,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+@SuppressWarnings("unused")
 class FirecrackerBackendCoverageGapTest {
   private PrepareRequest prepareFor(UUID id) {
     return new PrepareRequest(

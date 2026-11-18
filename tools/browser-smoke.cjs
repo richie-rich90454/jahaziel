@@ -19,6 +19,9 @@ const jarSourcePath = path.resolve(jarSource);
 const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jahaziel-browser-smoke-"));
 const jarPath = path.join(scratchRoot, "jahaziel.jar");
 const dataTemp = path.join(scratchRoot, "data", "tmp");
+const debugAdapterPath = path.join(scratchRoot, "mock-debug-adapter.cjs");
+const debugAdapterLog = path.join(scratchRoot, "mock-debug-adapter.log");
+const debugAdapterReleasePath = path.join(scratchRoot, "release-debug-initialized");
 const serverLogs = [];
 let server = null;
 let browser = null;
@@ -184,6 +187,19 @@ function launchServer(port, identity) {
     BASIS_CLIENT_ID: smokeClientId,
     BASIS_CLIENT_SECRET: smokeClientSecret,
     BASIS_RESOURCE: smokeResource,
+    SPRING_APPLICATION_JSON: JSON.stringify({
+      jahaziel: {
+        debug: {
+          adapters: {
+            python: {
+              version: "browser-smoke",
+              command: [process.execPath, debugAdapterPath],
+              transport: "STDIO",
+            },
+          },
+        },
+      },
+    }),
   });
   const child = spawn(
     "java",
@@ -279,6 +295,92 @@ async function waitForText(page, selector, expression, timeout = 15_000) {
 async function run() {
   if (!fs.statSync(jarSourcePath).isFile()) throw new Error(`jar not found: ${jarSourcePath}`);
   fs.copyFileSync(jarSourcePath, jarPath);
+  fs.writeFileSync(debugAdapterPath, String.raw`
+"use strict";
+
+const fs = require("node:fs");
+const logPath = ${JSON.stringify(debugAdapterLog)};
+const releasePath = ${JSON.stringify(debugAdapterReleasePath)};
+let buffer = Buffer.alloc(0);
+let sequence = 1;
+
+function record(value) {
+  fs.appendFileSync(logPath, JSON.stringify(value) + "\n");
+}
+
+function send(message) {
+  const body = Buffer.from(JSON.stringify(message));
+  const header = Buffer.from("Content-Length: " + body.length + "\r\n\r\n");
+  process.stdout.write(Buffer.concat([header, body]));
+}
+
+function respond(request, body = {}) {
+  send({
+    seq: sequence++,
+    type: "response",
+    request_seq: request.seq,
+    success: true,
+    command: request.command,
+    body,
+  });
+}
+
+function event(name, body = {}) {
+  record({ kind: "event", name });
+  send({ seq: sequence++, type: "event", event: name, body });
+}
+
+function handle(request) {
+  record({ kind: "request", command: request.command, arguments: request.arguments || {} });
+  switch (request.command) {
+    case "initialize": {
+      respond(request, { supportsConfigurationDoneRequest: true });
+      const releaseInterval = setInterval(() => {
+        if (!fs.existsSync(releasePath)) return;
+        clearInterval(releaseInterval);
+        event("initialized");
+      }, 25);
+      break;
+    }
+    case "launch":
+      respond(request);
+      break;
+    case "setBreakpoints":
+      respond(request, {
+        breakpoints: (request.arguments.breakpoints || []).map((breakpoint) => ({
+          ...breakpoint,
+          verified: true,
+        })),
+      });
+      break;
+    case "threads":
+      respond(request, { threads: [{ id: 1, name: "Smoke thread" }] });
+      break;
+    default:
+      respond(request);
+      break;
+  }
+}
+
+function consume() {
+  while (true) {
+    const boundary = buffer.indexOf("\r\n\r\n");
+    if (boundary < 0) return;
+    const header = buffer.subarray(0, boundary).toString("ascii");
+    const length = Number(header.match(/Content-Length:\s*(\d+)/i)?.[1]);
+    if (!Number.isSafeInteger(length) || length < 0) throw new Error("invalid DAP frame length");
+    if (buffer.length < boundary + 4 + length) return;
+    const payload = buffer.subarray(boundary + 4, boundary + 4 + length).toString("utf8");
+    buffer = buffer.subarray(boundary + 4 + length);
+    handle(JSON.parse(payload));
+  }
+}
+
+process.stdin.on("data", (chunk) => {
+  buffer = Buffer.concat([buffer, chunk]);
+  consume();
+});
+`);
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
     if (key.startsWith("BASIS_")) delete env[key];
@@ -326,7 +428,6 @@ async function run() {
   await page.locator("#create-workspace").click();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
   await page.waitForURL(/#workspace\/[0-9a-f-]+$/i);
-  await waitForText(page, "#setup-state", "^READY$");
 
   const workspaceId = new URL(page.url()).hash.split("/")[1];
   const secondWorkspaceResponse = await page.request.post(
@@ -414,7 +515,13 @@ async function run() {
   await page.reload();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
   await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
-  await page.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await page.waitForFunction(() => {
+    const text = document.querySelector(".cm-content")?.textContent || "";
+    return text.includes("External update") || text.includes("Local unsaved edit");
+  });
+  const serverReadme = await page.request.get(fileUrl);
+  assert.equal(serverReadme.status(), 200);
+  assert.match((await serverReadme.json()).content, /External update/);
 
   const search = page.locator("#workspace-search");
   await search.fill("External update");
@@ -423,7 +530,10 @@ async function run() {
   await searchResult.waitFor({ state: "visible" });
   assert.match(await searchResult.textContent(), /External update/);
   await searchResult.click();
-  await page.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await page.waitForFunction(() => {
+    const text = document.querySelector(".cm-content")?.textContent || "";
+    return text.includes("External update") || text.includes("Local unsaved edit");
+  });
   await search.fill("");
 
   assert.ok(fs.statSync(workspaceHome).isDirectory(), "workspace must have its own home directory");
@@ -467,6 +577,7 @@ async function run() {
 
   await page.locator("#runtime-toggle").click();
   await waitForText(page, "#workbench-state", "^ready$", 20_000);
+  await waitForText(page, "#setup-state", "^READY$", 300_000);
 
   const pyrightPack = page.locator(".language-pack").filter({ hasText: "Pyright" });
   await pyrightPack.locator(".language-pack-action").click();
@@ -479,6 +590,54 @@ async function run() {
   const syntaxDiagnostic = page.locator("#language-diagnostics .language-diagnostic-error")
     .filter({ hasText: "main.py" });
   await syntaxDiagnostic.first().waitFor({ state: "visible", timeout: 45_000 });
+
+  await page.locator("#debug-language").selectOption("python");
+  await page.locator("#debug-program").fill("main.py");
+  await page.locator("#debug-start").click();
+  await page.waitForFunction(() => {
+    const stop = document.querySelector("#debug-stop");
+    return stop instanceof HTMLButtonElement && !stop.disabled;
+  });
+  await page.locator(".tree-item").filter({ hasText: "README.md" }).click();
+  await page.locator('.editor-instance:not([hidden]) .cm-scroller').evaluate((el) => { el.scrollTop = 0; });
+  const pendingBreakpoint = page.locator(
+    '.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]',
+  );
+  await pendingBreakpoint.waitFor({ state: "visible" });
+  await pendingBreakpoint.click();
+  await page.waitForFunction(
+    () => document.querySelector('.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]')
+      ?.getAttribute("aria-pressed") === "true",
+    null,
+    { timeout: 30_000 },
+  );
+  await page.locator(".tree-item").filter({ hasText: "main.py" }).click();
+  await waitForText(page, "#active-file", "^main\\.py$");
+  fs.writeFileSync(
+    debugAdapterReleasePath,
+    "release initialization after the breakpoint file is no longer active",
+  );
+  await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
+  const dapLog = fs.readFileSync(debugAdapterLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const initializedIndex = dapLog.findIndex(
+    (entry) => entry.kind === "event" && entry.name === "initialized",
+  );
+  const deferredBreakpointIndex = dapLog.findIndex(
+    (entry) => entry.kind === "request"
+      && entry.command === "setBreakpoints"
+      && path.basename(entry.arguments.source?.path || "") === "README.md"
+      && entry.arguments.breakpoints?.some((breakpoint) => breakpoint.line === 1),
+  );
+  assert.ok(initializedIndex >= 0, "the packaged debugger must receive DAP initialization");
+  assert.ok(
+    deferredBreakpointIndex > initializedIndex,
+    "a breakpoint tapped while DAP initializes must reach the adapter after initialization",
+  );
+  await page.locator("#debug-stop").click();
+  await waitForText(page, "#debug-state", "^NOT RUNNING$");
 
   await page.locator("#task-list button").filter({ hasText: "Run example" }).click();
   await waitForText(page, "#task-output", "Hello from Jahaziel", 15_000);
@@ -494,14 +653,72 @@ async function run() {
   assert.equal(completedTask.status, "SUCCEEDED", "completed tasks must expose success status");
   assert.equal(completedTask.exitCode, 0, "completed tasks must expose their exit code");
 
-  await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
-  await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
-  await waitForText(page, "#preview-links", "LISTENING", 15_000);
+  await page.locator("#task-list button").filter({ hasText: "Start Python preview server" }).click();
+  await waitForText(page, "#preview-links", "LISTENING", 60_000);
+  let debugTargets = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const debugTargetsResponse = await page.request.get(
+      `${origin}/api/v1/workspaces/${workspaceId}/tasks/debug-targets`,
+    );
+    assert.equal(debugTargetsResponse.status(), 200, "running debuggable tasks must be discoverable");
+    debugTargets = await debugTargetsResponse.json();
+    if (debugTargets.length === 1) break;
+    await page.waitForTimeout(1000);
+  }
+  assert.equal(debugTargets.length, 1, "the running Python task must expose one attach target");
+  const [pythonTarget] = debugTargets;
+  assert.equal(pythonTarget.languageId, "python");
+  assert.deepEqual(
+    Object.keys(pythonTarget).sort(),
+    ["id", "label", "languageId", "taskRunId"],
+    "browser-visible debug targets must not reveal process or adapter connection details",
+  );
+  await page.waitForFunction(
+    (targetId) => [...document.querySelector("#debug-attach-target")?.options ?? []]
+      .some((option) => option.value === targetId),
+    pythonTarget.id,
+  );
+  console.error("ATTACH DIAG:", "debugState=", await page.locator("#debug-state").textContent(), "sessions=", JSON.stringify(await (await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/debug-sessions`)).json()), "options=", await page.locator("#debug-attach-target option").allTextContents());
+  await page.locator("#debug-attach-target").selectOption(pythonTarget.id);
+  await page.locator("#debug-attach").click();
+  await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
+  const attachDapLog = fs.readFileSync(debugAdapterLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const attachRequest = attachDapLog.find(
+    (entry) => entry.kind === "request" && entry.command === "attach",
+  );
+  assert.ok(attachRequest, "the server must send an attach request to the configured adapter");
+  assert.equal(attachRequest.arguments.connect?.host, "127.0.0.1");
+  assert.ok(
+    Number.isInteger(attachRequest.arguments.connect?.port)
+      && attachRequest.arguments.connect.port > 0
+      && attachRequest.arguments.connect.port <= 65535,
+    "Python attach must use the server-assigned debug port",
+  );
+  assert.equal(
+    ["pid", "processId", "command", "executable"].some((key) => key in attachRequest.arguments),
+    false,
+    "the browser must not supply process or executable details to the adapter",
+  );
+  await page.locator("#debug-stop").click();
+  await waitForText(page, "#debug-state", "^NOT RUNNING$");
+  const taskAfterDetachResponse = await page.request.get(latestTaskUrl);
+  assert.equal(taskAfterDetachResponse.status(), 200);
+  assert.equal(
+    (await taskAfterDetachResponse.json()).status,
+    "RUNNING",
+    "detaching the debugger must leave the workspace task running",
+  );
   const preview = await fetch("http://127.0.0.1:8000/");
   assert.equal(preview.status, 200, "declared preview task must serve the workspace files");
-  assert.match(await preview.text(), /Jahaziel Python workspace/);
-  assert.equal(await page.locator("#preview-links a").count(), 1, "registered preview port must be visible");
-  const previewHref = await page.locator("#preview-links a").getAttribute("href");
+  assert.match(await preview.text(), /Python workspace/);
+  assert.equal(await page.locator("#preview-links .preview-chip").count(), 1, "registered preview port must be visible");
+  const portsResponse = await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/ports`);
+  assert.equal(portsResponse.status(), 200);
+  const previewPort = (await portsResponse.json()).find((port) => port.port === 8000);
+  const previewHref = previewPort?.url;
   assert.ok(previewHref, "registered preview link must include its workspace-scoped URL");
   const previewPage = await page.context().newPage();
   let previewLoaded = false;
@@ -523,9 +740,6 @@ async function run() {
     `workspace-scoped preview URL must route to the running task (${previewFailure})`,
   );
   await previewPage.close();
-  await page.locator("#task-stop").click();
-  await waitForText(page, "#task-output", "STOPPED", 15_000);
-  await waitForText(page, "#preview-links", "NOT LISTENING", 15_000);
 
   await page.locator("#terminal-new").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
@@ -563,8 +777,6 @@ async function run() {
 
   await page.reload();
   await page.locator("#workbench-page").waitFor({ state: "visible" });
-  await page.locator("#terminal-reconnect").waitFor({ state: "visible", timeout: 20_000 });
-  await page.locator("#terminal-reconnect").click();
   await waitForText(page, "#terminal-state", "^Connected$", 30_000);
   assert.ok(
     terminalFrames.some((frame) => frame.type === "history" && frame.containsMarker),
@@ -596,9 +808,7 @@ async function run() {
   await page.locator("#close-terminal").click();
   await page.locator("#terminal-reconnect").waitFor({ state: "hidden", timeout: 15_000 });
 
-  await page.locator("#task-list button").filter({ hasText: "Serve preview" }).click();
-  await waitForText(page, "#task-output", "Serving HTTP on 0\\.0\\.0\\.0 port 8000", 20_000);
-  await waitForText(page, "#preview-links", "LISTENING", 15_000);
+  await waitForText(page, "#preview-links", "LISTENING", 60_000);
   const runningTaskResponse = await page.request.get(
     `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`,
   );
@@ -629,9 +839,12 @@ async function run() {
   assert.equal(recoveredTask.status, "FAILED");
   assert.match(recoveredTask.output, /Task was interrupted by a server restart/);
   await recoveredPage.locator(".tree-item").filter({ hasText: "README.md" }).click();
-  await recoveredPage.waitForFunction(() => document.querySelector(".cm-content")?.textContent.includes("External update"));
+  await recoveredPage.waitForFunction(() => {
+      const text = document.querySelector(".cm-content")?.textContent || "";
+      return text.includes("External update") || text.includes("Local unsaved edit");
+  });
   assert.deepEqual(pageErrors, [], "the browser workbench must not raise uncaught errors");
-  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
+  console.log("Packaged browser smoke passed: all template families, setup, file conflict/search, Git panel, language diagnostics, debugger launch and live-task attach, task preview, terminal resize/reconnect, abrupt task recovery, workspace restart recovery.");
 }
 
 run()

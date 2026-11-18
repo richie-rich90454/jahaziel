@@ -25,6 +25,7 @@ import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -32,9 +33,12 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Behavior of {@link SnapshotServiceImpl} with stubbed collaborators. */
 class SnapshotServiceImplTest {
+  @TempDir Path temporaryDirectory;
+
   private SnapshotRepository snapshots;
   private WorkspaceService workspaces;
   private WorkspaceStorage storage;
@@ -55,17 +59,26 @@ class SnapshotServiceImplTest {
   }
 
   @Test
-  void createsSnapshotRow() {
+  void createsSnapshotRowWithMeasuredMetadata() throws Exception {
     Workspace workspace = workspace();
     when(workspaces.get(workspaceId)).thenReturn(workspace);
-    SnapshotHandle handle =
-        new SnapshotHandle(UUID.randomUUID(), Path.of("/snaps/daily"), Instant.now());
+    Path snapshotPath = temporaryDirectory.resolve("daily");
+    Files.createDirectories(snapshotPath.resolve("src"));
+    Files.writeString(snapshotPath.resolve("src/Main.java"), "class Main {}\n");
+    SnapshotHandle handle = new SnapshotHandle(UUID.randomUUID(), snapshotPath, Instant.now());
     when(storage.snapshot(any(), any())).thenReturn(handle);
     when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of());
     SnapshotMetadata metadata = service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x");
     assertEquals("daily", metadata.tag());
     assertEquals(SnapshotKind.MANUAL, metadata.kind());
-    verify(snapshots).save(any(SnapshotEntity.class));
+    assertEquals(14, metadata.logicalBytes());
+    assertEquals(64, metadata.manifestSha256().length());
+    org.mockito.ArgumentCaptor<SnapshotEntity> saved =
+        org.mockito.ArgumentCaptor.forClass(SnapshotEntity.class);
+    verify(snapshots).save(saved.capture());
+    assertEquals(14, saved.getValue().getLogicalBytes());
+    assertEquals(metadata.physicalBytes(), saved.getValue().getPhysicalBytes());
+    assertEquals(metadata.manifestSha256(), saved.getValue().getSha256OfManifest());
     verify(audit).append(any());
   }
 
@@ -103,7 +116,7 @@ class SnapshotServiceImplTest {
     SnapshotId id = new SnapshotId(UUID.randomUUID());
     when(snapshots.findById(id.value())).thenReturn(Optional.empty());
     assertThrows(SnapshotNotFoundException.class, () -> service.restore(workspaceId, id));
-    assertThrows(SnapshotNotFoundException.class, () -> service.delete(id));
+    assertThrows(SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
     verify(storage, never()).restore(any(), any());
   }
 
@@ -115,9 +128,22 @@ class SnapshotServiceImplTest {
     when(workspaces.get(workspaceId)).thenReturn(workspace);
     service.restore(workspaceId, new SnapshotId(UUID.randomUUID()));
     verify(storage).restore(any(), any());
-    service.delete(new SnapshotId(UUID.randomUUID()));
+    service.delete(workspaceId, new SnapshotId(UUID.randomUUID()));
     verify(storage).deleteSnapshot(any());
     verify(snapshots).delete(row);
+  }
+
+  @Test
+  void deleteRejectsSnapshotFromAnotherWorkspace() {
+    SnapshotEntity row = row("daily", Instant.now());
+    when(snapshots.findById(any())).thenReturn(Optional.of(row));
+    WorkspaceId otherWorkspace = new WorkspaceId(UUID.randomUUID());
+
+    assertThrows(
+        SnapshotNotFoundException.class,
+        () -> service.delete(otherWorkspace, new SnapshotId(UUID.randomUUID())));
+    verify(storage, never()).deleteSnapshot(any());
+    verify(snapshots, never()).delete(any(SnapshotEntity.class));
   }
 
   private Workspace workspace() {

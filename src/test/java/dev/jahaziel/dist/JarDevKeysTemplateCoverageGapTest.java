@@ -19,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 /** Closes the JaCoCo gaps in {@link JarDataDir}, {@link DevKeys} and {@link TemplateSeeds}. */
+@SuppressWarnings({"unused", "unchecked"})
 class JarDevKeysTemplateCoverageGapTest {
   @Test
   void resolveBlankUsesAdjacent(@TempDir Path dir) {

@@ -16,10 +16,10 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             machine: x86_64
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
             machine: aarch64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -36,6 +36,9 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Install Python template runtime
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y python3 python3-venv
       - uses: pnpm/action-setup@v6
         with:
           version: 12.14.0
@@ -43,6 +46,7 @@ jobs:
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
+          pnpm run test:launch-config
           pnpm run build
       - name: Verify, package, and smoke launch the jar
         # The user-protected gateway filter test class is excluded from this Linux sweep.

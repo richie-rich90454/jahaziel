@@ -13,7 +13,14 @@
 | Standalone gateway | off (`--gateway-port`, default `8081`) | Optional listener for workspace HTTP and WebSocket previews |
 
 The workbench editor is served from the application port. It does not start
-or proxy to a per-workspace IDE server. Workspace preview URLs route to
-registered ports and require workspace-scoped authorization. Configure the
-public domain with `JAHAZIEL_DOMAIN`; use `localhost` for local browser
-access where the wildcard-host routing is supported.
+or proxy to a per-workspace IDE server. In the packaged deployment, preview
+URLs use the fixed host `preview.<JAHAZIEL_DOMAIN>` and the route
+`/{workspaceId}/{port}/`. Register one DNS record for the IDE hostname and
+one for the fixed preview hostname; wildcard DNS is not needed. Both hosts
+terminate TLS at the same reverse proxy and route to port `11451`.
+
+Preview requests are resolved to an active workspace port and require a
+workspace and port scoped token. The preview hostname isolates project
+content from the IDE origin, while all preview pages share that preview
+origin. Local demo and standalone-gateway deployments may use their configured
+gateway address instead of the fixed-host path adapter.

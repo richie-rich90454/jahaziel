@@ -31,8 +31,15 @@ the Go module system; the temporary compiler and module caches are removed when
 installation finishes. Each workspace keeps its own Go module and build caches
 under application data so projects cannot share mutable module state. TypeScript
 and Python packs use the configured existing Node.js runtime. VS Code extension
-compatibility, a plugin marketplace, debugger parity, and collaborative editing
-are deferred.
+compatibility, a plugin marketplace, full VS Code debugger parity, and
+collaborative editing are deferred.
+
+The workbench includes an authenticated DAP client for launch and attach with
+server-allowlisted Node.js, Python, Java, C/C++, Go, and Rust adapters. An
+administrator configures each adapter's pinned version and executable; Jahaziel
+does not fetch or install adapter binaries. Attach targets are opaque IDs for
+live server-tracked workspace tasks. The browser receives no process id,
+adapter command, or remote endpoint.
 
 The first release offers clangd diagnostics on Linux x64 only. Arm64 release
 acceptance uses an available cross-architecture pack such as Pyright; C/C++

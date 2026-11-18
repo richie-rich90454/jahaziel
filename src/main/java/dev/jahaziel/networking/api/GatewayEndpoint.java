@@ -5,6 +5,7 @@
 package dev.jahaziel.networking.api;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * The public gateway address behind which workspace ports are served. The gateway itself speaks
@@ -42,6 +43,35 @@ public record GatewayEndpoint(String scheme, String domain, int port) {
     Objects.requireNonNull(token, "token");
     String authority = userSlug + "-" + workspacePort + "." + domain + portSuffix();
     return scheme + "://" + authority + "/?token=" + token;
+  }
+
+  /**
+   * Builds a fixed-host preview URL whose path identifies the workspace and project port.
+   *
+   * @param workspaceId the workspace serving the project
+   * @param workspacePort the registered project port
+   * @param token the workspace and port scoped session token
+   * @return the public URL on {@code preview.<domain>}
+   */
+  public String previewUrl(UUID workspaceId, int workspacePort, String token) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    Objects.requireNonNull(token, "token");
+    if (workspacePort < 1 || workspacePort > 65535) {
+      throw new IllegalArgumentException("workspacePort must be between 1 and 65535");
+    }
+    if (!token.matches("[A-Za-z0-9._~-]+")) {
+      throw new IllegalArgumentException("token must be URL-safe");
+    }
+    String authority = "preview." + domain + portSuffix();
+    return scheme
+        + "://"
+        + authority
+        + "/"
+        + workspaceId
+        + "/"
+        + workspacePort
+        + "/?token="
+        + token;
   }
 
   private String portSuffix() {

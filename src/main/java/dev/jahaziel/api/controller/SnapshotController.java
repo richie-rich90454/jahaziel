@@ -21,6 +21,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -103,6 +104,20 @@ public class SnapshotController {
     WorkspaceId workspace = require(principal, id, "write");
     snapshots.restore(workspace, new SnapshotId(snapshotId));
     return dtos.forUser(userId(principal), workspaces.describe(workspace));
+  }
+
+  /**
+   * Deletes a snapshot owned by the workspace.
+   *
+   * @param id the workspace identifier
+   * @param snapshotId the snapshot identifier
+   * @param principal the acting user
+   */
+  @DeleteMapping("/workspaces/{id}/snapshots/{snapshotId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void delete(@PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
+    WorkspaceId workspace = require(principal, id, "write");
+    snapshots.delete(workspace, new SnapshotId(snapshotId));
   }
 
   private WorkspaceId require(Principal principal, UUID id, String permission) {

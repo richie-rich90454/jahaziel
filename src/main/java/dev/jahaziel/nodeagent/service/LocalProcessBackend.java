@@ -51,7 +51,7 @@ public final class LocalProcessBackend implements NodeBackend {
   @Override
   public RuntimeHandle start(RuntimeRequest request) {
     Objects.requireNonNull(request, "request");
-    WorkspaceHandle handle = requirePrepared(request.workspaceId());
+    requirePrepared(request.workspaceId());
     running.add(request.workspaceId());
     return new RuntimeHandle(request.workspaceId());
   }

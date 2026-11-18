@@ -19,6 +19,7 @@ import dev.jahaziel.workspace.api.WorkspaceTaskService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.security.Principal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,6 +94,50 @@ class WorkspaceTaskControllerTest {
                 .principal(principal))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+    verifyNoInteractions(tasks);
+  }
+
+  @Test
+  void debugTargetSummariesAreAuthorizedAndDoNotExposeProcessDetails() throws Exception {
+    UUID targetId = UUID.randomUUID();
+    UUID runId = UUID.randomUUID();
+    when(tasks.debugTargets(workspaceId))
+        .thenReturn(
+            List.of(
+                new WorkspaceTaskService.DebugTarget(
+                    targetId,
+                    workspaceId.value(),
+                    runId,
+                    "node",
+                    "Start preview server",
+                    7654,
+                    null,
+                    "C:/private/server.js")));
+
+    mvc.perform(
+            get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
+                .principal(principal))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(targetId.toString()))
+        .andExpect(jsonPath("$[0].taskRunId").value(runId.toString()))
+        .andExpect(jsonPath("$[0].languageId").value("node"))
+        .andExpect(jsonPath("$[0].processId").doesNotExist())
+        .andExpect(jsonPath("$[0].debugPort").doesNotExist())
+        .andExpect(jsonPath("$[0].program").doesNotExist());
+
+    verify(auth).isAllowed(userId, "read", workspaceId);
+    verify(tasks).debugTargets(workspaceId);
+  }
+
+  @Test
+  void debugTargetSummariesRequireWorkspaceReadAuthorization() throws Exception {
+    when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
+
+    mvc.perform(
+            get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
+                .principal(principal))
+        .andExpect(status().isForbidden());
 
     verifyNoInteractions(tasks);
   }

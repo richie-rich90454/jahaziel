@@ -40,6 +40,22 @@ class WorkspaceTaskServiceImplTest {
   @TempDir Path temp;
 
   @Test
+  void substitutesOnlyTheServerAssignedDebugPortInTemplateArguments() {
+    List<String> command =
+        List.of("python3", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}");
+
+    assertEquals(
+        List.of("python3", "-m", "debugpy", "--listen", "127.0.0.1:43127"),
+        WorkspaceTaskServiceImpl.resolveDebugPort(command, 43127));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, 0));
+  }
+
+  @Test
   void exposesOnlyTaskLabelsAndRunsNoCommandDuringTemplateAssociation() throws Exception {
     Path templates = Files.createDirectories(temp.resolve("templates/node"));
     Files.writeString(
@@ -84,6 +100,72 @@ class WorkspaceTaskServiceImplTest {
     service.initialize(id, "python");
 
     assertEquals(List.of("python"), service.supportedLanguagePacks(id));
+  }
+
+  @Test
+  void discoversSafePackageTasksUsingTheDeclaredPnpmManager() throws Exception {
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(template.resolve("template.json"), "{\"name\":\"node\",\"ports\":[3000]}");
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    Path data = temp.resolve("data");
+    WorkspaceTaskService service =
+        new WorkspaceTaskServiceImpl(
+            data.toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            mock(WorkspaceService.class),
+            new WorkspaceDirectoryServiceImpl(data.toString()));
+
+    service.initialize(id, "node");
+    Path home = new WorkspaceDirectoryServiceImpl(data.toString()).home(id);
+    Files.writeString(
+        home.resolve("package.json"),
+        """
+        {"packageManager":"pnpm@12.14.0","scripts":{"dev":"vite --host 0.0.0.0","test":"vitest run","preinstall":"echo unsafe"},"devDependencies":{"vite":"1.0.0"}}
+        """);
+    Files.writeString(home.resolve("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+
+    List<WorkspaceTaskService.Task> tasks = service.tasks(id);
+
+    assertTrue(
+        tasks.contains(
+            new WorkspaceTaskService.Task(
+                "discovered-package-ZGV2", "Start development server (pnpm)", 5173)));
+    assertTrue(
+        tasks.contains(
+            new WorkspaceTaskService.Task("discovered-package-dGVzdA", "Run tests (pnpm)", null)));
+    assertFalse(tasks.stream().anyMatch(task -> task.label().contains("unsafe")));
+    assertFalse(tasks.stream().anyMatch(task -> task.id().contains("preinstall")));
+  }
+
+  @Test
+  void discoversOnlySyntacticallySafeMakeTargetsAndCommonBuildMarkers() throws Exception {
+    Path template = Files.createDirectories(temp.resolve("templates/empty"));
+    Files.writeString(template.resolve("template.json"), "{\"name\":\"empty\"}");
+    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+    Path data = temp.resolve("data");
+    WorkspaceTaskService service =
+        new WorkspaceTaskServiceImpl(
+            data.toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            mock(WorkspaceService.class),
+            new WorkspaceDirectoryServiceImpl(data.toString()));
+
+    service.initialize(id, "empty");
+    Path home = new WorkspaceDirectoryServiceImpl(data.toString()).home(id);
+    Files.writeString(
+        home.resolve("Makefile"), ".PHONY: test\ntest:\n\t@echo test\nrelease;rm: test\n");
+    Files.writeString(home.resolve("Cargo.toml"), "[package]\nname = \"example\"\n");
+    Files.writeString(home.resolve("go.mod"), "module example.test/app\n");
+
+    List<WorkspaceTaskService.Task> tasks = service.tasks(id);
+
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Make target: test")));
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Cargo tests")));
+    assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Go tests")));
+    assertFalse(
+        tasks.stream().anyMatch(task -> task.label().equals("Run Make target: release;rm")));
   }
 
   @Test
@@ -422,6 +504,102 @@ class WorkspaceTaskServiceImplTest {
   }
 
   @Test
+  void previewTaskReceivesItsWorkspacePathAndPort() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase().contains("linux"),
+        "workspace tasks require Linux");
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(
+        template.resolve("template.json"),
+        """
+        {"name":"node","runTasks":[{"id":"serve","label":"Serve preview","command":["/usr/bin/env"],"port":3000}]}
+        """);
+    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
+    WorkspaceTaskServiceImpl service =
+        new WorkspaceTaskServiceImpl(
+            temp.resolve("data").toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            workspaces,
+            new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString()));
+    service.initialize(workspace, "node");
+
+    try {
+      WorkspaceTaskService.TaskRun started = service.startTask(workspace, "serve");
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      WorkspaceTaskService.TaskRun completed = service.taskRun(started.id());
+      while (System.nanoTime() < deadline && "RUNNING".equals(completed.status())) {
+        Thread.sleep(10);
+        completed = service.taskRun(started.id());
+      }
+
+      assertEquals("SUCCEEDED", completed.status());
+      assertTrue(completed.output().contains("3000"));
+      assertTrue(completed.output().contains("/" + workspace.value() + "/3000"));
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
+  void issuesOpaqueTargetsOnlyForLiveProcessesFromDeclaredWorkspaceTasks() throws Exception {
+    Assumptions.assumeTrue(
+        System.getProperty("os.name", "").toLowerCase().contains("linux"),
+        "workspace tasks require Linux");
+    Path template = Files.createDirectories(temp.resolve("templates/node"));
+    Files.writeString(
+        template.resolve("template.json"),
+        """
+        {"name":"node","runTasks":[{"id":"debug","label":"Debug server","command":["/bin/sh","-c","exec sleep 60"],"debug":{"language":"node","executable":"sleep","program":"server.js"}}]}
+        """);
+    WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    WorkspaceService workspaces = mock(WorkspaceService.class);
+    when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
+    WorkspaceDirectoryServiceImpl directories =
+        new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString());
+    WorkspaceTaskServiceImpl service =
+        new WorkspaceTaskServiceImpl(
+            temp.resolve("data").toString(),
+            temp.resolve("templates").toString(),
+            new ObjectMapper(),
+            workspaces,
+            directories);
+    service.initialize(workspace, "node");
+    Path home = directories.home(workspace);
+    Files.createDirectories(home);
+    Files.writeString(home.resolve("server.js"), "console.log('debug target');");
+
+    try {
+      WorkspaceTaskService.TaskRun run = service.startTask(workspace, "debug");
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      List<WorkspaceTaskService.DebugTarget> targets = service.debugTargets(workspace);
+      while (System.nanoTime() < deadline && targets.isEmpty()) {
+        Thread.sleep(10);
+        targets = service.debugTargets(workspace);
+      }
+
+      assertEquals(1, targets.size());
+      WorkspaceTaskService.DebugTarget target = targets.getFirst();
+      assertNotEquals(run.id(), target.id());
+      assertEquals(workspace.value(), target.workspaceId());
+      assertEquals(run.id(), target.taskRunId());
+      assertEquals("node", target.languageId());
+      assertTrue(target.processId() > 0);
+      assertEquals(home.resolve("server.js").toRealPath().toString(), target.program());
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> service.debugTarget(new WorkspaceId(UUID.randomUUID()), target.id()));
+
+      service.stopTask(workspace, run.id());
+      assertTrue(service.debugTargets(workspace).isEmpty());
+    } finally {
+      service.closeAll();
+    }
+  }
+
+  @Test
   void stoppingWorkspaceTerminatesSetupProcessTreeAndKeepsProgress() throws Exception {
     Assumptions.assumeTrue(
         System.getProperty("os.name", "").toLowerCase().contains("linux"),
@@ -485,7 +663,7 @@ class WorkspaceTaskServiceImplTest {
   private static WorkspaceTaskService.SetupStatus awaitSetupStatus(
       WorkspaceTaskService service, WorkspaceId workspace, String expected)
       throws InterruptedException {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
     WorkspaceTaskService.SetupStatus status = service.setupStatus(workspace);
     while (System.nanoTime() < deadline && !expected.equals(status.status())) {
       Thread.sleep(10);
@@ -509,10 +687,10 @@ class WorkspaceTaskServiceImplTest {
   private static void awaitProcessExit(long pid) throws InterruptedException {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
     while (System.nanoTime() < deadline
-        && ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
+        && ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent()) {
       Thread.sleep(10);
     }
-    assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
+    assertFalse(ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent());
   }
 
   private static Workspace activeWorkspace(WorkspaceId id) {

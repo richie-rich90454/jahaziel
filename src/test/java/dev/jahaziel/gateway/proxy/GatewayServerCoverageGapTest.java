@@ -47,6 +47,7 @@ class GatewayServerCoverageGapTest {
     }
   }
 
+  @SuppressWarnings("unused")
   private int live(GatewayServer target) throws Exception {
     int port;
     try (ServerSocket probe = new ServerSocket(0)) {

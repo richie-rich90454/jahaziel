@@ -190,11 +190,11 @@ class WorkspaceProcessRegistryImplTest {
       Path marker = temp.resolve("managed-processes").resolve(registration.id() + ".process");
       Files.writeString(releaseFile, "exit");
       assertTrue(parent.waitFor(5, TimeUnit.SECONDS), "session leader should exit for this check");
-      assertTrue(ProcessHandle.of(orphanPid).map(ProcessHandle::isAlive).orElse(false));
+      assertTrue(ProcessHandle.of(orphanPid).filter(ProcessHandle::isAlive).isPresent());
 
       new WorkspaceProcessRegistryImpl(temp.toString()).run((ApplicationArguments) null);
 
-      assertFalse(ProcessHandle.of(orphanPid).map(ProcessHandle::isAlive).orElse(false));
+      assertFalse(ProcessHandle.of(orphanPid).filter(ProcessHandle::isAlive).isPresent());
       assertFalse(Files.exists(marker));
     } finally {
       if (registration != null) registration.close();

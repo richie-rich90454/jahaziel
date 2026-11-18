@@ -84,6 +84,24 @@ class TerminalServiceImplTest {
   }
 
   @Test
+  void terminalEnvironmentAddsOnlyTheCurrentUsersToolAndProfilePaths() {
+    Path home = Path.of("/data/workspaces/example/home");
+    Path toolBin = Path.of("/data/users/current/bin");
+    Path profile = Path.of("/data/users/current/profile");
+
+    assertEquals(
+        Map.of(
+            "HOME", home.toString(),
+            "PATH", toolBin + java.io.File.pathSeparator + "/usr/local/bin:/usr/bin:/bin",
+            "XDG_CONFIG_HOME", profile.resolve("config").toString(),
+            "XDG_DATA_HOME", profile.resolve("data").toString(),
+            "XDG_CACHE_HOME", profile.resolve("cache").toString(),
+            "TERM", "xterm-256color",
+            "LANG", "C.UTF-8"),
+        TerminalServiceImpl.terminalEnvironment(home, toolBin, profile));
+  }
+
+  @Test
   void refusesTerminalsForAWorkspaceThatHasNotStarted() {
     WorkspaceService workspaces = mock(WorkspaceService.class);
     WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);

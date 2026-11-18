@@ -116,6 +116,7 @@ class NodeAgentFinalTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void deleteRecursiveReportsIterationFailure() throws Exception {
     Path dir = tmp.resolve("iter");
     Files.createDirectories(dir);

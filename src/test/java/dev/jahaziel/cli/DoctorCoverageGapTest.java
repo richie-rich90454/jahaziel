@@ -109,7 +109,6 @@ class DoctorCoverageGapTest {
     try (var loader = new java.net.URLClassLoader(urls.toArray(new java.net.URL[0]), null)) {
       Class<?> doctor = Class.forName("dev.jahaziel.cli.Doctor", true, loader);
       var run = doctor.getMethod("run", Path.class, Path.class, int.class, Map.class, Path.class);
-      @SuppressWarnings("unchecked")
       List<?> checks =
           (List<?>)
               run.invoke(

@@ -29,9 +29,10 @@ class PortE2eTest extends E2eBase {
             "{\"port\":18080,\"protocol\":\"http\"}");
     assertEquals(201, registered.status(), registered.body());
     assertTrue(registered.body().contains("\"port\":18080"), registered.body());
-    assertTrue(
-        registered.body().contains("-18080." + DOMAIN + ":" + GATEWAY_PORT + "/?token="),
-        registered.body());
+    URI preview = URI.create(bodyJson(registered).get("url").asString());
+    assertEquals("preview." + DOMAIN, preview.getHost());
+    assertTrue(preview.getPath().endsWith("/" + id + "/18080/"), registered.body());
+    assertTrue(preview.getRawQuery().startsWith("token="), registered.body());
 
     E2eResponse listed = get("/api/v1/workspaces/" + id + "/ports", userToken());
     assertEquals(200, listed.status(), listed.body());
@@ -75,7 +76,7 @@ class PortE2eTest extends E2eBase {
   }
 
   @Test
-  void workspaceHostRelaysOnTheApplicationPort() throws Exception {
+  void fixedPreviewHostRelaysOnTheApplicationPort() throws Exception {
     String id = createWorkspace(userToken(), uniqueName("relay"));
     assertEquals(200, post("/api/v1/workspaces/" + id + "/start", userToken(), null).status());
     HttpServer backend = dummyBackend("relay-marker");
@@ -89,11 +90,10 @@ class PortE2eTest extends E2eBase {
       assertEquals(201, registered.status(), registered.body());
       String url = bodyJson(registered).get("url").asString();
       URI parsed = URI.create(url);
-      String token = parsed.getRawQuery().replace("token=", "");
       String raw =
           rawGet(
               parsed.getHost(),
-              "/?token=" + token,
+              parsed.getRawPath() + "?" + parsed.getRawQuery(),
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
       assertTrue(raw.contains(" 200 "), raw);
       assertTrue(raw.contains("relay-marker"), raw);

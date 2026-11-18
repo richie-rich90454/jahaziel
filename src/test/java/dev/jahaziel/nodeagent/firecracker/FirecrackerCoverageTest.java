@@ -79,16 +79,16 @@ class FirecrackerCoverageTest {
 
   @Test
   void bootRoundTripOverUnixSocket() throws Exception {
-    Path socketPath = shortSocketPath("api");
+    Path socketPath = shortSocketPath();
     AtomicReference<String> lastRequest = new AtomicReference<>("");
+    ServerSocketChannel serverCh = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+    serverCh.bind(UnixDomainSocketAddress.of(socketPath));
     Thread server =
         Thread.ofPlatform()
             .daemon()
             .start(
                 () -> {
-                  try (ServerSocketChannel serverCh =
-                      ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
-                    serverCh.bind(UnixDomainSocketAddress.of(socketPath));
+                  try {
                     for (int i = 0; i < 6; i++) {
                       try (SocketChannel accepted = serverCh.accept()) {
                         byte[] request = readAll(accepted);
@@ -103,10 +103,6 @@ class FirecrackerCoverageTest {
                   }
                 });
     try {
-      // ponytail: poll for bind, no extra helper.
-      for (int i = 0; i < 100 && !java.nio.file.Files.exists(socketPath); i++) {
-        Thread.sleep(20);
-      }
       FirecrackerClient client = new FirecrackerClient();
       client.boot(
           socketPath.toString(),
@@ -119,6 +115,7 @@ class FirecrackerCoverageTest {
           List.of("jahaziel.workspace=x"));
       assertTrue(lastRequest.get().contains("PUT /actions"));
     } finally {
+      serverCh.close();
       server.interrupt();
       server.join(2000);
       java.nio.file.Files.deleteIfExists(socketPath);
@@ -127,15 +124,15 @@ class FirecrackerCoverageTest {
 
   @Test
   void bootRefusesErrorStatus() throws Exception {
-    Path socketPath = shortSocketPath("err");
+    Path socketPath = shortSocketPath();
+    ServerSocketChannel serverCh = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+    serverCh.bind(UnixDomainSocketAddress.of(socketPath));
     Thread server =
         Thread.ofPlatform()
             .daemon()
             .start(
                 () -> {
-                  try (ServerSocketChannel serverCh =
-                      ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
-                    serverCh.bind(UnixDomainSocketAddress.of(socketPath));
+                  try {
                     try (SocketChannel accepted = serverCh.accept()) {
                       readAll(accepted);
                       String response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 2\r\n\r\n{}";
@@ -146,24 +143,30 @@ class FirecrackerCoverageTest {
                   }
                 });
     try {
-      for (int i = 0; i < 100 && !java.nio.file.Files.exists(socketPath); i++) {
-        Thread.sleep(20);
-      }
       FirecrackerClient client = new FirecrackerClient();
       assertThrows(FirecrackerException.class, () -> client.shutdown(socketPath.toString()));
     } finally {
+      serverCh.close();
       server.interrupt();
       server.join(2000);
       java.nio.file.Files.deleteIfExists(socketPath);
     }
   }
 
-  private static Path shortSocketPath(String prefix) {
+  private static Path shortSocketPath() {
     Path directory =
         java.io.File.separatorChar == '\\'
-            ? Path.of(System.getProperty("java.io.tmpdir"))
+            ? Path.of(System.getProperty("user.dir"), ".cache")
             : Path.of("/tmp");
-    return directory.resolve("jhz-" + prefix + "-" + UUID.randomUUID() + ".sock");
+    if (java.io.File.separatorChar == '\\') {
+      try {
+        java.nio.file.Files.createDirectories(directory);
+      } catch (java.io.IOException failure) {
+        throw new IllegalStateException("Could not create the short socket directory", failure);
+      }
+    }
+    String suffix = UUID.randomUUID().toString().replace("-", "");
+    return directory.resolve("j" + suffix + ".sock");
   }
 
   @Test

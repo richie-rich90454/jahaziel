@@ -13,6 +13,8 @@ built, tested, packaged, and smoke-launched on native CI runners. The arm64 job
 must report `aarch64`; emulation does not substitute for it. Both jobs also run
 a headless browser flow against the packaged jar. Browser tooling stays in the
 hosted runner's temporary directory and is not part of the app or release jar.
+That packaged desktop-browser flow is a regression check; it does not replace
+the real-iPad acceptance gate below.
 
 ## Candidate under test
 
@@ -42,6 +44,27 @@ hosted runner's temporary directory and is not part of the app or release jar.
 15. Confirm normal build does not download IDE servers or language packs and the jar contains no toolchains.
 16. Review `doctor` data usage and Git availability; run cache prune in dry-run mode and confirm no files changed.
 17. Back up and restore `data/` and `.env` according to `docs/operations/backup.md`.
+18. Configure verified, version-pinned DAP adapters for Node.js, Python, Java, C/C++, Go, and Rust. For each language, launch a workspace program, set and hit a breakpoint, inspect the call stack and variables, evaluate a watch and console expression, step and continue, reconnect the stream, stop the session, and confirm its adapter process exits. Repeat with missing adapters, invalid workspace paths, symlink escapes, unauthorized users, mismatched session/workspace IDs, and server restart; confirm errors are bounded and adapter processes do not survive workspace shutdown.
+19. Start the debug-enabled preview task for each of the six templates and attach to it from the workbench. Confirm only live targets created by server-declared workspace tasks appear, the browser receives no process id or debug endpoint, and arbitrary PIDs, programs, and remote hosts are ignored. Stop an attached session and confirm the task keeps serving its preview; stop the workspace and confirm both task and adapter processes exit. Verify Linux ptrace policy permits the configured Go, C/C++, and Rust adapters to attach.
+20. Load supported `.vscode/launch.json` launch and attach entries. Confirm launch fields populate the form and attach entries select a matching live task. Reject attach entries containing process ids, host names, ports, commands, or executables. Also reject invalid versions, unknown fields, absolute or escaping paths, environment blocks, and arbitrary executable fields. Confirm unsupported DAP requests such as `restart` and `runInTerminal` fail without starting another process.
+
+## iPad release gate
+
+Complete this matrix on real iPads for the current and two previous major
+iPadOS versions before declaring the workbench shippable. Record the device
+model, iPadOS version, browser version, and result for each run.
+
+| Browser | Touch-only | Keyboard and trackpad | Portrait / landscape | Split View / Stage Manager |
+|---|---|---|---|---|
+| Safari | pending | pending | pending | pending |
+| Chrome | pending | pending | pending | pending |
+| Edge | pending | pending | pending | pending |
+
+For every row, verify editing and touch selection, virtual keyboard behavior,
+terminal shortcut keys and TUI interaction, preview opening in-panel and in a
+new tab, tab suspension and draft recovery, WebSocket reconnect, and layout at
+compact widths. Repeat the core flows with the external keyboard disconnected
+so every control remains reachable by touch.
 
 The optional catalog includes an opt-in Go 1.27.3 SDK and gopls v0.24.0 build
 for Linux x64 and arm64. Its displayed download size covers the Go SDK only;

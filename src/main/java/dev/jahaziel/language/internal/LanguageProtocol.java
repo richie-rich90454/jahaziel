@@ -13,7 +13,13 @@ import tools.jackson.databind.node.ObjectNode;
 
 /** Validates the deliberately small client-to-server LSP surface exposed by the workbench. */
 final class LanguageProtocol {
-  private static final Set<String> REQUEST_METHODS = Set.of("initialize", "shutdown");
+  private static final Set<String> REQUEST_METHODS =
+      Set.of(
+          "initialize",
+          "shutdown",
+          "textDocument/completion",
+          "textDocument/hover",
+          "textDocument/definition");
   private static final Set<String> CLIENT_METHODS =
       Set.of(
           "initialize",
@@ -24,6 +30,9 @@ final class LanguageProtocol {
           "textDocument/didChange",
           "textDocument/didSave",
           "textDocument/didClose",
+          "textDocument/completion",
+          "textDocument/hover",
+          "textDocument/definition",
           "$/cancelRequest");
 
   private LanguageProtocol() {}
@@ -44,7 +53,7 @@ final class LanguageProtocol {
       throw new IOException("language-server message must be a JSON-RPC object");
     }
     JsonNode methodNode = message.get("method");
-    String method = methodNode == null || !methodNode.isTextual() ? "" : methodNode.stringValue();
+    String method = methodNode == null || !methodNode.isString() ? "" : methodNode.stringValue();
     if (method.isEmpty()) {
       if (!message.has("id") || (!message.has("result") && !message.has("error"))) {
         throw new IOException("language-server response is invalid");

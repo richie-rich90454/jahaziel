@@ -45,7 +45,6 @@ class AdminUiControllerTest {
   }
 
   private AdminUiController openController(boolean demo, Path logFile) {
-    UserId adminId = new UserId(UUID.randomUUID());
     var auth = mock(AuthorizationService.class);
     var users = mock(UserService.class);
     when(auth.isAdmin(any())).thenReturn(true);

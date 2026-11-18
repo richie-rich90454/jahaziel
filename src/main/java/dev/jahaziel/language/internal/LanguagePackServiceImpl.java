@@ -1141,6 +1141,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     }
   }
 
+  @SuppressWarnings("null")
   private static void stopBuildProcess(Process process) {
     process.descendants().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
     process.destroyForcibly();
@@ -1166,6 +1167,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     }
   }
 
+  @SuppressWarnings("null")
   private Set<String> readSelections(WorkspaceId workspaceId) {
     Path file = selectionFile(workspaceId);
     try {
@@ -1245,6 +1247,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     return selected;
   }
 
+  @SuppressWarnings("null")
   private Pack view(Definition definition, boolean installed, boolean selected) {
     String architecture = architecture();
     Asset asset = definition.assets().get(architecture);
@@ -1390,15 +1393,6 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
       if (comparison != 0) return comparison > 0;
     }
     return true;
-  }
-
-  private Asset asset(Definition definition) {
-    Asset asset = definition.assets().get(architecture());
-    if (asset == null) {
-      throw new IllegalArgumentException(
-          "language pack is unavailable on this server architecture");
-    }
-    return asset;
   }
 
   private static List<Asset> assetsFor(Definition definition, String architecture) {

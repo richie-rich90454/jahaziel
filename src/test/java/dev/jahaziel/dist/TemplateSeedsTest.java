@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
@@ -66,5 +67,25 @@ class TemplateSeedsTest {
     assertEquals("typescript-example", manifest.path("runTasks").path(1).path("id").asString());
     assertEquals(
         "src/index.ts", manifest.path("runTasks").path(1).path("command").path(1).asString());
+    assertEquals(
+        "pnpm@12.14.0",
+        new ObjectMapper()
+            .readTree(manifest.path("starterFiles").path("package.json").asString())
+            .path("packageManager")
+            .asString());
+  }
+
+  @Test
+  void everyLanguageAndStaticTemplateHasAVisibleRunTask(@TempDir Path tmp) throws Exception {
+    Path templates = tmp.resolve("templates");
+    TemplateSeeds.copyIfAbsent(templates);
+    ObjectMapper json = new ObjectMapper();
+
+    for (String name : List.of("node", "python", "java", "cpp", "go", "rust", "static-site")) {
+      JsonNode manifest =
+          json.readTree(Files.readString(templates.resolve(name).resolve("template.json")));
+      assertTrue(manifest.path("runTasks").isArray(), name + " must declare run tasks");
+      assertTrue(!manifest.path("runTasks").isEmpty(), name + " must declare a runnable task");
+    }
   }
 }

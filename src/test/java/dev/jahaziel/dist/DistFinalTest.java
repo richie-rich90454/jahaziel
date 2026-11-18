@@ -20,6 +20,7 @@ import org.mockito.Mockito;
 import org.springframework.boot.system.ApplicationHome;
 
 /** Final gap tests for template seeds, the jar-adjacent base, and the key wait loop. */
+@SuppressWarnings("unused")
 class DistFinalTest {
   @TempDir private Path tmp;
 

@@ -293,7 +293,10 @@ public final class Cli {
       err.println("jahaziel: cannot list " + archive + " (is tar on PATH?)");
       return 1;
     }
-    if (entries.lines().map(String::strip).anyMatch(entry -> !safeBackupEntry(entry))) {
+    if (entries
+        .lines()
+        .map((String entry) -> entry.strip())
+        .anyMatch(entry -> !safeBackupEntry(entry))) {
       err.println("jahaziel: archive contains an unsafe path, refusing");
       return 1;
     }

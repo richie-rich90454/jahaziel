@@ -21,7 +21,7 @@ The Firecracker backend is retained for separate verification and is not selecta
 |---|---|---|---|
 | A1 | Authenticated workspace user | Edits files and starts allowed terminal/task processes | Workspace-level API authorization; transparent trusted-user limitation |
 | A2 | Internet scanner | Reaches the public Jahaziel listener or preview host | Authentication, route authorization, bounded sessions, existing gateway checks |
-| A3 | Compromised administrator | Changes templates, users, and policies | Audit events, least-privilege operations, backups |
+| A3 | Compromised administrator | Changes templates, users, and stored policy documents | Audit events, least-privilege operations, backups |
 | A4 | Compromised Jahaziel JVM | Executes as the service account | Host backup and restore; no separate-process security boundary is claimed |
 | A5 | Careless user | Deletes or overwrites project files | ETag save conflicts, workspace snapshots, explicit file operations |
 
@@ -36,6 +36,9 @@ The Firecracker backend is retained for separate verification and is not selecta
 | Terminal command selection | Server-selected fixed shell; the browser cannot pass an executable or argv |
 | Terminal session access | Authenticated WebSocket handshake bound to the authorized session and workspace |
 | Credential exposure to PTYs | Environment allowlist; application credentials are not copied into the child environment |
+| Debugger launch selection | The browser selects a supported language and workspace-relative launch fields; only fixed, absolute adapter commands configured by the server administrator may execute |
+| Debugger session access | Workspace authorization on REST operations; authenticated WebSocket handshake bound to the exact authorized workspace and running session; bounded DAP frames |
+| Debugger source paths | Workspace-rooted launch paths, symlink escape checks, and source path normalization before messages are returned to the browser |
 | Optional language tool integrity | Explicit selection, pinned versions and checksums before activation, and server-owned launch and initialization paths |
 
 ## Properties not defended
@@ -45,6 +48,9 @@ The Firecracker backend is retained for separate verification and is not selecta
 - Host CPU, memory, process-count, and network isolation for native tasks.
 - A compromised Linux kernel, service account, or Jahaziel JVM.
 - Hostile multi-tenant workloads. Do not use the default backend for these workloads.
+- Isolation of debugger adapters from the Jahaziel service account or other workspaces. An administrator-configured adapter runs as the same Linux account as Jahaziel.
+- Share links: redemption requires login and returns only workspace ID and expiry; revocation is in-memory and lost on restart; the signing secret is ephemeral unless configured; there is no admin revoke UI.
+- Policy documents: admin CRUD storage of arbitrary JSON only. `PolicyEvaluator` has no production callers and policy JSON is not enforced at runtime.
 
 ## Attack surface inventory
 
@@ -57,7 +63,11 @@ The Firecracker backend is retained for separate verification and is not selecta
 | Run task API | Authenticated HTTP | Template-owned task IDs and server-selected executable/arguments |
 | Git API | Authenticated HTTP | Workspace read/write authorization, fixed Git subcommands, bounded output, no clone or remote credential endpoints |
 | Language-service stream | Authenticated WebSocket | Allowed language ID, selected pinned server-owned pack, bounded JSON-RPC, workspace-rooted URIs, and server-owned launch and initialization options |
+| Debug-session REST API | Authenticated HTTP | Read/write workspace authorization, server-owned adapter catalog, workspace-rooted launch fields, opaque task-issued attach targets, and bounded session limits |
+| Debug-session stream | Authenticated WebSocket | Authenticated principal, browser-origin policy, workspace write authorization, exact session binding, and bounded DAP messages |
 | Workspace preview | Gateway listener | Existing workspace-scoped token and port authorization |
+| Share link | Authenticated HTTP | Signed token, one-hour expiry, in-memory revocation, login-required redemption returning workspace ID and expiry only |
+| Policy document | Authenticated admin HTTP | Admin CRUD storage only; policy JSON is not evaluated or enforced |
 | Cookie-authenticated writes | Authenticated HTTP | Same-origin `Origin` validation and `Sec-Fetch-Site`; bearer-token clients are exempt because their credentials are explicitly attached |
 | Application data | Service-account filesystem | Configured data root, backups, diagnostics, file API confinement |
 

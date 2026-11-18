@@ -7,6 +7,7 @@ package dev.jahaziel.config;
 import dev.jahaziel.administration.api.AdminService;
 import dev.jahaziel.administration.internal.AdminServiceImpl;
 import dev.jahaziel.administration.persistence.AdminActionRepository;
+import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.audit.internal.AuditCollectorJob;
 import dev.jahaziel.audit.internal.AuditRetentionJob;
@@ -16,6 +17,8 @@ import dev.jahaziel.audit.internal.PartitionProvisionJob;
 import dev.jahaziel.audit.persistence.AuditEventRepository;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.authorization.internal.AuthorizationServiceImpl;
+import dev.jahaziel.debug.internal.DebugAdapterProperties;
+import dev.jahaziel.debug.internal.DebugServiceImpl;
 import dev.jahaziel.extension.api.ExtensionPolicyService;
 import dev.jahaziel.extension.internal.ExtensionPolicyServiceImpl;
 import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
@@ -82,15 +85,19 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 /**
  * Service wiring. Every collaborator arrives by constructor; the scheduler starts after all jobs
  * are registered and stops with the context.
  */
 @Configuration
+@EnableConfigurationProperties(DebugAdapterProperties.class)
 public class AppConfig {
   /** Returns the system clock. */
   @Bean
@@ -181,6 +188,15 @@ public class AppConfig {
       @Value("${jahaziel.storage.root}") String storageRoot,
       WorkspaceProcessRegistry processRegistry) {
     return new LanguageServerProcessManager(packs, directories, json, storageRoot, processRegistry);
+  }
+
+  /** Combines workspace shutdown across language-service and debugger processes. */
+  @Bean
+  @Primary
+  public WorkspaceProcessLifecycle workspaceProcessLifecycle(
+      LanguageServerProcessManager languageProcesses,
+      ObjectProvider<DebugServiceImpl> debugProcesses) {
+    return new WorkspaceProcessLifecycleComposite(languageProcesses, debugProcesses);
   }
 
   /** Returns runtime lifecycle orchestration. */
@@ -298,8 +314,9 @@ public class AppConfig {
   public TerminalService terminals(
       WorkspaceDirectoryService directories,
       WorkspaceProcessRegistry processRegistry,
-      WorkspaceService workspaces) {
-    return new TerminalServiceImpl(directories, processRegistry, workspaces);
+      WorkspaceService workspaces,
+      AgentToolService agentTools) {
+    return new TerminalServiceImpl(directories, processRegistry, workspaces, agentTools);
   }
 
   /** Returns snapshots. */

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Closes the JaCoCo gaps in {@link JahazielMain} without booting Spring. */
+@SuppressWarnings("unused")
 class JahazielMainCoverageGapTest {
   @TempDir private Path tmp;
 

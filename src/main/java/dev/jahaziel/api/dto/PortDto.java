@@ -7,6 +7,7 @@ package dev.jahaziel.api.dto;
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
 import java.time.Instant;
+import java.util.Objects;
 
 /**
  * A registered port for reads.
@@ -36,7 +37,9 @@ public record PortDto(
       GatewayEndpoint endpoint,
       String token,
       Boolean listening) {
-    String url = token == null ? null : endpoint.url(userSlug, binding.port(), token);
+    Objects.requireNonNull(userSlug, "userSlug");
+    String url =
+        token == null ? null : endpoint.previewUrl(binding.workspaceId(), binding.port(), token);
     return new PortDto(binding.port(), binding.protocol(), url, binding.registeredAt(), listening);
   }
 

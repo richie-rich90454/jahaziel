@@ -7,6 +7,9 @@
 
 # IDE patch manifest
 
+> **Legacy reference — superseded and not part of the shipped product.** This manifest documents a
+> retired IDE-server patching process. Kept for historical context only.
+
 > Historical record only. The tracked VS Code fork build tree and patch stack
 > have been removed. No current command uses these instructions. Existing
 > ignored IDE outputs are left untouched.

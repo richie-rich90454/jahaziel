@@ -19,6 +19,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -27,6 +29,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,9 +54,23 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private static final Logger log = LoggerFactory.getLogger(WorkspaceTaskServiceImpl.class);
   private static final int MAX_OUTPUT_CHARS = 64 * 1024;
   private static final int MAX_TASKS = 4;
+  private static final int MAX_DISCOVERED_TASKS = 32;
+  private static final long MAX_PROJECT_MANIFEST_BYTES = 256 * 1024;
   private static final Duration MAX_RUNTIME = Duration.ofMinutes(30);
   private static final Set<String> LANGUAGE_PACK_IDS =
       Set.of("cpp", "java", "go", "rust", "typescript", "python");
+  private static final Set<String> DEBUG_LANGUAGE_IDS =
+      Set.of("node", "python", "java", "cpp", "go", "rust");
+  private static final Set<String> DEBUG_PORT_LANGUAGE_IDS = Set.of("java", "python");
+  private static final String DEBUG_PORT_PLACEHOLDER = "${JAHZIEL_DEBUG_PORT}";
+  private static final Map<String, String> PACKAGE_SCRIPT_LABELS =
+      Map.of(
+          "dev", "Start development server",
+          "start", "Start project",
+          "preview", "Start preview server",
+          "serve", "Serve project",
+          "test", "Run tests",
+          "build", "Build project");
 
   private final Path storageRoot;
   private final Path templatesRoot;
@@ -61,6 +79,11 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private final WorkspaceDirectoryService directories;
   private final WorkspaceProcessRegistry processRegistry;
   private final ConcurrentMap<UUID, Process> processes = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, TaskDefinition> taskDefinitionsByRun =
+      new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, UUID> taskWorkspacesByRun = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, UUID> debugTargetIdsByRun = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, Integer> debugPortsByRun = new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, WorkspaceProcessRegistry.Registration> processRegistrations =
       new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, Process> setupProcesses = new ConcurrentHashMap<>();
@@ -279,19 +302,357 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   public List<Task> tasks(WorkspaceId workspaceId) {
     WorkspaceMetadata state = metadataOrNull(workspaceId);
     if (state == null) return List.of();
-    JsonNode definitions = manifest(state.templateName()).path("runTasks");
-    if (!definitions.isArray()) return List.of();
-    List<Task> result = new ArrayList<>();
-    for (JsonNode definition : definitions) {
-      result.add(
-          new Task(
-              requiredId(definition.path("id")),
-              requiredLabel(definition.path("label")),
-              definition.path("port").isIntegralNumber()
-                  ? definition.path("port").intValue()
-                  : null));
+    return taskDefinitions(workspaceId, state).stream()
+        .map(definition -> new Task(definition.id(), definition.label(), definition.port()))
+        .toList();
+  }
+
+  @Override
+  public List<DebugTarget> debugTargets(WorkspaceId workspaceId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    return debugTargetIdsByRun.entrySet().stream()
+        .filter(entry -> workspaceId.value().equals(taskWorkspacesByRun.get(entry.getKey())))
+        .map(entry -> readyDebugTarget(workspaceId, entry.getKey(), entry.getValue()))
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  @Override
+  public DebugTarget debugTarget(WorkspaceId workspaceId, UUID targetId) {
+    Objects.requireNonNull(workspaceId, "workspaceId");
+    Objects.requireNonNull(targetId, "targetId");
+    for (Map.Entry<UUID, UUID> entry : debugTargetIdsByRun.entrySet()) {
+      if (!targetId.equals(entry.getValue())) continue;
+      if (!workspaceId.value().equals(taskWorkspacesByRun.get(entry.getKey()))) {
+        throw new IllegalArgumentException("debug target not found");
+      }
+      DebugTarget target = readyDebugTarget(workspaceId, entry.getKey(), targetId);
+      if (target == null) throw new IllegalArgumentException("debug target is no longer running");
+      return target;
+    }
+    throw new IllegalArgumentException("debug target not found");
+  }
+
+  private DebugTarget readyDebugTarget(WorkspaceId workspaceId, UUID runId, UUID targetId) {
+    Process process = processes.get(runId);
+    TaskDefinition definition = taskDefinitionsByRun.get(runId);
+    if (process == null || !process.isAlive() || definition == null || definition.debug() == null) {
+      return null;
+    }
+    String command = process.info().command().orElse("");
+    Path commandPath;
+    try {
+      commandPath = command.isBlank() ? null : Path.of(command).getFileName();
+    } catch (RuntimeException invalidCommand) {
+      return null;
+    }
+    if (commandPath == null || !isDebugExecutable(commandPath, definition.debug())) {
+      return null;
+    }
+    Integer debugPort = debugPortsByRun.get(runId);
+    if (DEBUG_PORT_LANGUAGE_IDS.contains(definition.debug().language())
+        && (debugPort == null || debugPort < 1 || debugPort > 65535)) return null;
+    String program = null;
+    if (definition.debug().program() != null) {
+      try {
+        Path home = directories.home(workspaceId).toRealPath();
+        Path declared = home.resolve(definition.debug().program()).normalize();
+        Path real = declared.toRealPath();
+        if (!real.startsWith(home) || !Files.isRegularFile(real, LinkOption.NOFOLLOW_LINKS)) {
+          return null;
+        }
+        program = real.toString();
+      } catch (IOException | RuntimeException unavailable) {
+        return null;
+      }
+    }
+    return new DebugTarget(
+        targetId,
+        workspaceId.value(),
+        runId,
+        definition.debug().language(),
+        definition.label(),
+        process.pid(),
+        debugPort,
+        program);
+  }
+
+  private List<TaskDefinition> taskDefinitions(WorkspaceId workspaceId, WorkspaceMetadata state) {
+    List<TaskDefinition> result = new ArrayList<>();
+    Set<String> ids = new HashSet<>();
+    JsonNode configured = manifest(state.templateName()).path("runTasks");
+    if (configured.isArray()) {
+      for (JsonNode definition : configured) {
+        String id = requiredId(definition.path("id"));
+        Integer port =
+            definition.path("port").isIntegralNumber() ? definition.path("port").intValue() : null;
+        if (ids.add(id)) {
+          TaskDebugDefinition debug = taskDebugDefinition(definition.get("debug"));
+          result.add(
+              new TaskDefinition(
+                  id,
+                  requiredLabel(definition.path("label")),
+                  port,
+                  command(definition.path("command")),
+                  debug));
+        }
+      }
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS) {
+      discoverProjectTasks(workspaceId, state, result, ids);
     }
     return List.copyOf(result);
+  }
+
+  private static TaskDebugDefinition taskDebugDefinition(JsonNode node) {
+    if (node == null || node.isNull()) return null;
+    String language = node.path("language").asString("");
+    String executable = node.path("executable").asString("");
+    if (!DEBUG_LANGUAGE_IDS.contains(language) || !executable.matches("[A-Za-z0-9._-]{1,128}")) {
+      throw new IllegalArgumentException("template task has an invalid debug definition");
+    }
+    String program = null;
+    JsonNode programNode = node.get("program");
+    if (programNode != null && !programNode.isNull()) {
+      if (!programNode.isString() || programNode.asString().isBlank()) {
+        throw new IllegalArgumentException("template debug program must be a relative path");
+      }
+      Path path = Path.of(programNode.asString().replace('\\', '/')).normalize();
+      if (path.isAbsolute() || path.startsWith("..") || programNode.asString().indexOf('\0') >= 0) {
+        throw new IllegalArgumentException("template debug program must stay in the workspace");
+      }
+      program = path.toString().replace('\\', '/');
+    }
+    if (!"java".equals(language) && program == null) {
+      throw new IllegalArgumentException("template debug program is required for this language");
+    }
+    return new TaskDebugDefinition(language, executable, program);
+  }
+
+  private void discoverProjectTasks(
+      WorkspaceId workspaceId,
+      WorkspaceMetadata state,
+      List<TaskDefinition> result,
+      Set<String> ids) {
+    Path home = directories.home(workspaceId);
+    JsonNode packageJson = readProjectManifest(home.resolve("package.json"), workspaceId);
+    if (packageJson != null) {
+      discoverPackageScripts(packageJson, home, state, result, ids);
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("Makefile"))) {
+      discoverMakeTargets(home.resolve("Makefile"), result, ids, workspaceId);
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("pom.xml"))) {
+      String wrapper = executableWrapper(home.resolve("mvnw"), "mvn");
+      addDiscovered(
+          result, ids, "discovered-maven-test", "Run Maven tests", null, List.of(wrapper, "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-maven-package",
+          "Build Maven project",
+          null,
+          List.of(wrapper, "package"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS
+        && (isPlainFile(home.resolve("build.gradle"))
+            || isPlainFile(home.resolve("build.gradle.kts")))) {
+      String wrapper = executableWrapper(home.resolve("gradlew"), "gradle");
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-test",
+          "Run Gradle tests",
+          null,
+          List.of(wrapper, "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-build",
+          "Build Gradle project",
+          null,
+          List.of(wrapper, "build"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-gradle-run",
+          "Run Gradle application",
+          null,
+          List.of(wrapper, "run"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("Cargo.toml"))) {
+      addDiscovered(
+          result, ids, "discovered-cargo-test", "Run Cargo tests", null, List.of("cargo", "test"));
+      addDiscovered(
+          result,
+          ids,
+          "discovered-cargo-run",
+          "Run Rust application",
+          null,
+          List.of("cargo", "run"));
+    }
+    if (result.size() < MAX_DISCOVERED_TASKS && isPlainFile(home.resolve("go.mod"))) {
+      addDiscovered(
+          result, ids, "discovered-go-test", "Run Go tests", null, List.of("go", "test", "./..."));
+      addDiscovered(
+          result, ids, "discovered-go-run", "Run Go application", null, List.of("go", "run", "."));
+    }
+  }
+
+  private void discoverPackageScripts(
+      JsonNode packageJson,
+      Path home,
+      WorkspaceMetadata state,
+      List<TaskDefinition> result,
+      Set<String> ids) {
+    JsonNode scripts = packageJson.path("scripts");
+    if (!scripts.isObject()) return;
+    String manager = packageManager(packageJson, home);
+    if (manager == null) return;
+    for (String script : List.of("dev", "start", "preview", "serve", "test", "build")) {
+      JsonNode value = scripts.get(script);
+      if (value == null || !value.isString() || value.asString().isBlank()) continue;
+      if (result.stream()
+          .anyMatch(
+              configured ->
+                  String.join(" ", configured.command()).equals(value.asString().strip()))) {
+        continue;
+      }
+      String id = "discovered-package-" + encodeTaskId(script);
+      String label = PACKAGE_SCRIPT_LABELS.get(script) + " (" + manager + ")";
+      Integer port = packageScriptPort(script, value.asString(), packageJson, state.templateName());
+      addDiscovered(result, ids, id, label, port, List.of(manager, "run", script));
+      if (result.size() >= MAX_DISCOVERED_TASKS) return;
+    }
+  }
+
+  private static String packageManager(JsonNode packageJson, Path home) {
+    JsonNode declared = packageJson.path("packageManager");
+    if (declared.isString()) {
+      String value = declared.asString();
+      if (value.startsWith("pnpm@")) return "pnpm";
+      if (value.startsWith("npm@")) return "npm";
+      if (value.startsWith("yarn@")) return "yarn";
+      return null;
+    }
+    if (isPlainFile(home.resolve("pnpm-lock.yaml"))
+        || isPlainFile(home.resolve("pnpm-workspace.yaml"))) return "pnpm";
+    if (isPlainFile(home.resolve("yarn.lock"))) return "yarn";
+    return "npm";
+  }
+
+  private Integer packageScriptPort(
+      String script, String command, JsonNode packageJson, String templateName) {
+    java.util.regex.Matcher explicit =
+        java.util.regex.Pattern.compile("(?:--port(?:=|\\s+)|(?:^|\\s)-p\\s+|PORT=)([0-9]{1,5})")
+            .matcher(command);
+    if (explicit.find()) {
+      int port = Integer.parseInt(explicit.group(1));
+      if (port >= 1 && port <= 65535) return port;
+    }
+    boolean vite = dependency(packageJson, "vite");
+    if (script.equals("dev") && vite) return 5173;
+    if (script.equals("preview") && vite) return 4173;
+    if (script.equals("dev") && dependency(packageJson, "@angular/cli")) return 4200;
+    if (script.equals("dev")
+        && (dependency(packageJson, "next")
+            || dependency(packageJson, "nuxt")
+            || dependency(packageJson, "react-scripts"))) return 3000;
+    if (script.equals("dev") && dependency(packageJson, "astro")) return 4321;
+    if (Set.of("dev", "start", "preview", "serve").contains(script)) {
+      Integer declared = firstTemplatePort(templateName);
+      if (declared != null) return declared;
+      return switch (script) {
+        case "dev" -> 5173;
+        case "preview" -> 4173;
+        case "serve" -> 8080;
+        default -> 3000;
+      };
+    }
+    return null;
+  }
+
+  private static boolean dependency(JsonNode packageJson, String name) {
+    return packageJson.path("dependencies").has(name)
+        || packageJson.path("devDependencies").has(name)
+        || packageJson.path("peerDependencies").has(name);
+  }
+
+  private Integer firstTemplatePort(String templateName) {
+    JsonNode ports = manifest(templateName).path("ports");
+    if (!ports.isArray()) return null;
+    for (JsonNode port : ports) {
+      if (port.isIntegralNumber() && port.intValue() >= 1 && port.intValue() <= 65535) {
+        return port.intValue();
+      }
+    }
+    return null;
+  }
+
+  private void discoverMakeTargets(
+      Path makefile, List<TaskDefinition> result, Set<String> ids, WorkspaceId workspaceId) {
+    try {
+      if (Files.size(makefile) > MAX_PROJECT_MANIFEST_BYTES) return;
+      int count = 0;
+      for (String line : Files.readAllLines(makefile, StandardCharsets.UTF_8)) {
+        String trimmed = line.strip();
+        if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith(".")) continue;
+        int colon = trimmed.indexOf(':');
+        if (colon <= 0 || (trimmed.indexOf('=') >= 0 && trimmed.indexOf('=') < colon)) continue;
+        String targets = trimmed.substring(0, colon).strip();
+        for (String target : targets.split("\\s+")) {
+          if (!target.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,47}")) continue;
+          String id = "discovered-make-" + encodeTaskId(target);
+          addDiscovered(
+              result, ids, id, "Run Make target: " + target, null, List.of("make", "--", target));
+          if (++count >= 16 || result.size() >= MAX_DISCOVERED_TASKS) return;
+        }
+      }
+    } catch (IOException | RuntimeException malformed) {
+      log.warn("cannot discover Make targets workspaceId={}", workspaceId);
+    }
+  }
+
+  private JsonNode readProjectManifest(Path path, WorkspaceId workspaceId) {
+    try {
+      if (!isPlainFile(path) || Files.size(path) > MAX_PROJECT_MANIFEST_BYTES) return null;
+      JsonNode manifest = json.readTree(Files.readString(path, StandardCharsets.UTF_8));
+      return manifest != null && manifest.isObject() ? manifest : null;
+    } catch (IOException | RuntimeException malformed) {
+      log.warn("cannot discover package scripts workspaceId={}", workspaceId);
+      return null;
+    }
+  }
+
+  private static boolean isPlainFile(Path path) {
+    return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path);
+  }
+
+  private static String executableWrapper(Path wrapper, String fallback) {
+    return Files.isRegularFile(wrapper, LinkOption.NOFOLLOW_LINKS)
+            && !Files.isSymbolicLink(wrapper)
+            && Files.isExecutable(wrapper)
+        ? "./" + wrapper.getFileName()
+        : fallback;
+  }
+
+  private static String encodeTaskId(String value) {
+    return Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void addDiscovered(
+      List<TaskDefinition> result,
+      Set<String> ids,
+      String id,
+      String label,
+      Integer port,
+      List<String> command) {
+    if (result.size() >= MAX_DISCOVERED_TASKS
+        || !ids.add(id)
+        || result.stream().anyMatch(existing -> existing.command().equals(command))) return;
+    result.add(new TaskDefinition(id, label, port, List.copyOf(command), null));
   }
 
   @Override
@@ -310,13 +671,27 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (!"READY".equals(state.setupStatus())) {
       throw new IllegalStateException("template setup must finish before running a task");
     }
-    JsonNode selected = null;
-    for (JsonNode definition : manifest(state.templateName()).path("runTasks")) {
-      if (definition.path("id").asString("").equals(taskId)) selected = definition;
+    TaskDefinition selected =
+        taskDefinitions(workspaceId, state).stream()
+            .filter(definition -> definition.id().equals(taskId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("unknown workspace task"));
+    List<String> command = selected.command();
+    String label = selected.label();
+    Integer previewPort = selected.port();
+    if (previewPort != null && (previewPort < 1 || previewPort > 65535)) {
+      throw new IllegalArgumentException("task preview port must be between 1 and 65535");
     }
-    if (selected == null) throw new IllegalArgumentException("unknown workspace task");
-    List<String> command = command(selected.path("command"));
-    String label = requiredLabel(selected.path("label"));
+    Integer debugPort = null;
+    if (selected.debug() != null && DEBUG_PORT_LANGUAGE_IDS.contains(selected.debug().language())) {
+      try {
+        debugPort = availableLoopbackPort();
+      } catch (IOException failure) {
+        throw new IllegalStateException("a Java debug port is unavailable", failure);
+      }
+    }
+    List<String> taskCommand =
+        selected.debug() == null ? command : resolveDebugPort(command, debugPort);
     synchronized (lock(workspaceId.value())) {
       if (stoppingWorkspaces.contains(workspaceId.value())) {
         throw new IllegalStateException("workspace is stopping");
@@ -329,6 +704,12 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         if (processes.size() >= MAX_TASKS) throw new IllegalStateException("task capacity is full");
       }
       UUID runId = UUID.randomUUID();
+      if (selected.debug() != null) {
+        taskDefinitionsByRun.put(runId, selected);
+        taskWorkspacesByRun.put(runId, workspaceId.value());
+        debugTargetIdsByRun.put(runId, UUID.randomUUID());
+        if (debugPort != null) debugPortsByRun.put(runId, debugPort);
+      }
       Instant started = Instant.now();
       write(
           metadataPath(workspaceId),
@@ -338,10 +719,12 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
           runId,
           workspaceId,
           taskId);
+      Integer selectedDebugPort = debugPort;
       Thread.ofPlatform()
           .daemon()
           .name("workspace-task-" + runId)
-          .start(() -> executeTask(workspaceId, runId, command));
+          .start(
+              () -> executeTask(workspaceId, runId, taskCommand, previewPort, selectedDebugPort));
       return taskRunFor(workspaceId, metadata(workspaceId));
     }
   }
@@ -415,6 +798,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
   }
 
+  @SuppressWarnings("null")
   private void closeTask(UUID runId, String reason) {
     cancelledRuns.add(runId);
     Process process = processes.remove(runId);
@@ -433,6 +817,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       }
     }
     if (registration != null) registration.close();
+    forgetDebugTarget(runId);
     for (Path file : metadataFiles()) {
       WorkspaceMetadata state = read(file);
       if (runId.equals(state.taskRunId()) && "RUNNING".equals(state.taskStatus())) {
@@ -488,6 +873,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
   }
 
+  @SuppressWarnings("null")
   private static void stopProcessTree(Process process) {
     List<ProcessHandle> descendants = process.descendants().toList();
     descendants.forEach(ProcessHandle::destroy);
@@ -501,12 +887,18 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     if (process.isAlive()) process.destroyForcibly();
   }
 
-  private void executeTask(WorkspaceId workspaceId, UUID runId, List<String> command) {
+  @SuppressWarnings("null")
+  private void executeTask(
+      WorkspaceId workspaceId,
+      UUID runId,
+      List<String> command,
+      Integer previewPort,
+      Integer debugPort) {
     Process process = null;
     WorkspaceProcessRegistry.Registration registration = null;
     StringBuilder output = new StringBuilder();
     try {
-      process = start(workspaceId, command);
+      process = start(workspaceId, command, previewPort, debugPort);
       if (processRegistry != null) {
         registration =
             processRegistry.track(workspaceId, WorkspaceProcessRegistry.Kind.TASK, process);
@@ -583,6 +975,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     } finally {
       processes.remove(runId);
       processRegistrations.remove(runId);
+      forgetDebugTarget(runId);
       cancelledRuns.remove(runId);
       if (process != null && process.isAlive()) process.destroyForcibly();
       if (registration != null) registration.close();
@@ -635,6 +1028,15 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private Process start(WorkspaceId workspaceId, List<String> command) {
+    return start(workspaceId, command, null);
+  }
+
+  private Process start(WorkspaceId workspaceId, List<String> command, Integer previewPort) {
+    return start(workspaceId, command, previewPort, null);
+  }
+
+  private Process start(
+      WorkspaceId workspaceId, List<String> command, Integer previewPort, Integer debugPort) {
     if (Platforms.detect(null).os() != Platform.Os.LINUX) {
       throw new IllegalStateException("workspace tasks require a Linux server");
     }
@@ -646,15 +1048,52 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     Map<String, String> environment = builder.environment();
     environment.clear();
     environment.put("HOME", home.toString());
-    environment.put("PATH", "/usr/local/bin:/usr/bin:/bin");
+    environment.put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
     environment.put("TERM", "xterm-256color");
     environment.put("LANG", "C.UTF-8");
+    if (previewPort != null) {
+      environment.put("PORT", Integer.toString(previewPort));
+      environment.put("JAHZIEL_PREVIEW_BASE_PATH", "/" + workspaceId.value() + "/" + previewPort);
+    }
+    if (debugPort != null) environment.put("JAHZIEL_DEBUG_PORT", Integer.toString(debugPort));
     try {
       return builder.start();
     } catch (IOException failure) {
       throw new IllegalStateException(
           "task executable is unavailable on this Linux server", failure);
     }
+  }
+
+  private static Integer availableLoopbackPort() throws IOException {
+    try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+      return socket.getLocalPort();
+    }
+  }
+
+  static List<String> resolveDebugPort(List<String> command, Integer debugPort) {
+    boolean usesDebugPort =
+        command.stream().anyMatch(value -> value.contains(DEBUG_PORT_PLACEHOLDER));
+    if (!usesDebugPort) return command;
+    if (debugPort == null || debugPort < 1 || debugPort > 65535) {
+      throw new IllegalArgumentException(
+          "template task requires a valid server-assigned debug port");
+    }
+    return command.stream()
+        .map(value -> value.replace(DEBUG_PORT_PLACEHOLDER, Integer.toString(debugPort)))
+        .toList();
+  }
+
+  private static boolean isDebugExecutable(Path commandPath, TaskDebugDefinition debug) {
+    String name = commandPath.toString();
+    if (name.equals(debug.executable())) return true;
+    return debug.language().equals("python") && name.matches("python(?:3(?:\\.\\d+)*)?");
+  }
+
+  private void forgetDebugTarget(UUID runId) {
+    taskDefinitionsByRun.remove(runId);
+    taskWorkspacesByRun.remove(runId);
+    debugTargetIdsByRun.remove(runId);
+    debugPortsByRun.remove(runId);
   }
 
   private void readOutput(
@@ -842,7 +1281,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     List<String> result = new ArrayList<>();
     Set<String> unique = new java.util.HashSet<>();
     for (JsonNode pack : packs) {
-      if (!pack.isTextual()
+      if (!pack.isString()
           || !LANGUAGE_PACK_IDS.contains(pack.asString())
           || !unique.add(pack.asString())) {
         throw new IllegalArgumentException("template contains an invalid language pack");
@@ -857,7 +1296,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       throw new IllegalArgumentException("template command must be a non-empty argument list");
     List<String> args = new ArrayList<>();
     for (JsonNode item : node) {
-      if (!item.isTextual()
+      if (!item.isString()
           || item.asString().isBlank()
           || item.asString().length() > 1024
           || item.asString().indexOf('\0') >= 0) {
@@ -899,7 +1338,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private void write(Path path, WorkspaceMetadata state) {
-    Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+    Path temporary = path.resolveSibling(path.getFileName() + "." + UUID.randomUUID() + ".tmp");
     try {
       Files.writeString(temporary, json.writeValueAsString(state), StandardCharsets.UTF_8);
       try {
@@ -941,8 +1380,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   }
 
   private static String safeMessage(Throwable failure) {
-    String message = failure.getMessage();
-    return message == null || message.isBlank() ? "setup failed" : SecretRedactor.redact(message);
+    StringBuilder message = new StringBuilder();
+    Throwable current = failure;
+    while (current != null) {
+      if (current.getMessage() != null && !current.getMessage().isBlank()) {
+        if (message.length() > 0) message.append(": ");
+        message.append(current.getMessage());
+      }
+      current = current.getCause();
+    }
+    String text = message.length() == 0 ? "setup failed" : message.toString();
+    return SecretRedactor.redact(text);
   }
 
   private static Integer safeExit(Process process) {
@@ -952,6 +1400,11 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
   private static Integer safeExitOrNull(Process process) {
     return process == null ? null : safeExit(process);
   }
+
+  private record TaskDefinition(
+      String id, String label, Integer port, List<String> command, TaskDebugDefinition debug) {}
+
+  private record TaskDebugDefinition(String language, String executable, String program) {}
 
   private static boolean isStarted(WorkspaceState state) {
     return state instanceof WorkspaceState.Ready

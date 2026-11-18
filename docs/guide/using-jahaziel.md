@@ -34,6 +34,26 @@ use a sanitized process environment and skip repository hooks. Clone
 repositories, configure credentials, and run hooks from the workspace
 terminal.
 
+## OpenCode on iPad and desktop
+
+OpenCode is the only coding-agent CLI in the current catalog. When you first
+open a workspace, Jahaziel starts installing the pinned Linux binary and its
+search helper into your per-user data area. The terminal panel shows download
+progress and the installed version. Once ready, choose **Open OpenCode** to
+launch it in an authenticated terminal rooted at the active workspace.
+
+Sign in to an AI provider from the OpenCode TUI using your own provider
+account. Jahaziel does not collect or share provider credentials. Your
+OpenCode profile is kept under `data/users/<your-user-id>/profile/` and is
+available from your other workspaces on this Jahaziel server. Updating
+reinstalls the catalog's pinned version; removing OpenCode deletes its managed
+executables but keeps your profile and provider sign-in. Claude Code is not
+available in the current product catalog.
+
+On iPad, use the terminal key strip for keys such as Ctrl, Esc, Tab, and the
+arrow keys. Terminal clipboard output is offered as a user-confirmed copy
+action so the page does not silently replace your clipboard.
+
 ## Language diagnostics
 
 The Language panel lists pinned server-managed tools that can be enabled for a
@@ -45,6 +65,57 @@ The Go pack also downloads a pinned Go SDK when selected. Open a matching
 source file after enabling its pack to start diagnostics. Disabling a pack
 removes the workspace selection while keeping the shared cached release
 available for reuse or pruning.
+
+## Debug a program
+
+The Debug panel can launch a program through a configured DAP adapter for
+Node.js, Python, Java, C/C++, Go, or Rust. A server administrator must first
+install and pin a compatible adapter and add its fixed absolute command to
+`jahaziel.debug.adapters`; Jahaziel does not install debugger adapters. See
+[debug adapter configuration](./configuration.md#debug-adapters). If no
+adapter is configured for a language, starting a session reports that the
+adapter is unavailable.
+
+Start a workspace, then enter a workspace-relative program path (or Java
+main class), working directory, and JSON argument array. To use a supported
+`.vscode/launch.json` entry, select **Load .vscode/launch.json**, then choose a
+configuration. Launch entries populate the launch form. Attach entries select
+the matching server-managed task target. An attach entry may contain only
+`name`, `type`, and `request`; Jahaziel rejects process ids, host names, ports,
+commands, and other arbitrary attach fields.
+
+The Node, Python, Java, C/C++, Go, and Rust starter templates provide a
+long-running preview task that can be attached from **Attach to a running
+task**. Run the task first, wait for it to appear in the picker, then select
+**Attach**. Only a live process started by a server-declared debuggable task is
+eligible. The browser receives an opaque target id; Jahaziel resolves its
+process and adapter arguments on the server. Stopping an attached debug
+session sends a detach request and leaves the task running.
+If the adapter does not confirm disconnect, the failed session stays visible
+so you can retry; Jahaziel leaves the workspace task untouched.
+
+Python workspace setup creates a local `.venv` and installs the pinned
+`debugpy` dependency; setup needs access to PyPI. Python attach uses a
+loopback `debugpy` endpoint. Java uses a
+server-assigned loopback JDWP port. Node uses the adapter's process attach
+support. Go, C/C++, and Rust attach to the task process through the configured
+Delve or LLDB adapter. Linux ptrace policy can restrict adapters attaching to
+a process started by a sibling service process; the server administrator must
+ensure the host allows this trusted-service debugging workflow. See the
+[Linux Yama ptrace documentation](https://docs.kernel.org/admin-guide/LSM/Yama.html).
+
+Use **Set** to send comma-separated line numbers for a workspace-relative
+file, or tap/click a line number in the editor to toggle a breakpoint in that
+source file. Gutter markers and the breakpoint list stay in sync across open
+files and are re-sent when the DAP stream reconnects. Use Continue, Pause, and
+the step controls. Select a call-stack frame to inspect its variables; add
+watch expressions or evaluate an expression in the debug console. If the
+browser disconnects while the adapter remains active, use **Reconnect** to
+resume the DAP stream.
+
+Adapters and debug-enabled tasks run as the Jahaziel service account, with the
+same trusted-user boundary as terminals and workspace tasks. See the
+[supported launch and attach configuration subset](./configuration.md#debug-adapters).
 
 ## Workspace states
 

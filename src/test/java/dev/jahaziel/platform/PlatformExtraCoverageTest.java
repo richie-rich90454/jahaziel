@@ -76,6 +76,7 @@ class PlatformExtraCoverageTest {
         IllegalArgumentException.class,
         () -> new PosixPlatform(Platform.Os.WINDOWS, Platform.Arch.X64, tmp, tmp));
     PosixPlatform mac = new PosixPlatform(Platform.Os.MACOS, Platform.Arch.X64, tmp, tmp);
+    assertTrue(mac != null);
     PosixPlatform linux = new PosixPlatform(Platform.Os.LINUX, Platform.Arch.ARM64, tmp, tmp);
     assertThrows(NullPointerException.class, () -> linux.toNative(null));
     assertThrows(NullPointerException.class, () -> linux.toPosix(null));
