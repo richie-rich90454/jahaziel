@@ -150,15 +150,17 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
 
     @Override
     public AuthIdentity handleCallback(PluginContext context, Map<String, String> parameters) {
-        String state = parameters == null ? null : parameters.get("state");
+        Map<String, String> values =
+            parameters == null ? java.util.Collections.<String, String>emptyMap() : parameters;
+        String state = values.get("state");
         OidcStore.Pending pending = state == null ? null : store.takePending(state);
         if (pending == null) {
             throw new OidcException(providerName() + " state mismatch");
         }
-        if ("access_denied".equals(parameters.get("error"))) {
+        if ("access_denied".equals(values.get("error"))) {
             throw new OidcException.Cancelled(providerName());
         }
-        String code = parameters.get("code");
+        String code = values.get("code");
         requireText(code, "authorization code");
         Map<String, String> tokens = exchange(code, pending.verifier(), pending.redirectUri());
         JWTClaimsSet claims = verifyIdToken(tokens.get("id_token"), pending.nonce(), tokens.get("access_token"));
