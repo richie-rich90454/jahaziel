@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.workspace.internal;
 
-import dev.jahaziel.platform.Platform;
 import dev.jahaziel.platform.Platforms;
+import dev.jahaziel.platform.spi.ProcessEnvironment;
+import dev.jahaziel.platform.spi.ProcessEnvironments;
 import dev.jahaziel.security.api.SecretRedactor;
 import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
 import dev.jahaziel.workspace.api.WorkspaceNotFoundException;
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1037,8 +1039,10 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
 
   private Process start(
       WorkspaceId workspaceId, List<String> command, Integer previewPort, Integer debugPort) {
-    if (Platforms.detect(null).os() != Platform.Os.LINUX) {
-      throw new IllegalStateException("workspace tasks require a Linux server");
+    ProcessEnvironment processEnvironment = ProcessEnvironments.forOs(Platforms.detect(null).os());
+    if (!processEnvironment.isSupported()) {
+      throw new IllegalStateException(
+          "workspace tasks are not supported by " + processEnvironment.descriptor().name());
     }
     Path home = directories.home(workspaceId);
     List<String> managedCommand =
@@ -1047,10 +1051,11 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         new ProcessBuilder(managedCommand).directory(home.toFile()).redirectErrorStream(true);
     Map<String, String> environment = builder.environment();
     environment.clear();
-    environment.put("HOME", home.toString());
-    environment.put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
-    environment.put("TERM", "xterm-256color");
-    environment.put("LANG", "C.UTF-8");
+    environment.putAll(
+        processEnvironment.environment(home, new LinkedHashMap<String, String>()));
+    if (processEnvironment.supportsPosixEnvironment()) {
+      environment.put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
+    }
     if (previewPort != null) {
       environment.put("PORT", Integer.toString(previewPort));
       environment.put("JAHZIEL_PREVIEW_BASE_PATH", "/" + workspaceId.value() + "/" + previewPort);
@@ -1059,8 +1064,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     try {
       return builder.start();
     } catch (IOException failure) {
-      throw new IllegalStateException(
-          "task executable is unavailable on this Linux server", failure);
+      throw new IllegalStateException("task executable is unavailable on this server", failure);
     }
   }
 
