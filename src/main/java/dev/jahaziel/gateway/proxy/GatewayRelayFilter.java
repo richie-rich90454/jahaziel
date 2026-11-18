@@ -203,16 +203,94 @@ public final class GatewayRelayFilter implements Filter {
       out.flush();
       BackendHead head = readBackendHead(upstream.getInputStream());
       response.setStatus(head.status());
+      boolean chunked = isChunked(head.headers());
       for (Map.Entry<String, List<String>> header : head.headers().entrySet()) {
-        if (header.getKey().equals("connection") || header.getKey().equals("keep-alive")) {
+        // Framing headers belong to the hop that produced the body. Forwarding them would make the
+        // container frame bytes that are already framed (double chunking), which corrupts every
+        // asset; the container re-frames this response itself.
+        if (HOP_BY_HOP.contains(header.getKey())) {
           continue;
         }
         for (String value : header.getValue()) {
           response.addHeader(header.getKey(), value);
         }
       }
-      GatewayServer.relay(upstream.getInputStream(), response.getOutputStream());
+      if (chunked) {
+        relayChunked(upstream.getInputStream(), response.getOutputStream());
+      } else {
+        GatewayServer.relay(upstream.getInputStream(), response.getOutputStream());
+      }
       response.flushBuffer();
+    }
+  }
+
+  /** Framing and connection headers that must not cross a relay hop. */
+  private static final java.util.Set<String> HOP_BY_HOP =
+      java.util.Set.of("connection", "keep-alive", "transfer-encoding", "content-length");
+
+  private static boolean isChunked(Map<String, List<String>> headers) {
+    for (String value : headers.getOrDefault("transfer-encoding", List.of())) {
+      if (value.toLowerCase(java.util.Locale.ROOT).contains("chunked")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Copies a chunked backend body to the response as plain bytes, dropping the chunk framing. A
+   * zero-length chunk ends the body; chunk extensions after a size are ignored.
+   */
+  static void relayChunked(InputStream in, OutputStream out) throws IOException {
+    while (true) {
+      String sizeLine = readLine(in);
+      if (sizeLine == null) {
+        return;
+      }
+      int semicolon = sizeLine.indexOf(';');
+      String digits = (semicolon < 0 ? sizeLine : sizeLine.substring(0, semicolon)).strip();
+      if (digits.isEmpty()) {
+        continue;
+      }
+      int size;
+      try {
+        size = Integer.parseInt(digits, 16);
+      } catch (NumberFormatException malformed) {
+        throw new GatewayServer.HttpFailure(502, "malformed chunk size");
+      }
+      if (size == 0) {
+        return;
+      }
+      copy(in, out, size);
+      // Each chunk is followed by CRLF, which the size read already consumed up to.
+      readLine(in);
+    }
+  }
+
+  private static String readLine(InputStream in) throws IOException {
+    StringBuilder line = new StringBuilder();
+    int current;
+    while ((current = in.read()) >= 0) {
+      if (current == '\n') {
+        return line.toString();
+      }
+      if (current != '\r') {
+        line.append((char) current);
+      }
+    }
+    return line.length() == 0 ? null : line.toString();
+  }
+
+  private static void copy(InputStream in, OutputStream out, long count) throws IOException {
+    byte[] buffer = new byte[32768];
+    long remaining = count;
+    while (remaining > 0) {
+      int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+      if (read < 0) {
+        throw new IOException("truncated chunked body");
+      }
+      out.write(buffer, 0, read);
+      remaining -= read;
     }
   }
 
