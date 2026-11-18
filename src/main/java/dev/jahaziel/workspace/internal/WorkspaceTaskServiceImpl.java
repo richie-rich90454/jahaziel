@@ -1344,22 +1344,11 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
       try {
         Files.move(
             temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-      } catch (IOException moveFailure) {
-        try {
-          Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException fallbackFailure) {
-          moveFailure.addSuppressed(fallbackFailure);
-          Files.writeString(path, json.writeValueAsString(state), StandardCharsets.UTF_8);
-        }
+      } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+        Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
       }
     } catch (IOException failure) {
       throw new UncheckedIOException("cannot persist workspace task state", failure);
-    } finally {
-      try {
-        Files.deleteIfExists(temporary);
-      } catch (IOException ignored) {
-        // The temporary file is best-effort cleanup.
-      }
     }
   }
 
