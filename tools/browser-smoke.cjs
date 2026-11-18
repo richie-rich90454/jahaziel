@@ -607,6 +607,8 @@ process.stdin.on("data", (chunk) => {
   await page.waitForFunction(
     () => document.querySelector('.editor-instance:not([hidden]) .cm-lineNumbers .cm-gutterElement[data-debug-line="1"]')
       ?.getAttribute("aria-pressed") === "true",
+    null,
+    { timeout: 30_000 },
   );
   await page.locator(".tree-item").filter({ hasText: "main.py" }).click();
   await waitForText(page, "#active-file", "^main\\.py$");
