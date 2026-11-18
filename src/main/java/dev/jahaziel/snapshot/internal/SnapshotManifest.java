@@ -31,7 +31,9 @@ final class SnapshotManifest {
   /**
    * Measures regular-file and symbolic-link content, allocated blocks, and a stable tree digest.
    * Symlinks are recorded as links and never followed. When the file system does not expose Unix
-   * allocation blocks, file content size is used as the physical-size estimate.
+   * allocation blocks, file content size is used as the physical-size estimate. Unix block counts
+   * multiplied by 512 are a conservative upper bound: sparse files can be reported larger than the
+   * space they actually consume.
    *
    * @param root the snapshot directory
    * @return measured sizes and the manifest digest
