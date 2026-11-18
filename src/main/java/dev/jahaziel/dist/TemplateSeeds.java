@@ -144,17 +144,31 @@ final class TemplateSeeds {
   }
 
   private static int compareVersions(String left, String right) {
-    try {
-      return Integer.compare(Integer.parseInt(left), Integer.parseInt(right));
-    } catch (NumberFormatException ignored) {
-      // Fall through to decimal comparison below.
+    String[] leftParts = left.split("\\.");
+    String[] rightParts = right.split("\\.");
+    int shared = Math.min(leftParts.length, rightParts.length);
+    for (int index = 0; index < shared; index++) {
+      Integer leftNumber = parseSegment(leftParts[index]);
+      Integer rightNumber = parseSegment(rightParts[index]);
+      int compared;
+      if (leftNumber != null && rightNumber != null) {
+        compared = leftNumber.compareTo(rightNumber);
+      } else {
+        compared = leftParts[index].compareTo(rightParts[index]);
+      }
+      if (compared != 0) {
+        return compared;
+      }
     }
+    return Integer.compare(leftParts.length, rightParts.length);
+  }
+
+  private static Integer parseSegment(String value) {
     try {
-      return Double.compare(Double.parseDouble(left), Double.parseDouble(right));
+      return Integer.valueOf(Integer.parseInt(value));
     } catch (NumberFormatException ignored) {
-      // Fall through to lexical comparison below.
+      return null;
     }
-    return left.compareTo(right);
   }
 
   private static String sha256(byte[] data) {
