@@ -3,11 +3,14 @@
 /// SPDX-License-Identifier: Apache-2.0
 ///
 
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import solid from "vite-plugin-solid";
 
 export default defineConfig({
   base: "/",
   publicDir: "public",
+  plugins: [solid(), tailwindcss()],
   build: {
     outDir: "dist",
     emptyOutDir: true,
