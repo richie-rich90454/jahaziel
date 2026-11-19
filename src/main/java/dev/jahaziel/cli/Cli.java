@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -58,7 +59,24 @@ public final class Cli {
 
   private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
+  private static volatile boolean offline;
+
   private Cli() {}
+
+  /**
+   * Reports whether the current process was started with {@code --offline}. Offline mode forbids all
+   * tool downloads and marks those capabilities unavailable.
+   *
+   * @return true in offline mode
+   */
+  public static boolean isOffline() {
+    return offline;
+  }
+
+  /** Sets the offline flag. Package-visible so tests can reset it. */
+  static void setOffline(boolean value) {
+    offline = value;
+  }
 
   /**
    * Passes arguments through unchanged. Flag-only runs ({@code --demo}, {@code --port}, {@code
@@ -81,11 +99,13 @@ public final class Cli {
    * @return the exit code, or {@link #PASS_THROUGH} for a validated legacy run
    */
   public static int dispatch(String[] args, PrintStream out, PrintStream err) {
+    setOffline(containsFlag(args, "--offline"));
     if (args.length == 0) {
       Path jar = jarDir();
       Path env = jar.resolve(".env");
       if (Files.isRegularFile(env)) {
         Map<String, String> merged = merge(parseDotEnv(env), System.getenv());
+        new UpdateService(jar, dataDir(args, jar)).applyPending(out);
         printBanner(out, jar, dataDir(args, jar), port(args, merged), backend(merged), false);
         return PASS_THROUGH;
       }
@@ -101,6 +121,18 @@ public final class Cli {
       return 0;
     }
     try {
+      if (args[0].equals("update")) {
+        return update(args, out, err);
+      }
+      if (args[0].equals("completion")) {
+        return completion(args, out, err);
+      }
+      if (args[0].equals("ops")) {
+        return OpsCommands.dispatch(args, out, err);
+      }
+      if (args[0].equals("capabilities")) {
+        return OpsCommands.dispatch(new String[] {"ops", "capabilities"}, out, err);
+      }
       switch (args[0]) {
         case "init" -> {
           return init(jarDir(), out, err);
@@ -145,7 +177,11 @@ public final class Cli {
     Path jar = jarDir();
     Map<String, String> fileEnv = parseDotEnv(jar.resolve(".env"));
     Map<String, String> merged = merge(fileEnv, System.getenv());
+    new UpdateService(jar, dataDir(args, jar)).applyPending(out);
     printBanner(out, jar, dataDir(args, jar), port(args, merged), backend(merged), demo);
+    if (isOffline()) {
+      out.println("  offline: true (tool downloads disabled; capabilities unavailable)");
+    }
     return PASS_THROUGH;
   }
 
@@ -192,8 +228,59 @@ public final class Cli {
     Path data = dataDir(args, jar);
     Map<String, String> fileEnv = parseDotEnv(jar.resolve(".env"));
     return Doctor.print(
-        Doctor.run(jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
+        Doctor.runExtended(
+            jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
         out);
+  }
+
+  private static int completion(String[] args, PrintStream out, PrintStream err) {
+    if (args.length < 2) {
+      err.println("jahaziel: completion needs a shell: bash|zsh|powershell");
+      return 2;
+    }
+    try {
+      out.print(Completion.generate(args[1]));
+      return 0;
+    } catch (IllegalArgumentException bad) {
+      err.println("jahaziel: " + bad.getMessage());
+      return 2;
+    }
+  }
+
+  private static int update(String[] args, PrintStream out, PrintStream err) throws IOException {
+    Path jar = jarDir();
+    Path data = dataDir(args, jar);
+    UpdateService service = new UpdateService(jar, data);
+    List<String> flags = Arrays.asList(args);
+    if (flags.contains("--rollback")) {
+      return service.rollback(out) ? 0 : 1;
+    }
+    if (flags.contains("--status") || args.length == 1) {
+      out.println(service.status());
+      return 0;
+    }
+    String target = flag(args, "--to");
+    if (target == null && args.length > 1 && !args[1].startsWith("-")) {
+      target = args[1];
+    }
+    if (target == null) {
+      err.println("jahaziel: update needs --to <jar> (or --status/--rollback)");
+      return 2;
+    }
+    Path candidate = Paths.get(target).toAbsolutePath().normalize();
+    Path sums = null;
+    String sumsFlag = flag(args, "--sums");
+    if (sumsFlag != null) {
+      sums = Paths.get(sumsFlag).toAbsolutePath().normalize();
+    }
+    String version = flag(args, "--version");
+    boolean dryRun = flags.contains("--dry-run");
+    UpdateService.StageResult result = service.stage(candidate, sums, version, dryRun);
+    out.println("jahaziel: update: " + result.message());
+    if (isOffline()) {
+      out.println("jahaziel: update: offline mode - no downloads were attempted");
+    }
+    return result.ok() ? 0 : 1;
   }
 
   private static int upgrade(String[] args, PrintStream out, PrintStream err) throws IOException {
@@ -479,16 +566,26 @@ public final class Cli {
 
         Commands:
           init                  Write .env (BASIS_* placeholders + random secret), mkdir data/
-          doctor                10 pre-boot checks, one line each; exit 0 when all pass
+          doctor                Pre-boot checks, one line each; exit 0 when all pass
+          update --to <jar>     Stage and verify a jar update (--dry-run, --sums, --version)
+          update --status       Show staged and applied updates
+          update --rollback     Restore the jar kept before the last applied update
           upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)
           upgrade --check       Print the running version
           backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/
           restore <file>        Extract a backup tar.gz into this directory
           logs [--follow] [--level=LEVEL]  Tail data/logs/control-plane.log
           support-bundle        Write jahaziel-support-<stamp>.zip (secrets redacted)
-
+          completion SHELL      Print a bash, zsh, or powershell completion script
+          ops SUBCOMMAND        Delegate to ops/datatools services:
+                                  support-bundle, backup, restore-drill, audit query,
+                                  export-user <id>, delete-user <id> --confirm 'DELETE <id>',
+                                  reindex [--workspace=<uuid>], capabilities
+          capabilities          List tool capabilities (unavailable when offline)
+ 
         Run:
           --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
+          --offline             Forbid tool downloads; report capabilities unavailable
           --port=N              API port (default: 11451, or PORT from .env)
           --gateway-port=N      Legacy standalone gateway socket (default: 8081, or
                                 JAHAZIEL_GATEWAY_PORT from .env; off unless enabled)
@@ -582,6 +679,15 @@ public final class Cli {
       }
     }
     return null;
+  }
+
+  private static boolean containsFlag(String[] args, String name) {
+    for (int i = 0; i < args.length; i++) {
+      if (args[i].equals(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static Path jarDir() {
