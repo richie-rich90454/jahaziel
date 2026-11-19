@@ -9,6 +9,7 @@ import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.spi.AuditEvent;
 import dev.jahaziel.spi.AuditQuery;
 import dev.jahaziel.spi.AuditSink;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
