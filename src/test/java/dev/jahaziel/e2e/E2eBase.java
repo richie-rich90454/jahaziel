@@ -99,6 +99,9 @@ abstract class E2eBase {
                 () -> "org.hibernate.community.dialect.SQLiteDialect");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
         registry.add("spring.flyway.enabled", () -> "false");
+        // The E2E suite shares one seeded user and intentionally makes hundreds of calls in a
+        // minute; keep production rate limiting enabled but raise the test ceiling.
+        registry.add("jahaziel.ops.rate-limit-per-minute", () -> "100000");
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "1");
         registry.add("spring.datasource.hikari.minimum-idle", () -> "1");
         registry.add(
