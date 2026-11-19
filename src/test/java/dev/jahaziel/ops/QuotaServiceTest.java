@@ -15,11 +15,9 @@ class QuotaServiceTest {
     @Test
     void enforcesStorageQuotaWith403() {
         QuotaService quotas = new QuotaService();
-        LimitDecision first =
-                quotas.reserve("workspace", "ws-1", QuotaService.STORAGE, 60L, 100L);
+        LimitDecision first = quotas.reserve("workspace", "ws-1", QuotaService.STORAGE, 60L, 100L);
         assertTrue(first.allowed());
-        LimitDecision second =
-                quotas.reserve("workspace", "ws-1", QuotaService.STORAGE, 50L, 100L);
+        LimitDecision second = quotas.reserve("workspace", "ws-1", QuotaService.STORAGE, 50L, 100L);
         assertFalse(second.allowed());
         assertEquals(LimitDecision.FORBIDDEN, second.statusCode());
         assertTrue(second.reason().contains("quota exceeded"));
