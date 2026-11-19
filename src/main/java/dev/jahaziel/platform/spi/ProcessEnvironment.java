@@ -27,12 +27,10 @@ public abstract class ProcessEnvironment extends Plugin {
     }
 
     @Override
-    public void initialize(PluginContext context) {
-    }
+    public void initialize(PluginContext context) {}
 
     @Override
-    public void shutdown() {
-    }
+    public void shutdown() {}
 
     /** Returns whether this environment can run workspace processes on the current host. */
     public abstract boolean isSupported();
