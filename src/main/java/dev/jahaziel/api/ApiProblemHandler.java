@@ -8,7 +8,9 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.club.api.ClubAccessDeniedException;
 import dev.jahaziel.club.api.ClubLimitException;
+
 import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
@@ -20,19 +22,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * Maps API-boundary and module failures to RFC 9457 bodies. Details are always fixed strings; a
  * domain exception message or a filesystem path is never returned to a caller.
  */
-@RestControllerAdvice(assignableTypes = {
-    AgentSessionController.class,
-    AgentPromptController.class,
-    AgentDiffController.class,
-    AgentChatController.class,
-    AgentMetaController.class,
-    SqliteController.class,
-    WorkspaceDataController.class,
-    ClubSessionController.class,
-    ClubLearningController.class,
-    ClubModerationController.class,
-    OpsAdminController.class
-})
+@RestControllerAdvice(
+        assignableTypes = {
+            AgentSessionController.class,
+            AgentPromptController.class,
+            AgentDiffController.class,
+            AgentChatController.class,
+            AgentMetaController.class,
+            SqliteController.class,
+            WorkspaceDataController.class,
+            ClubSessionController.class,
+            ClubLearningController.class,
+            ClubModerationController.class,
+            OpsAdminController.class
+        })
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class ApiProblemHandler {
     private static final MediaType PROBLEM_JSON = MediaType.valueOf("application/problem+json");
@@ -82,7 +85,8 @@ public final class ApiProblemHandler {
     @ExceptionHandler(java.io.UncheckedIOException.class)
     public ResponseEntity<ApiProblem> ioFailure(
             java.io.UncheckedIOException failure, HttpServletRequest request) {
-        return problem(500, "Internal Server Error", "The operation could not be completed", request);
+        return problem(
+                500, "Internal Server Error", "The operation could not be completed", request);
     }
 
     private static ResponseEntity<ApiProblem> problem(
