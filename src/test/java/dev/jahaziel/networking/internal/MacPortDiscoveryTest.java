@@ -8,27 +8,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 
 class MacPortDiscoveryTest {
-    private static final List<String> LSOF = Arrays.asList(
-            "p1234",
-            "f3",
-            "n*:3000",
-            "n127.0.0.1:8080",
-            "f4",
-            "n[::1]:5000",
-            "p5678",
-            "f6",
-            "n*:3000",
-            "Xunexpected",
-            "pnotapid",
-            "n*:9000",
-            "nnot-an-address");
+    private static final List<String> LSOF =
+            Arrays.asList(
+                    "p1234",
+                    "f3",
+                    "n*:3000",
+                    "n127.0.0.1:8080",
+                    "f4",
+                    "n[::1]:5000",
+                    "p5678",
+                    "f6",
+                    "n*:3000",
+                    "Xunexpected",
+                    "pnotapid",
+                    "n*:9000",
+                    "nnot-an-address");
 
     private static final class UnsupportedDiscovery extends MacPortDiscovery {
         @Override
