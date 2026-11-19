@@ -43,7 +43,9 @@ public final class AuditQueryService {
                     result,
                     details,
                     prevHash,
-                    computeHash(eventId, timestamp, actor, action, workspace, result, details, prevHash));
+                    computeHash(
+                            eventId, timestamp, actor, action, workspace, result, details,
+                            prevHash));
         }
 
         /** Creates an entry with an explicit hash, used when verifying stored records. */
@@ -115,7 +117,8 @@ public final class AuditQueryService {
 
         /** Recomputes the hash from this entry's canonical fields. */
         public String computeHash() {
-            return computeHash(eventId, timestamp, actor, action, workspace, result, details, prevHash);
+            return computeHash(
+                    eventId, timestamp, actor, action, workspace, result, details, prevHash);
         }
 
         private static String computeHash(
@@ -273,7 +276,9 @@ public final class AuditQueryService {
 
     /** Exports entries as CSV with a header row. */
     public String toCsv(List<AuditEntry> entries) {
-        StringBuilder out = new StringBuilder("eventId,timestamp,actor,action,workspace,result,details,prevHash,hash\n");
+        StringBuilder out =
+                new StringBuilder(
+                        "eventId,timestamp,actor,action,workspace,result,details,prevHash,hash\n");
         for (int i = 0; i < entries.size(); i++) {
             AuditEntry entry = entries.get(i);
             out.append(cell(entry.eventId())).append(',');
@@ -299,13 +304,19 @@ public final class AuditQueryService {
             AuditEntry entry = entries.get(i);
             out.append('{');
             out.append("\"eventId\":\"").append(OpsFiles.jsonEscape(entry.eventId())).append('"');
-            out.append(",\"timestamp\":\"").append(OpsFiles.jsonEscape(value(entry.timestamp()))).append('"');
+            out.append(",\"timestamp\":\"")
+                    .append(OpsFiles.jsonEscape(value(entry.timestamp())))
+                    .append('"');
             out.append(",\"actor\":\"").append(OpsFiles.jsonEscape(entry.actor())).append('"');
             out.append(",\"action\":\"").append(OpsFiles.jsonEscape(entry.action())).append('"');
-            out.append(",\"workspace\":\"").append(OpsFiles.jsonEscape(entry.workspace())).append('"');
+            out.append(",\"workspace\":\"")
+                    .append(OpsFiles.jsonEscape(entry.workspace()))
+                    .append('"');
             out.append(",\"result\":\"").append(OpsFiles.jsonEscape(entry.result())).append('"');
             out.append(",\"details\":\"").append(OpsFiles.jsonEscape(entry.details())).append('"');
-            out.append(",\"prevHash\":\"").append(OpsFiles.jsonEscape(entry.prevHash())).append('"');
+            out.append(",\"prevHash\":\"")
+                    .append(OpsFiles.jsonEscape(entry.prevHash()))
+                    .append('"');
             out.append(",\"hash\":\"").append(OpsFiles.jsonEscape(entry.hash())).append('"');
             out.append('}');
         }
