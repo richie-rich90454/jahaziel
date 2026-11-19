@@ -9,14 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipOutputStream;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.function.Executable;
 
 /** Behavior of {@link RestoreDrillService}: integrity, RTO/RPO reporting and zip-slip defense. */
 class RestoreDrillServiceTest {
@@ -47,7 +48,8 @@ class RestoreDrillServiceTest {
     void detectsTamperedManifest() throws Exception {
         Path data = temp.resolve("data");
         Path archive =
-                new ScheduledBackupService(data, new TestClock("2026-01-01T01:00:00Z")).backup(source());
+                new ScheduledBackupService(data, new TestClock("2026-01-01T01:00:00Z"))
+                        .backup(source());
         String name = archive.getFileName().toString();
         Path manifest =
                 data.resolve("backups")
@@ -90,7 +92,8 @@ class RestoreDrillServiceTest {
 
     @Test
     void reportsMissingBackup() {
-        RestoreDrillService.RestoreReport report = new RestoreDrillService(temp.resolve("data")).drill();
+        RestoreDrillService.RestoreReport report =
+                new RestoreDrillService(temp.resolve("data")).drill();
         assertFalse(report.success());
         assertTrue(report.reason().contains("no backup"));
     }
