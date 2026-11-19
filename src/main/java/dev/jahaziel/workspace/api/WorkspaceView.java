@@ -6,6 +6,7 @@ package dev.jahaziel.workspace.api;
 
 import dev.jahaziel.spi.StorageUsage;
 import dev.jahaziel.workspace.domain.Workspace;
+
 import java.time.Instant;
 import java.util.Objects;
 
@@ -18,11 +19,11 @@ import java.util.Objects;
  * @param usage storage usage
  */
 public record WorkspaceView(
-    Workspace workspace, Instant createdAt, Instant lastActivityAt, StorageUsage usage) {
-  public WorkspaceView {
-    Objects.requireNonNull(workspace, "workspace");
-    Objects.requireNonNull(createdAt, "createdAt");
-    Objects.requireNonNull(lastActivityAt, "lastActivityAt");
-    Objects.requireNonNull(usage, "usage");
-  }
+        Workspace workspace, Instant createdAt, Instant lastActivityAt, StorageUsage usage) {
+    public WorkspaceView {
+        Objects.requireNonNull(workspace, "workspace");
+        Objects.requireNonNull(createdAt, "createdAt");
+        Objects.requireNonNull(lastActivityAt, "lastActivityAt");
+        Objects.requireNonNull(usage, "usage");
+    }
 }
