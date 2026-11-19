@@ -15,8 +15,8 @@ import java.util.UUID;
  * @param occurredAt when the event occurred
  */
 public record WorkspaceDeletedEvent(UUID workspaceId, Instant occurredAt) implements DomainEvent {
-  public WorkspaceDeletedEvent {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
+    public WorkspaceDeletedEvent {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+    }
 }
