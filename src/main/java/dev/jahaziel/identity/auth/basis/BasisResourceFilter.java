@@ -119,9 +119,15 @@ public final class BasisResourceFilter extends OncePerRequestFilter {
         String subject = verified.claims() == null ? null : verified.claims().getSubject();
         UserIdentityStore store = identityStore;
         if (store != null && subject != null && subject.trim().length() > 0) {
-            UUID userId = store.findUserId(PROVIDER_BASIS, subject);
-            if (userId != null) {
-                request.setAttribute(PRINCIPAL_ATTRIBUTE, userId.toString());
+            try {
+                UUID userId = store.findUserId(PROVIDER_BASIS, subject);
+                if (userId != null) {
+                    request.setAttribute(PRINCIPAL_ATTRIBUTE, userId.toString());
+                }
+            } catch (RuntimeException lookupFailure) {
+                // A failed identity lookup simply leaves no verified principal; the security
+                // chain will reject the request. Never surface database details to the caller.
+                log.warn("basis identity lookup failed");
             }
         }
         chain.doFilter(request, response);
