@@ -14,6 +14,7 @@ import {
     updateSaveState,
 } from "./editor";
 import { refreshGitSafely } from "./git";
+import { isSelected, toggleSelection } from "./bulk-files";
 
 export async function refreshFiles(path = ".", parent?: HTMLElement): Promise<void> {
     const workspace = state.workspace;
@@ -58,6 +59,14 @@ export function renderFile(entry: FileEntry): HTMLLIElement {
             );
         });
     } else {
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "tree-check";
+        check.checked = isSelected(entry.path);
+        check.setAttribute("aria-label", `Select ${entry.path}`);
+        check.addEventListener("click", (event) => event.stopPropagation());
+        check.addEventListener("change", () => toggleSelection(entry.path, check.checked));
+        row.append(check);
         toggle.addEventListener("click", () => selectAndOpenFile(entry.path));
     }
     row.append(toggle);
