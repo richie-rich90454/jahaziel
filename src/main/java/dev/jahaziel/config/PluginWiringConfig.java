@@ -8,8 +8,8 @@ import dev.jahaziel.identity.auth.ApiTokenPlugin;
 import dev.jahaziel.identity.auth.AuthPluginRegistry;
 import dev.jahaziel.identity.auth.AuthProviderPlugin;
 import dev.jahaziel.identity.auth.BasisAuthPlugin;
-import dev.jahaziel.identity.auth.GitHubAuthPlugin;
 import dev.jahaziel.identity.auth.GenericOidcPlugin;
+import dev.jahaziel.identity.auth.GitHubAuthPlugin;
 import dev.jahaziel.identity.auth.GoogleAuthPlugin;
 import dev.jahaziel.identity.auth.LdapPlugin;
 import dev.jahaziel.identity.auth.LocalPasswordPlugin;
@@ -24,18 +24,28 @@ import dev.jahaziel.platform.spi.LinuxProcessEnvironment;
 import dev.jahaziel.platform.spi.MacProcessEnvironment;
 import dev.jahaziel.platform.spi.WindowsProcessEnvironment;
 import dev.jahaziel.plugin.PluginContext;
-import java.nio.file.Path;
-import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
+import java.nio.file.Path;
+import java.util.List;
+
 /** Registers concrete plugins as beans and assembles the gated auth-provider registry. */
 @Configuration
 public class PluginWiringConfig {
     private static final String[] PRIORITY = {
-        "basis-auth", "microsoft", "google", "github", "oidc", "local", "passkey", "api-token", "ldap"
+        "basis-auth",
+        "microsoft",
+        "google",
+        "github",
+        "oidc",
+        "local",
+        "passkey",
+        "api-token",
+        "ldap"
     };
 
     /** Returns the gate that skips auth providers whose required settings are absent. */
