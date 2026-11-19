@@ -4,14 +4,15 @@
  */
 package dev.jahaziel.identity.auth.oidc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import dev.jahaziel.identity.auth.AuthCapability;
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.GoogleAuthPlugin;
 import dev.jahaziel.plugin.PluginContext;
-import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 /** Google provider descriptor, config prefix and identity namespace. */
 final class GoogleAuthPluginTest extends ProviderTestBase {
