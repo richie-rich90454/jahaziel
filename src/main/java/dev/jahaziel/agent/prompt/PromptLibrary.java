@@ -7,6 +7,7 @@ package dev.jahaziel.agent.prompt;
 import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -99,15 +100,14 @@ public final class PromptLibrary {
     }
 
     /**
-     * Renders a template, replacing declared variables with the supplied values. Values are inserted
-     * verbatim in one pass and are never re-expanded.
+     * Renders a template, replacing declared variables with the supplied values. Values are
+     * inserted verbatim in one pass and are never re-expanded.
      */
     public String render(UserId user, String id, String file, String selection) {
         requireUser(user);
         TemplateIndex userIndex = loadUser(user);
-        PromptTemplate template = contains(userIndex, id)
-            ? find(userIndex, id)
-            : find(loadGlobals(), id);
+        PromptTemplate template =
+                contains(userIndex, id) ? find(userIndex, id) : find(loadGlobals(), id);
         String body = template.getBody();
         StringBuilder result = new StringBuilder(body.length() + 128);
         int index = 0;
