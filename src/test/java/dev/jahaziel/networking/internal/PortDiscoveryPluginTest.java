@@ -9,16 +9,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.jupiter.api.Test;
 
 class PortDiscoveryPluginTest {
     private static final class FakeDiscovery extends PortDiscoveryPlugin {
         FakeDiscovery() {
-            super(new PluginDescriptor(
-                    "fake-port-discovery", "1.0", new ArrayList<String>(), new ArrayList<String>()));
+            super(
+                    new PluginDescriptor(
+                            "fake-port-discovery",
+                            "1.0",
+                            new ArrayList<String>(),
+                            new ArrayList<String>()));
         }
 
         @Override
