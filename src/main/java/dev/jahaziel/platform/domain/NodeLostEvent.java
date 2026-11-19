@@ -15,12 +15,12 @@ import java.util.Objects;
  * @param occurredAt when the event occurred
  */
 public record NodeLostEvent(String nodeId, String reason, Instant occurredAt)
-    implements DomainEvent {
-  public NodeLostEvent {
-    Objects.requireNonNull(nodeId, "nodeId");
-    if (reason == null || reason.isBlank()) {
-      throw new IllegalArgumentException("reason must not be blank");
+        implements DomainEvent {
+    public NodeLostEvent {
+        Objects.requireNonNull(nodeId, "nodeId");
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason must not be blank");
+        }
+        Objects.requireNonNull(occurredAt, "occurredAt");
     }
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
 }
