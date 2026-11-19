@@ -95,7 +95,8 @@ public final class PluginLoader {
     private List<Plugin> loadJar(Path jar) throws IOException {
         List<Plugin> found = new ArrayList<Plugin>();
         URL url = jar.toUri().toURL();
-        URLClassLoader loader = new URLClassLoader(new URL[] {url}, PluginLoader.class.getClassLoader());
+        URLClassLoader loader =
+                new URLClassLoader(new URL[] {url}, PluginLoader.class.getClassLoader());
         try (JarFile archive = new JarFile(jar.toFile())) {
             Enumeration<JarEntry> entries = archive.entries();
             while (entries.hasMoreElements()) {
@@ -117,7 +118,8 @@ public final class PluginLoader {
                     constructor.setAccessible(true);
                     found.add((Plugin) constructor.newInstance());
                 } catch (ReflectiveOperationException failure) {
-                    throw new IOException("cannot load plugin class " + className + " from " + jar, failure);
+                    throw new IOException(
+                            "cannot load plugin class " + className + " from " + jar, failure);
                 }
             }
         }
