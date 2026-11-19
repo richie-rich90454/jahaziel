@@ -26,11 +26,15 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
     public static final String SERVICE_CLOCK = "local.clock";
 
     private static final String PROVIDER = "local";
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            PROVIDER,
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(AuthCapability.PASSWORD, AuthCapability.TOTP, AuthCapability.MFA_ASSURANCE));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    PROVIDER,
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(
+                            AuthCapability.PASSWORD,
+                            AuthCapability.TOTP,
+                            AuthCapability.MFA_ASSURANCE));
 
     private LocalStore store;
     private Clock clock;
@@ -49,11 +53,11 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
     }
 
     @Override
-    public void shutdown() {
-    }
+    public void shutdown() {}
 
     @Override
-    public String startLogin(PluginContext context, String state, String nonce, String redirectUri) {
+    public String startLogin(
+            PluginContext context, String state, String nonce, String redirectUri) {
         if (state == null || state.length() == 0) {
             throw new LocalAuthException("missing state");
         }
@@ -73,8 +77,9 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
             throw new LocalAuthException("username and password are required");
         }
         LocalStore.User user = store.getUser(username);
-        if (user == null || !PasswordHasher.verify(
-                password.toCharArray(), user.salt(), user.iterations(), user.hash())) {
+        if (user == null
+                || !PasswordHasher.verify(
+                        password.toCharArray(), user.salt(), user.iterations(), user.hash())) {
             throw new LocalAuthException("invalid credentials");
         }
 
@@ -91,8 +96,9 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
         claims.put("session_id", sessionId);
         claims.put("mfa_enrollment", user.enrolled() ? "complete" : "pending");
         claims.put("admin", mfaAssured && user.admin() ? "true" : "false");
-        AuthIdentity identity = new AuthIdentity(
-                PROVIDER, username, user.email(), username, false, mfaAssured, claims);
+        AuthIdentity identity =
+                new AuthIdentity(
+                        PROVIDER, username, user.email(), username, false, mfaAssured, claims);
         store.putSession(sessionId, identity);
         return identity;
     }
@@ -111,7 +117,10 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
     public void bootstrapAdmin(PluginContext context) {
         String username = normalize(context.setting("local.username"));
         String password = context.setting("local.password");
-        if (username == null || username.length() == 0 || password == null || password.length() == 0) {
+        if (username == null
+                || username.length() == 0
+                || password == null
+                || password.length() == 0) {
             return;
         }
         if (store.hasUser(username)) {
@@ -121,8 +130,13 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
         byte[] salt = PasswordHasher.newSalt();
         byte[] hash = PasswordHasher.hash(password.toCharArray(), salt, PasswordHasher.ITERATIONS);
         byte[] secret = Totp.newSecret();
-        store.createUser(username, email == null ? "" : email, salt, hash,
-                PasswordHasher.ITERATIONS, store.encryptSecret(secret));
+        store.createUser(
+                username,
+                email == null ? "" : email,
+                salt,
+                hash,
+                PasswordHasher.ITERATIONS,
+                store.encryptSecret(secret));
     }
 
     /** Returns the decrypted TOTP secret for enrollment, or null for an unknown user. */
@@ -135,8 +149,12 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
         if (suppliedCode == null || suppliedCode.length() == 0) {
             return false;
         }
-        int matched = Totp.verify(
-                store.totpSecret(user), suppliedCode, clock.instant().getEpochSecond(), user.totpCounter());
+        int matched =
+                Totp.verify(
+                        store.totpSecret(user),
+                        suppliedCode,
+                        clock.instant().getEpochSecond(),
+                        user.totpCounter());
         if (matched < 0) {
             throw new LocalAuthException("invalid TOTP code");
         }
@@ -151,8 +169,12 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
         if (suppliedCode == null || suppliedCode.length() == 0) {
             throw new LocalAuthException("TOTP code is required");
         }
-        int matched = Totp.verify(
-                store.totpSecret(user), suppliedCode, clock.instant().getEpochSecond(), user.totpCounter());
+        int matched =
+                Totp.verify(
+                        store.totpSecret(user),
+                        suppliedCode,
+                        clock.instant().getEpochSecond(),
+                        user.totpCounter());
         if (matched < 0) {
             throw new LocalAuthException("invalid or replayed TOTP code");
         }
