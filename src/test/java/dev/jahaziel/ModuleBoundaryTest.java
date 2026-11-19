@@ -9,6 +9,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+
 import org.junit.jupiter.api.Test;
 
 /**
@@ -17,27 +18,28 @@ import org.junit.jupiter.api.Test;
  * style of rule per pair, while shared foundations stay usable.
  */
 class ModuleBoundaryTest {
-  private static final JavaClasses CLASSES = new ClassFileImporter().importPackages("dev.jahaziel");
+    private static final JavaClasses CLASSES =
+            new ClassFileImporter().importPackages("dev.jahaziel");
 
-  @Test
-  void workspaceDoesNotDependOnIdentityInternal() {
-    noClasses()
-        .that()
-        .resideInAPackage("dev.jahaziel.workspace..")
-        .should()
-        .dependOnClassesThat()
-        .resideInAPackage("dev.jahaziel.identity.internal..")
-        .check(CLASSES);
-  }
+    @Test
+    void workspaceDoesNotDependOnIdentityInternal() {
+        noClasses()
+                .that()
+                .resideInAPackage("dev.jahaziel.workspace..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("dev.jahaziel.identity.internal..")
+                .check(CLASSES);
+    }
 
-  @Test
-  void modulesOnlyAccessOtherModulesPublicApi() {
-    classes()
-        .that()
-        .resideInAPackage("dev.jahaziel..")
-        .should()
-        .onlyDependOnClassesThat()
-        .resideInAnyPackage("dev.jahaziel..api..", "dev.jahaziel..domain..", "java..", "..")
-        .check(CLASSES);
-  }
+    @Test
+    void modulesOnlyAccessOtherModulesPublicApi() {
+        classes()
+                .that()
+                .resideInAPackage("dev.jahaziel..")
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage("dev.jahaziel..api..", "dev.jahaziel..domain..", "java..", "..")
+                .check(CLASSES);
+    }
 }
