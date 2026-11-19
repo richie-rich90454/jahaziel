@@ -6,9 +6,10 @@ package dev.jahaziel.config;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
+
+import java.lang.reflect.Method;
 
 /** Verifies the new services are exposed as explicit bean methods. */
 class ConfigBeanMethodsTest {
@@ -71,18 +72,26 @@ class ConfigBeanMethodsTest {
     @Test
     void pluginConfigDeclaresEveryPluginAndTheRegistry() {
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.plugin.PluginContext");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.platform.spi.LinuxProcessEnvironment");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.platform.spi.MacProcessEnvironment");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.platform.spi.WindowsProcessEnvironment");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.networking.internal.LinuxPortDiscovery");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.networking.internal.MacPortDiscovery");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.networking.internal.WindowsPortDiscovery");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.platform.spi.LinuxProcessEnvironment");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.platform.spi.MacProcessEnvironment");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.platform.spi.WindowsProcessEnvironment");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.networking.internal.LinuxPortDiscovery");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.networking.internal.MacPortDiscovery");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.networking.internal.WindowsPortDiscovery");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.BasisAuthPlugin");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.MicrosoftAuthPlugin");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.identity.auth.MicrosoftAuthPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.GoogleAuthPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.GitHubAuthPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.GenericOidcPlugin");
-        assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.LocalPasswordPlugin");
+        assertBeanMethod(
+                PluginWiringConfig.class, "dev.jahaziel.identity.auth.LocalPasswordPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.PasskeyPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.ApiTokenPlugin");
         assertBeanMethod(PluginWiringConfig.class, "dev.jahaziel.identity.auth.LdapPlugin");
@@ -101,6 +110,8 @@ class ConfigBeanMethodsTest {
                 found = true;
             }
         }
-        assertTrue(found, "missing @Bean method returning " + returnTypeName + " on " + owner.getName());
+        assertTrue(
+                found,
+                "missing @Bean method returning " + returnTypeName + " on " + owner.getName());
     }
 }
