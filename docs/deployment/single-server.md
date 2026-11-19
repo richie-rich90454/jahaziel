@@ -27,15 +27,15 @@ Use a DNS name you control, such as `code.example.com`. The preview host is `pre
 
 ## Service templates per OS
 
-All OSes use the same workflow: build the jar locally (or download a CI artifact), copy `jahaziel.jar` into a writable directory, run `java -jar jahaziel.jar init` and `doctor` there, then register the host's supervisor. Application state is **jar-adjacent**: `.env`, `data/` (SQLite database, workspace homes, keys, logs, and language packs) and any template-configured temp directory stay under `<jar>/`. Only the service definition lives outside that directory, where the OS requires it.
+All OSes use the same workflow: build the jar locally (or download a CI artifact), copy `jahaziel.jar` into a writable directory, run `java -jar jahaziel.jar init` and `doctor` there, then register the host's supervisor. Application state is **jar-adjacent**: `.env`, `data/` (SQLite database, workspace homes, keys, logs, and language packs) and any template-configured temp directory stay under `<jar>/`. Only the service definition and the Caddy config live outside that directory, where the OS requires them.
 
-| OS | Template | Service definition | Install helper |
-|---|---|---|---|
-| Linux | `ops/services/jahaziel.service` | `/etc/systemd/system/jahaziel.service` | `systemctl daemon-reload`, then `systemctl enable --now jahaziel` |
-| macOS | `ops/launchd/dev.jahaziel.plist.template` | `/Library/LaunchDaemons/<label>.plist` | `ops/launchd/install.sh <jar-dir> [label]` |
-| Windows | `ops/windows/jahaziel-service.xml.template` | WinSW service registered with Windows Services; its `jahaziel-service.xml` config stays jar-adjacent | `ops/windows/install.ps1 -JarDir <jar-dir> -WinSw <winsw.exe>` |
+| OS | Service template | Service definition | Install helper | Caddy template |
+|---|---|---|---|---|
+| Linux | `ops/services/jahaziel.service` | `/etc/systemd/system/jahaziel.service` | `systemctl daemon-reload`, then `systemctl enable --now jahaziel` | `ops/caddy/Caddyfile.linux` |
+| macOS | `ops/launchd/dev.jahaziel.plist.template` | `/Library/LaunchDaemons/<label>.plist` | `ops/launchd/install.sh <jar-dir> [label]` | `ops/caddy/Caddyfile.macos` |
+| Windows | `ops/windows/jahaziel-service.xml.template` | WinSW service registered with Windows Services; its `jahaziel-service.xml` config stays jar-adjacent | `ops/windows/install.ps1 -JarDir <jar-dir> -WinSw <winsw.exe>` | `ops/caddy/Caddyfile.windows` |
 
-The launchd and WinSW templates substitute the jar directory into the definition and keep stdout/stderr logs and `java.io.tmpdir` under `<jar>/data`. The systemd unit uses `PrivateTmp` and the journal instead. The rest of this guide covers the Linux reference deployment; macOS and Windows templates are provided for development and production, but native real-host acceptance on those OSes is still open.
+Each `Caddyfile.<os>` template reverse-proxies the loopback jar port (`11451`) with HSTS and security headers; copy the matching file to that host's Caddy config location and replace the example hostnames. The default `ops/caddy/Caddyfile` remains the Linux-compatible baseline. The launchd and WinSW templates substitute the jar directory into the definition and keep stdout/stderr logs and `java.io.tmpdir` under `<jar>/data`. The systemd unit uses `PrivateTmp` and the journal instead. The rest of this guide covers the Linux reference deployment; macOS and Windows templates are provided for development and production, but native real-host acceptance on those OSes is still open.
 
 ## 1. Prepare the Linux host
 
