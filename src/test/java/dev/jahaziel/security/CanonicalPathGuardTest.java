@@ -56,20 +56,26 @@ class CanonicalPathGuardTest {
         boolean windows = System.getProperty("os.name").toLowerCase().contains("win");
         Assumptions.assumeTrue(!windows);
 
-        Path outside = temporary.resolve("outside");
-        Files.createDirectories(outside);
-        Files.write(outside.resolve("secret.txt"), "secret".getBytes("UTF-8"));
-        Path link = temporary.resolve("link");
+        // The target must sit outside the containment root; pointing it at a child of the root
+        // resolves back inside and does not exercise the escape check on Linux realpath().
+        Path outside = Files.createTempDirectory(temporary.getParent(), "jahaziel-outside");
         try {
-            Files.createSymbolicLink(link, outside);
-        } catch (IOException unsupported) {
-            Assumptions.abort("symlinks unavailable");
-            return;
-        } catch (UnsupportedOperationException unsupported) {
-            Assumptions.abort("symlinks unavailable");
-            return;
-        }
+            Files.write(outside.resolve("secret.txt"), "secret".getBytes("UTF-8"));
+            Path link = temporary.resolve("link");
+            try {
+                Files.createSymbolicLink(link, outside);
+            } catch (IOException unsupported) {
+                Assumptions.abort("symlinks unavailable");
+                return;
+            } catch (UnsupportedOperationException unsupported) {
+                Assumptions.abort("symlinks unavailable");
+                return;
+            }
 
-        assertFalse(CanonicalPathGuard.check(temporary, Paths.get("link", "secret.txt")));
+            assertFalse(CanonicalPathGuard.check(temporary, Paths.get("link", "secret.txt")));
+        } finally {
+            Files.deleteIfExists(outside.resolve("secret.txt"));
+            Files.deleteIfExists(outside);
+        }
     }
 }
