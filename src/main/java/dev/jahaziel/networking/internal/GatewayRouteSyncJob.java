@@ -8,6 +8,7 @@ import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
+
 import java.time.Duration;
 import java.util.Objects;
 
@@ -16,29 +17,29 @@ import java.util.Objects;
  * event costs at most one period.
  */
 public final class GatewayRouteSyncJob implements PlatformJob {
-  private final GatewayRouteService routes;
+    private final GatewayRouteService routes;
 
-  /**
-   * Creates the job.
-   *
-   * @param routes the route reconciler
-   */
-  public GatewayRouteSyncJob(GatewayRouteService routes) {
-    this.routes = Objects.requireNonNull(routes, "routes");
-  }
+    /**
+     * Creates the job.
+     *
+     * @param routes the route reconciler
+     */
+    public GatewayRouteSyncJob(GatewayRouteService routes) {
+        this.routes = Objects.requireNonNull(routes, "routes");
+    }
 
-  @Override
-  public void run(JobContext context) {
-    routes.reconcile();
-  }
+    @Override
+    public void run(JobContext context) {
+        routes.reconcile();
+    }
 
-  @Override
-  public Duration period() {
-    return Duration.ofSeconds(5);
-  }
+    @Override
+    public Duration period() {
+        return Duration.ofSeconds(5);
+    }
 
-  @Override
-  public JobScope scope() {
-    return JobScope.CLUSTER;
-  }
+    @Override
+    public JobScope scope() {
+        return JobScope.CLUSTER;
+    }
 }
