@@ -6,6 +6,7 @@ package dev.jahaziel.identity.auth.wiring;
 
 import dev.jahaziel.identity.auth.AuthPluginRegistry;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,23 +17,23 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @Configuration
 public class AuthWiringConfig {
-  /** Reads the ordered list of enabled providers from the shared plugin context. */
-  @Bean
-  public AuthProviderConfig authProviderConfig(
-      PluginContext pluginContext, AuthPluginRegistry authPluginRegistry) {
-    return AuthProviderConfig.fromSettings(pluginContext, authPluginRegistry);
-  }
+    /** Reads the ordered list of enabled providers from the shared plugin context. */
+    @Bean
+    public AuthProviderConfig authProviderConfig(
+            PluginContext pluginContext, AuthPluginRegistry authPluginRegistry) {
+        return AuthProviderConfig.fromSettings(pluginContext, authPluginRegistry);
+    }
 
-  /** Selects the active provider, or allows the DevConnect fallback when none is configured. */
-  @Bean
-  public AuthProviderDispatcher authProviderDispatcher(
-      AuthPluginRegistry authPluginRegistry, AuthProviderConfig authProviderConfig) {
-    return new AuthProviderDispatcher(authPluginRegistry, authProviderConfig);
-  }
+    /** Selects the active provider, or allows the DevConnect fallback when none is configured. */
+    @Bean
+    public AuthProviderDispatcher authProviderDispatcher(
+            AuthPluginRegistry authPluginRegistry, AuthProviderConfig authProviderConfig) {
+        return new AuthProviderDispatcher(authPluginRegistry, authProviderConfig);
+    }
 
-  /** Stores the durable (provider, subject) to user links. */
-  @Bean
-  public UserIdentityStore userIdentityStore(JdbcTemplate jdbcTemplate) {
-    return new UserIdentityStore(jdbcTemplate);
-  }
+    /** Stores the durable (provider, subject) to user links. */
+    @Bean
+    public UserIdentityStore userIdentityStore(JdbcTemplate jdbcTemplate) {
+        return new UserIdentityStore(jdbcTemplate);
+    }
 }
