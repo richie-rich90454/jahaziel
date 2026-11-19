@@ -9,6 +9,7 @@ import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -72,7 +73,8 @@ public final class AgentSessionService {
         session.setUpdatedAt(now);
         index.sessions.add(session);
         save(user, workspace, index);
-        appendLine(user, workspace, session.getId(), "session created with managed tool " + TOOL_ID);
+        appendLine(
+                user, workspace, session.getId(), "session created with managed tool " + TOOL_ID);
         return session;
     }
 
@@ -105,8 +107,7 @@ public final class AgentSessionService {
     }
 
     /** Appends one transcript line to a session. */
-    public void appendLine(
-            UserId user, WorkspaceId workspace, String sessionId, String line) {
+    public void appendLine(UserId user, WorkspaceId workspace, String sessionId, String line) {
         requireOwner(user, workspace);
         find(user, workspace, sessionId);
         if (line == null || line.isEmpty() || line.length() > 8192) {
@@ -176,19 +177,19 @@ public final class AgentSessionService {
 
     private Path indexPath(UserId user, WorkspaceId workspace) {
         return store.containedChild(
-            store.sessionRoot(),
-            user.value().toString(),
-            workspace.value().toString(),
-            "index.json");
+                store.sessionRoot(),
+                user.value().toString(),
+                workspace.value().toString(),
+                "index.json");
     }
 
     private Path transcriptPath(UserId user, WorkspaceId workspace, String sessionId) {
         return store.containedChild(
-            store.sessionRoot(),
-            user.value().toString(),
-            workspace.value().toString(),
-            sessionId,
-            "transcript.log");
+                store.sessionRoot(),
+                user.value().toString(),
+                workspace.value().toString(),
+                sessionId,
+                "transcript.log");
     }
 
     private static void requireOwner(UserId user, WorkspaceId workspace) {
