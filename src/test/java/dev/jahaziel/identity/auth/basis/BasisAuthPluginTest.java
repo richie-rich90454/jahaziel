@@ -4,10 +4,18 @@
  */
 package dev.jahaziel.identity.auth.basis;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import dev.jahaziel.identity.auth.AuthCapability;
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.BasisAuthPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,21 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-
 final class BasisAuthPluginTest {
     private static final String REDIRECT = "https://app.example.org/oauth/callback";
     private static final String RESOURCE = "urn:example:api";
     private static final String CLIENT_ID = "example-web";
     private static final String SECRET = "client-secret-1234567890";
 
-    @TempDir
-    Path temp;
+    @TempDir Path temp;
 
     private LoopbackIdp idp;
     private Map<String, String> settings;
@@ -200,13 +200,15 @@ final class BasisAuthPluginTest {
     void everyPersistedFileStaysUnderTheDataDir() throws Exception {
         login("state-10", "nonce-10");
         final List<String> relative = new ArrayList<String>();
-        Files.walkFileTree(temp, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                relative.add(temp.relativize(file).toString().replace('\\', '/'));
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        Files.walkFileTree(
+                temp,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        relative.add(temp.relativize(file).toString().replace('\\', '/'));
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
         assertTrue(relative.contains("identity/basis-auth-store.json"));
         assertTrue(relative.contains("keys/basis-auth.key"));
         for (int index = 0; index < relative.size(); index++) {
@@ -230,7 +232,8 @@ final class BasisAuthPluginTest {
         for (int index = 0; index < pairs.length; index++) {
             int equal = pairs[index].indexOf('=');
             if (equal > 0 && pairs[index].substring(0, equal).equals(name)) {
-                return java.net.URLDecoder.decode(pairs[index].substring(equal + 1), java.nio.charset.StandardCharsets.UTF_8);
+                return java.net.URLDecoder.decode(
+                        pairs[index].substring(equal + 1), java.nio.charset.StandardCharsets.UTF_8);
             }
         }
         return null;
