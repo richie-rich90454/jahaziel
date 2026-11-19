@@ -4,6 +4,11 @@
  */
 package dev.jahaziel.plugin;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -12,11 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PluginRegistryTest {
     @Test
@@ -28,7 +28,8 @@ final class PluginRegistryTest {
         registry.register(feature);
         registry.register(base);
 
-        registry.initializeAll(new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
+        registry.initializeAll(
+                new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
 
         assertEquals(Arrays.asList("init:base", "init:feature"), events);
         assertTrue(registry.isInitialized());
@@ -42,12 +43,14 @@ final class PluginRegistryTest {
         PluginRegistry registry = new PluginRegistry();
         registry.register(feature);
         registry.register(base);
-        registry.initializeAll(new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
+        registry.initializeAll(
+                new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
 
         registry.shutdownAll();
 
         assertEquals(
-                Arrays.asList("init:base", "init:feature", "shutdown:feature", "shutdown:base"), events);
+                Arrays.asList("init:base", "init:feature", "shutdown:feature", "shutdown:base"),
+                events);
         assertFalse(registry.isInitialized());
     }
 
@@ -75,7 +78,8 @@ final class PluginRegistryTest {
                     @Override
                     public void execute() {
                         registry.initializeAll(
-                                new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
+                                new PluginContext(
+                                        Paths.get("data"), Collections.<String, String>emptyMap()));
                     }
                 });
     }
@@ -91,7 +95,8 @@ final class PluginRegistryTest {
                     @Override
                     public void execute() {
                         registry.initializeAll(
-                                new PluginContext(Paths.get("data"), Collections.<String, String>emptyMap()));
+                                new PluginContext(
+                                        Paths.get("data"), Collections.<String, String>emptyMap()));
                     }
                 });
     }
@@ -100,7 +105,10 @@ final class PluginRegistryTest {
     void descriptorExposesCapabilities() {
         PluginDescriptor descriptor =
                 new PluginDescriptor(
-                        "p", "1", Collections.<String>emptyList(), Collections.singletonList("oidc"));
+                        "p",
+                        "1",
+                        Collections.<String>emptyList(),
+                        Collections.singletonList("oidc"));
         assertTrue(descriptor.provides("oidc"));
         assertFalse(descriptor.provides("totp"));
         assertEquals("p@1", descriptor.toString());
