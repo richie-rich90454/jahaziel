@@ -9,10 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.api.ApiFailureException;
+import dev.jahaziel.api.WorkspaceSafetyController;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.snapshot.api.SnapshotService;
+import dev.jahaziel.snapshot.diff.WorkspaceDiffService;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
@@ -46,7 +48,8 @@ final class WorkspaceSafetyControllerTest {
     @Test
     void controllerIsAnnotatedRestController() {
         assertTrue(WorkspaceSafetyController.class.isAnnotationPresent(RestController.class));
-        RequestMapping mapping = WorkspaceSafetyController.class.getAnnotation(RequestMapping.class);
+        RequestMapping mapping =
+                WorkspaceSafetyController.class.getAnnotation(RequestMapping.class);
         assertTrue(mapping != null && mapping.value().length == 1);
         assertEquals("/api/v1/workspaces/{id}", mapping.value()[0]);
     }
@@ -62,11 +65,30 @@ final class WorkspaceSafetyControllerTest {
                         SafetyFixtures.workspace().value(), SafetyFixtures.principal(), upload);
         assertTrue(response.getHeaders().getETag() != null);
 
-        assertEquals(1, fixture.controller.history(SafetyFixtures.workspace().value(), SafetyFixtures.principal()).size());
-        assertEquals(1, fixture.controller.undo(SafetyFixtures.workspace().value(), SafetyFixtures.principal()).size());
-        assertTrue(!Files.exists(SafetyPaths.home(fixture.data, SafetyFixtures.workspace()).resolve("a.txt")));
-        assertEquals(1, fixture.controller.redo(SafetyFixtures.workspace().value(), SafetyFixtures.principal()).size());
-        assertEquals("hello", SafetyFixtures.read(SafetyPaths.home(fixture.data, SafetyFixtures.workspace()).resolve("a.txt")));
+        assertEquals(
+                1,
+                fixture.controller
+                        .history(SafetyFixtures.workspace().value(), SafetyFixtures.principal())
+                        .size());
+        assertEquals(
+                1,
+                fixture.controller
+                        .undo(SafetyFixtures.workspace().value(), SafetyFixtures.principal())
+                        .size());
+        assertTrue(
+                !Files.exists(
+                        SafetyPaths.home(fixture.data, SafetyFixtures.workspace())
+                                .resolve("a.txt")));
+        assertEquals(
+                1,
+                fixture.controller
+                        .redo(SafetyFixtures.workspace().value(), SafetyFixtures.principal())
+                        .size());
+        assertEquals(
+                "hello",
+                SafetyFixtures.read(
+                        SafetyPaths.home(fixture.data, SafetyFixtures.workspace())
+                                .resolve("a.txt")));
     }
 
     @Test
@@ -76,13 +98,20 @@ final class WorkspaceSafetyControllerTest {
         SafetyFixtures.write(home.resolve("t.txt"), "t");
         Map<String, Object> body = new HashMap<String, Object>();
         body.put("path", "t.txt");
-        TrashEntry entry = fixture.controller.trashFile(SafetyFixtures.workspace().value(), SafetyFixtures.principal(), body);
-        assertEquals(1, fixture.controller.trashList(SafetyFixtures.workspace().value(), SafetyFixtures.principal()).size());
+        TrashEntry entry =
+                fixture.controller.trashFile(
+                        SafetyFixtures.workspace().value(), SafetyFixtures.principal(), body);
+        assertEquals(
+                1,
+                fixture.controller
+                        .trashList(SafetyFixtures.workspace().value(), SafetyFixtures.principal())
+                        .size());
 
         Map<String, Object> restore = new HashMap<String, Object>();
         restore.put("action", "restore");
         restore.put("itemId", entry.getId());
-        fixture.controller.trashFile(SafetyFixtures.workspace().value(), SafetyFixtures.principal(), restore);
+        fixture.controller.trashFile(
+                SafetyFixtures.workspace().value(), SafetyFixtures.principal(), restore);
         assertEquals("t", SafetyFixtures.read(home.resolve("t.txt")));
 
         Map<String, Object> bulk = new HashMap<String, Object>();
@@ -90,7 +119,11 @@ final class WorkspaceSafetyControllerTest {
         List<String> paths = new ArrayList<String>();
         paths.add("t.txt");
         bulk.put("paths", paths);
-        assertEquals(1, fixture.controller.bulk(SafetyFixtures.workspace().value(), SafetyFixtures.principal(), bulk).getApplied());
+        assertEquals(
+                1,
+                fixture.controller
+                        .bulk(SafetyFixtures.workspace().value(), SafetyFixtures.principal(), bulk)
+                        .getApplied());
     }
 
     @Test
@@ -115,8 +148,7 @@ final class WorkspaceSafetyControllerTest {
             this.data = temp.resolve("data").toString();
             OperationHistory history = new OperationHistory(data);
             TrashService trash = new TrashService(data, 60000L, 1000000L);
-            WorkspaceDiffService diff =
-                    new WorkspaceDiffService(new EmptySnapshots(), data);
+            WorkspaceDiffService diff = new WorkspaceDiffService(new EmptySnapshots(), data);
             WorkspaceCloneService clone =
                     new WorkspaceCloneService(new MinimalWorkspaces(), data, "local");
             FileWatchService watch = new FileWatchService(data);
