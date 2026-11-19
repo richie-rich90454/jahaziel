@@ -16,7 +16,8 @@ public final class PluginDescriptor {
     private final List<String> requires;
     private final List<String> capabilities;
 
-    public PluginDescriptor(String name, String version, List<String> requires, List<String> capabilities) {
+    public PluginDescriptor(
+            String name, String version, List<String> requires, List<String> capabilities) {
         this.name = Objects.requireNonNull(name, "name");
         this.version = Objects.requireNonNull(version, "version");
         Objects.requireNonNull(requires, "requires");
