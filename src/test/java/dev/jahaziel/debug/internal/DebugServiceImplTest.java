@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,6 +20,11 @@ import java.nio.file.Path;
 
 class DebugServiceImplTest {
     @TempDir Path temporaryDirectory;
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporaryDirectory = temporaryDirectory.toRealPath();
+    }
 
     @Test
     void readsContentLengthFramedUtf8Messages() throws Exception {
