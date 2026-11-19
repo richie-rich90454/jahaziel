@@ -6,6 +6,7 @@ package dev.jahaziel.api.dto;
 
 import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.WorkspaceState;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -26,41 +27,41 @@ import java.util.UUID;
  * @param ports the registered ports, each with its tokenized public URL
  */
 public record WorkspaceDto(
-    UUID workspaceId,
-    String name,
-    String state,
-    String stateReason,
-    Instant createdAt,
-    Instant lastActivityAt,
-    String bootPhase,
-    Instant bootPhaseAt,
-    WorkspaceQuotaDto quota,
-    List<PortDto> ports) {
-  /**
-   * Maps a view to a DTO.
-   *
-   * @param view the view
-   * @param ports the workspace's ports
-   * @param bootPhase the live boot sub-step while starting, null otherwise
-   * @param bootPhaseAt when the current boot sub-step started, null when bootPhase is null
-   * @return the DTO
-   */
-  public static WorkspaceDto from(
-      WorkspaceView view, List<PortDto> ports, String bootPhase, Instant bootPhaseAt) {
-    var workspace = view.workspace();
-    var quotaDto =
-        new WorkspaceQuotaDto(
-            0, workspace.quota().logicalBytes(), 0, workspace.quota().inodeLimit());
-    return new WorkspaceDto(
-        workspace.id().value(),
-        workspace.name(),
-        workspace.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
-        workspace.state() instanceof WorkspaceState.Failed failed ? failed.reason() : null,
-        view.createdAt(),
-        view.lastActivityAt(),
-        bootPhase,
-        bootPhaseAt,
-        quotaDto,
-        List.copyOf(ports));
-  }
+        UUID workspaceId,
+        String name,
+        String state,
+        String stateReason,
+        Instant createdAt,
+        Instant lastActivityAt,
+        String bootPhase,
+        Instant bootPhaseAt,
+        WorkspaceQuotaDto quota,
+        List<PortDto> ports) {
+    /**
+     * Maps a view to a DTO.
+     *
+     * @param view the view
+     * @param ports the workspace's ports
+     * @param bootPhase the live boot sub-step while starting, null otherwise
+     * @param bootPhaseAt when the current boot sub-step started, null when bootPhase is null
+     * @return the DTO
+     */
+    public static WorkspaceDto from(
+            WorkspaceView view, List<PortDto> ports, String bootPhase, Instant bootPhaseAt) {
+        var workspace = view.workspace();
+        var quotaDto =
+                new WorkspaceQuotaDto(
+                        0, workspace.quota().logicalBytes(), 0, workspace.quota().inodeLimit());
+        return new WorkspaceDto(
+                workspace.id().value(),
+                workspace.name(),
+                workspace.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
+                workspace.state() instanceof WorkspaceState.Failed failed ? failed.reason() : null,
+                view.createdAt(),
+                view.lastActivityAt(),
+                bootPhase,
+                bootPhaseAt,
+                quotaDto,
+                List.copyOf(ports));
+    }
 }
