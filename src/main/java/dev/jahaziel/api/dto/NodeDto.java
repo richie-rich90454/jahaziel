@@ -5,6 +5,7 @@
 package dev.jahaziel.api.dto;
 
 import dev.jahaziel.node.domain.Node;
+
 import java.util.Locale;
 
 /**
@@ -19,27 +20,27 @@ import java.util.Locale;
  * @param diskGib disk in GiB
  */
 public record NodeDto(
-    String nodeId,
-    String name,
-    String region,
-    String state,
-    int cpuCores,
-    long memoryMib,
-    long diskGib) {
-  /**
-   * Maps a node to a DTO.
-   *
-   * @param node the node
-   * @return the DTO
-   */
-  public static NodeDto from(Node node) {
-    return new NodeDto(
-        node.id().value(),
-        node.name(),
-        node.region(),
-        node.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
-        node.capacity().cpuCores(),
-        node.capacity().memoryMib(),
-        node.capacity().diskGib());
-  }
+        String nodeId,
+        String name,
+        String region,
+        String state,
+        int cpuCores,
+        long memoryMib,
+        long diskGib) {
+    /**
+     * Maps a node to a DTO.
+     *
+     * @param node the node
+     * @return the DTO
+     */
+    public static NodeDto from(Node node) {
+        return new NodeDto(
+                node.id().value(),
+                node.name(),
+                node.region(),
+                node.state().getClass().getSimpleName().toLowerCase(Locale.ROOT),
+                node.capacity().cpuCores(),
+                node.capacity().memoryMib(),
+                node.capacity().diskGib());
+    }
 }
