@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.auth.oidc;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -17,7 +18,9 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
-/** File-backed pending logins and sessions. Everything is written under the plugin data directory. */
+/**
+ * File-backed pending logins and sessions. Everything is written under the plugin data directory.
+ */
 public final class OidcStore {
     private static final long PENDING_LIFETIME_MILLIS = 10L * 60L * 1000L;
 
@@ -40,7 +43,8 @@ public final class OidcStore {
         this.sessions = object(root, "sessions");
     }
 
-    public synchronized void putPending(String state, String nonce, String verifier, String redirectUri) {
+    public synchronized void putPending(
+            String state, String nonce, String verifier, String redirectUri) {
         ObjectNode node = mapper.createObjectNode();
         node.put("nonce", nonce);
         node.put("verifier", verifier);
@@ -55,8 +59,12 @@ public final class OidcStore {
         if (node == null) {
             return null;
         }
-        Pending found = new Pending(
-                text(node, "nonce"), text(node, "verifier"), text(node, "redirectUri"), number(node, "expiresAt"));
+        Pending found =
+                new Pending(
+                        text(node, "nonce"),
+                        text(node, "verifier"),
+                        text(node, "redirectUri"),
+                        number(node, "expiresAt"));
         pending.remove(state);
         flush();
         if (found.expiresAt() <= System.currentTimeMillis()) {
@@ -136,8 +144,11 @@ public final class OidcStore {
 
     private void flush() {
         try {
-            Files.write(file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    file,
+                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException failure) {
             throw new OidcException("cannot persist oidc store", failure);
         }
