@@ -31,17 +31,14 @@ class TemplateOsCommandSelectorTest {
         assertEquals("python3", command(venv.path("os").path("darwin")).get(0));
         assertEquals(".venv/bin/python", command(install).get(0));
         assertEquals(
-                ".venv\\Scripts\\python.exe",
-                command(install.path("os").path("windows")).get(0));
+                ".venv\\Scripts\\python.exe", command(install.path("os").path("windows")).get(0));
 
         assertEquals(".venv/bin/python", command(example).get(0));
         assertEquals(
-                ".venv\\Scripts\\python.exe",
-                command(example.path("os").path("windows")).get(0));
+                ".venv\\Scripts\\python.exe", command(example.path("os").path("windows")).get(0));
         assertEquals(".venv/bin/python", command(preview).get(0));
         assertEquals(
-                ".venv\\Scripts\\python.exe",
-                command(preview.path("os").path("windows")).get(0));
+                ".venv\\Scripts\\python.exe", command(preview.path("os").path("windows")).get(0));
         assertEquals(
                 "python",
                 preview.path("os").path("windows").path("debug").path("executable").asString());
