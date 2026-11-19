@@ -16,6 +16,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -61,7 +62,12 @@ final class LoopbackIdp implements AutoCloseable {
     private volatile String proofAuthorization;
     private volatile String proofResource;
 
-    private LoopbackIdp(HttpServer server, RSAKey signingKey, String clientId, String clientSecret, String resource) {
+    private LoopbackIdp(
+            HttpServer server,
+            RSAKey signingKey,
+            String clientId,
+            String clientSecret,
+            String resource) {
         this.server = server;
         this.signingKey = signingKey;
         this.clientId = clientId;
@@ -69,9 +75,10 @@ final class LoopbackIdp implements AutoCloseable {
         this.resource = resource;
     }
 
-    static LoopbackIdp start(String clientId, String clientSecret, String resource) throws Exception {
-        HttpServer server = HttpServer.create(
-                new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    static LoopbackIdp start(String clientId, String clientSecret, String resource)
+            throws Exception {
+        HttpServer server =
+                HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         RSAKey key = new RSAKeyGenerator(2048).keyID("test-key").generate();
         final LoopbackIdp idp = new LoopbackIdp(server, key, clientId, clientSecret, resource);
         server.createContext("/.well-known/openid-configuration", idp.handler("discovery"));
@@ -126,14 +133,11 @@ final class LoopbackIdp implements AutoCloseable {
 
     /** Performs the browser redirect against the stub and returns the issued code. */
     String authorize(String authorizeUrl) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(authorizeUrl))
-                .GET()
-                .build();
-        HttpClient noRedirect = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-        HttpResponse<Void> response = noRedirect
-                .send(request, HttpResponse.BodyHandlers.discarding());
+        HttpRequest request = HttpRequest.newBuilder(URI.create(authorizeUrl)).GET().build();
+        HttpClient noRedirect =
+                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+        HttpResponse<Void> response =
+                noRedirect.send(request, HttpResponse.BodyHandlers.discarding());
         String location = response.headers().firstValue("Location").orElse("");
         return valueOf(location, "code");
     }
@@ -144,10 +148,11 @@ final class LoopbackIdp implements AutoCloseable {
         for (Map.Entry<String, Object> entry : claims.entrySet()) {
             builder.claim(entry.getKey(), entry.getValue());
         }
-        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .type(new JOSEObjectType(type))
-                .keyID(signingKey.getKeyID())
-                .build();
+        JWSHeader header =
+                new JWSHeader.Builder(JWSAlgorithm.RS256)
+                        .type(new JOSEObjectType(type))
+                        .keyID(signingKey.getKeyID())
+                        .build();
         SignedJWT jwt = new SignedJWT(header, builder.build());
         try {
             jwt.sign(new RSASSASigner(signingKey));
@@ -169,10 +174,20 @@ final class LoopbackIdp implements AutoCloseable {
     private void dispatch(String path, HttpExchange exchange) throws IOException {
         if ("discovery".equals(path)) {
             discoveryHits.incrementAndGet();
-            json(exchange, 200, "{\"issuer\":\"" + issuer()
-                    + "\",\"authorization_endpoint\":\"" + issuer() + "/authorize"
-                    + "\",\"token_endpoint\":\"" + issuer() + "/oauth/token"
-                    + "\",\"jwks_uri\":\"" + issuer() + "/oauth/jwks\"}");
+            json(
+                    exchange,
+                    200,
+                    "{\"issuer\":\""
+                            + issuer()
+                            + "\",\"authorization_endpoint\":\""
+                            + issuer()
+                            + "/authorize"
+                            + "\",\"token_endpoint\":\""
+                            + issuer()
+                            + "/oauth/token"
+                            + "\",\"jwks_uri\":\""
+                            + issuer()
+                            + "/oauth/jwks\"}");
         } else if ("authorize".equals(path)) {
             authorizeExchange(exchange);
         } else if ("token".equals(path)) {
@@ -195,8 +210,13 @@ final class LoopbackIdp implements AutoCloseable {
         }
         String code = UUID.randomUUID().toString();
         codes.put(code, new PendingAuth(query.get("nonce"), query.get("code_challenge")));
-        String location = redirect + (redirect.contains("?") ? '&' : '?')
-                + "code=" + code + "&state=" + valueEncode(state);
+        String location =
+                redirect
+                        + (redirect.contains("?") ? '&' : '?')
+                        + "code="
+                        + code
+                        + "&state="
+                        + valueEncode(state);
         exchange.getResponseHeaders().add("Location", location);
         exchange.sendResponseHeaders(302, -1);
         exchange.close();
@@ -210,7 +230,8 @@ final class LoopbackIdp implements AutoCloseable {
         }
         Map<String, String> form = parseQuery(body(exchange));
         PendingAuth pending = codes.remove(form.get("code"));
-        if (pending == null || pending.challenge == null
+        if (pending == null
+                || pending.challenge == null
                 || !Pkce.challenge(form.get("code_verifier")).equals(pending.challenge)) {
             json(exchange, 400, "{\"error\":\"invalid_grant\"}");
             return;
@@ -219,8 +240,10 @@ final class LoopbackIdp implements AutoCloseable {
         String access = accessToken(jti);
         String id = idToken(pending.nonce, access);
         StringBuilder response = new StringBuilder();
-        response.append("{\"id_token\":\"").append(id)
-                .append("\",\"access_token\":\"").append(access)
+        response.append("{\"id_token\":\"")
+                .append(id)
+                .append("\",\"access_token\":\"")
+                .append(access)
                 .append("\",\"token_type\":\"Bearer\"");
         if (issueRefresh) {
             response.append(",\"refresh_token\":\"").append(refreshToken).append('"');
@@ -242,21 +265,23 @@ final class LoopbackIdp implements AutoCloseable {
     }
 
     String accessToken(String jti) {
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .issuer(issuer())
-                .subject(subject)
-                .audience(resource)
-                .jwtID(jti)
-                .issueTime(new Date())
-                .expirationTime(new Date(System.currentTimeMillis() + 3_600_000L))
-                .claim("scope", "openid profile email")
-                .claim("permissions", Arrays.asList("projects.member"))
-                .claim("gty", "authorization_code")
-                .build();
-        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .type(new JOSEObjectType("at+jwt"))
-                .keyID(signingKey.getKeyID())
-                .build();
+        JWTClaimsSet claims =
+                new JWTClaimsSet.Builder()
+                        .issuer(issuer())
+                        .subject(subject)
+                        .audience(resource)
+                        .jwtID(jti)
+                        .issueTime(new Date())
+                        .expirationTime(new Date(System.currentTimeMillis() + 3_600_000L))
+                        .claim("scope", "openid profile email")
+                        .claim("permissions", Arrays.asList("projects.member"))
+                        .claim("gty", "authorization_code")
+                        .build();
+        JWSHeader header =
+                new JWSHeader.Builder(JWSAlgorithm.RS256)
+                        .type(new JOSEObjectType("at+jwt"))
+                        .keyID(signingKey.getKeyID())
+                        .build();
         SignedJWT jwt = new SignedJWT(header, claims);
         try {
             jwt.sign(new RSASSASigner(signingKey));
@@ -267,23 +292,23 @@ final class LoopbackIdp implements AutoCloseable {
     }
 
     private String idToken(String nonce, String access) {
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .issuer(issuer())
-                .subject(subject)
-                .audience(clientId)
-                .issueTime(new Date())
-                .expirationTime(new Date(System.currentTimeMillis() + 600_000L))
-                .claim("nonce", nonce)
-                .claim("email", email)
-                .claim("name", name)
-                .claim("email_verified", Boolean.TRUE)
-                .claim("amr", amr)
-                .claim("acr", acr)
-                .claim("at_hash", Pkce.atHash(access))
-                .build();
-        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID(signingKey.getKeyID())
-                .build();
+        JWTClaimsSet claims =
+                new JWTClaimsSet.Builder()
+                        .issuer(issuer())
+                        .subject(subject)
+                        .audience(clientId)
+                        .issueTime(new Date())
+                        .expirationTime(new Date(System.currentTimeMillis() + 600_000L))
+                        .claim("nonce", nonce)
+                        .claim("email", email)
+                        .claim("name", name)
+                        .claim("email_verified", Boolean.TRUE)
+                        .claim("amr", amr)
+                        .claim("acr", acr)
+                        .claim("at_hash", Pkce.atHash(access))
+                        .build();
+        JWSHeader header =
+                new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(signingKey.getKeyID()).build();
         SignedJWT jwt = new SignedJWT(header, claims);
         try {
             jwt.sign(new RSASSASigner(signingKey));
@@ -298,8 +323,8 @@ final class LoopbackIdp implements AutoCloseable {
         if (header == null || !header.startsWith("Basic ")) {
             return false;
         }
-        String decoded = new String(
-                Base64.getDecoder().decode(header.substring(6)), StandardCharsets.UTF_8);
+        String decoded =
+                new String(Base64.getDecoder().decode(header.substring(6)), StandardCharsets.UTF_8);
         return (clientId + ":" + clientSecret).equals(decoded);
     }
 
@@ -324,7 +349,8 @@ final class LoopbackIdp implements AutoCloseable {
         for (int index = 0; index < pairs.length; index++) {
             int equal = pairs[index].indexOf('=');
             if (equal > 0) {
-                values.put(valueDecode(pairs[index].substring(0, equal)),
+                values.put(
+                        valueDecode(pairs[index].substring(0, equal)),
                         valueDecode(pairs[index].substring(equal + 1)));
             }
         }
@@ -340,7 +366,8 @@ final class LoopbackIdp implements AutoCloseable {
     }
 
     private static String valueOf(String url, String name) {
-        Map<String, String> values = parseQuery(url.contains("?") ? url.substring(url.indexOf('?') + 1) : "");
+        Map<String, String> values =
+                parseQuery(url.contains("?") ? url.substring(url.indexOf('?') + 1) : "");
         return values.get(name);
     }
 
