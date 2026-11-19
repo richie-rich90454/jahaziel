@@ -8,6 +8,7 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,11 +43,7 @@ public final class AgentChatService {
      * @return the updated history
      */
     public List<ChatMessage> send(
-            UserId user,
-            WorkspaceId workspace,
-            String text,
-            String activeFile,
-            String selection) {
+            UserId user, WorkspaceId workspace, String text, String activeFile, String selection) {
         requireOwner(user, workspace);
         requireText(text);
         if (selection != null && selection.length() > MAX_SELECTION_LENGTH) {
@@ -148,7 +145,7 @@ public final class AgentChatService {
 
     private Path scopePath(UserId user, WorkspaceId workspace) {
         return store.containedChild(
-            store.chatRoot(), user.value().toString(), workspace.value().toString());
+                store.chatRoot(), user.value().toString(), workspace.value().toString());
     }
 
     private Path historyPath(UserId user, WorkspaceId workspace) {
