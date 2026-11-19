@@ -18,9 +18,13 @@ provider, not every possible login source.
 |---|---|---|
 | `BASIS_AUTH_ISSUER` | — | DevConnect IdP issuer URL |
 | `BASIS_REDIRECT_URI` | — | Registered callback URL |
-| `BASIS_CLIENT_ID` | — | Confidential client id |
-| `BASIS_CLIENT_SECRET` | — | Confidential client secret (`init` generates one) |
-| `BASIS_RESOURCE` | — | API audience |
+| `BASIS_AUTH_CLIENT_ID` (legacy `BASIS_CLIENT_ID`) | — | Confidential client id |
+| `BASIS_AUTH_CLIENT_SECRET` (legacy `BASIS_CLIENT_SECRET`) | — | Confidential client secret (`init` generates one); empty means public client |
+| `BASIS_AUTH_RESOURCE` (legacy `BASIS_RESOURCE`) | — | API audience |
+| `BASIS_AUTH_RESOURCE_SECRET` (legacy `BASIS_RESOURCE_SECRET`) | — | Resource secret used for webhook proof and internal API authentication |
+| `BASIS_AUTH_INTERNAL_URL` | — | Base URL for internal API calls (only needed when calling the internal API) |
+| `BASIS_AUTH_SCOPES` | — | Scopes to request from the IdP |
+| `BASIS_AUTH_OFFLINE_ACCESS` | `false` | Request offline access so the IdP issues a refresh token |
 | `BASIS_ADMIN_BOOTSTRAP_EMAIL` | — | Verified email that receives `ROLE_ADMIN` on first verified login |
 | `BASIS_ADMIN_REQUIRED_ACR` | — | ACR value proving MFA for the bootstrapped admin |
 | `PORT` | `11451` | API port (`--port` overrides) |
@@ -31,6 +35,13 @@ provider, not every possible login source.
 | `JAHAZIEL_BACKEND` | `local` | `local` is the only selectable backend in this release; Firecracker is retained for separate verification and is not selectable |
 | `JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE` | `/usr/bin/node` | Existing Node.js executable used by explicitly enabled TypeScript and Python language services; Jahaziel never installs it |
 | `JAHAZIEL_SHARE_SECRET` | — | HMAC secret for share links; generated in memory if unset, so revocation and signatures are lost on restart |
+
+basis-auth accepts two spellings for the client/resource credentials: the
+canonical `BASIS_AUTH_*` form used by the [downstream integration guide](../basis_auth_setup_guide.md#41-configuration)
+and the legacy `BASIS_*` form from earlier `.env` files. They are equivalent;
+the legacy aliases remain supported for existing deployments. The dotted
+`basis.*` names are the `.env`/`application.yml` form of the same settings. All
+values are read once at startup.
 
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
@@ -59,7 +70,7 @@ Configuration keys are namespaced per provider. Dotted keys come from `.env` or
 
 | Provider | Required | Optional |
 |---|---|---|
-| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_RESOURCE` | `BASIS_CLIENT_SECRET`, `BASIS_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`, `BASIS_AUTH_OFFLINE_ACCESS`, `BASIS_ADMIN_BOOTSTRAP_EMAIL`, `BASIS_ADMIN_REQUIRED_ACR` |
+| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_REDIRECT_URI`, `BASIS_AUTH_CLIENT_ID` / `BASIS_CLIENT_ID`, `BASIS_AUTH_RESOURCE` / `BASIS_RESOURCE` | `BASIS_AUTH_CLIENT_SECRET` / `BASIS_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE_SECRET` / `BASIS_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`, `BASIS_AUTH_OFFLINE_ACCESS`, `BASIS_ADMIN_BOOTSTRAP_EMAIL`, `BASIS_ADMIN_REQUIRED_ACR` |
 | `microsoft` | `microsoft.client-id` / `MICROSOFT_CLIENT_ID` | `microsoft.client-secret`, `microsoft.redirect-uri`, `microsoft.issuer`, `microsoft.scopes` |
 | `google` | `google.client-id` / `GOOGLE_CLIENT_ID` | `google.client-secret`, `google.redirect-uri`, `google.issuer`, `google.scopes` |
 | `oidc` | `oidc.client-id` / `OIDC_CLIENT_ID` | `oidc.client-secret`, `oidc.redirect-uri`, `oidc.issuer`, `oidc.scopes` |
@@ -73,6 +84,19 @@ Identities are linked by **(provider, subject)** — `AuthIdentity.linkKey()` is
 `provider + ":" + subject`. Email is profile data only and never links accounts
 on its own. The `local` provider grants `ROLE_ADMIN` only after TOTP enrollment;
 OIDC providers assert MFA through IdP claims.
+
+### Secret rotation
+
+To rotate the client secret, coordinate with the operator, deploy the new value
+to every environment, verify login and refresh, then retire the old secret. To
+rotate the resource secret, distribute the new value to every caller — the
+backchannel receiver, internal API clients, and any other service authenticating
+as the resource — before retiring the old one. The full sequences and failure
+modes are in the downstream guide's
+[client secret rotation](../basis_auth_setup_guide.md#104-rotate-a-client-secret)
+and [resource secret rotation](../basis_auth_setup_guide.md#105-rotate-a-resource-secret)
+sections. basis-auth reads configuration once at startup, so **restart Jahaziel
+after changing either secret**; a running process keeps using the old value.
 
 ## Debug adapters
 
