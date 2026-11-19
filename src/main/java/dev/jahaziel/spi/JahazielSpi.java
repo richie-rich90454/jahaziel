@@ -13,17 +13,17 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface JahazielSpi {
-  /**
-   * Returns the interface version. Breaking changes require a new version.
-   *
-   * @return the interface version
-   */
-  int version();
+    /**
+     * Returns the interface version. Breaking changes require a new version.
+     *
+     * @return the interface version
+     */
+    int version();
 
-  /**
-   * Returns the stability of the interface.
-   *
-   * @return the stability, stable by default
-   */
-  Stability stability() default Stability.STABLE;
+    /**
+     * Returns the stability of the interface.
+     *
+     * @return the stability, stable by default
+     */
+    Stability stability() default Stability.STABLE;
 }
