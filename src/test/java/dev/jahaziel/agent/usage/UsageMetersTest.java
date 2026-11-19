@@ -13,11 +13,13 @@ import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -28,6 +30,11 @@ class UsageMetersTest {
     private final UserId user = new UserId(UUID.randomUUID());
     private final UserId other = new UserId(UUID.randomUUID());
     private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     private UsageMeters meters() {
         return new UsageMeters(new AgentStore(temporary.resolve("data"), new ObjectMapper()));
