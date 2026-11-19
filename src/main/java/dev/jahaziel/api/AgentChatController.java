@@ -9,16 +9,18 @@ import dev.jahaziel.agent.chat.ChatMessage;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /** Workspace-scoped chat history. No provider credential is accepted by these endpoints. */
 @RestController
@@ -39,7 +41,13 @@ public final class AgentChatController extends ApiControllerBase {
         UserId user = requireUser(principal);
         WorkspaceId workspace = requireWorkspace(principal, id, WRITE);
         AgentDtos.AgentRequest request = body == null ? new AgentDtos.AgentRequest() : body;
-        return view(chat.send(user, workspace, request.getText(), request.getFile(), request.getSelection()));
+        return view(
+                chat.send(
+                        user,
+                        workspace,
+                        request.getText(),
+                        request.getFile(),
+                        request.getSelection()));
     }
 
     @PostMapping("/agent")
