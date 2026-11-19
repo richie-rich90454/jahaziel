@@ -10,9 +10,11 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.ops.ApprovalQueue;
 import dev.jahaziel.ops.AuditQueryService;
 import dev.jahaziel.ops.GdprService;
+import dev.jahaziel.ops.OpsWebhookListener;
 import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.ops.SupportBundleService;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,7 +39,9 @@ public final class OpsAdminController extends ApiControllerBase {
     private final AuditService audit;
     private final GdprService gdpr;
     private final ApprovalQueue approvals;
+    private final OpsWebhookListener webhooks;
 
+    /** Creates the controller without webhook emission, for direct callers and tests. */
     public OpsAdminController(
             SupportBundleService bundles,
             ScheduledBackupService backups,
@@ -46,6 +50,20 @@ public final class OpsAdminController extends ApiControllerBase {
             GdprService gdpr,
             ApprovalQueue approvals,
             AuthorizationService auth) {
+        this(bundles, backups, auditQuery, audit, gdpr, approvals, auth, null);
+    }
+
+    /** Creates the controller with the ops webhook listener. */
+    @Autowired
+    public OpsAdminController(
+            SupportBundleService bundles,
+            ScheduledBackupService backups,
+            AuditQueryService auditQuery,
+            AuditService audit,
+            GdprService gdpr,
+            ApprovalQueue approvals,
+            AuthorizationService auth,
+            OpsWebhookListener webhooks) {
         super(auth);
         this.bundles = bundles;
         this.backups = backups;
@@ -53,6 +71,7 @@ public final class OpsAdminController extends ApiControllerBase {
         this.audit = audit;
         this.gdpr = gdpr;
         this.approvals = approvals;
+        this.webhooks = webhooks;
     }
 
     @PostMapping("/api/v1/admin/ops/support-bundle")
@@ -162,6 +181,7 @@ public final class OpsAdminController extends ApiControllerBase {
     public OpsDtos.StatusDto approve(@PathVariable String id, Principal principal) {
         String admin = requireAdmin(principal).value().toString();
         approvals.approve(id, admin);
+        notifyDecision(id, ApprovalQueue.APPROVED, admin, "");
         return new OpsDtos.StatusDto("APPROVED");
     }
 
@@ -173,7 +193,14 @@ public final class OpsAdminController extends ApiControllerBase {
         String admin = requireAdmin(principal).value().toString();
         OpsDtos.DecisionRequest request = body == null ? new OpsDtos.DecisionRequest() : body;
         approvals.reject(id, admin, request.getReason());
+        notifyDecision(id, ApprovalQueue.REJECTED, admin, request.getReason());
         return new OpsDtos.StatusDto("REJECTED");
+    }
+
+    private void notifyDecision(String id, String action, String approver, String reason) {
+        if (webhooks != null) {
+            webhooks.approvalDecided(new ApprovalQueue.Decision(id, action, approver, reason));
+        }
     }
 
     private AuditQueryService.AuditFilter filter(OpsDtos.AuditQueryRequest request) {
