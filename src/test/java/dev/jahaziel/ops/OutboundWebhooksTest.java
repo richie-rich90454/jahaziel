@@ -7,15 +7,17 @@ package dev.jahaziel.ops;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Behavior of {@link OutboundWebhooks}: HMAC signing, bounded retries and dead-lettering. */
 class OutboundWebhooksTest {
@@ -47,7 +49,11 @@ class OutboundWebhooksTest {
 
     private OutboundWebhooks.WebhookEvent event() {
         return new OutboundWebhooks.WebhookEvent(
-                "evt-1", "https://hooks.example.test/emit", "workspace.created", "payload-1", "shared-secret");
+                "evt-1",
+                "https://hooks.example.test/emit",
+                "workspace.created",
+                "payload-1",
+                "shared-secret");
     }
 
     private String expectedSignature(String body) throws Exception {
@@ -103,7 +109,8 @@ class OutboundWebhooksTest {
         hooks.enqueue(event());
         RecordingTransport transport = new RecordingTransport(new int[] {500, 200});
         hooks.deliverAll(transport, 5, Duration.ofMinutes(5));
-        OutboundWebhooks.DeliveryReport deferred = hooks.deliverAll(transport, 5, Duration.ofMinutes(5));
+        OutboundWebhooks.DeliveryReport deferred =
+                hooks.deliverAll(transport, 5, Duration.ofMinutes(5));
         assertEquals(1, deferred.pending());
         assertEquals(1, transport.urls.size());
         clock.advanceSeconds(300L);
