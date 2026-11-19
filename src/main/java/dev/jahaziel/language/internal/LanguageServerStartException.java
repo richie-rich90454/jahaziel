@@ -6,7 +6,7 @@ package dev.jahaziel.language.internal;
 
 /** A selected language server could not be started safely. */
 public final class LanguageServerStartException extends RuntimeException {
-  public LanguageServerStartException(String message, Throwable cause) {
-    super(message, cause);
-  }
+    public LanguageServerStartException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
