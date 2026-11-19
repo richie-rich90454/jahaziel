@@ -29,7 +29,12 @@ final class UploadServiceTest {
                         new WorkspaceFilesServiceImpl(data), new OperationHistory(data), data);
         final dev.jahaziel.workspace.domain.WorkspaceId workspace = SafetyFixtures.workspace();
         WorkspaceFiles.Document first =
-                service.upload(workspace, "hello.txt", "hello".getBytes(StandardCharsets.UTF_8), null, "user");
+                service.upload(
+                        workspace,
+                        "hello.txt",
+                        "hello".getBytes(StandardCharsets.UTF_8),
+                        null,
+                        "user");
         assertEquals("hello.txt", first.path());
         assertTrue(!first.version().isEmpty());
         Path file = SafetyPaths.home(data, workspace).resolve("hello.txt");
@@ -37,7 +42,11 @@ final class UploadServiceTest {
 
         WorkspaceFiles.Document second =
                 service.upload(
-                        workspace, "hello.txt", "again".getBytes(StandardCharsets.UTF_8), first.version(), "user");
+                        workspace,
+                        "hello.txt",
+                        "again".getBytes(StandardCharsets.UTF_8),
+                        first.version(),
+                        "user");
         assertEquals("again", SafetyFixtures.read(file));
         assertTrue(!first.version().equals(second.version()));
     }
@@ -84,7 +93,8 @@ final class UploadServiceTest {
                 new UploadService(
                         new WorkspaceFilesServiceImpl(data), new OperationHistory(data), data);
         final dev.jahaziel.workspace.domain.WorkspaceId workspace = SafetyFixtures.workspace();
-        service.upload(workspace, "stale.txt", "one".getBytes(StandardCharsets.UTF_8), null, "user");
+        service.upload(
+                workspace, "stale.txt", "one".getBytes(StandardCharsets.UTF_8), null, "user");
         assertThrows(
                 WorkspaceFileConflictException.class,
                 new Executable() {
