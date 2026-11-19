@@ -13,9 +13,7 @@ import dev.jahaziel.club.tutorial.TutorialLesson;
 import dev.jahaziel.club.tutorial.TutorialParser;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +22,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Tutorials, checkpoints, showcase and advisory export for a club session. */
 @RestController
@@ -101,13 +103,18 @@ public final class ClubLearningController extends ApiControllerBase {
         ClubDtos.CheckpointRequest request = body == null ? new ClubDtos.CheckpointRequest() : body;
         WorkspaceId workspace = session.workspaceOf(user);
         requireWorkspaceFor(user, workspace, WRITE);
-        return view(club.submitCheckpoint(
-            session, user, workspace, request.getTag(), request.getNote(), request.getContent()));
+        return view(
+                club.submitCheckpoint(
+                        session,
+                        user,
+                        workspace,
+                        request.getTag(),
+                        request.getNote(),
+                        request.getContent()));
     }
 
     @GetMapping("/sessions/{sessionId}/checkpoints")
-    public List<ClubDtos.CheckpointDto> list(
-            @PathVariable String sessionId, Principal principal) {
+    public List<ClubDtos.CheckpointDto> list(@PathVariable String sessionId, Principal principal) {
         UserId user = requireUser(principal);
         ClubSession session = registry.findSession(sessionId);
         requireMember(session, user);
@@ -141,8 +148,14 @@ public final class ClubLearningController extends ApiControllerBase {
         UserId user = requireUser(principal);
         ClubSession session = registry.findSession(sessionId);
         ClubDtos.CurateRequest request = body == null ? new ClubDtos.CurateRequest() : body;
-        return view(checkpoints.promote(
-            session, user, submissionId, request.getTitle(), request.getTags(), request.getScreenshots()));
+        return view(
+                checkpoints.promote(
+                        session,
+                        user,
+                        submissionId,
+                        request.getTitle(),
+                        request.getTags(),
+                        request.getScreenshots()));
     }
 
     @GetMapping("/showcase")
@@ -172,13 +185,15 @@ public final class ClubLearningController extends ApiControllerBase {
             @RequestBody(required = false) ClubDtos.CurateRequest body, Principal principal) {
         UserId admin = requireAdmin(principal);
         ClubDtos.CurateRequest request = body == null ? new ClubDtos.CurateRequest() : body;
-        return view(club.showcase().curate(
-            admin,
-            request.getTitle(),
-            request.getDescription(),
-            request.getTags(),
-            request.getScreenshots(),
-            request.getSourceLabel()));
+        return view(
+                club.showcase()
+                        .curate(
+                                admin,
+                                request.getTitle(),
+                                request.getDescription(),
+                                request.getTags(),
+                                request.getScreenshots(),
+                                request.getSourceLabel()));
     }
 
     @GetMapping("/sessions/{sessionId}/export")
