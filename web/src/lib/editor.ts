@@ -414,6 +414,36 @@ function updateSaveState(): void {
     );
 }
 
+/** Applies an external file change without ever overwriting an unsaved draft. */
+export function applyExternalChange(
+    path: string,
+    content: string,
+    version: string,
+    discardDraft: boolean,
+): void {
+    const workspace = state.workspace;
+    const opened = runtime.openDocuments.get(path);
+    if (!opened) return;
+    if (!opened.dirty || discardDraft) {
+        opened.view.dispatch({
+            changes: { from: 0, to: opened.view.state.doc.length, insert: content },
+        });
+        opened.version = version;
+        opened.savedContent = content;
+        opened.dirty = false;
+        opened.recoveredDraft = false;
+        opened.conflictRemoteVersion = null;
+        opened.conflictRemoteContent = null;
+        if (workspace) clearLocalDraft(workspace.workspaceId, path);
+    } else {
+        opened.conflictRemoteVersion = version;
+        opened.conflictRemoteContent = content;
+    }
+    renderTabs();
+    updateSaveState();
+    refreshMarkdownPreview();
+}
+
 export function useServerVersion(): void {
     const workspace = state.workspace;
     const opened = state.activePath ? runtime.openDocuments.get(state.activePath) : undefined;
