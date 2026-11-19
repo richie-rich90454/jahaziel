@@ -4,14 +4,17 @@
 ///
 
 export { setPage, setPanel } from "./store";
+export * from "./admin-tools";
 export * from "./agent";
 export * from "./bulk-files";
+export * from "./clone";
 export * from "./collaboration";
 export * from "./debug";
 export * from "./editor";
 export * from "./files";
 export * from "./git";
 export * from "./git-extras";
+export * from "./history";
 export * from "./identity";
 export * from "./i18n";
 export * from "./markdown";
@@ -22,3 +25,5 @@ export * from "./theme";
 export * from "./tour";
 export * from "./tasks";
 export * from "./terminal";
+export * from "./trash";
+export * from "./watch";
