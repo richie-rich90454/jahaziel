@@ -8,6 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -15,11 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Extended doctor checks: runtime, channel, delegated config, data paths, disk and offline. */
 class DoctorExtendedTest {
@@ -72,12 +73,14 @@ class DoctorExtendedTest {
 
     private Map<String, String> green() throws Exception {
         Path jar = Files.createDirectories(root.resolve("jar"));
-        Files.write(jar.resolve(".env"), CliTestSupport.validEnv().getBytes(StandardCharsets.UTF_8));
+        Files.write(
+                jar.resolve(".env"), CliTestSupport.validEnv().getBytes(StandardCharsets.UTF_8));
         return Cli.parseDotEnv(jar.resolve(".env"));
     }
 
     private List<Doctor.Check> run(Path jar, Path data, Map<String, String> env) throws Exception {
-        return Doctor.runExtended(jar, data, CliTestSupport.freePort(), env, jar.resolve("jahaziel.jar"));
+        return Doctor.runExtended(
+                jar, data, CliTestSupport.freePort(), env, jar.resolve("jahaziel.jar"));
     }
 
     @Test
