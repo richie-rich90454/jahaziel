@@ -18,11 +18,7 @@ public final class LiveSession {
     private boolean active = true;
 
     public LiveSession(
-            String id,
-            String workspaceId,
-            String controller,
-            String tokenHash,
-            long createdAt) {
+            String id, String workspaceId, String controller, String tokenHash, long createdAt) {
         this.id = id;
         this.workspaceId = workspaceId;
         this.controller = controller;
