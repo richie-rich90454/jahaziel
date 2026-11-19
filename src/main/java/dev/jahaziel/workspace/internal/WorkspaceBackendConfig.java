@@ -9,10 +9,12 @@ import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.nodeagent.storage.NioCommandRunner;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.WorkspaceStorage;
-import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.UUID;
 
 /**
  * Single-server runtime wiring. The selected backend and storage implementation are created once
@@ -20,22 +22,22 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class WorkspaceBackendConfig {
-  @Bean
-  public WorkspaceStorage workspaceStorage(
-      @Value("${jahaziel.storage.root:data}") String storageRoot) {
-    return new FolderStorage(new NioCommandRunner(), storageRoot);
-  }
-
-  @Bean
-  public NodeBackend nodeBackend(
-      @Value("${JAHAZIEL_BACKEND:${jahaziel.workspace.backend:local}}") String backend,
-      WorkspaceStorage storage) {
-    if (!"local".equalsIgnoreCase(backend.strip())) {
-      throw new IllegalArgumentException(
-          "WORKSPACE_BACKEND_UNSUPPORTED correlationId="
-              + UUID.randomUUID()
-              + ": only the local workspace backend is available; set JAHAZIEL_BACKEND=local.");
+    @Bean
+    public WorkspaceStorage workspaceStorage(
+            @Value("${jahaziel.storage.root:data}") String storageRoot) {
+        return new FolderStorage(new NioCommandRunner(), storageRoot);
     }
-    return new LocalProcessBackend(storage);
-  }
+
+    @Bean
+    public NodeBackend nodeBackend(
+            @Value("${JAHAZIEL_BACKEND:${jahaziel.workspace.backend:local}}") String backend,
+            WorkspaceStorage storage) {
+        if (!"local".equalsIgnoreCase(backend.strip())) {
+            throw new IllegalArgumentException(
+                    "WORKSPACE_BACKEND_UNSUPPORTED correlationId="
+                            + UUID.randomUUID()
+                            + ": only the local workspace backend is available; set JAHAZIEL_BACKEND=local.");
+        }
+        return new LocalProcessBackend(storage);
+    }
 }
