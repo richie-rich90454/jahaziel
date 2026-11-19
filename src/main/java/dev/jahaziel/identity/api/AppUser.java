@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.api;
 
 import dev.jahaziel.identity.domain.UserId;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -20,21 +21,21 @@ import java.util.Objects;
  * @param mfaEnabled whether MFA enrollment is completed
  */
 public record AppUser(
-    UserId id,
-    String externalId,
-    String email,
-    String displayName,
-    List<String> roles,
-    List<String> groups,
-    boolean mfaEnabled) {
-  public AppUser {
-    Objects.requireNonNull(id, "id");
-    Objects.requireNonNull(externalId, "externalId");
-    Objects.requireNonNull(email, "email");
-    Objects.requireNonNull(displayName, "displayName");
-    Objects.requireNonNull(roles, "roles");
-    Objects.requireNonNull(groups, "groups");
-    roles = List.copyOf(roles);
-    groups = List.copyOf(groups);
-  }
+        UserId id,
+        String externalId,
+        String email,
+        String displayName,
+        List<String> roles,
+        List<String> groups,
+        boolean mfaEnabled) {
+    public AppUser {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(externalId, "externalId");
+        Objects.requireNonNull(email, "email");
+        Objects.requireNonNull(displayName, "displayName");
+        Objects.requireNonNull(roles, "roles");
+        Objects.requireNonNull(groups, "groups");
+        roles = List.copyOf(roles);
+        groups = List.copyOf(groups);
+    }
 }
