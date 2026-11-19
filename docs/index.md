@@ -16,6 +16,7 @@ Jahaziel keeps source files on the server and serves an editor, authenticated te
 - [Deploy on a Linux server](./deployment/single-server.md) for the complete jar, identity-provider, systemd, HTTPS, backup, and upgrade walkthrough, plus launchd and Windows service templates.
 - [Try the quick start](./guide/quick-start.md) with an existing jar or local demo.
 - [Use the workbench](./guide/using-jahaziel.md) to create a workspace, edit and save files, run commands, and preview a project.
+- [Integrate with basis-auth](./basis_auth_setup_guide.md) for the downstream IdP contract: endpoints, token claims, backchannel logout, scopes, and secret rotation.
 - [Check platforms and supervisors](./guide/platforms.md) for per-OS process and port behavior.
 - [Review the current product plan](./plan.md) and [release acceptance checklist](./operations/acceptance.md).
 
