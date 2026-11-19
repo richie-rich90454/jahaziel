@@ -5,6 +5,7 @@
 package dev.jahaziel.agent.model;
 
 import dev.jahaziel.agent.AgentException;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,10 +93,10 @@ public final class ModelCatalog {
             }
             String normalizedHost = host.toLowerCase(Locale.ROOT);
             boolean loopback =
-                "127.0.0.1".equals(normalizedHost)
-                    || "::1".equals(normalizedHost)
-                    || "[::1]".equals(normalizedHost)
-                    || "localhost".equals(normalizedHost);
+                    "127.0.0.1".equals(normalizedHost)
+                            || "::1".equals(normalizedHost)
+                            || "[::1]".equals(normalizedHost)
+                            || "localhost".equals(normalizedHost);
             if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
                 return null;
             }
