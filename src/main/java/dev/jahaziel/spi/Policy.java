@@ -14,11 +14,11 @@ import java.util.Objects;
  * @param attributes policy attributes as plain string pairs
  */
 public record Policy(String name, Map<String, String> attributes) {
-  public Policy {
-    if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("name must not be blank");
+    public Policy {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
+        }
+        Objects.requireNonNull(attributes, "attributes");
+        attributes = Map.copyOf(attributes);
     }
-    Objects.requireNonNull(attributes, "attributes");
-    attributes = Map.copyOf(attributes);
-  }
 }
