@@ -10,9 +10,9 @@ package dev.jahaziel.spi;
  * @param name the permission name, for example {@code workspace.read}
  */
 public record Permission(String name) {
-  public Permission {
-    if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("name must not be blank");
+    public Permission {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
+        }
     }
-  }
 }
