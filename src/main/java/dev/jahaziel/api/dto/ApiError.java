@@ -15,4 +15,4 @@ import java.util.Map;
  * @param details extra detail pairs
  */
 public record ApiError(
-    String code, String message, String correlationId, Map<String, String> details) {}
+        String code, String message, String correlationId, Map<String, String> details) {}
