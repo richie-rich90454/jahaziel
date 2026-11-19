@@ -4,15 +4,17 @@
  */
 package dev.jahaziel.identity.internal.devconnect;
 
-import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.auth.credential.CredentialAuthService;
 import dev.jahaziel.identity.auth.wiring.AuthProviderDispatcher;
 import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
 import dev.jahaziel.identity.persistence.AppUserRepository;
 import dev.jahaziel.identity.persistence.BffSessionRepository;
 import dev.jahaziel.identity.persistence.OidcPendingRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
+import dev.jahaziel.plugin.PluginContext;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -88,10 +90,11 @@ public class DevConnectConfig {
      * @param clock the clock
      * @param dispatcher the auth provider dispatcher
      * @param identities the identity link store
+     * @param pluginIdentityTtl how long an unexpiring plugin identity may back a session
      * @return the service
      */
     @Bean
-    public DevConnectService devConnectService(
+    public DevConnectServiceImpl devConnectService(
             DevConnectProperties props,
             DevConnectClient client,
             OidcPendingRepository pending,
@@ -101,7 +104,8 @@ public class DevConnectConfig {
             JwtService tokens,
             Clock clock,
             AuthProviderDispatcher dispatcher,
-            UserIdentityStore identities) {
+            UserIdentityStore identities,
+            @Value("${jahaziel.auth.plugin-identity-ttl:15m}") Duration pluginIdentityTtl) {
         return new DevConnectServiceImpl(
                 props,
                 client,
@@ -112,6 +116,26 @@ public class DevConnectConfig {
                 tokens,
                 clock,
                 dispatcher,
-                identities);
+                identities,
+                pluginIdentityTtl);
+    }
+
+    /**
+     * Returns the credential provider router for password, passkey, LDAP, and API-token logins.
+     *
+     * @param dispatcher the auth provider dispatcher
+     * @param service the login service that provisions the resolved identity
+     * @param pluginContext the shared plugin context, for the local pending store
+     * @param props the DevConnect settings
+     * @return the router
+     */
+    @Bean
+    public CredentialAuthService credentialAuthService(
+            AuthProviderDispatcher dispatcher,
+            DevConnectServiceImpl service,
+            PluginContext pluginContext,
+            DevConnectProperties props) {
+        return new CredentialAuthService(
+                dispatcher, service, pluginContext, props.getRedirectUri());
     }
 }
