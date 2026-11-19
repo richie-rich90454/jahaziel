@@ -5,14 +5,11 @@
 package dev.jahaziel.identity.auth.basis;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,6 +22,11 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 
 /** File-backed pending logins, sessions, JTI denylist, and encrypted refresh tokens. */
 public final class BasisStore {
@@ -57,7 +59,8 @@ public final class BasisStore {
         this.encryptionKey = loadKey();
     }
 
-    public synchronized void putPending(String state, String nonce, String verifier, String redirectUri) {
+    public synchronized void putPending(
+            String state, String nonce, String verifier, String redirectUri) {
         ObjectNode node = mapper.createObjectNode();
         node.put("nonce", nonce);
         node.put("verifier", verifier);
@@ -72,8 +75,12 @@ public final class BasisStore {
         if (node == null) {
             return null;
         }
-        Pending found = new Pending(
-                text(node, "nonce"), text(node, "verifier"), text(node, "redirectUri"), number(node, "expiresAt"));
+        Pending found =
+                new Pending(
+                        text(node, "nonce"),
+                        text(node, "verifier"),
+                        text(node, "redirectUri"),
+                        number(node, "expiresAt"));
         pending.remove(state);
         flush();
         if (found.expiresAt() <= System.currentTimeMillis()) {
@@ -217,16 +224,24 @@ public final class BasisStore {
     private SecretKey loadKey() {
         try {
             if (Files.exists(keyFile)) {
-                byte[] encoded = Base64.getDecoder().decode(
-                        new String(Files.readAllBytes(keyFile), StandardCharsets.UTF_8).trim());
+                byte[] encoded =
+                        Base64.getDecoder()
+                                .decode(
+                                        new String(
+                                                        Files.readAllBytes(keyFile),
+                                                        StandardCharsets.UTF_8)
+                                                .trim());
                 return new javax.crypto.spec.SecretKeySpec(encoded, "AES");
             }
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256);
             SecretKey generated = generator.generateKey();
             String encoded = Base64.getEncoder().encodeToString(generated.getEncoded());
-            Files.write(keyFile, encoded.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    keyFile,
+                    encoded.getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
             return generated;
         } catch (IOException failure) {
             throw new BasisException("cannot persist basis-auth encryption key", failure);
@@ -268,8 +283,11 @@ public final class BasisStore {
 
     private void flush() {
         try {
-            Files.write(file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    file,
+                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException failure) {
             throw new BasisException("cannot persist basis-auth store", failure);
         }
