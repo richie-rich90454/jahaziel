@@ -159,7 +159,7 @@ JAHAZIEL_BACKEND=local
 # JAHAZIEL_SHARE_SECRET=<long-random-secret>
 ~~~
 
-Keep `.env` private (`chmod 0600`). Admin endpoints require both `ROLE_ADMIN` and verified MFA assurance. Without an IdP MFA assurance claim, configure an administrator through your identity provider or database — the product will not silently mark MFA as enrolled. To use Microsoft, Google, GitHub, generic OIDC, local password + TOTP, passkey, API token, or LDAP instead, see [Authentication providers](#authentication-providers).
+Keep `.env` private (`chmod 0600`). Admin endpoints require both `ROLE_ADMIN` and verified MFA assurance. Without an IdP MFA assurance claim, configure an administrator through your identity provider or database — the product will not silently mark MFA as enrolled. The `BASIS_*` credential names in this example are the legacy aliases; the canonical `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`, and `BASIS_AUTH_RESOURCE_SECRET` names are also accepted. For the full downstream IdP contract and secret-rotation procedure, see the [basis-auth integration guide](docs/basis_auth_setup_guide.md). To use Microsoft, Google, GitHub, generic OIDC, local password + TOTP, passkey, API token, or LDAP instead, see [Authentication providers](#authentication-providers).
 
 ### Operations (CLI verbs)
 
