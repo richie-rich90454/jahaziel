@@ -9,13 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Checksum verification, staged updates and rollback, all inside the jar data directory. */
 class UpdateServiceTest {
@@ -27,8 +28,7 @@ class UpdateServiceTest {
 
     private Path sums(Path jar, String hash, String name) throws Exception {
         Path file = jar.resolveSibling("SHA256SUMS");
-        Files.write(
-                file, (hash + "  " + name + "\n").getBytes(StandardCharsets.UTF_8));
+        Files.write(file, (hash + "  " + name + "\n").getBytes(StandardCharsets.UTF_8));
         return file;
     }
 
@@ -79,8 +79,12 @@ class UpdateServiceTest {
                                 .resolve(UpdateService.JAR_NAME)));
         assertTrue(
                 Files.isRegularFile(
-                        data.resolve(UpdateService.UPDATE_DIR).resolve("2.0.0").resolve(UpdateService.SUMS)));
-        assertEquals(java.util.Arrays.toString(before), java.util.Arrays.toString(Files.readAllBytes(live)));
+                        data.resolve(UpdateService.UPDATE_DIR)
+                                .resolve("2.0.0")
+                                .resolve(UpdateService.SUMS)));
+        assertEquals(
+                java.util.Arrays.toString(before),
+                java.util.Arrays.toString(Files.readAllBytes(live)));
         assertEquals("1.0.0", Cli.jarVersion(live));
     }
 
@@ -99,14 +103,16 @@ class UpdateServiceTest {
 
         ByteArrayOutputStream applied = new ByteArrayOutputStream();
         assertTrue(service.applyPending(capture(applied)));
-        assertTrue(applied.toString(StandardCharsets.UTF_8).contains("applied staged update 2.0.0"));
+        assertTrue(
+                applied.toString(StandardCharsets.UTF_8).contains("applied staged update 2.0.0"));
         assertEquals("2.0.0", Cli.jarVersion(live));
         assertNull(service.pendingVersion());
         assertEquals(
                 "1.0.0",
                 new String(
                         Files.readAllBytes(
-                                data.resolve(UpdateService.UPDATE_DIR).resolve(UpdateService.APPLIED)),
+                                data.resolve(UpdateService.UPDATE_DIR)
+                                        .resolve(UpdateService.APPLIED)),
                         StandardCharsets.UTF_8));
         assertEquals(
                 "1.0.0",
@@ -179,7 +185,9 @@ class UpdateServiceTest {
 
         assertTrue(service.stage(candidate, null, null, false).ok());
         Path stage = data.resolve(UpdateService.UPDATE_DIR).resolve("5.0.0");
-        assertTrue(service.verify(stage.resolve(UpdateService.JAR_NAME), stage.resolve(UpdateService.SUMS)));
+        assertTrue(
+                service.verify(
+                        stage.resolve(UpdateService.JAR_NAME), stage.resolve(UpdateService.SUMS)));
     }
 
     @Test
