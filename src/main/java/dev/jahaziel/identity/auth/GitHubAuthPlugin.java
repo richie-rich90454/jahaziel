@@ -64,7 +64,8 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
     @Override
     public String startLogin(
             PluginContext context, String state, String nonce, String redirectUri) {
-        store.putPending(state, redirectUri);
+        String verifier = Pkce.random();
+        store.putPending(state, redirectUri, verifier);
         StringBuilder url = new StringBuilder(config.authorizeUrl());
         url.append(config.authorizeUrl().contains("?") ? '&' : '?');
         append(url, "client_id", config.clientId());
@@ -72,6 +73,8 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
         append(url, "state", state);
         append(url, "scope", config.scopes());
         append(url, "response_type", "code");
+        append(url, "code_challenge", Pkce.challenge(verifier));
+        append(url, "code_challenge_method", "S256");
         url.deleteCharAt(url.length() - 1);
         return url.toString();
     }
@@ -90,7 +93,7 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
         if (code == null || code.length() == 0) {
             throw new GitHubException("missing authorization code");
         }
-        String accessToken = exchange(code, pending.redirectUri());
+        String accessToken = exchange(code, pending.redirectUri(), pending.verifier());
         GitHubHttp.Response userResponse =
                 http.getJson(config.userUrl(), accessToken, HTTP_TIMEOUT);
         JsonNode user = parse(userResponse.body(), "github user response");
@@ -127,13 +130,14 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
         store.removeSession(sessionId);
     }
 
-    private String exchange(String code, String redirectUri) {
+    private String exchange(String code, String redirectUri, String verifier) {
         Map<String, String> form = new LinkedHashMap<String, String>();
         form.put("client_id", config.clientId());
         if (config.clientSecret() != null) {
             form.put("client_secret", config.clientSecret());
         }
         form.put("code", code);
+        form.put("code_verifier", verifier);
         form.put("grant_type", "authorization_code");
         form.put("redirect_uri", redirectUri);
         JsonNode node =
