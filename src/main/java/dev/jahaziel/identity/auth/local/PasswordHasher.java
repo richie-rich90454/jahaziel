@@ -19,8 +19,7 @@ public final class PasswordHasher {
     private static final int KEY_BITS = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
 
-    private PasswordHasher() {
-    }
+    private PasswordHasher() {}
 
     /** Returns a fresh 128-bit salt. */
     public static byte[] newSalt() {
