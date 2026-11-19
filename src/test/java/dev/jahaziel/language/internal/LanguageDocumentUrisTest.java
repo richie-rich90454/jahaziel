@@ -29,10 +29,11 @@ class LanguageDocumentUrisTest {
         Path file = Files.createFile(folder.resolve("Main File.rs"));
         String uri = "jahaziel://workspace/" + workspace.value() + "/src/Main%20File.rs";
 
-        assertEquals(file, LanguageDocumentUris.toFilePath(uri, workspace, root));
+        Path canonical = file.toRealPath();
+        assertEquals(canonical, LanguageDocumentUris.toFilePath(uri, workspace, root));
         assertEquals(
                 "jahaziel://workspace/" + workspace.value() + "/src/Main%20File.rs",
-                LanguageDocumentUris.toVirtualUri(file.toUri().toString(), workspace, root));
+                LanguageDocumentUris.toVirtualUri(canonical.toUri().toString(), workspace, root));
     }
 
     @Test
