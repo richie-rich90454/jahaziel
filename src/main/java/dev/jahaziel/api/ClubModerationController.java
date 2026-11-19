@@ -8,10 +8,7 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.club.domain.ClubSession;
 import dev.jahaziel.club.moderation.ModerationService;
 import dev.jahaziel.identity.domain.UserId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +16,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Club chat, staff moderation and the help queue. All staff actions are role-checked downstream. */
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Club chat, staff moderation and the help queue. All staff actions are role-checked downstream.
+ */
 @RestController
 @RequestMapping("/api/v1/club/sessions/{sessionId}")
 public final class ClubModerationController extends ApiControllerBase {
