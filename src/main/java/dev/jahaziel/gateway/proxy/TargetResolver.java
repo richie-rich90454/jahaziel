@@ -12,12 +12,12 @@ import java.util.UUID;
  * development; vsock dialing replaces it once the node-agent channel lands.
  */
 public interface TargetResolver {
-  /**
-   * Resolves the backend serving a workspace port.
-   *
-   * @param workspaceId the workspace identifier
-   * @param port the workspace port
-   * @return the backend address
-   */
-  InetSocketAddress resolve(UUID workspaceId, int port);
+    /**
+     * Resolves the backend serving a workspace port.
+     *
+     * @param workspaceId the workspace identifier
+     * @param port the workspace port
+     * @return the backend address
+     */
+    InetSocketAddress resolve(UUID workspaceId, int port);
 }
