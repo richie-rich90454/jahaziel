@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.snapshot.api.SnapshotService;
+import dev.jahaziel.snapshot.diff.WorkspaceDiff;
+import dev.jahaziel.snapshot.diff.WorkspaceDiffService;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.snapshot.domain.SnapshotMetadata;
@@ -53,8 +55,7 @@ final class WorkspaceDiffServiceTest {
                         0,
                         Optional.empty(),
                         "pending");
-        WorkspaceDiffService service =
-                new WorkspaceDiffService(new FakeSnapshots(metadata), data);
+        WorkspaceDiffService service = new WorkspaceDiffService(new FakeSnapshots(metadata), data);
         WorkspaceDiff diff = service.diff(workspace, id.value().toString());
         assertEquals(1, diff.getAdded().size());
         assertEquals("added.txt", diff.getAdded().get(0));
