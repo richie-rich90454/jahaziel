@@ -17,9 +17,9 @@ import java.util.UUID;
  * @param createdAt when the snapshot was taken
  */
 public record SnapshotHandle(UUID snapshotId, Path snapshotPath, Instant createdAt) {
-  public SnapshotHandle {
-    Objects.requireNonNull(snapshotId, "snapshotId");
-    Objects.requireNonNull(snapshotPath, "snapshotPath");
-    Objects.requireNonNull(createdAt, "createdAt");
-  }
+    public SnapshotHandle {
+        Objects.requireNonNull(snapshotId, "snapshotId");
+        Objects.requireNonNull(snapshotPath, "snapshotPath");
+        Objects.requireNonNull(createdAt, "createdAt");
+    }
 }
