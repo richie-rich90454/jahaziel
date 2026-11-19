@@ -12,21 +12,21 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
  * workspaces; everyone else needs an explicit grant.
  */
 public interface AuthorizationService {
-  /**
-   * Checks a workspace permission.
-   *
-   * @param user the acting user
-   * @param permission the permission name
-   * @param workspace the targeted workspace
-   * @return true when the action is allowed
-   */
-  boolean isAllowed(UserId user, String permission, WorkspaceId workspace);
+    /**
+     * Checks a workspace permission.
+     *
+     * @param user the acting user
+     * @param permission the permission name
+     * @param workspace the targeted workspace
+     * @return true when the action is allowed
+     */
+    boolean isAllowed(UserId user, String permission, WorkspaceId workspace);
 
-  /**
-   * Checks an administrator role.
-   *
-   * @param user the acting user
-   * @return true when the user holds the administrator role
-   */
-  boolean isAdmin(UserId user);
+    /**
+     * Checks an administrator role.
+     *
+     * @param user the acting user
+     * @return true when the user holds the administrator role
+     */
+    boolean isAdmin(UserId user);
 }
