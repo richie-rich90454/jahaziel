@@ -8,13 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Behavior of {@link ScheduledBackupService}: archives, manifests, retention and containment. */
 class ScheduledBackupServiceTest {
@@ -30,12 +31,15 @@ class ScheduledBackupServiceTest {
     @Test
     void backupIsCompressedAndManifestedInsideDataBackups() throws Exception {
         Path data = temp.resolve("data");
-        ScheduledBackupService service = new ScheduledBackupService(data, new TestClock("2026-01-01T01:00:00Z"));
+        ScheduledBackupService service =
+                new ScheduledBackupService(data, new TestClock("2026-01-01T01:00:00Z"));
         Path archive = service.backup(source("one"));
         assertTrue(OpsFiles.contained(service.backupDir(), archive));
         assertTrue(Files.isRegularFile(archive));
         String name = archive.getFileName().toString();
-        Path manifest = service.backupDir().resolve(name.substring(0, name.length() - 4) + ".manifest.sha256");
+        Path manifest =
+                service.backupDir()
+                        .resolve(name.substring(0, name.length() - 4) + ".manifest.sha256");
         assertTrue(Files.isRegularFile(manifest));
         Map<String, byte[]> entries = ZipUtil.readEntries(archive);
         assertTrue(ChecksumManifest.verifyEntries(entries, manifest));
@@ -45,7 +49,9 @@ class ScheduledBackupServiceTest {
     @Test
     void retentionDeletesOldestArchivesAndManifests() throws Exception {
         Path data = temp.resolve("data");
-        String[] instants = {"2026-01-01T01:00:00Z", "2026-01-02T01:00:00Z", "2026-01-03T01:00:00Z"};
+        String[] instants = {
+            "2026-01-01T01:00:00Z", "2026-01-02T01:00:00Z", "2026-01-03T01:00:00Z"
+        };
         for (int i = 0; i < instants.length; i++) {
             new ScheduledBackupService(data, new TestClock(instants[i])).backup(source("v" + i));
         }
@@ -57,10 +63,12 @@ class ScheduledBackupServiceTest {
         assertEquals(1, after.size());
         assertEquals(before.get(2).getFileName(), after.get(0).getFileName());
         Path removedManifest =
-                service
-                        .backupDir()
+                service.backupDir()
                         .resolve(
-                                before.get(0).getFileName().toString().replace(".zip", ".manifest.sha256"));
+                                before.get(0)
+                                        .getFileName()
+                                        .toString()
+                                        .replace(".zip", ".manifest.sha256"));
         assertFalse(Files.exists(removedManifest));
     }
 
