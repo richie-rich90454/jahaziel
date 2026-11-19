@@ -14,4 +14,4 @@ import jakarta.validation.constraints.Size;
  * @param tag the human tag, unique per workspace
  */
 public record CreateSnapshotRequest(
-    @NotBlank @Size(max = 64) @Pattern(regexp = "^[a-zA-Z0-9-_]+$") String tag) {}
+        @NotBlank @Size(max = 64) @Pattern(regexp = "^[a-zA-Z0-9-_]+$") String tag) {}
