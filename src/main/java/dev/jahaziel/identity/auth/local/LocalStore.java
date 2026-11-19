@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +31,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 /** File-backed users, pending logins, and sessions, all below the plugin data dir. */
 public final class LocalStore {
+    private static final long PENDING_LIFETIME_SECONDS = 10L * 60L;
+
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Clock clock;
     private final Path usersFile;
     private final Path pendingFile;
     private final Path sessionsFile;
@@ -41,6 +45,11 @@ public final class LocalStore {
     private final SecretKey encryptionKey;
 
     public LocalStore(PluginContext context) {
+        this(context, Clock.systemUTC());
+    }
+
+    public LocalStore(PluginContext context, Clock clock) {
+        this.clock = clock;
         Path root = context.dataDir().resolve("local");
         Path keysDir = context.dataDir().resolve("keys");
         try {
@@ -138,14 +147,17 @@ public final class LocalStore {
         flush(pendingFile, pending);
     }
 
-    /** Consumes a pending login, returning false when the state is unknown. */
+    /** Consumes a pending login, returning false when the state is unknown or expired. */
     public synchronized boolean takePending(String state) {
-        if (pending.get(state) == null) {
+        JsonNode node = pending.get(state);
+        if (node == null) {
             return false;
         }
         pending.remove(state);
         flush(pendingFile, pending);
-        return true;
+        long createdAt = node.path("createdAt").asLong();
+        long age = clock.instant().getEpochSecond() - createdAt;
+        return createdAt > 0L && age <= PENDING_LIFETIME_SECONDS;
     }
 
     public synchronized void putSession(String sessionId, AuthIdentity identity) {
