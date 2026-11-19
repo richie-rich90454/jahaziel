@@ -5,6 +5,7 @@
 package dev.jahaziel.nodeagent.service;
 
 import dev.jahaziel.spi.SnapshotHandle;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
@@ -18,21 +19,21 @@ import java.util.UUID;
  * @param createdAt when the snapshot was taken
  */
 public record SnapshotSummary(SnapshotHandle handle, String tag, Instant createdAt) {
-  public SnapshotSummary {
-    Objects.requireNonNull(handle, "handle");
-    if (tag == null || tag.isBlank()) {
-      throw new IllegalArgumentException("tag must not be blank");
+    public SnapshotSummary {
+        Objects.requireNonNull(handle, "handle");
+        if (tag == null || tag.isBlank()) {
+            throw new IllegalArgumentException("tag must not be blank");
+        }
+        Objects.requireNonNull(createdAt, "createdAt");
     }
-    Objects.requireNonNull(createdAt, "createdAt");
-  }
 
-  /** Returns the snapshot folder path. */
-  public Path snapshotPath() {
-    return handle.snapshotPath();
-  }
+    /** Returns the snapshot folder path. */
+    public Path snapshotPath() {
+        return handle.snapshotPath();
+    }
 
-  /** Returns the snapshot identifier. */
-  public UUID snapshotId() {
-    return handle.snapshotId();
-  }
+    /** Returns the snapshot identifier. */
+    public UUID snapshotId() {
+        return handle.snapshotId();
+    }
 }
