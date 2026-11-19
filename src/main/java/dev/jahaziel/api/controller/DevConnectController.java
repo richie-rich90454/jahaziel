@@ -138,6 +138,7 @@ public class DevConnectController {
     private ResponseCookie sessionCookie(String sessionId) {
         return ResponseCookie.from(DevConnectService.SESSION_COOKIE, sessionId)
                 .httpOnly(true)
+                .secure(!demo)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(devconnect.sessionTtl())
@@ -147,15 +148,17 @@ public class DevConnectController {
     private ResponseCookie tokenCookie(String apiToken) {
         return ResponseCookie.from(DevConnectService.TOKEN_COOKIE, apiToken)
                 .httpOnly(true)
+                .secure(!demo)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(devconnect.tokenTtl())
                 .build();
     }
 
-    private static ResponseCookie cleared(String name) {
+    private ResponseCookie cleared(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
+                .secure(!demo)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(Duration.ZERO)
