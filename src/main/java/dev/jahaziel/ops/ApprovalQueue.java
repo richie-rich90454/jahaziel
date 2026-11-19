@@ -17,15 +17,17 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Human approval gate for catalog additions, templates, share-scope elevation and role changes.
- * A request has no effect until approved; every decision is appended to an audit log under
- * {@code data/approvals}.
+ * Human approval gate for catalog additions, templates, share-scope elevation and role changes. A
+ * request has no effect until approved; every decision is appended to an audit log under {@code
+ * data/approvals}.
  */
 public final class ApprovalQueue {
     /** Pending status. */
     public static final String PENDING = "PENDING";
+
     /** Approved status. */
     public static final String APPROVED = "APPROVED";
+
     /** Rejected status. */
     public static final String REJECTED = "REJECTED";
 
@@ -165,8 +167,12 @@ public final class ApprovalQueue {
     }
 
     /** Submits a request; it remains pending until approved. */
-    public String submit(String type, String requester, String target, Map<String, String> payload) {
-        if (type == null || type.trim().isEmpty() || requester == null || requester.trim().isEmpty()) {
+    public String submit(
+            String type, String requester, String target, Map<String, String> payload) {
+        if (type == null
+                || type.trim().isEmpty()
+                || requester == null
+                || requester.trim().isEmpty()) {
             throw new IllegalArgumentException("type and requester must not be blank");
         }
         String id = UUID.randomUUID().toString();
@@ -318,10 +324,13 @@ public final class ApprovalQueue {
     }
 
     private void appendDecision(String id, String status, String approver, String reason) {
-        StringBuilder line = new StringBuilder("{\"requestId\":\"").append(OpsFiles.jsonEscape(id)).append('"');
+        StringBuilder line =
+                new StringBuilder("{\"requestId\":\"").append(OpsFiles.jsonEscape(id)).append('"');
         line.append(",\"action\":\"").append(OpsFiles.jsonEscape(status)).append('"');
         line.append(",\"approver\":\"").append(OpsFiles.jsonEscape(approver)).append('"');
-        line.append(",\"reason\":\"").append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(reason))).append('"');
+        line.append(",\"reason\":\"")
+                .append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(reason)))
+                .append('"');
         line.append(",\"at\":\"").append(Instant.now(clock).toString()).append("\"}\n");
         try {
             Files.write(
