@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the identifier value
  */
 public record SnapshotId(UUID value) {
-  public SnapshotId {
-    Objects.requireNonNull(value, "value");
-  }
+    public SnapshotId {
+        Objects.requireNonNull(value, "value");
+    }
 }
