@@ -17,4 +17,4 @@ import java.util.UUID;
  * @param mfaEnabled whether MFA enrollment is completed
  */
 public record UserDto(
-    UUID userId, String email, String displayName, List<String> roles, boolean mfaEnabled) {}
+        UUID userId, String email, String displayName, List<String> roles, boolean mfaEnabled) {}
