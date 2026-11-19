@@ -12,6 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.platform.Platform;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -20,13 +24,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 
 final class ProcessEnvironmentTest {
     @Test
     void linuxUsesBashSetsidPosixPathAndProc() {
-        ProcessEnvironment environment = new LinuxProcessEnvironment("/bin/bash", "/usr/bin/setsid");
+        ProcessEnvironment environment =
+                new LinuxProcessEnvironment("/bin/bash", "/usr/bin/setsid");
 
         assertEquals("process-env-linux", environment.descriptor().name());
         assertTrue(environment.isSupported());
@@ -51,22 +54,21 @@ final class ProcessEnvironmentTest {
 
     @Test
     void linuxTerminalEnvironmentWithToolsIsUnchanged() {
-        ProcessEnvironment environment = new LinuxProcessEnvironment("/bin/bash", "/usr/bin/setsid");
+        ProcessEnvironment environment =
+                new LinuxProcessEnvironment("/bin/bash", "/usr/bin/setsid");
         Map<String, String> extra =
                 environment.toolEnvironment(Paths.get("/tools/bin"), Paths.get("/profile"));
 
         Map<String, String> expected = new LinkedHashMap<String, String>();
         expected.put("HOME", path("/ws/home"));
         expected.put(
-                "PATH",
-                path("/tools/bin") + File.pathSeparator + "/usr/local/bin:/usr/bin:/bin");
+                "PATH", path("/tools/bin") + File.pathSeparator + "/usr/local/bin:/usr/bin:/bin");
         expected.put("XDG_CONFIG_HOME", Paths.get("/profile/config").toString());
         expected.put("XDG_DATA_HOME", Paths.get("/profile/data").toString());
         expected.put("XDG_CACHE_HOME", Paths.get("/profile/cache").toString());
         expected.put("TERM", "xterm-256color");
         expected.put("LANG", "C.UTF-8");
-        assertEquals(
-                expected, environment.environment(Paths.get("/ws/home"), extra));
+        assertEquals(expected, environment.environment(Paths.get("/ws/home"), extra));
     }
 
     @Test
@@ -115,7 +117,9 @@ final class ProcessEnvironmentTest {
                 environment.environment(
                         Paths.get("C:\\ws\\home"), Collections.<String, String>emptyMap());
         assertEquals(Paths.get("C:\\ws\\home").toString(), actual.get("USERPROFILE"));
-        assertEquals("C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem", actual.get("Path"));
+        assertEquals(
+                "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem",
+                actual.get("Path"));
         assertEquals("C:\\Windows\\System32\\cmd.exe", actual.get("ComSpec"));
         assertEquals("C:\\Windows", actual.get("SystemRoot"));
         assertFalse(actual.containsKey("HOME"));
@@ -155,11 +159,8 @@ final class ProcessEnvironmentTest {
         ProcessEnvironment fake = new FakeProcessEnvironment(false);
 
         assertFalse(fake.isSupported());
-        assertEquals(
-                Arrays.asList("/fake/sh", "-i", "-c"),
-                fake.shellCommand(Arrays.asList("-c")));
-        assertEquals(
-                Arrays.asList("node"), fake.sessionWrapper(Arrays.asList("node")));
+        assertEquals(Arrays.asList("/fake/sh", "-i", "-c"), fake.shellCommand(Arrays.asList("-c")));
+        assertEquals(Arrays.asList("node"), fake.sessionWrapper(Arrays.asList("node")));
         assertNull(fake.processRoot());
 
         Map<String, String> expected = new LinkedHashMap<String, String>();
@@ -179,10 +180,7 @@ final class ProcessEnvironmentTest {
         extra.put("PATH", "/custom/bin");
 
         assertEquals(
-                "/custom/bin",
-                environment
-                        .environment(Paths.get("/ws/home"), extra)
-                        .get("PATH"));
+                "/custom/bin", environment.environment(Paths.get("/ws/home"), extra).get("PATH"));
     }
 
     private static String path(String value) {
