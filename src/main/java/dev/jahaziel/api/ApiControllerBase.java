@@ -8,13 +8,16 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.security.CanonicalPathGuard;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Shared authentication, workspace authorization and path-containment checks for API controllers. */
+/**
+ * Shared authentication, workspace authorization and path-containment checks for API controllers.
+ */
 public abstract class ApiControllerBase {
     protected static final String READ = "read";
     protected static final String WRITE = "write";
@@ -48,7 +51,8 @@ public abstract class ApiControllerBase {
         return requireWorkspaceFor(user, new WorkspaceId(id), permission);
     }
 
-    protected WorkspaceId requireWorkspaceFor(UserId user, WorkspaceId workspace, String permission) {
+    protected WorkspaceId requireWorkspaceFor(
+            UserId user, WorkspaceId workspace, String permission) {
         if (workspace == null) {
             throw ApiFailureException.badRequest("Workspace id is required");
         }
