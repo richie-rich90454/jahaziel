@@ -32,7 +32,6 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.club.api.ClubService;
 import dev.jahaziel.club.checkpoint.CheckpointService;
 import dev.jahaziel.club.domain.ClubRoles;
-import dev.jahaziel.club.domain.ClubSession;
 import dev.jahaziel.club.moderation.ModerationService;
 import dev.jahaziel.club.session.ClubSessionService;
 import dev.jahaziel.datatools.CellOutput;
@@ -51,6 +50,13 @@ import dev.jahaziel.ops.GdprService;
 import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.ops.SupportBundleService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
@@ -58,13 +64,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-/** Focused checks for the new API endpoints: auth, workspace scoping, path safety and delegation. */
+/**
+ * Focused checks for the new API endpoints: auth, workspace scoping, path safety and delegation.
+ */
 final class ApiEndpointsTest {
     @TempDir Path tempDir;
 
@@ -98,14 +101,14 @@ final class ApiEndpointsTest {
         AgentSessionController controller = new AgentSessionController(sessions, allowedAuth());
 
         ApiFailureException failure =
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.list(workspaceId, null);
-                    }
-                });
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.list(workspaceId, null);
+                            }
+                        });
         expectStatus(failure, 401);
         verifyNoInteractions(sessions);
     }
@@ -118,14 +121,14 @@ final class ApiEndpointsTest {
         AgentSessionController controller = new AgentSessionController(sessions, auth);
 
         ApiFailureException failure =
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.list(workspaceId, principal(userId));
-                    }
-                });
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.list(workspaceId, principal(userId));
+                            }
+                        });
         expectStatus(failure, 403);
         verifyNoInteractions(sessions);
     }
@@ -155,13 +158,13 @@ final class ApiEndpointsTest {
         final AgentPromptController controller = new AgentPromptController(prompts, allowedAuth());
 
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.list(null);
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.list(null);
+                    }
+                });
 
         PromptTemplate template = new PromptTemplate();
         template.setId("prompt-1");
@@ -188,25 +191,25 @@ final class ApiEndpointsTest {
         request.setText("hello");
 
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        diffController.stage(workspaceId, request, principal(userId));
-                    }
-                }),
-            403);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                diffController.stage(workspaceId, request, principal(userId));
+                            }
+                        }),
+                403);
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        chatController.send(workspaceId, request, principal(userId));
-                    }
-                }),
-            403);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                chatController.send(workspaceId, request, principal(userId));
+                            }
+                        }),
+                403);
         verifyNoInteractions(diffs, chat);
     }
 
@@ -214,16 +217,16 @@ final class ApiEndpointsTest {
     void modelCatalogRequiresAuthenticationAndListsAllowlistedModels() {
         ModelCatalog catalog = new ModelCatalog(Arrays.asList("local"), null);
         final AgentMetaController controller =
-            new AgentMetaController(catalog, mock(UsageMeters.class), allowedAuth());
+                new AgentMetaController(catalog, mock(UsageMeters.class), allowedAuth());
 
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.catalog(null);
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.catalog(null);
+                    }
+                });
         List<AgentDtos.ModelDto> found = controller.catalog(principal(userId));
         assertEquals(1, found.size());
         assertEquals("local", found.get(0).getId());
@@ -233,23 +236,25 @@ final class ApiEndpointsTest {
     @Test
     void sqliteBrowserRejectsTraversalAndDelegatesSafePaths() throws Exception {
         Path root =
-            Files.createDirectories(
-                tempDir.resolve("workspaces").resolve(workspaceId.toString()).resolve("home"));
+                Files.createDirectories(
+                        tempDir.resolve("workspaces")
+                                .resolve(workspaceId.toString())
+                                .resolve("home"));
         final SqliteBrowser browser = mock(SqliteBrowser.class);
         when(browser.tables(eq(workspace), eq("data.db"))).thenReturn(Arrays.asList("users"));
         SqliteController controller =
-            new SqliteController(browser, allowedAuth(), tempDir.toString());
+                new SqliteController(browser, allowedAuth(), tempDir.toString());
 
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.tables(workspaceId, "../secret.db", principal(userId));
-                    }
-                }),
-            400);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.tables(workspaceId, "../secret.db", principal(userId));
+                            }
+                        }),
+                400);
         verifyNoInteractions(browser);
 
         assertEquals(1, controller.tables(workspaceId, "data.db", principal(userId)).size());
@@ -265,54 +270,66 @@ final class ApiEndpointsTest {
         SearchIndex search = mock(SearchIndex.class);
         final FileHistoryService history = mock(FileHistoryService.class);
         WorkspaceDataController controller =
-            new WorkspaceDataController(
-                reader, writer, notebooks, search, history, allowedAuth(), tempDir.toString());
+                new WorkspaceDataController(
+                        reader,
+                        writer,
+                        notebooks,
+                        search,
+                        history,
+                        allowedAuth(),
+                        tempDir.toString());
         Files.createDirectories(
-            tempDir.resolve("workspaces").resolve(workspaceId.toString()).resolve("home"));
+                tempDir.resolve("workspaces").resolve(workspaceId.toString()).resolve("home"));
 
         final DataDtos.CsvRequest csv = new DataDtos.CsvRequest();
         csv.setPath("../bad.csv");
         csv.setContent("a,b\n1,2");
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.saveCsv(workspaceId, csv, principal(userId));
-                    }
-                }),
-            400);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.saveCsv(workspaceId, csv, principal(userId));
+                            }
+                        }),
+                400);
         verifyNoInteractions(writer);
 
         final DataDtos.RestoreRequest restore = new DataDtos.RestoreRequest();
         restore.setPath("..\\bad.txt");
         restore.setSnapshotId(UUID.randomUUID().toString());
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.restore(workspaceId, restore, principal(userId));
-                    }
-                }),
-            400);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.restore(workspaceId, restore, principal(userId));
+                            }
+                        }),
+                400);
         verifyNoInteractions(history);
     }
 
     @Test
     void dataToolsDelegateOnSuccessPaths() throws Exception {
         Files.createDirectories(
-            tempDir.resolve("workspaces").resolve(workspaceId.toString()).resolve("home"));
+                tempDir.resolve("workspaces").resolve(workspaceId.toString()).resolve("home"));
         CsvReader reader = new CsvReader();
         CsvWriter writer = mock(CsvWriter.class);
         NotebookRunner notebooks = mock(NotebookRunner.class);
         SearchIndex search = mock(SearchIndex.class);
         FileHistoryService history = mock(FileHistoryService.class);
         WorkspaceDataController controller =
-            new WorkspaceDataController(
-                reader, writer, notebooks, search, history, allowedAuth(), tempDir.toString());
+                new WorkspaceDataController(
+                        reader,
+                        writer,
+                        notebooks,
+                        search,
+                        history,
+                        allowedAuth(),
+                        tempDir.toString());
 
         DataDtos.CsvRequest csv = new DataDtos.CsvRequest();
         csv.setContent("name,age\nAda,36");
@@ -323,19 +340,20 @@ final class ApiEndpointsTest {
         DataDtos.SearchRequest query = new DataDtos.SearchRequest();
         query.setQuery("Ada");
         when(search.search(eq(workspace), eq("Ada"), eq(SearchIndex.MAX_RESULTS)))
-            .thenReturn(Arrays.asList(new IndexHit("notes.txt", "Ada")));
+                .thenReturn(Arrays.asList(new IndexHit("notes.txt", "Ada")));
         List<DataDtos.HitDto> hits = controller.query(workspaceId, query, principal(userId));
         assertEquals("notes.txt", hits.get(0).getPath());
         verify(search).search(workspace, "Ada", SearchIndex.MAX_RESULTS);
 
         when(notebooks.run(eq(workspace), eq("nb1"), eq("task-1")))
-            .thenReturn(
-                new NotebookExecution("nb1", "run-1", Arrays.asList(CellOutput.text("ok"))));
+                .thenReturn(
+                        new NotebookExecution(
+                                "nb1", "run-1", Arrays.asList(CellOutput.text("ok"))));
         DataDtos.NotebookRunRequest run = new DataDtos.NotebookRunRequest();
         run.setTaskId("task-1");
         assertEquals(
-            "run-1",
-            controller.runNotebook(workspaceId, "nb1", run, principal(userId)).getRunId());
+                "run-1",
+                controller.runNotebook(workspaceId, "nb1", run, principal(userId)).getRunId());
         verify(notebooks).run(workspace, "nb1", "task-1");
     }
 
@@ -344,16 +362,16 @@ final class ApiEndpointsTest {
         ClubSessionService sessions = mock(ClubSessionService.class);
         ClubRegistry registry = new ClubRegistry();
         final ClubSessionController controller =
-            new ClubSessionController(sessions, registry, allowedAuth());
+                new ClubSessionController(sessions, registry, allowedAuth());
 
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.create(new ClubDtos.CreateRequest(), null);
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.create(new ClubDtos.CreateRequest(), null);
+                    }
+                });
 
         ClubDtos.CreateRequest request = new ClubDtos.CreateRequest();
         request.setTemplate("java");
@@ -369,22 +387,24 @@ final class ApiEndpointsTest {
         bad.setRole(ClubRoles.ATTENDEE);
         final String sessionId = session.getId();
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.join(sessionId, bad, principal(UUID.randomUUID()));
-                    }
-                }),
-            403);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.join(sessionId, bad, principal(UUID.randomUUID()));
+                            }
+                        }),
+                403);
 
         ClubDtos.JoinRequest good = new ClubDtos.JoinRequest();
         good.setCode(session.getJoinCode());
         good.setRole(ClubRoles.ATTENDEE);
         assertEquals(
-            2,
-            controller.join(session.getId(), good, principal(UUID.randomUUID())).getParticipants());
+                2,
+                controller
+                        .join(session.getId(), good, principal(UUID.randomUUID()))
+                        .getParticipants());
     }
 
     @Test
@@ -392,39 +412,39 @@ final class ApiEndpointsTest {
         ClubService club = mock(ClubService.class);
         CheckpointService checkpoints = mock(CheckpointService.class);
         final ClubLearningController controller =
-            new ClubLearningController(club, checkpoints, new ClubRegistry(), allowedAuth());
+                new ClubLearningController(club, checkpoints, new ClubRegistry(), allowedAuth());
 
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.showcase(null);
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.showcase(null);
+                    }
+                });
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.lesson("missing", principal(userId));
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.lesson("missing", principal(userId));
+                    }
+                });
     }
 
     @Test
     void clubModerationRequiresAuthentication() {
         final ClubModerationController controller =
-            new ClubModerationController(
-                mock(ModerationService.class), new ClubRegistry(), allowedAuth());
+                new ClubModerationController(
+                        mock(ModerationService.class), new ClubRegistry(), allowedAuth());
         assertThrows(
-            ApiFailureException.class,
-            new Executable() {
-                @Override
-                public void execute() {
-                    controller.history("missing", null);
-                }
-            });
+                ApiFailureException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.history("missing", null);
+                    }
+                });
     }
 
     @Test
@@ -432,35 +452,36 @@ final class ApiEndpointsTest {
         AuthorizationService auth = mock(AuthorizationService.class);
         when(auth.isAdmin(user)).thenReturn(false);
         final OpsAdminController controller =
-            new OpsAdminController(
-                mock(SupportBundleService.class),
-                mock(ScheduledBackupService.class),
-                mock(AuditQueryService.class),
-                mock(AuditService.class),
-                mock(GdprService.class),
-                mock(ApprovalQueue.class),
-                auth);
+                new OpsAdminController(
+                        mock(SupportBundleService.class),
+                        mock(ScheduledBackupService.class),
+                        mock(AuditQueryService.class),
+                        mock(AuditService.class),
+                        mock(GdprService.class),
+                        mock(ApprovalQueue.class),
+                        auth);
 
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.backupStatus(principal(userId));
-                    }
-                }),
-            403);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.backupStatus(principal(userId));
+                            }
+                        }),
+                403);
         expectStatus(
-            assertThrows(
-                ApiFailureException.class,
-                new Executable() {
-                    @Override
-                    public void execute() {
-                        controller.queryAudit(new OpsDtos.AuditQueryRequest(), principal(userId));
-                    }
-                }),
-            403);
+                assertThrows(
+                        ApiFailureException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                controller.queryAudit(
+                                        new OpsDtos.AuditQueryRequest(), principal(userId));
+                            }
+                        }),
+                403);
     }
 
     @Test
@@ -472,14 +493,14 @@ final class ApiEndpointsTest {
         AuthorizationService auth = mock(AuthorizationService.class);
         when(auth.isAdmin(user)).thenReturn(true);
         OpsAdminController controller =
-            new OpsAdminController(
-                mock(SupportBundleService.class),
-                backups,
-                mock(AuditQueryService.class),
-                mock(AuditService.class),
-                mock(GdprService.class),
-                mock(ApprovalQueue.class),
-                auth);
+                new OpsAdminController(
+                        mock(SupportBundleService.class),
+                        backups,
+                        mock(AuditQueryService.class),
+                        mock(AuditService.class),
+                        mock(GdprService.class),
+                        mock(ApprovalQueue.class),
+                        auth);
 
         OpsDtos.BackupStatusDto status = controller.backupStatus(principal(userId));
         assertEquals("backup-1.zip", status.getLatest());
@@ -493,17 +514,17 @@ final class ApiEndpointsTest {
     void standaloneMvcReturnsRfc9457ProblemForUnauthenticatedRequest() throws Exception {
         AgentSessionService sessions = mock(AgentSessionService.class);
         MockMvc mvc =
-            MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, allowedAuth()))
-                .setControllerAdvice(new ApiProblemHandler())
-                .build();
+                MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, allowedAuth()))
+                        .setControllerAdvice(new ApiProblemHandler())
+                        .build();
 
         mvc.perform(get("/api/v1/agent/workspaces/" + workspaceId + "/sessions"))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().contentType("application/problem+json"))
-            .andExpect(jsonPath("$.type").value("about:blank"))
-            .andExpect(jsonPath("$.status").value(401))
-            .andExpect(jsonPath("$.title").value("Unauthorized"))
-            .andExpect(jsonPath("$.detail").value("Authentication is required"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.title").value("Unauthorized"))
+                .andExpect(jsonPath("$.detail").value("Authentication is required"));
         verifyNoInteractions(sessions);
     }
 
@@ -513,16 +534,16 @@ final class ApiEndpointsTest {
         AuthorizationService auth = mock(AuthorizationService.class);
         when(auth.isAllowed(user, "read", workspace)).thenReturn(false);
         MockMvc mvc =
-            MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, auth))
-                .setControllerAdvice(new ApiProblemHandler())
-                .build();
+                MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, auth))
+                        .setControllerAdvice(new ApiProblemHandler())
+                        .build();
 
         mvc.perform(
-                get("/api/v1/agent/workspaces/" + workspaceId + "/sessions")
-                    .principal(principal(userId)))
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.status").value(403))
-            .andExpect(jsonPath("$.detail").value("You may not perform this action"));
+                        get("/api/v1/agent/workspaces/" + workspaceId + "/sessions")
+                                .principal(principal(userId)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail").value("You may not perform this action"));
         verifyNoInteractions(sessions);
     }
 
@@ -531,16 +552,16 @@ final class ApiEndpointsTest {
         AgentSessionService sessions = mock(AgentSessionService.class);
         when(sessions.list(eq(user), eq(workspace))).thenReturn(new ArrayList<AgentSession>());
         MockMvc mvc =
-            MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, allowedAuth()))
-                .setControllerAdvice(new ApiProblemHandler())
-                .build();
+                MockMvcBuilders.standaloneSetup(new AgentSessionController(sessions, allowedAuth()))
+                        .setControllerAdvice(new ApiProblemHandler())
+                        .build();
 
         mvc.perform(
-                get("/api/v1/agent/workspaces/" + workspaceId + "/sessions")
-                    .principal(principal(userId)))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType("application/json"))
-            .andExpect(jsonPath("$").isArray());
+                        get("/api/v1/agent/workspaces/" + workspaceId + "/sessions")
+                                .principal(principal(userId)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(jsonPath("$").isArray());
         verify(sessions).list(user, workspace);
     }
 
@@ -548,9 +569,9 @@ final class ApiEndpointsTest {
     void problemBodyNeverContainsRawExceptionMessage() {
         ApiProblemHandler handler = new ApiProblemHandler();
         IllegalArgumentException raw =
-            new IllegalArgumentException("parent traversal is rejected: ../../secret");
+                new IllegalArgumentException("parent traversal is rejected: ../../secret");
         org.springframework.http.ResponseEntity<ApiProblem> response =
-            handler.invalidInput(raw, null);
+                handler.invalidInput(raw, null);
         assertEquals(400, response.getBody().getStatus());
         assertEquals("The request contains an invalid value", response.getBody().getDetail());
         assertTrue(response.getBody().getDetail().indexOf("secret") < 0);
