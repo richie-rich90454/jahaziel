@@ -6,10 +6,10 @@ package dev.jahaziel.spi;
 
 /** Outcome of an audited action. */
 public enum Outcome {
-  /** The action completed. */
-  SUCCESS,
-  /** The action failed. */
-  FAILURE,
-  /** The action was refused by policy. */
-  DENIED
+    /** The action completed. */
+    SUCCESS,
+    /** The action failed. */
+    FAILURE,
+    /** The action was refused by policy. */
+    DENIED
 }
