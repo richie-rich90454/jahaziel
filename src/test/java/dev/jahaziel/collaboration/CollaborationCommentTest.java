@@ -9,9 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+
+import java.util.List;
 
 final class CollaborationCommentTest {
     @Test
@@ -62,7 +63,8 @@ final class CollaborationCommentTest {
                 comment.id(),
                 "agreed",
                 2000L);
-        assertEquals(1, fixture.comments.replies(CollaborationFixture.WORKSPACE, comment.id()).size());
+        assertEquals(
+                1, fixture.comments.replies(CollaborationFixture.WORKSPACE, comment.id()).size());
 
         fixture.comments.resolve(
                 CollaborationFixture.WORKSPACE,
@@ -73,9 +75,7 @@ final class CollaborationCommentTest {
         assertTrue(fixture.store.comment(comment.id()).resolved());
 
         fixture.comments.delete(
-                CollaborationFixture.WORKSPACE,
-                CollaborationFixture.OWNER,
-                comment.id());
+                CollaborationFixture.WORKSPACE, CollaborationFixture.OWNER, comment.id());
         assertEquals(null, fixture.store.comment(comment.id()));
     }
 
