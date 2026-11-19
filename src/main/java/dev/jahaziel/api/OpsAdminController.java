@@ -12,18 +12,19 @@ import dev.jahaziel.ops.AuditQueryService;
 import dev.jahaziel.ops.GdprService;
 import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.ops.SupportBundleService;
-import java.nio.file.Path;
-import java.security.Principal;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.file.Path;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Administrator-only support, backup, audit, GDPR and approval endpoints. */
 @RestController
@@ -80,8 +81,7 @@ public final class OpsAdminController extends ApiControllerBase {
     public List<OpsDtos.AuditDto> queryAudit(
             @RequestBody(required = false) OpsDtos.AuditQueryRequest body, Principal principal) {
         requireAdmin(principal);
-        OpsDtos.AuditQueryRequest request =
-            body == null ? new OpsDtos.AuditQueryRequest() : body;
+        OpsDtos.AuditQueryRequest request = body == null ? new OpsDtos.AuditQueryRequest() : body;
         AuditQueryService.AuditFilter filter = filter(request);
         List<AuditQueryService.AuditEntry> found = auditQuery.query(entriesFor(null), filter);
         List<OpsDtos.AuditDto> result = new ArrayList<OpsDtos.AuditDto>();
@@ -95,9 +95,9 @@ public final class OpsAdminController extends ApiControllerBase {
     public OpsDtos.AuditExportDto exportAudit(
             @RequestBody(required = false) OpsDtos.AuditQueryRequest body, Principal principal) {
         requireAdmin(principal);
-        OpsDtos.AuditQueryRequest request =
-            body == null ? new OpsDtos.AuditQueryRequest() : body;
-        List<AuditQueryService.AuditEntry> found = auditQuery.query(entriesFor(null), filter(request));
+        OpsDtos.AuditQueryRequest request = body == null ? new OpsDtos.AuditQueryRequest() : body;
+        List<AuditQueryService.AuditEntry> found =
+                auditQuery.query(entriesFor(null), filter(request));
         OpsDtos.AuditExportDto result = new OpsDtos.AuditExportDto();
         if ("json".equalsIgnoreCase(request.getFormat())) {
             result.setFormat("json");
@@ -125,7 +125,10 @@ public final class OpsAdminController extends ApiControllerBase {
         requireAdmin(principal);
         OpsDtos.GdprRequest request = body == null ? new OpsDtos.GdprRequest() : body;
         String pseudonym =
-            gdpr.deleteUser(request.getUserId(), request.getConfirmation(), entriesFor(request.getUserId()));
+                gdpr.deleteUser(
+                        request.getUserId(),
+                        request.getConfirmation(),
+                        entriesFor(request.getUserId()));
         return new OpsDtos.GdprDto(pseudonym);
     }
 
@@ -142,14 +145,16 @@ public final class OpsAdminController extends ApiControllerBase {
 
     @PostMapping("/api/v1/admin/ops/approvals")
     public OpsDtos.ApprovalDto submit(
-            @RequestBody(required = false) OpsDtos.ApprovalSubmitRequest body, Principal principal) {
+            @RequestBody(required = false) OpsDtos.ApprovalSubmitRequest body,
+            Principal principal) {
         String admin = requireAdmin(principal).value().toString();
         OpsDtos.ApprovalSubmitRequest request =
-            body == null ? new OpsDtos.ApprovalSubmitRequest() : body;
+                body == null ? new OpsDtos.ApprovalSubmitRequest() : body;
         Map<String, String> payload =
-            request.getPayload() == null ? new HashMap<String, String>() : request.getPayload();
+                request.getPayload() == null ? new HashMap<String, String>() : request.getPayload();
         ApprovalQueue.ApprovalRequest created =
-            approvals.find(approvals.submit(request.getType(), admin, request.getTarget(), payload));
+                approvals.find(
+                        approvals.submit(request.getType(), admin, request.getTarget(), payload));
         return view(created);
     }
 
@@ -197,15 +202,16 @@ public final class OpsAdminController extends ApiControllerBase {
             String target = record.target() == null ? "" : record.target().orElse("");
             String previous = record.prevHash() == null ? "" : record.prevHash().orElse("");
             String outcome = record.outcome() == null ? "" : record.outcome().name();
-            result.add(new AuditQueryService.AuditEntry(
-                record.eventId().toString(),
-                record.timestamp(),
-                record.actor(),
-                record.action(),
-                target,
-                outcome,
-                "",
-                previous));
+            result.add(
+                    new AuditQueryService.AuditEntry(
+                            record.eventId().toString(),
+                            record.timestamp(),
+                            record.actor(),
+                            record.action(),
+                            target,
+                            outcome,
+                            "",
+                            previous));
         }
         return result;
     }
