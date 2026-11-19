@@ -6,6 +6,7 @@ package dev.jahaziel.identity.auth.oidc;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,8 +17,7 @@ import java.util.Map;
 
 /** Shared loopback plumbing for the concrete provider tests. */
 abstract class ProviderTestBase {
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     StubIdp idp;
 
@@ -51,11 +51,19 @@ abstract class ProviderTestBase {
 
     private String claims(String nonce) {
         long expiry = System.currentTimeMillis() / 1000L + 600L;
-        return "{\"iss\":\"" + idp.issuer() + "\","
-                + "\"aud\":\"" + StubIdp.CLIENT_ID + "\","
+        return "{\"iss\":\""
+                + idp.issuer()
+                + "\","
+                + "\"aud\":\""
+                + StubIdp.CLIENT_ID
+                + "\","
                 + "\"sub\":\"user-123\","
-                + "\"nonce\":\"" + nonce + "\","
-                + "\"exp\":" + expiry + ","
+                + "\"nonce\":\""
+                + nonce
+                + "\","
+                + "\"exp\":"
+                + expiry
+                + ","
                 + "\"email\":\"user@example.test\","
                 + "\"name\":\"Test User\","
                 + "\"email_verified\":true,"
