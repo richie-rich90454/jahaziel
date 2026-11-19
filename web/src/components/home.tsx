@@ -10,6 +10,7 @@ import { toast } from "../lib/store";
 import {
     createWorkspace,
     openWorkspace,
+    promptClone,
     startWorkspaceFromCard,
     stopWorkspaceFromCard,
 } from "../lib/controller";
@@ -45,6 +46,13 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
         void openWorkspace(workspace);
     });
     actions.append(open);
+    const clone = html`
+        <button type="button" class="button button-quiet workspace-clone">Clone</button>
+    `;
+    on(clone, "click", () => {
+        void promptClone(workspace).catch((failure) => toast(errorText(failure), "error"));
+    });
+    actions.append(clone);
     if (["requested", "suspended", "failed"].includes(workspace.state)) {
         const start = html`
             <button type="button" class="button button-quiet">Start</button>
