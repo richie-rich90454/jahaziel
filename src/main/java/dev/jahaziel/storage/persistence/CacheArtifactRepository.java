@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.storage.persistence;
 
-import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
 
 /** Repository for CacheArtifactEntity persistence. */
 public interface CacheArtifactRepository extends JpaRepository<CacheArtifactEntity, UUID> {}
