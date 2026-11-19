@@ -7,7 +7,6 @@ const { createHash, createSign, generateKeyPairSync } = require("node:crypto");
 const fs = require("node:fs");
 const { createServer } = require("node:http");
 const net = require("node:net");
-const os = require("node:os");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 const { chromium } = require("playwright");
@@ -16,7 +15,9 @@ const jarSource = process.argv[2];
 if (!jarSource) throw new Error("usage: node tools/browser-smoke.cjs <packaged-jar>");
 
 const jarSourcePath = path.resolve(jarSource);
-const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jahaziel-browser-smoke-"));
+const scratchBase = path.join(path.resolve(__dirname, ".."), ".cache", "browser-smoke");
+fs.mkdirSync(scratchBase, { recursive: true });
+const scratchRoot = fs.mkdtempSync(path.join(scratchBase, "run-"));
 const jarPath = path.join(scratchRoot, "jahaziel.jar");
 const dataTemp = path.join(scratchRoot, "data", "tmp");
 const debugAdapterPath = path.join(scratchRoot, "mock-debug-adapter.cjs");
@@ -860,8 +861,8 @@ run()
       await new Promise((resolve) => identityProvider.server.close(() => resolve()));
     }
     if (fs.existsSync(scratchRoot)
-        && path.dirname(scratchRoot) === os.tmpdir()
-        && path.basename(scratchRoot).startsWith("jahaziel-browser-smoke-")) {
+        && path.dirname(scratchRoot) === scratchBase
+        && path.basename(scratchRoot).startsWith("run-")) {
       fs.rmSync(scratchRoot, { recursive: true, force: true });
     }
   });
