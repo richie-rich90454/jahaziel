@@ -746,3 +746,42 @@ change to endpoints, token claims, `typ` values, lifetimes, revocation or
 backchannel behavior, scopes, permissions, client/resource registration,
 internal API authentication, error codes, or the example integration must update
 this guide in the same change. See `AGENTS.md` for the mandatory rule.
+
+## 13. Implemented integration notes
+
+This application implements the contract above through `BasisAuthPlugin` in
+`dev.jahaziel.identity.auth`. Notes that refine the contract for this codebase:
+
+- **Credential keys.** Canonical names are `BASIS_AUTH_ISSUER`,
+  `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`,
+  `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`
+  and `BASIS_AUTH_OFFLINE_ACCESS`. The older `BASIS_CLIENT_ID`,
+  `BASIS_CLIENT_SECRET`, `BASIS_RESOURCE` and `BASIS_RESOURCE_SECRET` names remain
+  as aliases. Configuration is read at startup; a credential rotation requires a
+  restart (there is no hot dual-secret window).
+- **Refresh.** `BasisAuthPlugin.refresh(sessionId)` rotates the refresh token
+  with HTTP Basic client authentication, persists the replacement before any
+  further use, and revokes the whole token family on reuse. `invalid_grant`
+  clears refresh state and requires a new sign-in. The advertised `REFRESH`
+  capability is backed by this method.
+- **Backchannel.** `POST /api/auth/backchannel` handles all three event types.
+  `action=test` returns `202` before delivering the HMAC proof asynchronously;
+  nonce and challenge must each be 43-character base64url values. The logout
+  handler additionally ends local BFF sessions for the resolved `(provider,
+  subject)` link and clears app cookies. Already-issued stateless JWTs are not
+  revocable; the next request filter expires them.
+- **Resource API.** `BasisResourceFilter` validates basis access tokens on
+  `/api/v1/workspaces/**` only when an `Authorization: Bearer` header carries a
+  JWT with `typ=at+jwt`. It requires `sub`, `client_id`, `scope`, `permissions`,
+  `gty`, `jti`, `iat`, `exp`, `iss` and `aud`, uses a 60-second clock skew,
+  denies JTI entries from the revocation feed (earliest `valid_after` wins),
+  and fails closed via `GET /internal/users/{sub}` using
+  `Authorization: Bearer <resourceSecret>` plus `X-Basis-Resource`. Scope and
+  permission failures return the documented `403` codes. Malformed JWT-shaped
+  bearer tokens receive the uniform `401 invalid_token` response.
+- **Error codes.** Issuer OAuth errors are mapped to the numeric codes in
+  section 11 and returned in the login error body with operator-facing recovery
+  text. Secrets, codes and raw cookies are never logged.
+- **Browser login.** Browsers continue to use the application's own BFF session
+  and JWT after a successful basis-auth callback. Direct API clients may use a
+  valid basis access token on workspace endpoints as described above.
