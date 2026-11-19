@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the identifier value
  */
 public record TerminalSessionId(UUID value) {
-  public TerminalSessionId {
-    Objects.requireNonNull(value, "value");
-  }
+    public TerminalSessionId {
+        Objects.requireNonNull(value, "value");
+    }
 }
