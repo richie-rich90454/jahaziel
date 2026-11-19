@@ -6,6 +6,10 @@ package dev.jahaziel.networking.internal;
 
 import dev.jahaziel.plugin.Plugin;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,8 +22,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Base for per-OS process-to-port discovery. Reads operating-system data without changing process
@@ -149,8 +151,10 @@ public abstract class PortDiscoveryPlugin extends Plugin {
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true);
             process = builder.start();
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+            BufferedReader reader =
+                    new BufferedReader(
+                            new InputStreamReader(
+                                    process.getInputStream(), StandardCharsets.UTF_8));
             List<String> lines = new ArrayList<String>();
             int limit = maxLines();
             int count = 0;
