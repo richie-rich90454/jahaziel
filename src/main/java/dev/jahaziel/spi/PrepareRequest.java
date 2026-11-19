@@ -18,22 +18,22 @@ import java.util.UUID;
  * @param memoryMib guest memory in MiB, reserved at start
  */
 public record PrepareRequest(
-    UUID workspaceId,
-    UUID ownerId,
-    ImageRef image,
-    QuotaBytes quota,
-    int vcpuCount,
-    long memoryMib) {
-  public PrepareRequest {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(ownerId, "ownerId");
-    Objects.requireNonNull(image, "image");
-    Objects.requireNonNull(quota, "quota");
-    if (vcpuCount < 1) {
-      throw new IllegalArgumentException("vcpuCount must be positive");
+        UUID workspaceId,
+        UUID ownerId,
+        ImageRef image,
+        QuotaBytes quota,
+        int vcpuCount,
+        long memoryMib) {
+    public PrepareRequest {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(ownerId, "ownerId");
+        Objects.requireNonNull(image, "image");
+        Objects.requireNonNull(quota, "quota");
+        if (vcpuCount < 1) {
+            throw new IllegalArgumentException("vcpuCount must be positive");
+        }
+        if (memoryMib < 1) {
+            throw new IllegalArgumentException("memoryMib must be positive");
+        }
     }
-    if (memoryMib < 1) {
-      throw new IllegalArgumentException("memoryMib must be positive");
-    }
-  }
 }
