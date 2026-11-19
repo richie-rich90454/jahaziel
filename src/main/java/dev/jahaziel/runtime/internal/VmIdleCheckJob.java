@@ -10,6 +10,7 @@ import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceState;
+
 import java.time.Duration;
 import java.util.Objects;
 
@@ -19,36 +20,36 @@ import java.util.Objects;
  * parks idle workspaces to make room, never killing running ones.
  */
 public final class VmIdleCheckJob implements PlatformJob {
-  private final WorkspaceService workspaces;
-  private final RuntimeService runtime;
+    private final WorkspaceService workspaces;
+    private final RuntimeService runtime;
 
-  /**
-   * Creates the job.
-   *
-   * @param workspaces the workspace lookup
-   * @param runtime the runtime lifecycle
-   */
-  public VmIdleCheckJob(WorkspaceService workspaces, RuntimeService runtime) {
-    this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
-    this.runtime = Objects.requireNonNull(runtime, "runtime");
-  }
-
-  @Override
-  public void run(JobContext context) {
-    for (var view : workspaces.describeAll()) {
-      if (view.workspace().state() instanceof WorkspaceState.Idle) {
-        runtime.stop(view.workspace().id());
-      }
+    /**
+     * Creates the job.
+     *
+     * @param workspaces the workspace lookup
+     * @param runtime the runtime lifecycle
+     */
+    public VmIdleCheckJob(WorkspaceService workspaces, RuntimeService runtime) {
+        this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
     }
-  }
 
-  @Override
-  public Duration period() {
-    return Duration.ofMinutes(1);
-  }
+    @Override
+    public void run(JobContext context) {
+        for (var view : workspaces.describeAll()) {
+            if (view.workspace().state() instanceof WorkspaceState.Idle) {
+                runtime.stop(view.workspace().id());
+            }
+        }
+    }
 
-  @Override
-  public JobScope scope() {
-    return JobScope.CLUSTER;
-  }
+    @Override
+    public Duration period() {
+        return Duration.ofMinutes(1);
+    }
+
+    @Override
+    public JobScope scope() {
+        return JobScope.CLUSTER;
+    }
 }
