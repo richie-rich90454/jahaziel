@@ -19,6 +19,7 @@ import {
 } from "./runtime";
 import { refreshBreakpointGutter, toggleDebugBreakpoint } from "./debug";
 import { refreshGitSafely } from "./git";
+import { refreshMarkdownPreview } from "./markdown-preview";
 
 function formatBytes(bytes: number): string {
     if (!Number.isFinite(bytes) || bytes <= 0) return "unknown size";
@@ -220,6 +221,7 @@ export async function openDocument(path: string): Promise<void> {
                 runtime.languageServices?.changeDocument(path, update.state.doc.toString());
                 syncTab(path);
                 updateSaveState();
+                refreshMarkdownPreview();
             }),
         ],
     });
@@ -308,6 +310,7 @@ export function activateDocument(path: string): void {
     refreshBreakpointGutter(next.wrapper, path);
     renderTabs();
     updateSaveState();
+    refreshMarkdownPreview();
     window.requestAnimationFrame(() => next.view.requestMeasure());
 }
 
