@@ -17,6 +17,6 @@ import jakarta.validation.constraints.Size;
  * @param vcpuCount virtual CPU count, empty for the default
  */
 public record CreateWorkspaceRequest(
-    @NotBlank @Size(max = 64) String name,
-    @Min(1024) @Max(4096) Integer memoryMib,
-    @Min(1) @Max(4) Integer vcpuCount) {}
+        @NotBlank @Size(max = 64) String name,
+        @Min(1024) @Max(4096) Integer memoryMib,
+        @Min(1) @Max(4) Integer vcpuCount) {}
