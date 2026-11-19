@@ -9,6 +9,7 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,11 +86,7 @@ public final class DiffReviewService {
     }
 
     private UnifiedPatch decide(
-            UserId user,
-            WorkspaceId workspace,
-            String patchId,
-            int hunkIndex,
-            String decision) {
+            UserId user, WorkspaceId workspace, String patchId, int hunkIndex, String decision) {
         requireOwner(user, workspace);
         UnifiedPatch patch = get(user, workspace, patchId);
         if (hunkIndex < 0 || hunkIndex >= patch.getHunks().size()) {
@@ -98,20 +95,22 @@ public final class DiffReviewService {
         patch.getDecisions().set(hunkIndex, decision);
         store.write(jsonPath(user, workspace, patchId), patch);
         String action =
-            UnifiedPatch.ACCEPTED.equals(decision) ? "PATCH_HUNK_ACCEPTED" : "PATCH_HUNK_REJECTED";
+                UnifiedPatch.ACCEPTED.equals(decision)
+                        ? "PATCH_HUNK_ACCEPTED"
+                        : "PATCH_HUNK_REJECTED";
         audit.record(
-            user,
-            action,
-            patchId + "#" + hunkIndex,
-            "PATCH_HUNK",
-            "filePath",
-            patch.getFilePath());
+                user,
+                action,
+                patchId + "#" + hunkIndex,
+                "PATCH_HUNK",
+                "filePath",
+                patch.getFilePath());
         return patch;
     }
 
     private Path scopePath(UserId user, WorkspaceId workspace) {
         return store.containedChild(
-            store.patchRoot(), user.value().toString(), workspace.value().toString());
+                store.patchRoot(), user.value().toString(), workspace.value().toString());
     }
 
     private Path jsonPath(UserId user, WorkspaceId workspace, String patchId) {
