@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.administration.persistence;
 
-import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
 
 /** Repository for AdminActionEntity persistence. */
 public interface AdminActionRepository extends JpaRepository<AdminActionEntity, UUID> {}
