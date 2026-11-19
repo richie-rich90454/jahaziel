@@ -18,13 +18,10 @@ public final class SecretRedactor {
     private static final ArrayList<Pattern> PATTERNS = new ArrayList<Pattern>();
 
     static {
-        PATTERNS.add(
-                Pattern.compile(
-                        "(?i)\\b(?:cookie|set-cookie)\\s*:\\s*[^\\r\\n]+"));
+        PATTERNS.add(Pattern.compile("(?i)\\b(?:cookie|set-cookie)\\s*:\\s*[^\\r\\n]+"));
         PATTERNS.add(Pattern.compile("(?i)\\bBearer\\s+[A-Za-z0-9._~+/-]+=*"));
         PATTERNS.add(
-                Pattern.compile(
-                        "\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"));
+                Pattern.compile("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"));
         PATTERNS.add(
                 Pattern.compile(
                         "(?i)[?&](?:code|token|refresh[_-]?token|access_token|id_token|"
