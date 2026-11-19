@@ -13,6 +13,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import org.springframework.beans.factory.annotation.Value;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,6 +50,8 @@ import java.util.zip.ZipInputStream;
 
 /** Installs verified pinned archives only after an explicit workspace selection. */
 public final class LanguagePackServiceImpl implements LanguagePackService {
+    private static final String UNAVAILABLE_ON_THIS_HOST = "UNAVAILABLE_ON_THIS_HOST";
+    private static final String ANY_OS = "*";
     private static final long MAX_ARCHIVE_BYTES = 256L * 1024 * 1024;
     private static final long MAX_EXTRACTED_BYTES = 768L * 1024 * 1024;
     private static final int MAX_ARCHIVE_ENTRIES = 20_000;
@@ -104,6 +107,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                             "rust",
                             "Rust Analyzer",
                             "2026-09-21",
+                            "linux",
                             Map.of(
                                     "x86_64",
                                     new Asset(
@@ -123,6 +127,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                             "cpp",
                             "clangd",
                             "23.1.0",
+                            "linux",
                             Map.of(
                                     "x86_64",
                                     new Asset(
@@ -169,6 +174,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                             "go",
                             "gopls · Go 1.27.3",
                             "gopls-v0.24.0-go1.27.3",
+                            "linux",
                             Map.of("x86_64", GO_AMD64, "aarch64", GO_ARM64)));
 
     private final Path cacheRoot;
@@ -181,13 +187,16 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     public LanguagePackServiceImpl(
             @Value("${jahaziel.storage.root:data}") String storageRoot,
             HttpClient http,
-            @Value("${jahaziel.language-tools.node-executable:/usr/bin/node}")
-                    String nodeExecutable) {
-        this(cachePath(storageRoot), http, DEFAULT_CATALOG, Path.of(nodeExecutable));
+            @Value("${jahaziel.language-tools.node-executable:}") String nodeExecutable) {
+        this(
+                cachePath(storageRoot),
+                http,
+                DEFAULT_CATALOG,
+                resolveNodeExecutable(nodeExecutable, Path.of(storageRoot)));
     }
 
     LanguagePackServiceImpl(Path cacheRoot, HttpClient http, List<Definition> catalog) {
-        this(cacheRoot, http, catalog, Path.of("/usr/bin/node"));
+        this(cacheRoot, http, catalog, resolveNodeExecutable("", cacheRoot.getParent()));
     }
 
     LanguagePackServiceImpl(
@@ -375,7 +384,12 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
 
         Definition definition = definition(languageId);
         Path stateRoot = cacheRoot.resolve("state");
-        Path configuration = versionDirectory(definition).resolve("config_linux");
+        String configName;
+        Platform.Os os = currentOs();
+        if (os == Platform.Os.WINDOWS) configName = "config_win";
+        else if (os == Platform.Os.MACOS) configName = "config_mac";
+        else configName = "config_linux";
+        Path configuration = versionDirectory(definition).resolve(configName);
         Path javaBin = Path.of(System.getProperty("java.home"), "bin");
         Path java =
                 Files.exists(javaBin.resolve("java"))
@@ -468,7 +482,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                     "GOSUMDB",
                     "sum.golang.org",
                     "PATH",
-                    goRoot.resolve("bin") + ":/usr/local/bin:/usr/bin:/bin");
+                    goRoot.resolve("bin") + File.pathSeparator + basePath());
         } catch (IOException failure) {
             throw new UncheckedIOException("Go language-service runtime is unavailable", failure);
         }
@@ -1160,7 +1174,7 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                             .redirectOutput(ProcessBuilder.Redirect.DISCARD);
             Map<String, String> environment = builder.environment();
             environment.clear();
-            environment.put("PATH", "/usr/local/bin:/usr/bin:/bin");
+            environment.put("PATH", basePath());
             environment.put("HOME", home.toString());
             environment.put("TMPDIR", temporary.toString());
             environment.put("GOROOT", goRoot.toString());
@@ -1325,10 +1339,19 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
         String architecture = architecture();
         Asset asset = definition.assets().get(architecture);
         List<Asset> assets = assetsFor(definition, architecture);
-        String availability =
-                !operatingSystemIsLinux()
-                        ? "Linux server required"
-                        : !assets.isEmpty() ? "available" : "not published for " + architecture;
+        String availability;
+        if (!osSupported(definition)) {
+            availability =
+                    UNAVAILABLE_ON_THIS_HOST
+                            + ": "
+                            + definition.name()
+                            + " requires "
+                            + definition.os();
+        } else if (assets.isEmpty()) {
+            availability = "not published for " + architecture;
+        } else {
+            availability = "available";
+        }
         if ("available".equals(availability) && isNodeLanguage(definition)) {
             try {
                 ensureNodeVersion(definition);
@@ -1390,9 +1413,12 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     }
 
     private void ensureSupported(Definition definition) {
-        if (!operatingSystemIsLinux() || !definition.assets().containsKey(architecture())) {
+        if (!osSupported(definition) || !definition.assets().containsKey(architecture())) {
             throw new IllegalArgumentException(
-                    "language pack is unavailable on this server architecture");
+                    UNAVAILABLE_ON_THIS_HOST
+                            + ": language pack "
+                            + definition.id()
+                            + " is unavailable on this host");
         }
         if (isNodeLanguage(definition)) ensureNodeVersion(definition);
     }
@@ -1594,8 +1620,55 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
         }
     }
 
-    private static boolean operatingSystemIsLinux() {
-        return Platforms.detect(null).os() == Platform.Os.LINUX;
+    static boolean osMatches(String declaredOs, Platform.Os current) {
+        if (ANY_OS.equals(declaredOs)) return true;
+        return osFromName(declaredOs) == current;
+    }
+
+    private static Platform.Os currentOs() {
+        return Platforms.detect(null).os();
+    }
+
+    private static Platform.Os osFromName(String name) {
+        if ("windows".equals(name)) return Platform.Os.WINDOWS;
+        if ("darwin".equals(name) || "macos".equals(name)) return Platform.Os.MACOS;
+        return Platform.Os.LINUX;
+    }
+
+    private static boolean osSupported(Definition definition) {
+        return osMatches(definition.os(), currentOs());
+    }
+
+    static Path resolveNodeExecutable(String configured, Path storageRoot) {
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured).toAbsolutePath().normalize();
+        }
+        Path root = storageRoot.toAbsolutePath().normalize();
+        Platform.Os os = currentOs();
+        String executable = os == Platform.Os.WINDOWS ? "node.exe" : "node";
+        Path bundled =
+                os == Platform.Os.WINDOWS
+                        ? root.resolve("tools/node").resolve(executable)
+                        : root.resolve("tools/node/bin").resolve(executable);
+        if (Files.isRegularFile(bundled) && Files.isExecutable(bundled)) return bundled;
+        String path = System.getenv("PATH");
+        if (path != null) {
+            for (String entry : path.split(File.pathSeparator, -1)) {
+                if (entry.isBlank()) continue;
+                Path candidate = Path.of(entry).resolve(executable);
+                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return bundled;
+    }
+
+    private static String basePath() {
+        Platform.Os os = currentOs();
+        if (os == Platform.Os.WINDOWS) return "C:\\Windows\\System32;C:\\Windows";
+        if (os == Platform.Os.MACOS) return "/usr/bin:/bin:/usr/sbin:/sbin";
+        return "/usr/local/bin:/usr/bin:/bin";
     }
 
     private static String architecture() {
@@ -1609,10 +1682,24 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
             String id,
             String name,
             String version,
+            String os,
             Map<String, Asset> assets,
             List<Asset> supplementalAssets) {
         Definition(String id, String name, String version, Map<String, Asset> assets) {
-            this(id, name, version, assets, List.of());
+            this(id, name, version, ANY_OS, assets, List.of());
+        }
+
+        Definition(String id, String name, String version, String os, Map<String, Asset> assets) {
+            this(id, name, version, os, assets, List.of());
+        }
+
+        Definition(
+                String id,
+                String name,
+                String version,
+                Map<String, Asset> assets,
+                List<Asset> supplementalAssets) {
+            this(id, name, version, ANY_OS, assets, supplementalAssets);
         }
 
         Definition {
