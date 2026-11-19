@@ -48,34 +48,58 @@ final class StubIdp {
             this.signingKey = new RSAKeyGenerator(2048).keyID("stub-key").generate();
             this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             this.issuer = "http://127.0.0.1:" + server.getAddress().getPort();
-            server.createContext("/.well-known/openid-configuration", new HttpHandler() {
-                @Override
-                public void handle(HttpExchange exchange) throws IOException {
-                    String json = "{\"issuer\":\"" + issuer + "\","
-                            + "\"authorization_endpoint\":\"" + issuer + "/authorize\","
-                            + "\"token_endpoint\":\"" + issuer + "/token\","
-                            + "\"jwks_uri\":\"" + issuer + "/jwks\"}";
-                    respond(exchange, json);
-                }
-            });
-            server.createContext("/jwks", new HttpHandler() {
-                @Override
-                public void handle(HttpExchange exchange) throws IOException {
-                    respond(exchange, new JWKSet(signingKey.toPublicJWK()).toString());
-                }
-            });
-            server.createContext("/token", new HttpHandler() {
-                @Override
-                public void handle(HttpExchange exchange) throws IOException {
-                    lastAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
-                    String body = new String(readAll(exchange.getRequestBody()), StandardCharsets.UTF_8);
-                    lastForm = parseForm(body);
-                    String json = "{\"id_token\":\"" + idToken(nextClaims) + "\","
-                            + "\"access_token\":\"" + ACCESS_TOKEN + "\","
-                            + "\"token_type\":\"Bearer\",\"refresh_token\":\"stub-refresh\"}";
-                    respond(exchange, json);
-                }
-            });
+            server.createContext(
+                    "/.well-known/openid-configuration",
+                    new HttpHandler() {
+                        @Override
+                        public void handle(HttpExchange exchange) throws IOException {
+                            String json =
+                                    "{\"issuer\":\""
+                                            + issuer
+                                            + "\","
+                                            + "\"authorization_endpoint\":\""
+                                            + issuer
+                                            + "/authorize\","
+                                            + "\"token_endpoint\":\""
+                                            + issuer
+                                            + "/token\","
+                                            + "\"jwks_uri\":\""
+                                            + issuer
+                                            + "/jwks\"}";
+                            respond(exchange, json);
+                        }
+                    });
+            server.createContext(
+                    "/jwks",
+                    new HttpHandler() {
+                        @Override
+                        public void handle(HttpExchange exchange) throws IOException {
+                            respond(exchange, new JWKSet(signingKey.toPublicJWK()).toString());
+                        }
+                    });
+            server.createContext(
+                    "/token",
+                    new HttpHandler() {
+                        @Override
+                        public void handle(HttpExchange exchange) throws IOException {
+                            lastAuthorization =
+                                    exchange.getRequestHeaders().getFirst("Authorization");
+                            String body =
+                                    new String(
+                                            readAll(exchange.getRequestBody()),
+                                            StandardCharsets.UTF_8);
+                            lastForm = parseForm(body);
+                            String json =
+                                    "{\"id_token\":\""
+                                            + idToken(nextClaims)
+                                            + "\","
+                                            + "\"access_token\":\""
+                                            + ACCESS_TOKEN
+                                            + "\","
+                                            + "\"token_type\":\"Bearer\",\"refresh_token\":\"stub-refresh\"}";
+                            respond(exchange, json);
+                        }
+                    });
             server.start();
         } catch (JOSEException failure) {
             throw new IllegalStateException(failure);
@@ -111,8 +135,10 @@ final class StubIdp {
     String idToken(String claimsJson) {
         try {
             JWTClaimsSet claims = JWTClaimsSet.parse(claimsJson);
-            SignedJWT jwt = new SignedJWT(
-                    new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("stub-key").build(), claims);
+            SignedJWT jwt =
+                    new SignedJWT(
+                            new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("stub-key").build(),
+                            claims);
             jwt.sign(new RSASSASigner(signingKey));
             return jwt.serialize();
         } catch (ParseException failure) {
@@ -124,7 +150,9 @@ final class StubIdp {
 
     static String atHash(String value) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.US_ASCII));
+            byte[] digest =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(value.getBytes(StandardCharsets.US_ASCII));
             byte[] half = new byte[16];
             System.arraycopy(digest, 0, half, 0, half.length);
             return Base64.getUrlEncoder().withoutPadding().encodeToString(half);
@@ -135,7 +163,9 @@ final class StubIdp {
 
     static String challenge(String verifier) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            byte[] digest =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(verifier.getBytes(StandardCharsets.US_ASCII));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException(impossible);
@@ -169,7 +199,9 @@ final class StubIdp {
             if (equals < 0) {
                 values.put(decode(pairs[index]), "");
             } else {
-                values.put(decode(pairs[index].substring(0, equals)), decode(pairs[index].substring(equals + 1)));
+                values.put(
+                        decode(pairs[index].substring(0, equals)),
+                        decode(pairs[index].substring(equals + 1)));
             }
         }
         return values;
