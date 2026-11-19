@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -132,8 +131,19 @@ public final class OpsFiles {
         String lower = key.toLowerCase(Locale.ROOT);
         String[] markers =
                 new String[] {
-                    "password", "passwd", "secret", "token", "apikey", "api_key", "authorization",
-                    "credential", "privatekey", "private_key", "cookie", "session", "jwt"
+                    "password",
+                    "passwd",
+                    "secret",
+                    "token",
+                    "apikey",
+                    "api_key",
+                    "authorization",
+                    "credential",
+                    "privatekey",
+                    "private_key",
+                    "cookie",
+                    "session",
+                    "jwt"
                 };
         for (int i = 0; i < markers.length; i++) {
             if (lower.contains(markers[i])) {
@@ -169,8 +179,8 @@ public final class OpsFiles {
     }
 
     /**
-     * Removes credential material from free text. Keys named like secrets are replaced, bearer tokens
-     * and JWTs are masked, and no raw token value survives.
+     * Removes credential material from free text. Keys named like secrets are replaced, bearer
+     * tokens and JWTs are masked, and no raw token value survives.
      */
     public static String sanitizeText(String text) {
         if (text == null || text.isEmpty()) {
@@ -180,7 +190,8 @@ public final class OpsFiles {
         masked = masked.replaceAll("(?i)(bearer\\s+)[A-Za-z0-9._\\-]+", "$1[REDACTED]");
         masked =
                 masked.replaceAll(
-                        "(?i)(eyJ[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+)", "[REDACTED]");
+                        "(?i)(eyJ[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+)",
+                        "[REDACTED]");
         String[] lines = masked.split("\\R", -1);
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
