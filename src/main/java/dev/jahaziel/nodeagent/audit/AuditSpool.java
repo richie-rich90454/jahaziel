@@ -20,51 +20,51 @@ import java.util.stream.Stream;
  * drains finished day files.
  */
 public final class AuditSpool {
-  private final Path stagingDir;
+    private final Path stagingDir;
 
-  /**
-   * Creates the spool.
-   *
-   * @param stagingDir the audit staging directory
-   */
-  public AuditSpool(Path stagingDir) {
-    this.stagingDir = Objects.requireNonNull(stagingDir, "stagingDir");
-  }
+    /**
+     * Creates the spool.
+     *
+     * @param stagingDir the audit staging directory
+     */
+    public AuditSpool(Path stagingDir) {
+        this.stagingDir = Objects.requireNonNull(stagingDir, "stagingDir");
+    }
 
-  /**
-   * Appends one JSON event line for a workspace.
-   *
-   * @param workspaceId the workspace identifier
-   * @param jsonLine the JSON event line without trailing newline
-   */
-  public void append(UUID workspaceId, String jsonLine) {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    if (jsonLine == null || jsonLine.isBlank()) {
-      throw new IllegalArgumentException("jsonLine must not be blank");
+    /**
+     * Appends one JSON event line for a workspace.
+     *
+     * @param workspaceId the workspace identifier
+     * @param jsonLine the JSON event line without trailing newline
+     */
+    public void append(UUID workspaceId, String jsonLine) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        if (jsonLine == null || jsonLine.isBlank()) {
+            throw new IllegalArgumentException("jsonLine must not be blank");
+        }
+        Path file = stagingDir.resolve(workspaceId + "-" + LocalDate.now() + ".jsonl");
+        try {
+            Files.createDirectories(stagingDir);
+            Files.writeString(
+                    file, jsonLine + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException failure) {
+            throw new UncheckedIOException("audit spool failed for " + workspaceId, failure);
+        }
     }
-    Path file = stagingDir.resolve(workspaceId + "-" + LocalDate.now() + ".jsonl");
-    try {
-      Files.createDirectories(stagingDir);
-      Files.writeString(
-          file, jsonLine + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-    } catch (IOException failure) {
-      throw new UncheckedIOException("audit spool failed for " + workspaceId, failure);
-    }
-  }
 
-  /**
-   * Lists spooled files.
-   *
-   * @return the spooled file paths, empty before the first append
-   */
-  public List<Path> spooled() {
-    if (!Files.isDirectory(stagingDir)) {
-      return List.of();
+    /**
+     * Lists spooled files.
+     *
+     * @return the spooled file paths, empty before the first append
+     */
+    public List<Path> spooled() {
+        if (!Files.isDirectory(stagingDir)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.list(stagingDir)) {
+            return files.filter(path -> path.toString().endsWith(".jsonl")).toList();
+        } catch (IOException failure) {
+            throw new UncheckedIOException("audit spool unreadable at " + stagingDir, failure);
+        }
     }
-    try (Stream<Path> files = Files.list(stagingDir)) {
-      return files.filter(path -> path.toString().endsWith(".jsonl")).toList();
-    } catch (IOException failure) {
-      throw new UncheckedIOException("audit spool unreadable at " + stagingDir, failure);
-    }
-  }
 }
