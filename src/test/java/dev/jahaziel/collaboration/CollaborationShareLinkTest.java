@@ -9,9 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+
+import java.util.List;
 
 final class CollaborationShareLinkTest {
     @Test
@@ -105,9 +106,7 @@ final class CollaborationShareLinkTest {
                     }
                 });
         fixture.shares.revoke(
-                CollaborationFixture.WORKSPACE,
-                CollaborationFixture.OWNER,
-                started.shareId());
+                CollaborationFixture.WORKSPACE, CollaborationFixture.OWNER, started.shareId());
         assertThrows(
                 IllegalArgumentException.class,
                 new Executable() {
