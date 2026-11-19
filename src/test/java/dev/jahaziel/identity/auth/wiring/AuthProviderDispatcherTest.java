@@ -45,16 +45,14 @@ final class AuthProviderDispatcherTest {
     }
 
     @Test
-    void usesRegistryOrderWhenConfigIsDerivedFromTheRegistry() {
-        StubPlugin github = new StubPlugin("github");
-        StubPlugin basis = new StubPlugin("basis-auth");
+    void emptyConfigFallsBackEvenWhenRegistryHasProviders() {
         AuthPluginRegistry registry = new AuthPluginRegistry();
-        registry.register(github);
-        registry.register(basis);
+        registry.register(new StubPlugin("github"));
+        registry.register(new StubPlugin("basis-auth"));
         AuthProviderConfig config = AuthProviderConfig.fromSettings(null, registry);
-        assertEquals(Arrays.asList("github", "basis-auth"), config.enabledProviders());
+        assertTrue(config.isEmpty());
         AuthProviderDispatcher dispatcher = new AuthProviderDispatcher(registry, config);
-        assertSame(github, dispatcher.active());
+        assertFalse(dispatcher.handles());
     }
 
     @Test
