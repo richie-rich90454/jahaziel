@@ -83,7 +83,8 @@ public final class ChecksumManifest {
             if (split < 0) {
                 continue;
             }
-            entries.add(new Entry(line.substring(split + 2).trim(), line.substring(0, split).trim()));
+            entries.add(
+                    new Entry(line.substring(split + 2).trim(), line.substring(0, split).trim()));
         }
         return entries;
     }
