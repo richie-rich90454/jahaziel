@@ -232,7 +232,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
             if (!steps.isArray()) {
                 return setupStatus(workspaceId);
             }
-            for (JsonNode step : steps) commands.add(command(step.path("command")));
+            for (JsonNode step : steps) commands.add(command(osCommand(step)));
             if (commands.isEmpty()) {
                 return setupStatus(workspaceId);
             }
@@ -416,13 +416,18 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                                 ? definition.path("port").intValue()
                                 : null;
                 if (ids.add(id)) {
-                    TaskDebugDefinition debug = taskDebugDefinition(definition.get("debug"));
+                    JsonNode osOverride = definition.path("os").path(currentOsKey());
+                    JsonNode debugNode =
+                            osOverride.has("debug")
+                                    ? osOverride.get("debug")
+                                    : definition.get("debug");
+                    TaskDebugDefinition debug = taskDebugDefinition(debugNode);
                     result.add(
                             new TaskDefinition(
                                     id,
                                     requiredLabel(definition.path("label")),
                                     port,
-                                    command(definition.path("command")),
+                                    command(osCommand(definition)),
                                     debug));
                 }
             }
@@ -1381,6 +1386,25 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
             result.add(pack.asString());
         }
         return List.copyOf(result);
+    }
+
+    private static String currentOsKey() {
+        dev.jahaziel.platform.Platform.Os os = Platforms.detect(null).os();
+        if (os == dev.jahaziel.platform.Platform.Os.WINDOWS) {
+            return "windows";
+        }
+        if (os == dev.jahaziel.platform.Platform.Os.MACOS) {
+            return "darwin";
+        }
+        return "linux";
+    }
+
+    private static JsonNode osCommand(JsonNode definition) {
+        JsonNode override = definition.path("os").path(currentOsKey()).path("command");
+        if (override.isArray() && !override.isEmpty()) {
+            return override;
+        }
+        return definition.path("command");
     }
 
     private static List<String> command(JsonNode node) {
