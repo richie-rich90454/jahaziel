@@ -3,10 +3,11 @@
 /// SPDX-License-Identifier: Apache-2.0
 ///
 
-import { api, errorText } from "./api";
+import { api, errorText, isUnavailable } from "./api";
 import { t } from "./i18n";
 import { refreshFiles } from "./files";
-import { state, toast, type DocumentBody } from "./store";
+import { undoHistory } from "./history";
+import { setState, state, toast, type DocumentBody } from "./store";
 
 const selection = new Set<string>();
 const listeners = new Set<() => void>();
@@ -97,9 +98,50 @@ async function finish(): Promise<void> {
     clearSelection();
 }
 
+let remoteUndo = false;
+let bulkUnavailableShown = false;
+
+/** Runs one batched operation on the host; a 404 falls back to per-file calls. */
+async function viaBulk(
+    operation: "copy" | "move" | "delete",
+    paths: string[],
+    extra: Record<string, unknown> = {},
+): Promise<boolean> {
+    const id = state.workspace?.workspaceId;
+    if (!id) return false;
+    try {
+        setState("bulkProgress", `${operation}: 0/${paths.length}`);
+        const { body } = await api<{ applied?: number; skipped?: number } | null>(
+            `/api/v1/workspaces/${id}/bulk`,
+            {
+                method: "POST",
+                body: JSON.stringify({ operation, paths, ...extra }),
+            },
+        );
+        const applied = body?.applied ?? paths.length;
+        const skipped = body?.skipped ?? 0;
+        setState("bulkProgress", `${operation}: ${applied} applied, ${skipped} skipped`);
+        remoteUndo = true;
+        return true;
+    } catch (failure) {
+        if (!isUnavailable(failure)) throw failure;
+        if (!bulkUnavailableShown) {
+            bulkUnavailableShown = true;
+            toast("Unavailable on this host — using local file operations.");
+        }
+        return false;
+    } finally {
+        window.setTimeout(() => setState("bulkProgress", ""), 4000);
+    }
+}
+
 export async function bulkCopy(directory: string): Promise<void> {
     const paths = selectedPaths();
     if (!paths.length) return;
+    if (await viaBulk("copy", paths, { destination: directory })) {
+        await finish();
+        return;
+    }
     const created: string[] = [];
     for (const path of paths) {
         const target = destination(path, directory);
@@ -118,6 +160,10 @@ export async function bulkCopy(directory: string): Promise<void> {
 export async function bulkMove(directory: string): Promise<void> {
     const paths = selectedPaths();
     if (!paths.length) return;
+    if (await viaBulk("move", paths, { destination: directory })) {
+        await finish();
+        return;
+    }
     const moved: Array<{ from: string; to: string }> = [];
     for (const path of paths) {
         const target = destination(path, directory);
@@ -136,6 +182,10 @@ export async function bulkMove(directory: string): Promise<void> {
 export async function bulkDelete(): Promise<void> {
     const paths = selectedPaths();
     if (!paths.length) return;
+    if (await viaBulk("delete", paths)) {
+        await finish();
+        return;
+    }
     const removed: Array<{ path: string; content: string; version: string }> = [];
     for (const path of paths) {
         try {
@@ -151,6 +201,12 @@ export async function bulkDelete(): Promise<void> {
 }
 
 export async function undoBulkOperation(): Promise<void> {
+    if (remoteUndo && state.workspace) {
+        await undoHistory();
+        remoteUndo = false;
+        await finish();
+        return;
+    }
     const last = history.pop();
     if (!last) return;
     try {
