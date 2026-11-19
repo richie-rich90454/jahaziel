@@ -12,23 +12,27 @@ import dev.jahaziel.identity.auth.ApiTokenPlugin;
 import dev.jahaziel.identity.auth.AuthPluginRegistry;
 import dev.jahaziel.identity.auth.AuthProviderPlugin;
 import dev.jahaziel.identity.auth.BasisAuthPlugin;
-import dev.jahaziel.identity.auth.GitHubAuthPlugin;
 import dev.jahaziel.identity.auth.GenericOidcPlugin;
+import dev.jahaziel.identity.auth.GitHubAuthPlugin;
 import dev.jahaziel.identity.auth.GoogleAuthPlugin;
 import dev.jahaziel.identity.auth.LdapPlugin;
 import dev.jahaziel.identity.auth.LocalPasswordPlugin;
 import dev.jahaziel.identity.auth.MicrosoftAuthPlugin;
 import dev.jahaziel.identity.auth.PasskeyPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-/** Exercises the config gate without booting a Spring context or contacting an identity provider. */
+/**
+ * Exercises the config gate without booting a Spring context or contacting an identity provider.
+ */
 class AuthProviderGateTest {
     @TempDir Path dataDir;
 
@@ -88,7 +92,8 @@ class AuthProviderGateTest {
         providers.add(new GoogleAuthPlugin());
 
         AuthPluginRegistry registry =
-                new PluginWiringConfig().authPluginRegistry(context, new AuthProviderGate(), providers);
+                new PluginWiringConfig()
+                        .authPluginRegistry(context, new AuthProviderGate(), providers);
 
         assertEquals(2, registry.all().size());
         assertEquals("local", registry.all().get(0).descriptor().name());
