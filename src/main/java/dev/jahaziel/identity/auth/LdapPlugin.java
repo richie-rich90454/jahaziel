@@ -13,6 +13,7 @@ import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,7 @@ public final class LdapPlugin extends AuthProviderPlugin {
                     "ldap",
                     "1",
                     Collections.<String>emptyList(),
-                    Collections.singletonList(AuthCapability.PASSWORD));
+                    Arrays.asList(AuthCapability.PASSWORD, AuthCapability.MFA_ASSURANCE));
 
     private final SecureRandom random = new SecureRandom();
     private LdapConfig config;
