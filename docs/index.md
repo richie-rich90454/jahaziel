@@ -18,7 +18,7 @@ Jahaziel keeps source files on the server and serves an editor, authenticated te
 - [Use the workbench](./guide/using-jahaziel.md) to create a workspace, edit and save files, run commands, and preview a project.
 - [Integrate with basis-auth](./basis_auth_setup_guide.md) for the downstream IdP contract: endpoints, token claims, backchannel logout, scopes, and secret rotation.
 - [Check platforms and supervisors](./guide/platforms.md) for per-OS process and port behavior.
-- [Review the current product plan](./plan.md) and [release acceptance checklist](./operations/acceptance.md).
+- [Review the current product plan](./plan.md), [release acceptance checklist](./operations/acceptance.md) and [release acceptance record](./operations/release-acceptance.md).
 
 ## What it includes
 
