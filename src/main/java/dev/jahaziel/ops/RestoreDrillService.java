@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.ops;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -31,7 +30,8 @@ public final class RestoreDrillService {
         private final String reason;
 
         /** Creates a report. */
-        public RestoreReport(boolean success, String backup, int files, long elapsedMillis, String reason) {
+        public RestoreReport(
+                boolean success, String backup, int files, long elapsedMillis, String reason) {
             this.success = success;
             this.backup = backup;
             this.files = files;
@@ -113,14 +113,17 @@ public final class RestoreDrillService {
         ScheduledBackupService backups = new ScheduledBackupService(dataDir, clock);
         Path latest = backups.latest();
         if (latest == null) {
-            return new RestoreReport(false, "", 0, System.currentTimeMillis() - started, "no backup found");
+            return new RestoreReport(
+                    false, "", 0, System.currentTimeMillis() - started, "no backup found");
         }
         String name = latest.getFileName().toString();
-        Path manifest = backupDir.resolve(name.substring(0, name.length() - 4) + ".manifest.sha256");
+        Path manifest =
+                backupDir.resolve(name.substring(0, name.length() - 4) + ".manifest.sha256");
         Map<String, byte[]> entries = ZipUtil.readEntries(latest);
         if (!OpsFiles.contained(backupDir, manifest)
                 || !ChecksumManifest.verifyEntries(entries, manifest)) {
-            return new RestoreReport(false, name, 0, System.currentTimeMillis() - started, "integrity check failed");
+            return new RestoreReport(
+                    false, name, 0, System.currentTimeMillis() - started, "integrity check failed");
         }
         String stamp = Instant.now(clock).atZone(ZoneId.of("UTC")).format(STAMP);
         Path target = drillDir.resolve("drill-" + stamp);
@@ -130,7 +133,11 @@ public final class RestoreDrillService {
         try {
             List<String> extracted = ZipUtil.unzip(latest, target);
             return new RestoreReport(
-                    true, name, extracted.size(), System.currentTimeMillis() - started, "restored and verified");
+                    true,
+                    name,
+                    extracted.size(),
+                    System.currentTimeMillis() - started,
+                    "restored and verified");
         } finally {
             OpsFiles.deleteTree(drillDir, target);
         }
