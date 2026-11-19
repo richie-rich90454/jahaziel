@@ -9,6 +9,6 @@ package dev.jahaziel.networking.api;
  * Reconciliation is idempotent, so it is safe to run on every change and on a timer.
  */
 public interface GatewayRouteService {
-  /** Reconciles the gateway routes with the current running workspaces and their ports. */
-  void reconcile();
+    /** Reconciles the gateway routes with the current running workspaces and their ports. */
+    void reconcile();
 }
