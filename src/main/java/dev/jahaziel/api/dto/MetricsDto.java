@@ -19,36 +19,36 @@ import dev.jahaziel.monitoring.api.HourlyRollup;
  * @param processCount process count
  */
 public record MetricsDto(
-    double cpuUsagePercent,
-    long memoryUsedBytes,
-    long memoryPeakBytes,
-    long diskReadBytesPerSec,
-    long networkRxBytesPerSec,
-    long networkTxBytesPerSec,
-    int processCount) {
-  /**
-   * Maps a rollup to a DTO.
-   *
-   * @param rollup the rollup
-   * @return the DTO
-   */
-  public static MetricsDto from(HourlyRollup rollup) {
-    return new MetricsDto(
-        rollup.cpuAvgPercent(),
-        rollup.memoryAvgMib() * 1024 * 1024,
-        rollup.memoryMaxMib() * 1024 * 1024,
-        rollup.diskReadAvgBps(),
-        rollup.networkRxAvgBps(),
-        rollup.networkTxAvgBps(),
-        rollup.processMax());
-  }
+        double cpuUsagePercent,
+        long memoryUsedBytes,
+        long memoryPeakBytes,
+        long diskReadBytesPerSec,
+        long networkRxBytesPerSec,
+        long networkTxBytesPerSec,
+        int processCount) {
+    /**
+     * Maps a rollup to a DTO.
+     *
+     * @param rollup the rollup
+     * @return the DTO
+     */
+    public static MetricsDto from(HourlyRollup rollup) {
+        return new MetricsDto(
+                rollup.cpuAvgPercent(),
+                rollup.memoryAvgMib() * 1024 * 1024,
+                rollup.memoryMaxMib() * 1024 * 1024,
+                rollup.diskReadAvgBps(),
+                rollup.networkRxAvgBps(),
+                rollup.networkTxAvgBps(),
+                rollup.processMax());
+    }
 
-  /**
-   * Returns zero metrics. Served when no rollup exists yet.
-   *
-   * @return the zero DTO
-   */
-  public static MetricsDto zero() {
-    return new MetricsDto(0, 0, 0, 0, 0, 0, 0);
-  }
+    /**
+     * Returns zero metrics. Served when no rollup exists yet.
+     *
+     * @return the zero DTO
+     */
+    public static MetricsDto zero() {
+        return new MetricsDto(0, 0, 0, 0, 0, 0, 0);
+    }
 }
