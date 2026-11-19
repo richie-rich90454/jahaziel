@@ -19,9 +19,7 @@ public final class LinuxProcessEnvironment extends ProcessEnvironment {
     private final String setsid;
 
     public LinuxProcessEnvironment() {
-        this(
-                Files.isExecutable(Paths.get("/bin/bash")) ? "/bin/bash" : "/bin/sh",
-                findSetsid());
+        this(Files.isExecutable(Paths.get("/bin/bash")) ? "/bin/bash" : "/bin/sh", findSetsid());
     }
 
     LinuxProcessEnvironment(String shell, String setsid) {
