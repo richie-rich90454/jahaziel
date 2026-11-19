@@ -26,6 +26,43 @@ the real-iPad acceptance gate below.
 - Workbench bundle size: recorded by CI
 - Server target: Linux x64 / Linux arm64
 
+## Automated per-OS acceptance runner
+
+`tools/deployment-acceptance.cjs` exercises a packaged jar end to end without
+installing anything on the host. It needs only JDK 25 and Node 24 on `PATH`
+(no WSL, no global packages, no services). Run it from the repository root:
+
+```bash
+node tools/deployment-acceptance.cjs target/jahaziel.jar
+# place the scratch run beside a chosen data location instead of the repo cache:
+node tools/deployment-acceptance.cjs target/jahaziel.jar --data-dir /srv/jahaziel/data
+```
+
+The tool copies the jar into a fresh `run-*` scratch directory (repo-local
+`.cache/deployment-acceptance/` by default), writes `.env` and all data there,
+boots `--demo` on a free loopback port, and runs the checks below over HTTP.
+It stops its server and workspace task processes (POSIX process group,
+Windows `taskkill /T /F`), removes the scratch directory in a `finally`
+block, and leaves no processes, archives, or temporary directories behind.
+CI runs the same script on native ubuntu-26.04 (x64/arm64), macos-15,
+macos-15-intel, and windows-2025 runners using only setup actions.
+
+It proves: `init`; loopback boot to actuator `UP`; demo sign-in and
+`/api/v1/me`; template listing and workspace creation; file list, ETag read,
+conditional save, and stale-write rejection; task run and `task-runs/latest`;
+preview candidate discovery and task-process cleanup; snapshot create/list;
+admin diagnostics and admin API reachability; logout; jar-adjacent backup;
+a restore drill that removes the scratch `data/` (snapshots are read-only) and
+restores it from the archive, and a fresh-boot read of the restored file. The
+task-run check uses the bundled `node` template, so Node must be on `PATH` (as
+it is for the runner).
+
+It does **not** prove real identity-provider login, TLS/DNS, or MFA-gated
+production admin access (demo mode opens the admin dashboard), supervisor
+templates such as launchd or WinSW, language packs, debugger or terminal
+interactivity, multi-node operation, or any browser/touch behavior. The
+physical-iPad gate below stays a separate, manual release requirement.
+
 ## Packaged workflow checklist
 
 1. Initialize a fresh data directory and start the packaged jar.
