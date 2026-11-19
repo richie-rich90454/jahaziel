@@ -16,11 +16,17 @@ public final class HttpResult {
     private final int status;
     private final Map<String, String> headers;
     private final String body;
+    private final String subject;
 
     private HttpResult(int status, Map<String, String> headers, String body) {
+        this(status, headers, body, null);
+    }
+
+    private HttpResult(int status, Map<String, String> headers, String body, String subject) {
         this.status = status;
         this.headers = Collections.unmodifiableMap(new LinkedHashMap<String, String>(headers));
         this.body = body;
+        this.subject = subject;
     }
 
     /** The single standard rejection for revoked, expired, or malformed access tokens. */
@@ -37,6 +43,11 @@ public final class HttpResult {
 
     public static HttpResult noContent() {
         return new HttpResult(204, new LinkedHashMap<String, String>(), "");
+    }
+
+    /** A 204 logout carrying the verified subject so the BFF can end linked sessions. */
+    public static HttpResult loggedOut(String subject) {
+        return new HttpResult(204, new LinkedHashMap<String, String>(), "", subject);
     }
 
     public static HttpResult ok() {
@@ -59,5 +70,10 @@ public final class HttpResult {
 
     public String body() {
         return body;
+    }
+
+    /** The subject of a verified logout, or null for other results. */
+    public String subject() {
+        return subject;
     }
 }
