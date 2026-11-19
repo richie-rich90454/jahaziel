@@ -24,6 +24,7 @@ import {
     focusDiagnostic,
     hasUndo,
     installPasteUpload,
+    installUploadInput,
     loadDebugLaunchConfigurations,
     selectedPaths,
     loadGitDiff,
@@ -356,8 +357,11 @@ export function sidebarMarkup(): string {
         <button id="bulk-delete" class="text-action" type="button">${t("bulk.delete")}</button>
         <button id="bulk-zip" class="text-action" type="button">${t("bulk.zip")}</button>
         <button id="bulk-undo" class="text-action" type="button" disabled>${t("bulk.undo")}</button>
+        <span id="bulk-progress" class="bulk-progress" aria-live="polite"></span>
       </div>
-      <div id="upload-zone" class="upload-zone">${t("upload.drop")} · ${t("upload.paste")}</div>
+      <div id="upload-zone" class="upload-zone">
+        <label class="upload-picker"><span>${t("upload.drop")} · ${t("upload.paste")}</span><input id="upload-input" type="file" multiple aria-label="Upload files" /></label>
+      </div>
       <ul id="file-tree" class="file-tree"></ul>
 
       <section class="task-panel" aria-label="Workspace setup and run tasks">
@@ -530,6 +534,7 @@ export function bindSidebar(): void {
     bindBulkActions();
     bindGitExtras();
     installPasteUpload(byId("file-tree"));
+    installUploadInput(byId<HTMLInputElement>("upload-input"));
     subscribeLocale(() => {
         for (const button of Array.from(
             document.querySelectorAll<HTMLButtonElement>(".file-actions button"),
@@ -811,6 +816,7 @@ function renderBulkCount(): void {
 
 function bindBulkActions(): void {
     subscribeSelection(renderBulkCount);
+    bindText(byId("bulk-progress"), () => state.bulkProgress);
     renderBulkCount();
     const destination = (): string =>
         byId<HTMLInputElement>("bulk-destination").value.trim() || ".";
