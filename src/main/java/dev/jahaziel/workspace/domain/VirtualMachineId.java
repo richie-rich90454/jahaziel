@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the identifier value
  */
 public record VirtualMachineId(UUID value) {
-  public VirtualMachineId {
-    Objects.requireNonNull(value, "value");
-  }
+    public VirtualMachineId {
+        Objects.requireNonNull(value, "value");
+    }
 }
