@@ -5,6 +5,7 @@
 package dev.jahaziel.cli;
 
 import dev.jahaziel.language.api.LanguageRuntimeRequirements;
+import dev.jahaziel.ops.ConfigValidationService;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -14,12 +15,15 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.DriverManager;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -70,6 +74,210 @@ public final class Doctor {
     checks.add(noStray(jarFile, dataDir));
     checks.add(gitCli());
     return List.copyOf(checks);
+  }
+
+  /**
+   * Runs the base checks plus the extended preflight checks: runtime availability, the update
+   * channel, pinned catalog checksums, IdP settings, data subdirectories, disk headroom and offline
+   * capabilities. Config checks are delegated to {@link ConfigValidationService}.
+   *
+   * @param jarDir the directory holding the jar and .env
+   * @param dataDir the data root
+   * @param port the API port to probe
+   * @param fileEnv the parsed .env values
+   * @param jarFile the running jar, for the stray-process scan
+   * @return the results in stable order
+   */
+  public static List<Check> runExtended(
+      Path jarDir, Path dataDir, int port, Map<String, String> fileEnv, Path jarFile) {
+    List<Check> checks = new ArrayList<Check>(run(jarDir, dataDir, port, fileEnv, jarFile));
+    checks.add(runtime());
+    checks.add(channel(fileEnv));
+    List<ConfigValidationService.Issue> issues = validationIssues(dataDir, fileEnv);
+    checks.add(issueCheck("catalog", issues, "catalog.", "pinned catalog checksums verified"));
+    checks.add(issueCheck("idp", issues, "idp", "identity-provider configuration valid"));
+    checks.add(issueCheck("dataDirWritable", issues, "dataDir", "data directory is writable"));
+    checks.add(dataSubdirs(dataDir));
+    checks.add(headroom(dataDir));
+    checks.add(capabilities());
+    return Collections.unmodifiableList(checks);
+  }
+
+  private static final long MIN_HEADROOM = 256L * 1024L * 1024L;
+
+  static Check runtime() {
+    String os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ROOT);
+    String arch = System.getProperty("os.arch", "unknown").toLowerCase(Locale.ROOT);
+    boolean linux = os.contains("linux");
+    boolean x64 = arch.contains("x86_64") || arch.contains("amd64") || arch.contains("x64");
+    boolean arm64 = arch.contains("aarch64") || arch.contains("arm64");
+    if (linux && !x64 && !arm64) {
+      return new Check(
+          "runtime",
+          false,
+          "unsupported Linux runtime architecture: " + arch,
+          "use a Linux x64 or arm64 runtime");
+    }
+    String detail =
+        "runtime available on "
+            + os
+            + "/"
+            + arch
+            + (linux ? "" : "; production servers target Linux x64 and arm64");
+    return new Check("runtime", true, detail, "");
+  }
+
+  static Check channel(Map<String, String> fileEnv) {
+    Map<String, String> file = fileEnv == null ? Collections.<String, String>emptyMap() : fileEnv;
+    String value = Channels.resolve(Cli.merge(file, System.getenv()));
+    return new Check(
+        "channel",
+        true,
+        "update channel="
+            + value
+            + (Channels.isPinned(value) ? " (pinned)" : " (tracks latest)"),
+        "");
+  }
+
+  private static List<ConfigValidationService.Issue> validationIssues(
+      Path dataDir, Map<String, String> fileEnv) {
+    Path root = dataDir.toAbsolutePath().normalize();
+    Path catalogDir = root.resolve("catalog");
+    Map<String, String> catalog = pinnedCatalog(catalogDir.resolve("pinned.sha256"));
+    Map<String, String> env = fileEnv == null ? Collections.<String, String>emptyMap() : fileEnv;
+    ConfigValidationService.IdpConfig idp =
+        new ConfigValidationService.IdpConfig(
+            firstValue(env, "JAHAZIEL_IDP_ISSUER", "BASIS_AUTH_ISSUER"),
+            firstValue(env, "JAHAZIEL_IDP_CLIENT_ID", "BASIS_CLIENT_ID"),
+            firstValue(env, "JAHAZIEL_IDP_CLIENT_SECRET", "BASIS_CLIENT_SECRET"));
+    return new ConfigValidationService(root)
+        .check(
+            System.getProperty("os.name", "Linux"),
+            System.getProperty("os.arch", "amd64"),
+            catalog,
+            catalogDir,
+            idp);
+  }
+
+  private static Map<String, String> pinnedCatalog(Path file) {
+    Map<String, String> catalog = new LinkedHashMap<String, String>();
+    if (!Files.isRegularFile(file)) {
+      return catalog;
+    }
+    try {
+      for (String raw : new String(Files.readAllBytes(file), StandardCharsets.UTF_8).split("\\R", -1)) {
+        String line = raw.trim();
+        if (line.isEmpty() || line.startsWith("#")) {
+          continue;
+        }
+        int equals = line.indexOf('=');
+        if (equals <= 0) {
+          continue;
+        }
+        String name = line.substring(0, equals).trim();
+        String digest = line.substring(equals + 1).trim();
+        if (!name.isEmpty() && !digest.isEmpty()) {
+          catalog.put(name, digest);
+        }
+      }
+    } catch (IOException unreadable) {
+      return new LinkedHashMap<String, String>();
+    }
+    return catalog;
+  }
+
+  private static String firstValue(Map<String, String> env, String primary, String fallback) {
+    String value = env.get(primary);
+    if (value == null || value.trim().isEmpty()) {
+      value = env.get(fallback);
+    }
+    return value == null ? "" : value.trim();
+  }
+
+  private static Check issueCheck(
+      String name,
+      List<ConfigValidationService.Issue> issues,
+      String prefix,
+      String okDetail) {
+    List<String> messages = new ArrayList<String>();
+    String fix = "";
+    for (int i = 0; i < issues.size(); i++) {
+      ConfigValidationService.Issue issue = issues.get(i);
+      if (issue.name().startsWith(prefix)) {
+        messages.add(issue.describe());
+        if (fix.isEmpty()) {
+          fix = issue.fix();
+        }
+      }
+    }
+    if (messages.isEmpty()) {
+      return new Check(name, true, okDetail, "");
+    }
+    return new Check(name, false, String.join("; ", messages), fix);
+  }
+
+  static Check dataSubdirs(Path dataDir) {
+    String[] names = {
+      "logs", "tmp", "workspaces", "backups", "users", "support",
+      "gdpr", "index", "catalog", "outbox", "restore-drills", "update"
+    };
+    Path root = dataDir.toAbsolutePath().normalize();
+    List<String> bad = new ArrayList<String>();
+    List<String> locations = new ArrayList<String>();
+    for (int i = 0; i < names.length; i++) {
+      Path dir = root.resolve(names[i]);
+      try {
+        Files.createDirectories(dir);
+      } catch (IOException failure) {
+        bad.add(names[i] + ": " + failure.getMessage());
+        continue;
+      }
+      if (!Files.isDirectory(dir) || !Files.isWritable(dir)) {
+        bad.add(names[i] + " is not writable: " + dir);
+      }
+      locations.add(names[i] + "=" + dir);
+    }
+    if (!bad.isEmpty()) {
+      return new Check(
+          "dataDirs",
+          false,
+          String.join("; ", bad),
+          "fix ownership and permissions under " + root);
+    }
+    return new Check(
+        "dataDirs", true, "data locations: " + String.join(", ", locations), "");
+  }
+
+  static Check headroom(Path dataDir) {
+    try {
+      FileStore store = Files.getFileStore(dataDir.toAbsolutePath().normalize());
+      long usable = store.getUsableSpace();
+      if (usable < MIN_HEADROOM) {
+        return new Check(
+            "disk",
+            false,
+            "only " + usable + " usable bytes at " + dataDir,
+            "free at least " + MIN_HEADROOM + " bytes under " + dataDir);
+      }
+      return new Check("disk", true, usable + " usable bytes at " + dataDir, "");
+    } catch (IOException failure) {
+      return new Check(
+          "disk",
+          false,
+          "cannot determine disk space at " + dataDir + ": " + failure.getMessage(),
+          "check that " + dataDir + " is on a mounted filesystem");
+    }
+  }
+
+  static Check capabilities() {
+    if (Cli.isOffline()) {
+      return new Check(
+          "capabilities",
+          true,
+          "offline: tool downloads unavailable (opencode, ripgrep, language-packs, updates)",
+          "");
+    }
+    return new Check("capabilities", true, "tool downloads enabled (offline flag not set)", "");
   }
 
   /**
