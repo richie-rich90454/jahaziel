@@ -87,6 +87,7 @@ import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -374,4 +375,378 @@ public class AppConfig {
     scheduler.register(new GatewayRouteSyncJob(gatewayRoutes));
     return scheduler;
   }
+
+    /** Returns the agent's persistent store. */
+    @Bean
+    public dev.jahaziel.agent.AgentStore agentStore(
+            @Value("${jahaziel.storage.root}") String storageRoot,
+            tools.jackson.databind.ObjectMapper json) {
+        return new dev.jahaziel.agent.AgentStore(Path.of(storageRoot), json);
+    }
+
+    /** Returns the append-only audit sink used by agent decisions. */
+    @Bean
+    public dev.jahaziel.spi.AuditSink auditSink(AuditService audit) {
+        return new AuditSinkAdapter(audit);
+    }
+
+    /** Returns agent decision auditing. */
+    @Bean
+    public dev.jahaziel.agent.AgentAudit agentAudit(dev.jahaziel.spi.AuditSink sink) {
+        return new dev.jahaziel.agent.AgentAudit(sink);
+    }
+
+    /** Returns agent sessions backed by workspace PTYs. */
+    @Bean
+    public dev.jahaziel.agent.session.AgentSessionService agentSessions(
+            dev.jahaziel.agent.AgentStore store, AgentToolService tools) {
+        return new dev.jahaziel.agent.session.AgentSessionService(store, tools);
+    }
+
+    /** Returns the prompt library. */
+    @Bean
+    public dev.jahaziel.agent.prompt.PromptLibrary promptLibrary(dev.jahaziel.agent.AgentStore store) {
+        return new dev.jahaziel.agent.prompt.PromptLibrary(store);
+    }
+
+    /** Returns the strict patch parser. */
+    @Bean
+    public dev.jahaziel.agent.diff.StrictPatchParser strictPatchParser(
+            dev.jahaziel.agent.AgentStore store) {
+        return new dev.jahaziel.agent.diff.StrictPatchParser(store);
+    }
+
+    /** Returns diff review backed by the patch parser. */
+    @Bean
+    public dev.jahaziel.agent.diff.DiffReviewService diffReviews(
+            dev.jahaziel.agent.AgentStore store,
+            dev.jahaziel.agent.diff.StrictPatchParser parser,
+            dev.jahaziel.agent.AgentAudit audit) {
+        return new dev.jahaziel.agent.diff.DiffReviewService(store, parser, audit);
+    }
+
+    /** Returns agent chat history. */
+    @Bean
+    public dev.jahaziel.agent.chat.AgentChatService agentChat(dev.jahaziel.agent.AgentStore store) {
+        return new dev.jahaziel.agent.chat.AgentChatService(store);
+    }
+
+    /** Returns the configuration-driven model allowlist. */
+    @Bean
+    public dev.jahaziel.agent.model.ModelCatalog modelCatalog(
+            @Value("${jahaziel.agent.models:}") String allowedIds,
+            @Value("${jahaziel.agent.local-endpoint:}") String endpoint) {
+        return new dev.jahaziel.agent.model.ModelCatalog(
+                ConfigValues.csv(allowedIds), ConfigValues.emptyToNull(endpoint));
+    }
+
+    /** Returns per-agent usage meters. */
+    @Bean
+    public dev.jahaziel.agent.usage.UsageMeters usageMeters(dev.jahaziel.agent.AgentStore store) {
+        return new dev.jahaziel.agent.usage.UsageMeters(store);
+    }
+
+    /** Returns bounded SQLite browsing under the data root. */
+    @Bean
+    public dev.jahaziel.datatools.SqliteBrowser sqliteBrowser(
+            @Value("${jahaziel.storage.root}") String storageRoot) {
+        return new dev.jahaziel.datatools.SqliteBrowser(Path.of(storageRoot));
+    }
+
+    /** Returns the stateless CSV parser. */
+    @Bean
+    public dev.jahaziel.datatools.CsvReader csvReader() {
+        return new dev.jahaziel.datatools.CsvReader();
+    }
+
+    /** Returns workspace-rooted CSV writing. */
+    @Bean
+    public dev.jahaziel.datatools.CsvWriter csvWriter(WorkspaceFiles files) {
+        return new dev.jahaziel.datatools.CsvWriter(files);
+    }
+
+    /** Returns bounded notebook execution. */
+    @Bean
+    public dev.jahaziel.datatools.NotebookRunner notebookRunner(
+            @Value("${jahaziel.storage.root}") String storageRoot,
+            dev.jahaziel.workspace.api.WorkspaceTaskService tasks) {
+        return new dev.jahaziel.datatools.NotebookRunner(Path.of(storageRoot), tasks);
+    }
+
+    /** Returns the content search index. */
+    @Bean
+    public dev.jahaziel.datatools.SearchIndex searchIndex(
+            @Value("${jahaziel.storage.root}") String storageRoot,
+            @Value("${jahaziel.search.ignore-patterns:}") String ignorePatterns) {
+        return new dev.jahaziel.datatools.SearchIndex(
+                Path.of(storageRoot), ConfigValues.csv(ignorePatterns));
+    }
+
+    /** Returns file history over existing snapshots. */
+    @Bean
+    public dev.jahaziel.datatools.FileHistoryService fileHistory(
+            SnapshotService snapshots, WorkspaceFiles files) {
+        return new dev.jahaziel.datatools.FileHistoryService(snapshots, files);
+    }
+
+    /** Returns the JDBC-backed collaboration store. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.CollaborationStore.class)
+    public dev.jahaziel.collaboration.CollaborationStore collaborationStore(
+            javax.sql.DataSource dataSource) {
+        return new dev.jahaziel.collaboration.JdbcCollaborationStore(dataSource);
+    }
+
+    /** Returns collaboration auditing. */
+    @Bean
+    public dev.jahaziel.collaboration.CollaborationAudit collaborationAudit(
+            dev.jahaziel.collaboration.CollaborationStore store) {
+        return new dev.jahaziel.collaboration.CollaborationAudit(store);
+    }
+
+    /** Returns membership management. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.MembershipService.class)
+    public dev.jahaziel.collaboration.MembershipService membership(
+            dev.jahaziel.collaboration.CollaborationStore store,
+            dev.jahaziel.collaboration.CollaborationAudit audit) {
+        return new dev.jahaziel.collaboration.MembershipService(store, audit);
+    }
+
+    /** Returns live presence tracking. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.PresenceService.class)
+    public dev.jahaziel.collaboration.PresenceService presence() {
+        return new dev.jahaziel.collaboration.PresenceService();
+    }
+
+    /** Returns file comments and replies. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.CommentService.class)
+    public dev.jahaziel.collaboration.CommentService comments(
+            dev.jahaziel.collaboration.CollaborationStore store,
+            dev.jahaziel.collaboration.CollaborationAudit audit,
+            dev.jahaziel.collaboration.MembershipService membership) {
+        return new dev.jahaziel.collaboration.CommentService(store, audit, membership);
+    }
+
+    /** Returns live session control. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.LiveSessionService.class)
+    public dev.jahaziel.collaboration.LiveSessionService liveSessions(
+            dev.jahaziel.collaboration.CollaborationStore store,
+            dev.jahaziel.collaboration.CollaborationAudit audit,
+            dev.jahaziel.collaboration.MembershipService membership) {
+        return new dev.jahaziel.collaboration.LiveSessionService(store, audit, membership);
+    }
+
+    /** Returns persisted share links. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.ShareLinkService.class)
+    public dev.jahaziel.collaboration.ShareLinkService shareLinks(
+            dev.jahaziel.collaboration.CollaborationStore store,
+            dev.jahaziel.collaboration.CollaborationAudit audit,
+            dev.jahaziel.collaboration.MembershipService membership) {
+        return new dev.jahaziel.collaboration.ShareLinkService(store, audit, membership);
+    }
+
+    /** Returns the collaboration controller. */
+    @Bean
+    @ConditionalOnMissingBean(dev.jahaziel.collaboration.CollaborationController.class)
+    public dev.jahaziel.collaboration.CollaborationController collaborationController(
+            dev.jahaziel.collaboration.MembershipService membership,
+            dev.jahaziel.collaboration.PresenceService presence,
+            dev.jahaziel.collaboration.CommentService comments,
+            dev.jahaziel.collaboration.LiveSessionService sessions,
+            dev.jahaziel.collaboration.ShareLinkService shares,
+            dev.jahaziel.collaboration.CollaborationStore store) {
+        return new dev.jahaziel.collaboration.CollaborationController(
+                membership, presence, comments, sessions, shares, store);
+    }
+
+    /** Returns the JDBC-backed club session store. */
+    @Bean
+    public dev.jahaziel.club.persistence.ClubSessionStore clubSessionStore(
+            javax.sql.DataSource dataSource) {
+        return new dev.jahaziel.club.persistence.ClubSessionStore(dataSource);
+    }
+
+    /** Returns the stateless tutorial parser. */
+    @Bean
+    public dev.jahaziel.club.tutorial.TutorialParser tutorialParser() {
+        return new dev.jahaziel.club.tutorial.TutorialParser();
+    }
+
+    /** Returns lesson step verification. */
+    @Bean
+    public dev.jahaziel.club.tutorial.StepVerifier stepVerifier(
+            dev.jahaziel.workspace.api.WorkspaceTaskService tasks) {
+        return new dev.jahaziel.club.tutorial.StepVerifier(tasks);
+    }
+
+    /** Returns club progress storage under the data root. */
+    @Bean
+    public dev.jahaziel.club.tutorial.ProgressStore progressStore(
+            @Value("${jahaziel.storage.root}") String storageRoot) {
+        return new dev.jahaziel.club.tutorial.ProgressStore(
+                Path.of(storageRoot, "club", "progress"));
+    }
+
+    /** Returns the curated showcase gallery. */
+    @Bean
+    public dev.jahaziel.club.showcase.ShowcaseGallery showcaseGallery(
+            AuthorizationService authorization) {
+        return new dev.jahaziel.club.showcase.ShowcaseGallery(authorization);
+    }
+
+    /** Returns checkpoint submission handling. */
+    @Bean
+    public dev.jahaziel.club.checkpoint.CheckpointService checkpoints(
+            SnapshotService snapshots,
+            dev.jahaziel.club.showcase.ShowcaseGallery gallery,
+            AuthorizationService authorization) {
+        return new dev.jahaziel.club.checkpoint.CheckpointService(snapshots, gallery, authorization);
+    }
+
+    /** Returns club moderation state. */
+    @Bean
+    public dev.jahaziel.club.moderation.ModerationService moderation(
+            @Value("${jahaziel.storage.root}") String storageRoot) {
+        return new dev.jahaziel.club.moderation.ModerationService(Path.of(storageRoot, "club"));
+    }
+
+    /** Returns the stateless session exporter. */
+    @Bean
+    public dev.jahaziel.club.export.SessionExporter sessionExporter() {
+        return new dev.jahaziel.club.export.SessionExporter();
+    }
+
+    /** Returns club session orchestration. */
+    @Bean
+    public dev.jahaziel.club.session.ClubSessionService clubSessions(
+            WorkspaceService workspaces,
+            dev.jahaziel.workspace.api.WorkspaceTaskService tasks,
+            @Value("${jahaziel.node.id:local}") String nodeId) {
+        return new dev.jahaziel.club.session.ClubSessionService(
+                workspaces, tasks, new dev.jahaziel.node.domain.NodeId(nodeId));
+    }
+
+    /** Returns the club facade. */
+    @Bean
+    public dev.jahaziel.club.api.ClubService club(
+            dev.jahaziel.club.session.ClubSessionService sessions,
+            dev.jahaziel.club.tutorial.StepVerifier verifier,
+            dev.jahaziel.club.tutorial.ProgressStore progress,
+            dev.jahaziel.club.checkpoint.CheckpointService checkpoints,
+            dev.jahaziel.club.export.SessionExporter exporter) {
+        return new dev.jahaziel.club.api.ClubService(
+                sessions, verifier, progress, checkpoints, exporter);
+    }
+
+    /** Returns startup configuration validation. */
+    @Bean
+    public dev.jahaziel.ops.ConfigValidationService configValidation(
+            @Value("${jahaziel.storage.root}") String storageRoot) {
+        return new dev.jahaziel.ops.ConfigValidationService(Path.of(storageRoot));
+    }
+
+    /** Returns structured operational logging. */
+    @Bean
+    public dev.jahaziel.ops.StructuredLogger structuredLogger(
+            @Value("${jahaziel.storage.root}") String storageRoot,
+            @Value("${jahaziel.ops.log-max-bytes:10485760}") long maxBytes,
+            Clock clock) {
+        return new dev.jahaziel.ops.StructuredLogger(Path.of(storageRoot), maxBytes, clock);
+    }
+
+    /** Returns support-bundle creation. */
+    @Bean
+    public dev.jahaziel.ops.SupportBundleService supportBundles(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.SupportBundleService(Path.of(storageRoot), clock);
+    }
+
+    /** Returns graceful-drain coordination for shutdown. */
+    @Bean
+    public dev.jahaziel.ops.GracefulDrainService gracefulDrain() {
+        return new dev.jahaziel.ops.GracefulDrainService();
+    }
+
+    /** Returns scheduled backup handling. */
+    @Bean
+    public dev.jahaziel.ops.ScheduledBackupService scheduledBackups(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.ScheduledBackupService(Path.of(storageRoot), clock);
+    }
+
+    /** Returns restore-drill handling. */
+    @Bean
+    public dev.jahaziel.ops.RestoreDrillService restoreDrills(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.RestoreDrillService(Path.of(storageRoot), clock);
+    }
+
+    /** Returns per-user and per-workspace quotas. */
+    @Bean
+    public dev.jahaziel.ops.QuotaService quotas() {
+        return new dev.jahaziel.ops.QuotaService();
+    }
+
+    /** Returns the shared API rate limiter. */
+    @Bean
+    public dev.jahaziel.ops.RateLimiter rateLimiter(Clock clock) {
+        return new dev.jahaziel.ops.RateLimiter(clock);
+    }
+
+    /** Returns audit query and chain verification. */
+    @Bean
+    public dev.jahaziel.ops.AuditQueryService auditQueries() {
+        return new dev.jahaziel.ops.AuditQueryService();
+    }
+
+    /** Returns GDPR data-subject operations. */
+    @Bean
+    public dev.jahaziel.ops.GdprService gdpr(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.GdprService(Path.of(storageRoot), clock);
+    }
+
+    /** Returns the approval queue for sensitive operations. */
+    @Bean
+    public dev.jahaziel.ops.ApprovalQueue approvalQueue(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.ApprovalQueue(Path.of(storageRoot), clock);
+    }
+
+    /** Returns signed outbound webhook delivery. */
+    @Bean
+    public dev.jahaziel.ops.OutboundWebhooks outboundWebhooks(
+            @Value("${jahaziel.storage.root}") String storageRoot, Clock clock) {
+        return new dev.jahaziel.ops.OutboundWebhooks(Path.of(storageRoot), clock);
+    }
+
+    /** Returns the command-name allowlist. */
+    @Bean
+    public dev.jahaziel.security.CommandAllowlist commandAllowlist() {
+        return new dev.jahaziel.security.CommandAllowlist();
+    }
+
+    /** Returns the WebSocket origin and workspace binding guard. */
+    @Bean
+    public dev.jahaziel.security.WebSocketOriginGuard webSocketOriginGuard() {
+        return new dev.jahaziel.security.WebSocketOriginGuard();
+    }
+
+    /** Returns session rotation and idle-expiry indexes. */
+    @Bean
+    public dev.jahaziel.security.SessionHardening sessionHardening(
+            @Value("${jahaziel.session.idle-timeout-ms:1800000}") long idleTimeoutMillis) {
+        return new dev.jahaziel.security.SessionHardening(idleTimeoutMillis);
+    }
+
+    /** Returns the dependency-audit result model. */
+    @Bean
+    public dev.jahaziel.security.DependencyAuditReport dependencyAuditReport() {
+        return new dev.jahaziel.security.DependencyAuditReport();
+    }
 }
