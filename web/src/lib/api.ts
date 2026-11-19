@@ -45,3 +45,8 @@ export async function api<T>(
 export function errorText(failure: unknown): string {
     return failure instanceof Error ? failure.message : "Something went wrong.";
 }
+
+/** True when the host does not expose an optional endpoint. */
+export function isUnavailable(failure: unknown): boolean {
+    return failure instanceof Error && /^(404|405)\b/.test(failure.message);
+}
