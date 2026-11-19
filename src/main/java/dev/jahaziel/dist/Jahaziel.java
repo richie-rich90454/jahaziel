@@ -9,14 +9,14 @@ package dev.jahaziel.dist;
  * in {@link JahazielMain} stays unit-testable; excluded from coverage for that reason.
  */
 public final class Jahaziel {
-  private Jahaziel() {}
+    private Jahaziel() {}
 
-  /**
-   * Starts Jahaziel.
-   *
-   * @param args command line arguments
-   */
-  public static void main(String[] args) {
-    System.exit(JahazielMain.run(args, System.out, System.err));
-  }
+    /**
+     * Starts Jahaziel.
+     *
+     * @param args command line arguments
+     */
+    public static void main(String[] args) {
+        System.exit(JahazielMain.run(args, System.out, System.err));
+    }
 }
