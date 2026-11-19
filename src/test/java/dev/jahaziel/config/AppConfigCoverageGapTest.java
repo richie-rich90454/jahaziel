@@ -14,30 +14,31 @@ import dev.jahaziel.nodeagent.storage.FolderStorage;
 import dev.jahaziel.spi.NodeBackend;
 import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.workspace.internal.WorkspaceBackendConfig;
+
 import org.junit.jupiter.api.Test;
 
 class AppConfigCoverageGapTest {
-  private final WorkspaceBackendConfig config = new WorkspaceBackendConfig();
+    private final WorkspaceBackendConfig config = new WorkspaceBackendConfig();
 
-  @Test
-  void selectsTheLocalBackendExplicitly() {
-    WorkspaceStorage storage = mock(WorkspaceStorage.class);
+    @Test
+    void selectsTheLocalBackendExplicitly() {
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
 
-    NodeBackend backend = config.nodeBackend("local", storage);
+        NodeBackend backend = config.nodeBackend("local", storage);
 
-    assertInstanceOf(LocalProcessBackend.class, backend);
-    assertEquals("local", backend.name());
-  }
+        assertInstanceOf(LocalProcessBackend.class, backend);
+        assertEquals("local", backend.name());
+    }
 
-  @Test
-  void rejectsUnknownBackendAtStartup() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> config.nodeBackend("unknown", mock(WorkspaceStorage.class)));
-  }
+    @Test
+    void rejectsUnknownBackendAtStartup() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> config.nodeBackend("unknown", mock(WorkspaceStorage.class)));
+    }
 
-  @Test
-  void providesFolderStorageForTheSingleServer() {
-    assertInstanceOf(FolderStorage.class, config.workspaceStorage("data"));
-  }
+    @Test
+    void providesFolderStorageForTheSingleServer() {
+        assertInstanceOf(FolderStorage.class, config.workspaceStorage("data"));
+    }
 }
