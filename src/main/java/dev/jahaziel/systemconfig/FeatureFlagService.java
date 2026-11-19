@@ -55,8 +55,7 @@ public final class FeatureFlagService {
     }
 
     /** Returns the effective value: workspace, then user, then global, then false. */
-    public synchronized boolean isEnabled(
-            String name, UserId user, WorkspaceId workspace) {
+    public synchronized boolean isEnabled(String name, UserId user, WorkspaceId workspace) {
         validateName(name);
         Boolean fallback = Boolean.FALSE;
         Boolean userValue = null;
