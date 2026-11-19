@@ -4,12 +4,13 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 
 /** File comments and replies with workspace path-containment validation. */
 @Service
@@ -83,10 +84,10 @@ public final class CommentService {
             throw new IllegalArgumentException("reply body is required");
         }
         CommentReply reply =
-                new CommentReply(
-                        UUID.randomUUID().toString(), commentId, author, body, nowMillis);
+                new CommentReply(UUID.randomUUID().toString(), commentId, author, body, nowMillis);
         store.putReply(reply);
-        audit.record(workspaceId, author, "comment.reply", commentId, new HashMap<String, String>());
+        audit.record(
+                workspaceId, author, "comment.reply", commentId, new HashMap<String, String>());
         return reply;
     }
 
@@ -109,7 +110,8 @@ public final class CommentService {
         FileComment comment = requireComment(workspaceId, commentId);
         requireAuthorOrOwner(workspaceId, actor, comment);
         store.removeComment(commentId);
-        audit.record(workspaceId, actor, "comment.delete", commentId, new HashMap<String, String>());
+        audit.record(
+                workspaceId, actor, "comment.delete", commentId, new HashMap<String, String>());
     }
 
     public List<CommentReply> replies(String workspaceId, String commentId) {
@@ -120,7 +122,8 @@ public final class CommentService {
     private void requireAuthorOrOwner(String workspaceId, String actor, FileComment comment) {
         boolean owner = Roles.OWNER.equals(membership.roleOf(workspaceId, actor));
         if (!owner && !comment.author().equals(actor)) {
-            throw new CollaborationAccessDeniedException("only the author or owner may change a comment");
+            throw new CollaborationAccessDeniedException(
+                    "only the author or owner may change a comment");
         }
     }
 
