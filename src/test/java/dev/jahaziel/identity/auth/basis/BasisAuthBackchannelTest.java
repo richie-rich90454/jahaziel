@@ -4,20 +4,6 @@
  */
 package dev.jahaziel.identity.auth.basis;
 
-import dev.jahaziel.identity.auth.AuthIdentity;
-import dev.jahaziel.identity.auth.BasisAuthPlugin;
-import dev.jahaziel.plugin.PluginContext;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,6 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.identity.auth.BasisAuthPlugin;
+import dev.jahaziel.plugin.PluginContext;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 final class BasisAuthBackchannelTest {
     private static final String REDIRECT = "https://app.example.org/oauth/callback";
     private static final String RESOURCE = "urn:example:api";
@@ -33,8 +35,7 @@ final class BasisAuthBackchannelTest {
     private static final String SECRET = "client-secret-1234567890";
     private static final String RESOURCE_SECRET = "resource-secret-1234567890";
 
-    @TempDir
-    java.nio.file.Path temp;
+    @TempDir java.nio.file.Path temp;
 
     private LoopbackIdp idp;
     private PluginContext context;
@@ -74,7 +75,8 @@ final class BasisAuthBackchannelTest {
         assertEquals(202, result.status());
         assertNotNull(idp.proofBody());
         assertEquals("nonce-abc", idp.proofBody().get("nonce").asString());
-        assertEquals(hmac(RESOURCE_SECRET, "challenge-xyz"),
+        assertEquals(
+                hmac(RESOURCE_SECRET, "challenge-xyz"),
                 idp.proofBody().get("challenge_hash").asString());
         assertEquals("Bearer " + RESOURCE_SECRET, idp.proofAuthorization());
         assertEquals(BasisHttp.encode(RESOURCE), idp.proofResource());
@@ -159,7 +161,9 @@ final class BasisAuthBackchannelTest {
         Map<String, Object> claims = baseClaims(RESOURCE);
         claims.put("access_token_jti", jti);
         claims.put("valid_after", Long.valueOf(validAfter));
-        claims.put("access_token_expires_at", Long.valueOf(System.currentTimeMillis() / 1000L + 3600L));
+        claims.put(
+                "access_token_expires_at",
+                Long.valueOf(System.currentTimeMillis() / 1000L + 3600L));
         Map<String, String> form = new HashMap<String, String>();
         form.put("action", "revoke_access_token");
         form.put("jti", jti);
@@ -216,5 +220,4 @@ final class BasisAuthBackchannelTest {
             fail("expected the token to be rejected");
         }
     }
-
 }
