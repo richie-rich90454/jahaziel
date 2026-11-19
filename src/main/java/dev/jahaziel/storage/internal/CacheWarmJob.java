@@ -7,6 +7,7 @@ package dev.jahaziel.storage.internal;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -19,41 +20,41 @@ import java.util.List;
  * curated package list; this job only guarantees the layout.
  */
 public final class CacheWarmJob implements PlatformJob {
-  private static final List<String> LAYOUT =
-      List.of("maven", "npm-ro", "cargo-registry", "go-modules", "pip-wheels");
+    private static final List<String> LAYOUT =
+            List.of("maven", "npm-ro", "cargo-registry", "go-modules", "pip-wheels");
 
-  private final String storageRoot;
+    private final String storageRoot;
 
-  /**
-   * Creates the job.
-   *
-   * @param storageRoot the storage root
-   */
-  public CacheWarmJob(String storageRoot) {
-    if (storageRoot == null || storageRoot.isBlank()) {
-      throw new IllegalArgumentException("storageRoot must not be blank");
+    /**
+     * Creates the job.
+     *
+     * @param storageRoot the storage root
+     */
+    public CacheWarmJob(String storageRoot) {
+        if (storageRoot == null || storageRoot.isBlank()) {
+            throw new IllegalArgumentException("storageRoot must not be blank");
+        }
+        this.storageRoot = storageRoot;
     }
-    this.storageRoot = storageRoot;
-  }
 
-  @Override
-  public void run(JobContext context) {
-    try {
-      for (String tool : LAYOUT) {
-        Files.createDirectories(Path.of(storageRoot, "caches", tool));
-      }
-    } catch (IOException failure) {
-      throw new UncheckedIOException("cache layout failed under " + storageRoot, failure);
+    @Override
+    public void run(JobContext context) {
+        try {
+            for (String tool : LAYOUT) {
+                Files.createDirectories(Path.of(storageRoot, "caches", tool));
+            }
+        } catch (IOException failure) {
+            throw new UncheckedIOException("cache layout failed under " + storageRoot, failure);
+        }
     }
-  }
 
-  @Override
-  public Duration period() {
-    return Duration.ofHours(24 * 7);
-  }
+    @Override
+    public Duration period() {
+        return Duration.ofHours(24 * 7);
+    }
 
-  @Override
-  public JobScope scope() {
-    return JobScope.NODE;
-  }
+    @Override
+    public JobScope scope() {
+        return JobScope.NODE;
+    }
 }
