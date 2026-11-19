@@ -121,7 +121,9 @@ public final class UpdateService {
                             + chosen
                             + " in "
                             + stageDir
-                            + (sums == null ? " (generating " + SUMS + ")" : " (verifying " + sums + ")")
+                            + (sums == null
+                                    ? " (generating " + SUMS + ")"
+                                    : " (verifying " + sums + ")")
                             + "; swap runs on next start",
                     chosen);
         }
@@ -142,9 +144,7 @@ public final class UpdateService {
         }
         writeMarker(PENDING, chosen);
         return new StageResult(
-                true,
-                "staged " + chosen + " in " + stageDir + "; swap runs on next start",
-                chosen);
+                true, "staged " + chosen + " in " + stageDir + "; swap runs on next start", chosen);
     }
 
     /**
@@ -156,7 +156,10 @@ public final class UpdateService {
      * @return true when a matching digest is found
      */
     public boolean verify(Path jar, Path sums) {
-        if (jar == null || sums == null || !Files.isRegularFile(jar) || !Files.isRegularFile(sums)) {
+        if (jar == null
+                || sums == null
+                || !Files.isRegularFile(jar)
+                || !Files.isRegularFile(sums)) {
             return false;
         }
         String expected = sha256(jar);
@@ -181,8 +184,8 @@ public final class UpdateService {
     }
 
     /**
-     * Applies a staged version on start. The running jar is backed up first. A staged jar that fails
-     * verification is discarded without touching the running jar.
+     * Applies a staged version on start. The running jar is backed up first. A staged jar that
+     * fails verification is discarded without touching the running jar.
      *
      * @param out progress output
      * @return true when a swap was performed
@@ -196,7 +199,8 @@ public final class UpdateService {
         Path staged = stageDir.resolve(JAR_NAME);
         Path sums = stageDir.resolve(SUMS);
         if (!Files.isRegularFile(staged) || !verify(staged, sums)) {
-            out.println("jahaziel: staged update " + version + " failed verification; discarding it");
+            out.println(
+                    "jahaziel: staged update " + version + " failed verification; discarding it");
             deleteQuietly(updateRoot.resolve(PENDING));
             return false;
         }
@@ -221,7 +225,8 @@ public final class UpdateService {
         }
         writeMarkerQuietly(APPLIED, oldVersion);
         deleteQuietly(updateRoot.resolve(PENDING));
-        out.println("jahaziel: applied staged update " + version + " (previous: " + oldVersion + ")");
+        out.println(
+                "jahaziel: applied staged update " + version + " (previous: " + oldVersion + ")");
         return true;
     }
 
@@ -337,8 +342,7 @@ public final class UpdateService {
     private void writeMarker(String name, String value) {
         try {
             Files.createDirectories(updateRoot);
-            Files.write(
-                    updateRoot.resolve(name), value.getBytes(StandardCharsets.UTF_8));
+            Files.write(updateRoot.resolve(name), value.getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new IllegalStateException("cannot write update marker " + name, failure);
         }
