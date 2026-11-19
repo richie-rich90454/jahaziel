@@ -12,6 +12,7 @@ import dev.jahaziel.extension.api.ExtensionPolicyNotFoundException;
 import dev.jahaziel.identity.api.DevConnectException;
 import dev.jahaziel.identity.api.LoginRejectedException;
 import dev.jahaziel.identity.api.UserNotFoundException;
+import dev.jahaziel.identity.auth.basis.BasisOAuthException;
 import dev.jahaziel.language.api.LanguagePackInstallException;
 import dev.jahaziel.node.api.NodeNotFoundException;
 import dev.jahaziel.policy.api.PolicyNotFoundException;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -90,6 +92,17 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiError loginRejected(LoginRejectedException failure) {
         return error("LOGIN_REJECTED", failure.getMessage());
+    }
+
+    /** Surfaces the documented basis-auth error code and recovery guidance, never the raw body. */
+    @ExceptionHandler(BasisOAuthException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError basisOAuthFailed(BasisOAuthException failure) {
+        String code = String.valueOf(failure.code());
+        Map<String, String> details = new LinkedHashMap<String, String>();
+        details.put("code", code);
+        details.put("recovery", failure.recovery());
+        return new ApiError(code, failure.recovery(), UUID.randomUUID().toString(), details);
     }
 
     /** Maps a failed DevConnect step to 500, naming the target and cause for the operator. */
