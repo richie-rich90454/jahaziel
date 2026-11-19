@@ -16,10 +16,10 @@ import java.util.UUID;
  * @param occurredAt when the event occurred
  */
 public record WorkspaceCreatedEvent(UUID workspaceId, UUID ownerId, Instant occurredAt)
-    implements DomainEvent {
-  public WorkspaceCreatedEvent {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(ownerId, "ownerId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
+        implements DomainEvent {
+    public WorkspaceCreatedEvent {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(ownerId, "ownerId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+    }
 }
