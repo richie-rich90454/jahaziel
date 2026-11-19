@@ -19,7 +19,7 @@ import javax.sql.DataSource;
 
 /** Database-backed collaboration store. All ids and timestamps are stored as plain scalars. */
 @Repository
-public final class JdbcCollaborationStore extends CollaborationStore {
+public class JdbcCollaborationStore extends CollaborationStore {
     private static final RowMapper<Member> MEMBER_ROW =
             new RowMapper<Member>() {
                 @Override
