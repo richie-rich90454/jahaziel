@@ -15,6 +15,7 @@ import dev.jahaziel.identity.auth.basis.Pkce;
 import dev.jahaziel.identity.auth.basis.TokenVerifier;
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -34,16 +35,17 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     public static final String SERVICE_TOKEN_VERIFIER = "basis-auth.token-verifier";
     public static final String SERVICE_STORE = "basis-auth.store";
 
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            "basis-auth",
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(
-                    AuthCapability.OIDC,
-                    AuthCapability.OAUTH2,
-                    AuthCapability.MFA_ASSURANCE,
-                    AuthCapability.REFRESH,
-                    AuthCapability.BACKCHANNEL));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    "basis-auth",
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(
+                            AuthCapability.OIDC,
+                            AuthCapability.OAUTH2,
+                            AuthCapability.MFA_ASSURANCE,
+                            AuthCapability.REFRESH,
+                            AuthCapability.BACKCHANNEL));
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -61,7 +63,9 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     @Override
     public void initialize(PluginContext context) {
         config = new BasisConfig(context);
-        http = new BasisHttp(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+        http =
+                new BasisHttp(
+                        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
         metadata = new BasisMetadata(config, http);
         store = new BasisStore(config);
         verifier = new TokenVerifier(config, metadata, store);
@@ -72,11 +76,11 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     }
 
     @Override
-    public void shutdown() {
-    }
+    public void shutdown() {}
 
     @Override
-    public String startLogin(PluginContext context, String state, String nonce, String redirectUri) {
+    public String startLogin(
+            PluginContext context, String state, String nonce, String redirectUri) {
         String verifierValue = Pkce.random();
         store.putPending(state, nonce, verifierValue, redirectUri);
         BasisMetadata.Discovery discovery = metadata.discovery();
@@ -110,20 +114,22 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
             throw new BasisException("missing authorization code");
         }
         Map<String, String> tokens = exchange(code, pending.verifier(), pending.redirectUri());
-        TokenVerifier.VerifiedToken verified = verifier.verifyIdToken(
-                tokens.get("id_token"), pending.nonce(), tokens.get("access_token"));
+        TokenVerifier.VerifiedToken verified =
+                verifier.verifyIdToken(
+                        tokens.get("id_token"), pending.nonce(), tokens.get("access_token"));
         AuthIdentity derived = verifier.identity(verified);
         String sessionId = Pkce.random();
         Map<String, String> claims = new HashMap<String, String>(derived.claims());
         claims.put("session_id", sessionId);
-        AuthIdentity identity = new AuthIdentity(
-                derived.provider(),
-                derived.subject(),
-                derived.email(),
-                derived.displayName(),
-                derived.emailVerified(),
-                derived.mfaAssured(),
-                claims);
+        AuthIdentity identity =
+                new AuthIdentity(
+                        derived.provider(),
+                        derived.subject(),
+                        derived.email(),
+                        derived.displayName(),
+                        derived.emailVerified(),
+                        derived.mfaAssured(),
+                        claims);
         store.putSession(sessionId, identity);
         store.putRefreshToken(sessionId, tokens.get("refresh_token"));
         return identity;
@@ -165,9 +171,11 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
             form.put("client_id", config.clientId());
         }
         String endpoint = metadata.discovery().tokenEndpoint();
-        String authorization = config.publicClient()
-                ? null : basic(config.clientId(), config.clientSecret());
-        String body = http.postForm(endpoint, BasisHttp.form(form), authorization, Duration.ofSeconds(60));
+        String authorization =
+                config.publicClient() ? null : basic(config.clientId(), config.clientSecret());
+        String body =
+                http.postForm(
+                        endpoint, BasisHttp.form(form), authorization, Duration.ofSeconds(60));
         JsonNode node;
         try {
             node = mapper.readTree(body);
