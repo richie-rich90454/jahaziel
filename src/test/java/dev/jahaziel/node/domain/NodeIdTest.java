@@ -12,19 +12,19 @@ import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link NodeId}. */
 class NodeIdTest {
-  @Test
-  void equalValuesAreEqual() {
-    assertEquals(new NodeId("node-a"), new NodeId("node-a"));
-  }
+    @Test
+    void equalValuesAreEqual() {
+        assertEquals(new NodeId("node-a"), new NodeId("node-a"));
+    }
 
-  @Test
-  void differentValuesAreNotEqual() {
-    assertNotEquals(new NodeId("node-a"), new NodeId("node-b"));
-  }
+    @Test
+    void differentValuesAreNotEqual() {
+        assertNotEquals(new NodeId("node-a"), new NodeId("node-b"));
+    }
 
-  @Test
-  void blankValuesAreRejected() {
-    assertThrows(IllegalArgumentException.class, () -> new NodeId("  "));
-    assertThrows(NullPointerException.class, () -> new NodeId(null));
-  }
+    @Test
+    void blankValuesAreRejected() {
+        assertThrows(IllegalArgumentException.class, () -> new NodeId("  "));
+        assertThrows(NullPointerException.class, () -> new NodeId(null));
+    }
 }
