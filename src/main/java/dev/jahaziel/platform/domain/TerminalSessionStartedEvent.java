@@ -16,10 +16,10 @@ import java.util.UUID;
  * @param occurredAt when the event occurred
  */
 public record TerminalSessionStartedEvent(UUID sessionId, UUID workspaceId, Instant occurredAt)
-    implements DomainEvent {
-  public TerminalSessionStartedEvent {
-    Objects.requireNonNull(sessionId, "sessionId");
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
+        implements DomainEvent {
+    public TerminalSessionStartedEvent {
+        Objects.requireNonNull(sessionId, "sessionId");
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+    }
 }
