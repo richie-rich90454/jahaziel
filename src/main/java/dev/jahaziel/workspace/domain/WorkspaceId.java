@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the identifier value
  */
 public record WorkspaceId(UUID value) {
-  public WorkspaceId {
-    Objects.requireNonNull(value, "value");
-  }
+    public WorkspaceId {
+        Objects.requireNonNull(value, "value");
+    }
 }
