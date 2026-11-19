@@ -410,7 +410,13 @@ class GatewayRelayFilterTest {
                     .thenReturn(new InetSocketAddress(LOOPBACK, listener.getLocalPort()));
             MockHttpServletRequest request = workspaceRequest("/asset.js?token=tok");
             MockHttpServletResponse response = new MockHttpServletResponse();
-            filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
+            try {
+                filter(tokens, directory, targets)
+                        .doFilter(request, response, mock(FilterChain.class));
+            } catch (IOException closedByBackend) {
+                // Some OSes deliver the backend's response before the request write completes,
+                // surfacing as a broken pipe. The response assertions below are the real contract.
+            }
             backend.join(TimeUnit.SECONDS.toMillis(10));
             assertTrue(!backend.isAlive(), "backend did not finish");
             assertEquals(200, response.getStatus());
