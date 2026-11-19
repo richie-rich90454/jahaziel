@@ -7,22 +7,34 @@ package dev.jahaziel.identity.internal;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
+import dev.jahaziel.identity.auth.basis.BasisResourceFilter;
+import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
+import dev.jahaziel.identity.domain.UserId;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -59,6 +71,12 @@ public class SecurityConfig {
         this.demo = demo;
     }
 
+    /** Gives the basis resource filter its link lookup once the identity store bean is ready. */
+    @Autowired
+    public void setIdentityStore(UserIdentityStore identityStore) {
+        BasisResourceFilter.setIdentityStore(identityStore);
+    }
+
     /**
      * Builds the filter chain.
      *
@@ -79,7 +97,12 @@ public class SecurityConfig {
                                     .requestMatchers(
                                             "/api/login",
                                             "/api/oauth/callback",
-                                            "/api/oauth2/bcallback")
+                                            "/api/oauth2/bcallback",
+                                            "/api/auth/local",
+                                            "/api/auth/passkey",
+                                            "/api/auth/passkey/options",
+                                            "/api/auth/ldap",
+                                            "/api/auth/token")
                                     .permitAll()
                                     // Public brand assets: browsers fetch these cookieless
                                     // (manifest,
@@ -111,9 +134,67 @@ public class SecurityConfig {
                 .exceptionHandling(
                         handling -> handling.authenticationEntryPoint(this::onUnauthenticated))
                 .addFilterBefore(cookies, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(
+                        new BasisPrincipalFilter(users), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(
+                        new SkipBasisBearer(bearer), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CookieWriteOriginFilter(), BffAuthenticationFilter.class)
                 .build();
+    }
+
+    /** Authenticates a workspace call whose basis token was already verified upstream. */
+    private static final class BasisPrincipalFilter extends OncePerRequestFilter {
+        private final UserService users;
+
+        private BasisPrincipalFilter(UserService users) {
+            this.users = users;
+        }
+
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+                throws ServletException, IOException {
+            Object attribute = request.getAttribute(BasisResourceFilter.PRINCIPAL_ATTRIBUTE);
+            if (attribute instanceof String
+                    && SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
+                    UserId user = new UserId(UUID.fromString((String) attribute));
+                    List<String> roles = users.get(user).roles();
+                    List<SimpleGrantedAuthority> authorities =
+                            new ArrayList<SimpleGrantedAuthority>();
+                    for (int index = 0; index < roles.size(); index++) {
+                        authorities.add(new SimpleGrantedAuthority(roles.get(index)));
+                    }
+                    SecurityContextHolder.getContext()
+                            .setAuthentication(
+                                    new UsernamePasswordAuthenticationToken(
+                                            user.value().toString(), null, authorities));
+                } catch (RuntimeException ignored) {
+                    // An unresolved attribute must never authenticate the request.
+                }
+            }
+            chain.doFilter(request, response);
+        }
+    }
+
+    /** An app JWT must not be required when a verified basis principal is already present. */
+    private static final class SkipBasisBearer extends OncePerRequestFilter {
+        private final JwtAuthenticationFilter delegate;
+
+        private SkipBasisBearer(JwtAuthenticationFilter delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+                throws ServletException, IOException {
+            if (request.getAttribute(BasisResourceFilter.PRINCIPAL_ATTRIBUTE) instanceof String) {
+                chain.doFilter(request, response);
+                return;
+            }
+            delegate.doFilter(request, response, chain);
+        }
     }
 
     private void onUnauthenticated(
