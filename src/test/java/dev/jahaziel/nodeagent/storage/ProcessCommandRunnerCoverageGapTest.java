@@ -6,19 +6,20 @@ package dev.jahaziel.nodeagent.storage;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
+
 /** The spawn-failure branch of {@link ProcessCommandRunner}. */
 class ProcessCommandRunnerCoverageGapTest {
-  private final ProcessCommandRunner runner = new ProcessCommandRunner();
+    private final ProcessCommandRunner runner = new ProcessCommandRunner();
 
-  @Test
-  void existsFailsWhenSpawnFails(@TempDir Path root) {
-    // ponytail: an overlong argument breaks process creation on every OS.
-    Path huge = root.resolve("x".repeat(40000));
-    assertFalse(runner.exists(huge));
-    assertFalse(runner.exists(root.resolve("missing")));
-  }
+    @Test
+    void existsFailsWhenSpawnFails(@TempDir Path root) {
+        // ponytail: an overlong argument breaks process creation on every OS.
+        Path huge = root.resolve("x".repeat(40000));
+        assertFalse(runner.exists(huge));
+        assertFalse(runner.exists(root.resolve("missing")));
+    }
 }
