@@ -20,16 +20,19 @@ import java.util.Map;
  * Scheduled compressed snapshots of a source tree. Archives and their manifests live only under
  * {@code data/backups}.
  *
- * <p>Recovery objectives: RPO is 24 hours (one automatic backup per day); RTO is 2 hours (the
- * time budget to restore the newest verified archive into a fresh workspace).
+ * <p>Recovery objectives: RPO is 24 hours (one automatic backup per day); RTO is 2 hours (the time
+ * budget to restore the newest verified archive into a fresh workspace).
  */
 public final class ScheduledBackupService {
     /** Recovery point objective: data loss is bounded to one day. */
     public static final Duration RPO = Duration.ofHours(24);
+
     /** Recovery time objective: a restore drill must complete within two hours. */
     public static final Duration RTO = Duration.ofHours(2);
+
     /** Reported RPO in minutes. */
     public static final long RPO_MINUTES = RPO.toMinutes();
+
     /** Reported RTO in minutes. */
     public static final long RTO_MINUTES = RTO.toMinutes();
 
