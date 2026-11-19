@@ -17,128 +17,132 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.api.WorkspaceTaskService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.security.Principal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 class WorkspaceTaskControllerTest {
-  private final UserId userId = new UserId(UUID.randomUUID());
-  private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
-  private final Principal principal = () -> userId.value().toString();
-  private WorkspaceTaskService tasks;
-  private AuthorizationService auth;
-  private MockMvc mvc;
+    private final UserId userId = new UserId(UUID.randomUUID());
+    private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
+    private final Principal principal = () -> userId.value().toString();
+    private WorkspaceTaskService tasks;
+    private AuthorizationService auth;
+    private MockMvc mvc;
 
-  @BeforeEach
-  void setUp() {
-    tasks = mock(WorkspaceTaskService.class);
-    auth = mock(AuthorizationService.class);
-    when(auth.isAllowed(userId, "read", workspaceId)).thenReturn(true);
-    mvc =
-        MockMvcBuilders.standaloneSetup(new WorkspaceTaskController(tasks, auth))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build();
-  }
+    @BeforeEach
+    void setUp() {
+        tasks = mock(WorkspaceTaskService.class);
+        auth = mock(AuthorizationService.class);
+        when(auth.isAllowed(userId, "read", workspaceId)).thenReturn(true);
+        mvc =
+                MockMvcBuilders.standaloneSetup(new WorkspaceTaskController(tasks, auth))
+                        .setControllerAdvice(new ApiExceptionHandler())
+                        .build();
+    }
 
-  @Test
-  void latestTaskRunReturnsMostRecentRun() throws Exception {
-    UUID runId = UUID.randomUUID();
-    when(tasks.latestTaskRun(workspaceId))
-        .thenReturn(
-            new WorkspaceTaskService.TaskRun(
-                runId,
-                workspaceId.value(),
-                "serve",
-                "Serve preview",
-                "FAILED",
-                "preview started\nTask was interrupted by a server restart.",
-                null,
-                Instant.parse("2026-11-07T10:00:00Z"),
-                Instant.parse("2026-11-07T10:01:00Z")));
+    @Test
+    void latestTaskRunReturnsMostRecentRun() throws Exception {
+        UUID runId = UUID.randomUUID();
+        when(tasks.latestTaskRun(workspaceId))
+                .thenReturn(
+                        new WorkspaceTaskService.TaskRun(
+                                runId,
+                                workspaceId.value(),
+                                "serve",
+                                "Serve preview",
+                                "FAILED",
+                                "preview started\nTask was interrupted by a server restart.",
+                                null,
+                                Instant.parse("2026-11-07T10:00:00Z"),
+                                Instant.parse("2026-11-07T10:01:00Z")));
 
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
-                .principal(principal))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(runId.toString()))
-        .andExpect(jsonPath("$.status").value("FAILED"))
-        .andExpect(jsonPath("$.output").value(org.hamcrest.Matchers.containsString("interrupted")));
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
+                                .principal(principal))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(runId.toString()))
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(
+                        jsonPath("$.output")
+                                .value(org.hamcrest.Matchers.containsString("interrupted")));
 
-    verify(auth).isAllowed(userId, "read", workspaceId);
-    verify(tasks).latestTaskRun(workspaceId);
-  }
+        verify(auth).isAllowed(userId, "read", workspaceId);
+        verify(tasks).latestTaskRun(workspaceId);
+    }
 
-  @Test
-  void latestTaskRunReturnsNoContentWhenWorkspaceHasNoRun() throws Exception {
-    when(tasks.latestTaskRun(workspaceId)).thenReturn(null);
+    @Test
+    void latestTaskRunReturnsNoContentWhenWorkspaceHasNoRun() throws Exception {
+        when(tasks.latestTaskRun(workspaceId)).thenReturn(null);
 
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
-                .principal(principal))
-        .andExpect(status().isNoContent());
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
+                                .principal(principal))
+                .andExpect(status().isNoContent());
 
-    verify(tasks).latestTaskRun(workspaceId);
-  }
+        verify(tasks).latestTaskRun(workspaceId);
+    }
 
-  @Test
-  void latestTaskRunRequiresWorkspaceReadAuthorization() throws Exception {
-    when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
+    @Test
+    void latestTaskRunRequiresWorkspaceReadAuthorization() throws Exception {
+        when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
 
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
-                .principal(principal))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
+                                .principal(principal))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-    verifyNoInteractions(tasks);
-  }
+        verifyNoInteractions(tasks);
+    }
 
-  @Test
-  void debugTargetSummariesAreAuthorizedAndDoNotExposeProcessDetails() throws Exception {
-    UUID targetId = UUID.randomUUID();
-    UUID runId = UUID.randomUUID();
-    when(tasks.debugTargets(workspaceId))
-        .thenReturn(
-            List.of(
-                new WorkspaceTaskService.DebugTarget(
-                    targetId,
-                    workspaceId.value(),
-                    runId,
-                    "node",
-                    "Start preview server",
-                    7654,
-                    null,
-                    "C:/private/server.js")));
+    @Test
+    void debugTargetSummariesAreAuthorizedAndDoNotExposeProcessDetails() throws Exception {
+        UUID targetId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        when(tasks.debugTargets(workspaceId))
+                .thenReturn(
+                        List.of(
+                                new WorkspaceTaskService.DebugTarget(
+                                        targetId,
+                                        workspaceId.value(),
+                                        runId,
+                                        "node",
+                                        "Start preview server",
+                                        7654,
+                                        null,
+                                        "C:/private/server.js")));
 
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
-                .principal(principal))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value(targetId.toString()))
-        .andExpect(jsonPath("$[0].taskRunId").value(runId.toString()))
-        .andExpect(jsonPath("$[0].languageId").value("node"))
-        .andExpect(jsonPath("$[0].processId").doesNotExist())
-        .andExpect(jsonPath("$[0].debugPort").doesNotExist())
-        .andExpect(jsonPath("$[0].program").doesNotExist());
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
+                                .principal(principal))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(targetId.toString()))
+                .andExpect(jsonPath("$[0].taskRunId").value(runId.toString()))
+                .andExpect(jsonPath("$[0].languageId").value("node"))
+                .andExpect(jsonPath("$[0].processId").doesNotExist())
+                .andExpect(jsonPath("$[0].debugPort").doesNotExist())
+                .andExpect(jsonPath("$[0].program").doesNotExist());
 
-    verify(auth).isAllowed(userId, "read", workspaceId);
-    verify(tasks).debugTargets(workspaceId);
-  }
+        verify(auth).isAllowed(userId, "read", workspaceId);
+        verify(tasks).debugTargets(workspaceId);
+    }
 
-  @Test
-  void debugTargetSummariesRequireWorkspaceReadAuthorization() throws Exception {
-    when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
+    @Test
+    void debugTargetSummariesRequireWorkspaceReadAuthorization() throws Exception {
+        when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
 
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
-                .principal(principal))
-        .andExpect(status().isForbidden());
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
+                                .principal(principal))
+                .andExpect(status().isForbidden());
 
-    verifyNoInteractions(tasks);
-  }
+        verifyNoInteractions(tasks);
+    }
 }
