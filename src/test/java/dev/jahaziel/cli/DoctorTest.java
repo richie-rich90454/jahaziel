@@ -535,7 +535,7 @@ class DoctorTest {
     }
 
     private static HttpServer serve(int status, String server) throws Exception {
-        HttpServer http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        HttpServer http = HttpServer.create(new InetSocketAddress(0), 0);
         http.createContext(
                 "/actuator/health",
                 exchange -> {
