@@ -6,6 +6,10 @@ package dev.jahaziel.networking.internal;
 
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,8 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Windows discovery from a fixed {@code netstat -ano -p TCP} invocation. Only LISTENING rows are
@@ -27,8 +29,12 @@ public class WindowsPortDiscovery extends PortDiscoveryPlugin {
     private static final String STATE = "LISTENING";
 
     public WindowsPortDiscovery() {
-        super(new PluginDescriptor(
-                "windows-port-discovery", "1.0", new ArrayList<String>(), new ArrayList<String>()));
+        super(
+                new PluginDescriptor(
+                        "windows-port-discovery",
+                        "1.0",
+                        new ArrayList<String>(),
+                        new ArrayList<String>()));
     }
 
     @Override
