@@ -7,6 +7,8 @@ package dev.jahaziel.agenttools.internal;
 import dev.jahaziel.agenttools.api.AgentToolBusyException;
 import dev.jahaziel.agenttools.api.AgentToolService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.platform.Platform;
+import dev.jahaziel.platform.Platforms;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /** Installs the pinned OpenCode CLI into one user's application-managed tool directory. */
 @Service
@@ -50,6 +54,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
     private static final Logger log = LoggerFactory.getLogger(AgentToolServiceImpl.class);
     private static final String TOOL_ID = "opencode";
     private static final String VERSION = "1.19.5";
+    private static final String UNAVAILABLE = "UNAVAILABLE_ON_THIS_HOST";
     private static final long MAX_ARCHIVE_BYTES = 128L * 1024 * 1024;
     private static final long MAX_EXECUTABLE_BYTES = 512L * 1024 * 1024;
     private static final long MAX_EXPANDED_ARCHIVE_BYTES = 768L * 1024 * 1024;
@@ -57,32 +62,88 @@ public final class AgentToolServiceImpl implements AgentToolService {
     private static final int BUFFER_SIZE = 64 * 1024;
     private static final Map<String, Artifact> ARTIFACTS =
             Map.of(
-                    "x64",
+                    "linux-x64",
                     new Artifact(
                             "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-linux-x64.tar.gz",
                             "588310a336fa3b9df36b3f0225b26f679d453efaad0cf3d66c3651ef3ec1647a",
                             79_600_000L,
-                            "opencode"),
-                    "arm64",
+                            "opencode",
+                            "tar.gz",
+                            MAX_EXECUTABLE_BYTES),
+                    "linux-arm64",
                     new Artifact(
                             "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-linux-arm64.tar.gz",
                             "fae5be262d693b7c5e562856cc473e59e741772936db0c0600ac0d5ed5bd088b",
                             78_500_000L,
-                            "opencode"));
+                            "opencode",
+                            "tar.gz",
+                            MAX_EXECUTABLE_BYTES),
+                    "darwin-x64",
+                    new Artifact(
+                            "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-darwin-x64.zip",
+                            "b0212efa6db347187225a17fa3a31c6b261bf4c9f1589a290b0ca902d720d250",
+                            69_100_888L,
+                            "opencode",
+                            "zip",
+                            MAX_EXECUTABLE_BYTES),
+                    "darwin-arm64",
+                    new Artifact(
+                            "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-darwin-arm64.zip",
+                            "c1c9e62521192192ef4c3ed1355ada2144055bddb61682217e997b03c55203c1",
+                            64_278_924L,
+                            "opencode",
+                            "zip",
+                            MAX_EXECUTABLE_BYTES),
+                    "windows-x64",
+                    new Artifact(
+                            "https://github.com/anomalyco/opencode/releases/download/v1.19.5/opencode-windows-x64.zip",
+                            "09a6e693157f0887e504f2cf4357a8cbddc5ead5d0dffb9a269dcc47c48640f5",
+                            81_738_227L,
+                            "opencode.exe",
+                            "zip",
+                            MAX_EXECUTABLE_BYTES));
     private static final Map<String, Artifact> RIPGREP_ARTIFACTS =
             Map.of(
-                    "x64",
+                    "linux-x64",
                     new Artifact(
                             "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz",
                             "33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c",
                             2_300_000L,
-                            "ripgrep-15.2.0-x86_64-unknown-linux-musl/rg"),
-                    "arm64",
+                            "ripgrep-15.2.0-x86_64-unknown-linux-musl/rg",
+                            "tar.gz",
+                            32L * 1024 * 1024),
+                    "linux-arm64",
                     new Artifact(
                             "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz",
                             "800b1e7206afe799dfb5a6901f23147cfaabe0e52210538100f61e86e1740915",
                             1_900_000L,
-                            "ripgrep-15.2.0-aarch64-unknown-linux-musl/rg"));
+                            "ripgrep-15.2.0-aarch64-unknown-linux-musl/rg",
+                            "tar.gz",
+                            32L * 1024 * 1024),
+                    "darwin-x64",
+                    new Artifact(
+                            "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-apple-darwin.tar.gz",
+                            "af7825fcc69a2afc7a7aea55fc9af90e26421d8f20fe59df32e233c0b8a231c1",
+                            1_878_284L,
+                            "ripgrep-15.2.0-x86_64-apple-darwin/rg",
+                            "tar.gz",
+                            32L * 1024 * 1024),
+                    "darwin-arm64",
+                    new Artifact(
+                            "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-apple-darwin.tar.gz",
+                            "3750b2e93f37e0c692657da574d7019a101c0084da05a790c83fd335bad973e4",
+                            1_764_284L,
+                            "ripgrep-15.2.0-aarch64-apple-darwin/rg",
+                            "tar.gz",
+                            32L * 1024 * 1024),
+                    "windows-x64",
+                    new Artifact(
+                            "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip",
+                            "71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5",
+                            1_789_611L,
+                            "ripgrep-15.2.0-x86_64-pc-windows-msvc/rg.exe",
+                            "zip",
+                            32L * 1024 * 1024));
 
     private final Path storageRoot;
     private final ObjectMapper json;
@@ -132,8 +193,8 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 || !installations.add(userId.value())) {
             return current(userId);
         }
-        String architecture = architecture();
-        if (!ARTIFACTS.containsKey(architecture) || !isLinux()) {
+        String architecture = platformKey();
+        if (!capabilityAvailable(architecture)) {
             installations.remove(userId.value());
             return remember(
                     userId,
@@ -146,7 +207,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
                             0,
                             0,
                             0,
-                            "OpenCode is available only on Linux x64 and arm64."));
+                            UNAVAILABLE + ": OpenCode is not published for " + architecture + "."));
         }
         Artifact artifact = ARTIFACTS.get(architecture);
         long totalDownloadBytes = totalDownloadBytes(architecture);
@@ -199,9 +260,9 @@ public final class AgentToolServiceImpl implements AgentToolService {
                             TOOL_ID,
                             "OpenCode",
                             VERSION,
-                            architecture(),
+                            platformKey(),
                             "NOT_INSTALLED",
-                            totalDownloadBytes(architecture()),
+                            totalDownloadBytes(platformKey()),
                             0,
                             0,
                             "");
@@ -254,13 +315,18 @@ public final class AgentToolServiceImpl implements AgentToolService {
             ensureDirectory(root.getParent());
             ensureDirectory(root);
             ensureDirectory(staging);
-            Path archive = staging.resolve("opencode.tar.gz");
+            Path archive = staging.resolve("opencode." + artifact.format());
             download(URI.create(artifact.url()), artifact, archive, userId, 0, totalDownloadBytes);
             Path executable = staging.resolve("opencode");
-            extractExecutable(archive, executable, artifact.executableEntry());
-            verifyExecutableArchitecture(executable, architecture);
+            extractExecutable(
+                    archive,
+                    executable,
+                    artifact.executableEntry(),
+                    artifact.format(),
+                    artifact.expandedBytes());
+            verifyExecutableArchitecture(executable);
             setExecutable(executable);
-            Path ripgrepArchive = staging.resolve("ripgrep.tar.gz");
+            Path ripgrepArchive = staging.resolve("ripgrep." + ripgrepArtifact.format());
             download(
                     URI.create(ripgrepArtifact.url()),
                     ripgrepArtifact,
@@ -269,37 +335,48 @@ public final class AgentToolServiceImpl implements AgentToolService {
                     artifact.downloadBytes(),
                     totalDownloadBytes);
             Path ripgrep = staging.resolve("rg");
-            extractExecutable(ripgrepArchive, ripgrep, ripgrepArtifact.executableEntry());
-            verifyExecutableArchitecture(ripgrep, architecture);
+            extractExecutable(
+                    ripgrepArchive,
+                    ripgrep,
+                    ripgrepArtifact.executableEntry(),
+                    ripgrepArtifact.format(),
+                    ripgrepArtifact.expandedBytes());
+            verifyExecutableArchitecture(ripgrep);
             setExecutable(ripgrep);
             Path bin = root.resolve("bin");
             ensureDirectory(bin);
-            Path replacement = bin.resolve("opencode.new");
-            Path ripgrepReplacement = bin.resolve("rg.new");
+            String opencodeName = binaryName(TOOL_ID);
+            String ripgrepName = binaryName("rg");
+            Path replacement = bin.resolve(opencodeName + ".new");
+            Path ripgrepReplacement = bin.resolve(ripgrepName + ".new");
             Files.move(executable, replacement, StandardCopyOption.REPLACE_EXISTING);
             Files.move(ripgrep, ripgrepReplacement, StandardCopyOption.REPLACE_EXISTING);
             try {
                 Files.move(
                         replacement,
-                        bin.resolve("opencode"),
+                        bin.resolve(opencodeName),
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING);
             } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
                 Files.move(
-                        replacement, bin.resolve("opencode"), StandardCopyOption.REPLACE_EXISTING);
+                        replacement,
+                        bin.resolve(opencodeName),
+                        StandardCopyOption.REPLACE_EXISTING);
             }
             try {
                 Files.move(
                         ripgrepReplacement,
-                        bin.resolve("rg"),
+                        bin.resolve(ripgrepName),
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING);
             } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
                 Files.move(
-                        ripgrepReplacement, bin.resolve("rg"), StandardCopyOption.REPLACE_EXISTING);
+                        ripgrepReplacement,
+                        bin.resolve(ripgrepName),
+                        StandardCopyOption.REPLACE_EXISTING);
             }
-            setExecutable(bin.resolve("opencode"));
-            setExecutable(bin.resolve("rg"));
+            setExecutable(bin.resolve(opencodeName));
+            setExecutable(bin.resolve(ripgrepName));
             ToolStatus installed =
                     new ToolStatus(
                             TOOL_ID,
@@ -308,7 +385,8 @@ public final class AgentToolServiceImpl implements AgentToolService {
                             architecture,
                             "INSTALLED",
                             totalDownloadBytes,
-                            Files.size(bin.resolve("opencode")) + Files.size(bin.resolve("rg")),
+                            Files.size(bin.resolve(opencodeName))
+                                    + Files.size(bin.resolve(ripgrepName)),
                             100,
                             "");
             remember(userId, installed);
@@ -393,7 +471,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
                                     TOOL_ID,
                                     "OpenCode",
                                     VERSION,
-                                    architecture(),
+                                    platformKey(),
                                     "INSTALLING",
                                     totalDownloadBytes,
                                     0,
@@ -456,6 +534,26 @@ public final class AgentToolServiceImpl implements AgentToolService {
 
     static void extractExecutable(Path archive, Path destination, String expectedEntry)
             throws IOException {
+        extractExecutable(archive, destination, expectedEntry, "tar.gz", MAX_EXECUTABLE_BYTES);
+    }
+
+    static void extractExecutable(
+            Path archive,
+            Path destination,
+            String expectedEntry,
+            String format,
+            long expandedBytes)
+            throws IOException {
+        if ("zip".equals(format)) {
+            extractZipExecutable(archive, destination, expectedEntry, expandedBytes);
+        } else {
+            extractTarExecutable(archive, destination, expectedEntry, expandedBytes);
+        }
+    }
+
+    private static void extractTarExecutable(
+            Path archive, Path destination, String expectedEntry, long expandedBytes)
+            throws IOException {
         boolean found = false;
         int entries = 0;
         try (InputStream input =
@@ -470,13 +568,13 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 }
                 String name = tarString(header, 0, 100);
                 long size = tarSize(header, 124, 12);
-                if (size < 0 || size > MAX_EXECUTABLE_BYTES) {
+                if (size < 0 || size > expandedBytes) {
                     throw new IOException("OpenCode archive contains an oversized entry");
                 }
                 int type = header[156] & 0xff;
                 boolean regularFile = type == 0 || type == '0';
                 if (regularFile && name.equals(expectedEntry)) {
-                    if (found || size < 4 || size > MAX_EXECUTABLE_BYTES) {
+                    if (found || size < 4 || size > expandedBytes) {
                         throw new IOException(
                                 "OpenCode archive contains an invalid executable entry");
                     }
@@ -499,11 +597,64 @@ public final class AgentToolServiceImpl implements AgentToolService {
             throw new IOException("OpenCode archive does not contain its expected executable");
     }
 
-    private static void verifyExecutableArchitecture(Path executable, String architecture)
+    private static void extractZipExecutable(
+            Path archive, Path destination, String expectedEntry, long expandedBytes)
             throws IOException {
+        boolean found = false;
+        int entries = 0;
+        try (ZipInputStream input =
+                new ZipInputStream(new BufferedInputStream(Files.newInputStream(archive)))) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                if (++entries > MAX_ARCHIVE_ENTRIES) {
+                    throw new IOException("OpenCode archive contains too many entries");
+                }
+                if (entry.isDirectory()) continue;
+                if (entry.getName().equals(expectedEntry)) {
+                    if (found || entry.getSize() > expandedBytes) {
+                        throw new IOException(
+                                "OpenCode archive contains an invalid executable entry");
+                    }
+                    try (OutputStream output =
+                            new BufferedOutputStream(Files.newOutputStream(destination))) {
+                        BoundedInputStream bounded = new BoundedInputStream(input, expandedBytes);
+                        byte[] buffer = new byte[BUFFER_SIZE];
+                        int count;
+                        while ((count = bounded.read(buffer)) >= 0) {
+                            if (count == 0) continue;
+                            output.write(buffer, 0, count);
+                        }
+                    }
+                    found = true;
+                }
+                input.closeEntry();
+            }
+        }
+        if (!found)
+            throw new IOException("OpenCode archive does not contain its expected executable");
+    }
+
+    private static void verifyExecutableArchitecture(Path executable) throws IOException {
         byte[] header;
         try (InputStream input = Files.newInputStream(executable)) {
             header = input.readNBytes(20);
+        }
+        Platform.Os os = Platforms.detect(null).os();
+        if (os == Platform.Os.WINDOWS) {
+            if (header.length < 2 || header[0] != 'M' || header[1] != 'Z') {
+                throw new IOException("OpenCode executable is not a Windows PE binary");
+            }
+            return;
+        }
+        if (os == Platform.Os.MACOS) {
+            boolean macho =
+                    header.length >= 4
+                            && ((header[0] == (byte) 0xCF && header[1] == (byte) 0xFA)
+                                    || (header[0] == (byte) 0xCE && header[1] == (byte) 0xFA)
+                                    || (header[0] == (byte) 0xFE && header[1] == (byte) 0xED)
+                                    || (header[0] == (byte) 0xCA && header[1] == (byte) 0xFE));
+            if (!macho) throw new IOException("OpenCode executable is not a macOS Mach-O binary");
+            return;
         }
         if (header.length < 20
                 || header[0] != 0x7f
@@ -515,7 +666,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
             throw new IOException("OpenCode executable is not a little-endian 64-bit Linux binary");
         }
         int machine = (header[18] & 0xff) | ((header[19] & 0xff) << 8);
-        int expected = "x64".equals(architecture) ? 62 : 183;
+        int expected = platformKey().endsWith("x64") ? 62 : 183;
         if (machine != expected) throw new IOException("OpenCode executable architecture mismatch");
     }
 
@@ -531,9 +682,9 @@ public final class AgentToolServiceImpl implements AgentToolService {
                                 TOOL_ID,
                                 "OpenCode",
                                 VERSION,
-                                architecture(),
+                                platformKey(),
                                 "INSTALLED",
-                                totalDownloadBytes(architecture()),
+                                totalDownloadBytes(platformKey()),
                                 Files.size(binary) + Files.size(ripgrep),
                                 100,
                                 "");
@@ -551,9 +702,9 @@ public final class AgentToolServiceImpl implements AgentToolService {
                             TOOL_ID,
                             "OpenCode",
                             VERSION,
-                            architecture(),
+                            platformKey(),
                             "FAILED",
-                            totalDownloadBytes(architecture()),
+                            totalDownloadBytes(platformKey()),
                             0,
                             0,
                             "Installation was interrupted by a server restart. Retry to continue."));
@@ -563,9 +714,9 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 TOOL_ID,
                 "OpenCode",
                 VERSION,
-                architecture(),
+                platformKey(),
                 "NOT_INSTALLED",
-                totalDownloadBytes(architecture()),
+                totalDownloadBytes(platformKey()),
                 0,
                 0,
                 "");
@@ -652,7 +803,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
     private Path executablePath(UserId userId) {
         Path directory = executableDirectory(userId);
         rejectSymbolicLink(directory);
-        Path binary = directory.resolve(TOOL_ID);
+        Path binary = directory.resolve(binaryName(TOOL_ID));
         rejectSymbolicLink(binary);
         return binary;
     }
@@ -660,9 +811,13 @@ public final class AgentToolServiceImpl implements AgentToolService {
     private Path ripgrepPath(UserId userId) {
         Path directory = executableDirectory(userId);
         rejectSymbolicLink(directory);
-        Path binary = directory.resolve("rg");
+        Path binary = directory.resolve(binaryName("rg"));
         rejectSymbolicLink(binary);
         return binary;
+    }
+
+    private static String binaryName(String base) {
+        return Platforms.detect(null).os() == Platform.Os.WINDOWS ? base + ".exe" : base;
     }
 
     private static boolean isManagedBinary(Path path) {
@@ -677,17 +832,31 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 : openCode.downloadBytes() + ripgrep.downloadBytes();
     }
 
-    private static String architecture() {
-        String arch = System.getProperty("os.arch", "").toLowerCase(java.util.Locale.ROOT);
-        if (arch.equals("amd64") || arch.equals("x86_64")) return "x64";
-        if (arch.equals("aarch64") || arch.equals("arm64")) return "arm64";
-        return arch.isBlank() ? "unknown" : arch;
+    private static String platformKey() {
+        Platform platform = Platforms.detect(null);
+        return platformKey(platform.os(), platform.arch());
     }
 
-    private static boolean isLinux() {
-        return System.getProperty("os.name", "")
-                .toLowerCase(java.util.Locale.ROOT)
-                .contains("linux");
+    static String platformKey(Platform.Os os, Platform.Arch arch) {
+        String name;
+        if (os == Platform.Os.WINDOWS) name = "windows";
+        else if (os == Platform.Os.MACOS) name = "darwin";
+        else name = "linux";
+        String cpu = arch == Platform.Arch.X64 ? "x64" : "arm64";
+        return name + "-" + cpu;
+    }
+
+    static boolean supportsHost(Platform.Os os, Platform.Arch arch) {
+        return capabilityAvailable(platformKey(os, arch));
+    }
+
+    static String hostCapabilityMessage(Platform.Os os, Platform.Arch arch) {
+        if (supportsHost(os, arch)) return "";
+        return UNAVAILABLE + ": OpenCode is not published for " + platformKey(os, arch) + ".";
+    }
+
+    private static boolean capabilityAvailable(String key) {
+        return ARTIFACTS.containsKey(key) && RIPGREP_ARTIFACTS.containsKey(key);
     }
 
     private static String safeMessage(Exception failure) {
@@ -817,7 +986,16 @@ public final class AgentToolServiceImpl implements AgentToolService {
     }
 
     private record Artifact(
-            String url, String sha256, long downloadBytes, String executableEntry) {}
+            String url,
+            String sha256,
+            long downloadBytes,
+            String executableEntry,
+            String format,
+            long expandedBytes) {
+        Artifact(String url, String sha256, long downloadBytes, String executableEntry) {
+            this(url, sha256, downloadBytes, executableEntry, "tar.gz", MAX_EXECUTABLE_BYTES);
+        }
+    }
 
     /** Counts decompressed bytes so a small gzip response cannot expand without a bound. */
     private static final class BoundedInputStream extends java.io.FilterInputStream {
