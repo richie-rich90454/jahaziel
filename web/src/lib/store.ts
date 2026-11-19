@@ -18,7 +18,12 @@ export type Panel =
     | "debug"
     | "git"
     | "terminal"
-    | "preview";
+    | "preview"
+    | "collaboration"
+    | "agent"
+    | "data"
+    | "club"
+    | "ops";
 
 export interface User {
     displayName: string;
