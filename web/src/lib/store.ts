@@ -98,6 +98,7 @@ export interface TaskRun {
     status: string;
     output: string;
     exitCode: number | null;
+    durationMs?: number;
 }
 export interface GitChange {
     path: string;
@@ -153,7 +154,7 @@ export interface CandidatePort {
 export interface QuickResult {
     label: string;
     detail: string;
-    kind: "panel" | "document" | "match" | "empty";
+    kind: "panel" | "document" | "match" | "command" | "empty";
     value: string;
 }
 
@@ -215,6 +216,7 @@ export interface UiState {
     languageState: string;
     languagePacks: LanguagePack[];
     diagnostics: LanguageDiagnostic[];
+    problems: LanguageDiagnostic[];
 
     debugState: string;
     debugTargets: DebugTarget[];
@@ -351,6 +353,7 @@ const [state, rawSetState] = createStore<UiState>({
     languageState: "Optional",
     languagePacks: [],
     diagnostics: [],
+    problems: [],
 
     debugState: "NOT RUNNING",
     debugTargets: [],
