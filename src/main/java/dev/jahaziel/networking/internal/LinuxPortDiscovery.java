@@ -6,6 +6,10 @@ package dev.jahaziel.networking.internal;
 
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +26,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Linux discovery from the read-only {@code /proc} filesystem. Socket tables are streamed one line
@@ -36,8 +38,12 @@ public class LinuxPortDiscovery extends PortDiscoveryPlugin {
     private static final String SOCKET_PREFIX = "socket:[";
 
     public LinuxPortDiscovery() {
-        super(new PluginDescriptor(
-                "linux-port-discovery", "1.0", new ArrayList<String>(), new ArrayList<String>()));
+        super(
+                new PluginDescriptor(
+                        "linux-port-discovery",
+                        "1.0",
+                        new ArrayList<String>(),
+                        new ArrayList<String>()));
     }
 
     @Override
