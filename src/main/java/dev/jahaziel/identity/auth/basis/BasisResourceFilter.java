@@ -6,6 +6,8 @@ package dev.jahaziel.identity.auth.basis;
 
 import com.nimbusds.jwt.SignedJWT;
 
+import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,15 +19,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.UUID;
 
 /**
  * Enforces basis-auth access tokens on workspace API calls. Leaves app session, JWT, and cookie
- * authentication untouched: it only runs for a bearer token whose header is typ=at+jwt.
+ * authentication untouched: it only runs for a bearer token whose header is typ=at+jwt. A verified
+ * token that resolves to a linked local account is published as a request attribute.
  */
 public final class BasisResourceFilter extends OncePerRequestFilter {
+    /** Request attribute carrying the local user id resolved from a verified basis token. */
+    public static final String PRINCIPAL_ATTRIBUTE = "basis.verified.userId";
+
     private static final Logger log = LoggerFactory.getLogger(BasisResourceFilter.class);
     private static final String WORKSPACES = "/api/v1/workspaces/";
     private static final String BEARER = "Bearer ";
+    private static final String PROVIDER_BASIS = "basis-auth";
+
+    private static volatile UserIdentityStore identityStore;
 
     private final TokenVerifier verifier;
     private final BasisScopeGuard guard;
@@ -41,6 +51,11 @@ public final class BasisResourceFilter extends OncePerRequestFilter {
         this.guard = guard;
         this.requiredScopes = requiredScopes;
         this.requiredPermissions = requiredPermissions;
+    }
+
+    /** Supplies the link lookup once the Spring context is ready. */
+    public static void setIdentityStore(UserIdentityStore store) {
+        identityStore = store;
     }
 
     @Override
@@ -79,8 +94,9 @@ public final class BasisResourceFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String token = request.getHeader("Authorization").substring(BEARER.length()).trim();
+        TokenVerifier.VerifiedToken verified;
         try {
-            TokenVerifier.VerifiedToken verified = verifier.verifyAccessToken(token);
+            verified = verifier.verifyAccessToken(token);
             guard.requireScopes(verified.scopes(), requiredScopes);
             guard.requirePermissions(verified.permissions(), requiredPermissions);
         } catch (TokenVerifier.TokenRejectedException rejected) {
@@ -99,6 +115,14 @@ public final class BasisResourceFilter extends OncePerRequestFilter {
             log.warn("basis access token verification failed unexpectedly");
             invalidToken(response);
             return;
+        }
+        String subject = verified.claims() == null ? null : verified.claims().getSubject();
+        UserIdentityStore store = identityStore;
+        if (store != null && subject != null && subject.trim().length() > 0) {
+            UUID userId = store.findUserId(PROVIDER_BASIS, subject);
+            if (userId != null) {
+                request.setAttribute(PRINCIPAL_ATTRIBUTE, userId.toString());
+            }
         }
         chain.doFilter(request, response);
     }
