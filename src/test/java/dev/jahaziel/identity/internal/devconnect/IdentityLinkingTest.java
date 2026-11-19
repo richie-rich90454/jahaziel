@@ -4,7 +4,6 @@
  */
 package dev.jahaziel.identity.internal.devconnect;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -126,7 +125,6 @@ final class IdentityLinkingTest {
 
     private static AuthIdentity identity(String provider, String subject) {
         Map<String, String> claims = new HashMap<String, String>();
-        return new AuthIdentity(
-                provider, subject, "user@example.org", "User", true, false, claims);
+        return new AuthIdentity(provider, subject, "user@example.org", "User", true, false, claims);
     }
 }
