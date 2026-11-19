@@ -1,8 +1,8 @@
 #!/bin/sh
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
-# Registers the jar-adjacent Jahaziel deployment with launchd.
-# Usage: install.sh /path/to/directory-containing-jahaziel.jar [label]
+#
 
 set -eu
 
