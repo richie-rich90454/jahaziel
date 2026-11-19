@@ -45,7 +45,9 @@ class WorkspaceHomeMigrationTest {
         assertEquals(
                 "int main(void) { return 0; }\n",
                 Files.readString(fixture.legacyHome().resolve("src/main.c")));
-        assertEquals(fixture.workspaceHome().toString(), fixture.machine().getHomePath());
+        assertEquals(
+                fixture.workspaceHome().toRealPath().toString(),
+                Path.of(fixture.machine().getHomePath()).toRealPath().toString());
         verify(fixture.machines()).save(fixture.machine());
     }
 
