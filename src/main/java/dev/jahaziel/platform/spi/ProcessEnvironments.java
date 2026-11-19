@@ -8,8 +8,7 @@ import dev.jahaziel.platform.Platform;
 
 /** Selects the process strategy for a detected operating system. */
 public final class ProcessEnvironments {
-    private ProcessEnvironments() {
-    }
+    private ProcessEnvironments() {}
 
     /**
      * Returns the strategy for {@code os}.
