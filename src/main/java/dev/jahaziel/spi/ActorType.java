@@ -6,12 +6,12 @@ package dev.jahaziel.spi;
 
 /** Who performed an audited action. */
 public enum ActorType {
-  /** A regular user. */
-  USER,
-  /** The platform itself. */
-  SYSTEM,
-  /** A node agent. */
-  NODE,
-  /** A human administrator. */
-  ADMIN
+    /** A regular user. */
+    USER,
+    /** The platform itself. */
+    SYSTEM,
+    /** A node agent. */
+    NODE,
+    /** A human administrator. */
+    ADMIN
 }
