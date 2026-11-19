@@ -40,18 +40,17 @@ public final class BasisHttp {
     }
 
     public String get(String url, Duration timeout) {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(timeout)
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder(URI.create(url)).timeout(timeout).GET().build();
         return send(request, url);
     }
 
     public String postForm(String url, String body, String authorization, Duration timeout) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .timeout(timeout)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder(URI.create(url))
+                        .timeout(timeout)
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (authorization != null) {
             builder.header("Authorization", authorization);
         }
@@ -59,10 +58,11 @@ public final class BasisHttp {
     }
 
     public String postJson(String url, String body, Map<String, String> headers, Duration timeout) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .timeout(timeout)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder(URI.create(url))
+                        .timeout(timeout)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             builder.header(entry.getKey(), entry.getValue());
         }
@@ -71,10 +71,12 @@ public final class BasisHttp {
 
     private String send(HttpRequest request, String url) {
         try {
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
-                throw new BasisException("basis-auth request failed with HTTP " + status + " at " + url);
+                throw new BasisException(
+                        "basis-auth request failed with HTTP " + status + " at " + url);
             }
             return response.body();
         } catch (IOException failure) {
