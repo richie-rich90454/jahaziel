@@ -8,4 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Repository for AuditProcessEntity persistence. */
 public interface AuditProcessRepository
-    extends JpaRepository<AuditProcessEntity, AuditProcessEntity.Id> {}
+        extends JpaRepository<AuditProcessEntity, AuditProcessEntity.Id> {}
