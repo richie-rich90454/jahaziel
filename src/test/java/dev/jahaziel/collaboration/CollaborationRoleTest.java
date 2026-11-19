@@ -9,9 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+
+import java.util.List;
 
 final class CollaborationRoleTest {
     @Test
@@ -31,7 +32,8 @@ final class CollaborationRoleTest {
 
         Member accepted = fixture.membership.accept(invitation.id(), invitee, 2000L);
         assertEquals(Roles.EDITOR, accepted.role());
-        assertEquals(Roles.EDITOR, fixture.membership.roleOf(CollaborationFixture.WORKSPACE, invitee));
+        assertEquals(
+                Roles.EDITOR, fixture.membership.roleOf(CollaborationFixture.WORKSPACE, invitee));
 
         List<AuditEntry> entries = fixture.store.audit(CollaborationFixture.WORKSPACE);
         boolean invited = false;
