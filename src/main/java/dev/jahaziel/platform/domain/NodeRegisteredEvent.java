@@ -14,8 +14,8 @@ import java.util.Objects;
  * @param occurredAt when the event occurred
  */
 public record NodeRegisteredEvent(String nodeId, Instant occurredAt) implements DomainEvent {
-  public NodeRegisteredEvent {
-    Objects.requireNonNull(nodeId, "nodeId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
+    public NodeRegisteredEvent {
+        Objects.requireNonNull(nodeId, "nodeId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+    }
 }
