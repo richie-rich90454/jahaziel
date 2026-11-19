@@ -13,6 +13,7 @@ import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.workspace.api.WorkspaceView;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,92 +26,94 @@ import java.util.Objects;
  * minted for one acting user and one workspace.
  */
 public final class WorkspaceDtoFactory {
-  private final PortService ports;
-  private final UserService users;
-  private final JwtService tokens;
-  private final GatewayEndpoint endpoint;
-  private final BootProgressService progress;
-  private final long tokenTtlSeconds;
+    private final PortService ports;
+    private final UserService users;
+    private final JwtService tokens;
+    private final GatewayEndpoint endpoint;
+    private final BootProgressService progress;
+    private final long tokenTtlSeconds;
 
-  /**
-   * Creates the factory.
-   *
-   * @param ports the port bindings
-   * @param users the user lookup, for URL slugs
-   * @param tokens the session token issuer
-   * @param endpoint the public gateway address
-   * @param progress the live boot-phase reports
-   * @param tokenTtlSeconds the gateway token lifetime
-   */
-  public WorkspaceDtoFactory(
-      PortService ports,
-      UserService users,
-      JwtService tokens,
-      GatewayEndpoint endpoint,
-      BootProgressService progress,
-      long tokenTtlSeconds) {
-    this.ports = Objects.requireNonNull(ports, "ports");
-    this.users = Objects.requireNonNull(users, "users");
-    this.tokens = Objects.requireNonNull(tokens, "tokens");
-    this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
-    this.progress = Objects.requireNonNull(progress, "progress");
-    this.tokenTtlSeconds = tokenTtlSeconds;
-  }
+    /**
+     * Creates the factory.
+     *
+     * @param ports the port bindings
+     * @param users the user lookup, for URL slugs
+     * @param tokens the session token issuer
+     * @param endpoint the public gateway address
+     * @param progress the live boot-phase reports
+     * @param tokenTtlSeconds the gateway token lifetime
+     */
+    public WorkspaceDtoFactory(
+            PortService ports,
+            UserService users,
+            JwtService tokens,
+            GatewayEndpoint endpoint,
+            BootProgressService progress,
+            long tokenTtlSeconds) {
+        this.ports = Objects.requireNonNull(ports, "ports");
+        this.users = Objects.requireNonNull(users, "users");
+        this.tokens = Objects.requireNonNull(tokens, "tokens");
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        this.progress = Objects.requireNonNull(progress, "progress");
+        this.tokenTtlSeconds = tokenTtlSeconds;
+    }
 
-  /**
-   * Builds the view for its owner, with a tokenized URL per port.
-   *
-   * @param actingUser the acting user, the token subject
-   * @param view the workspace view
-   * @return the DTO
-   */
-  public WorkspaceDto forUser(UserId actingUser, WorkspaceView view) {
-    // The route is registered under the workspace owner's slug, so the URL must use it too:
-    // the acting user may differ on shared workspaces.
-    String slug = users.slug(view.workspace().owner());
-    List<PortDto> entries =
-        ports.bindingsByWorkspace(view.workspace().id()).stream()
-            .map(
-                binding ->
-                    PortDto.from(binding, slug, endpoint, token(actingUser, view, binding.port())))
-            .toList();
-    return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
-  }
+    /**
+     * Builds the view for its owner, with a tokenized URL per port.
+     *
+     * @param actingUser the acting user, the token subject
+     * @param view the workspace view
+     * @return the DTO
+     */
+    public WorkspaceDto forUser(UserId actingUser, WorkspaceView view) {
+        // The route is registered under the workspace owner's slug, so the URL must use it too:
+        // the acting user may differ on shared workspaces.
+        String slug = users.slug(view.workspace().owner());
+        List<PortDto> entries =
+                ports.bindingsByWorkspace(view.workspace().id()).stream()
+                        .map(
+                                binding ->
+                                        PortDto.from(
+                                                binding,
+                                                slug,
+                                                endpoint,
+                                                token(actingUser, view, binding.port())))
+                        .toList();
+        return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
+    }
 
-  /**
-   * Builds the view for administration, without tokens.
-   *
-   * @param view the workspace view
-   * @return the DTO
-   */
-  public WorkspaceDto withoutTokens(WorkspaceView view) {
-    String slug = users.slug(view.workspace().owner());
-    List<PortDto> entries =
-        ports.bindingsByWorkspace(view.workspace().id()).stream()
-            .map(binding -> PortDto.from(binding, slug, endpoint, null))
-            .toList();
-    return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
-  }
+    /**
+     * Builds the view for administration, without tokens.
+     *
+     * @param view the workspace view
+     * @return the DTO
+     */
+    public WorkspaceDto withoutTokens(WorkspaceView view) {
+        String slug = users.slug(view.workspace().owner());
+        List<PortDto> entries =
+                ports.bindingsByWorkspace(view.workspace().id()).stream()
+                        .map(binding -> PortDto.from(binding, slug, endpoint, null))
+                        .toList();
+        return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
+    }
 
-  private String bootPhase(WorkspaceView view) {
-    return progress
-        .snapshot(view.workspace().id())
-        .map(report -> report.phase().name().toLowerCase(Locale.ROOT))
-        .orElse(null);
-  }
+    private String bootPhase(WorkspaceView view) {
+        return progress.snapshot(view.workspace().id())
+                .map(report -> report.phase().name().toLowerCase(Locale.ROOT))
+                .orElse(null);
+    }
 
-  private Instant bootPhaseAt(WorkspaceView view) {
-    return progress
-        .snapshot(view.workspace().id())
-        .map((BootProgressService.Progress report) -> report.updatedAt())
-        .orElse(null);
-  }
+    private Instant bootPhaseAt(WorkspaceView view) {
+        return progress.snapshot(view.workspace().id())
+                .map((BootProgressService.Progress report) -> report.updatedAt())
+                .orElse(null);
+    }
 
-  private String token(UserId owner, WorkspaceView view, int port) {
-    return tokens.issue(
-        owner,
-        view.workspace().id().value(),
-        List.of("workspace:port:" + port),
-        Duration.ofSeconds(tokenTtlSeconds));
-  }
+    private String token(UserId owner, WorkspaceView view, int port) {
+        return tokens.issue(
+                owner,
+                view.workspace().id().value(),
+                List.of("workspace:port:" + port),
+                Duration.ofSeconds(tokenTtlSeconds));
+    }
 }
