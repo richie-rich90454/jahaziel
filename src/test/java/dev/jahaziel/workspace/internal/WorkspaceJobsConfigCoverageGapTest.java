@@ -33,6 +33,13 @@ import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceAclRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -41,210 +48,215 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.core.env.MapPropertySource;
 
 class WorkspaceJobsConfigCoverageGapTest {
-  @Test
-  void cleanupCtorGuards() {
-    var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-    assertThrows(NullPointerException.class, () -> new CleanupJob(null, "/r"));
-    assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, null));
-    assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, "  "));
-  }
-
-  @Test
-  void cleanupNoJailReturns(@TempDir Path root) {
-    var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-    when(workspaces.describeAll()).thenReturn(List.of());
-    new CleanupJob(workspaces, root.toString()).run(JobContext.now());
-  }
-
-  @Test
-  void cleanupKeepsKnownAndDeletesOrphan(@TempDir Path root) throws Exception {
-    UUID knownId = UUID.randomUUID();
-    UUID orphanId = UUID.randomUUID();
-    Path jail = root.resolve("jail");
-    Files.createDirectories(jail.resolve(knownId.toString()));
-    Files.createDirectories(jail.resolve(orphanId.toString()));
-    Files.writeString(jail.resolve(orphanId.toString()).resolve("x.txt"), "x");
-    Files.writeString(jail.resolve("not-a-uuid"), "x");
-    var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-    Workspace workspace = workspace(knownId);
-    var view = mock(WorkspaceView.class);
-    when(view.workspace()).thenReturn(workspace);
-    when(workspaces.describeAll()).thenReturn(List.of(view));
-    new CleanupJob(workspaces, root.toString()).run(JobContext.now());
-    assertTrue(Files.isDirectory(jail.resolve(knownId.toString())));
-    assertTrue(Files.notExists(jail.resolve(orphanId.toString())));
-    assertTrue(Files.exists(jail.resolve("not-a-uuid")));
-    CleanupJob job = new CleanupJob(workspaces, root.toString());
-    assertEquals(Duration.ofHours(24), job.period());
-    assertEquals(JobScope.NODE, job.scope());
-  }
-
-  @Test
-  void cleanupListFailureThrows(@TempDir Path root) throws Exception {
-    Path jail = root.resolve("jail");
-    Files.createDirectories(jail);
-    var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-    when(workspaces.describeAll()).thenReturn(List.of());
-    try (var files =
-        org.mockito.Mockito.mockStatic(Files.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
-      files.when(() -> Files.list(any(Path.class))).thenThrow(new java.io.IOException("boom"));
-      assertThrows(
-          java.io.UncheckedIOException.class,
-          () -> new CleanupJob(workspaces, root.toString()).run(JobContext.now()));
+    @Test
+    void cleanupCtorGuards() {
+        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        assertThrows(NullPointerException.class, () -> new CleanupJob(null, "/r"));
+        assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, null));
+        assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, "  "));
     }
-  }
 
-  @Test
-  void backendConfigSelectsOnlyVerifiedBackend() {
-    WorkspaceBackendConfig config = new WorkspaceBackendConfig();
-    var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
-    NodeBackend local = config.nodeBackend("local", storage);
-    assertInstanceOf(LocalProcessBackend.class, local);
-    assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
-    IllegalArgumentException unsupported =
+    @Test
+    void cleanupNoJailReturns(@TempDir Path root) {
+        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        when(workspaces.describeAll()).thenReturn(List.of());
+        new CleanupJob(workspaces, root.toString()).run(JobContext.now());
+    }
+
+    @Test
+    void cleanupKeepsKnownAndDeletesOrphan(@TempDir Path root) throws Exception {
+        UUID knownId = UUID.randomUUID();
+        UUID orphanId = UUID.randomUUID();
+        Path jail = root.resolve("jail");
+        Files.createDirectories(jail.resolve(knownId.toString()));
+        Files.createDirectories(jail.resolve(orphanId.toString()));
+        Files.writeString(jail.resolve(orphanId.toString()).resolve("x.txt"), "x");
+        Files.writeString(jail.resolve("not-a-uuid"), "x");
+        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        Workspace workspace = workspace(knownId);
+        var view = mock(WorkspaceView.class);
+        when(view.workspace()).thenReturn(workspace);
+        when(workspaces.describeAll()).thenReturn(List.of(view));
+        new CleanupJob(workspaces, root.toString()).run(JobContext.now());
+        assertTrue(Files.isDirectory(jail.resolve(knownId.toString())));
+        assertTrue(Files.notExists(jail.resolve(orphanId.toString())));
+        assertTrue(Files.exists(jail.resolve("not-a-uuid")));
+        CleanupJob job = new CleanupJob(workspaces, root.toString());
+        assertEquals(Duration.ofHours(24), job.period());
+        assertEquals(JobScope.NODE, job.scope());
+    }
+
+    @Test
+    void cleanupListFailureThrows(@TempDir Path root) throws Exception {
+        Path jail = root.resolve("jail");
+        Files.createDirectories(jail);
+        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        when(workspaces.describeAll()).thenReturn(List.of());
+        try (var files =
+                org.mockito.Mockito.mockStatic(
+                        Files.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            files.when(() -> Files.list(any(Path.class)))
+                    .thenThrow(new java.io.IOException("boom"));
+            assertThrows(
+                    java.io.UncheckedIOException.class,
+                    () -> new CleanupJob(workspaces, root.toString()).run(JobContext.now()));
+        }
+    }
+
+    @Test
+    void backendConfigSelectsOnlyVerifiedBackend() {
+        WorkspaceBackendConfig config = new WorkspaceBackendConfig();
+        var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
+        NodeBackend local = config.nodeBackend("local", storage);
+        assertInstanceOf(LocalProcessBackend.class, local);
+        assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
+        IllegalArgumentException unsupported =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> config.nodeBackend("firecracker", storage));
+        assertTrue(unsupported.getMessage().contains("WORKSPACE_BACKEND_UNSUPPORTED"));
+        assertTrue(unsupported.getMessage().matches(".*correlationId=[0-9a-f-]{36}:.*"));
         assertThrows(
-            IllegalArgumentException.class, () -> config.nodeBackend("firecracker", storage));
-    assertTrue(unsupported.getMessage().contains("WORKSPACE_BACKEND_UNSUPPORTED"));
-    assertTrue(unsupported.getMessage().matches(".*correlationId=[0-9a-f-]{36}:.*"));
-    assertThrows(
-        IllegalArgumentException.class, () -> config.nodeBackend("  FIRECRACKER  ", storage));
-    assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("other", storage));
-  }
-
-  @Test
-  void backendConfigReadsDocumentedEnvironmentProperty() {
-    try (var context = new AnnotationConfigApplicationContext()) {
-      context
-          .getEnvironment()
-          .getPropertySources()
-          .addFirst(new MapPropertySource("test", Map.of("JAHAZIEL_BACKEND", "firecracker")));
-      context.registerBean(
-          dev.jahaziel.spi.WorkspaceStorage.class,
-          () -> mock(dev.jahaziel.spi.WorkspaceStorage.class));
-      context.register(WorkspaceBackendConfig.class);
-
-      assertThrows(BeanCreationException.class, context::refresh);
+                IllegalArgumentException.class,
+                () -> config.nodeBackend("  FIRECRACKER  ", storage));
+        assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("other", storage));
     }
-  }
 
-  @Test
-  void pathsGuards() {
-    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    assertTrue(WorkspacePaths.jailPath("/r", id).equals("/r/jail/" + id.value()));
-    assertTrue(WorkspacePaths.homePath("/r", id).equals("/r/workspaces/" + id.value() + "/home"));
-    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath(null, id));
-    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath("  ", id));
-    assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", id));
-  }
+    @Test
+    void backendConfigReadsDocumentedEnvironmentProperty() {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment()
+                    .getPropertySources()
+                    .addFirst(
+                            new MapPropertySource(
+                                    "test", Map.of("JAHAZIEL_BACKEND", "firecracker")));
+            context.registerBean(
+                    dev.jahaziel.spi.WorkspaceStorage.class,
+                    () -> mock(dev.jahaziel.spi.WorkspaceStorage.class));
+            context.register(WorkspaceBackendConfig.class);
 
-  @Test
-  void serviceCtorGuards() {
-    var workspaces = mock(WorkspaceRepository.class);
-    var acl = mock(WorkspaceAclRepository.class);
-    var machines = mock(VirtualMachineRepository.class);
-    var users = mock(dev.jahaziel.identity.api.UserService.class);
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, null));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, "  "));
-  }
+            assertThrows(BeanCreationException.class, context::refresh);
+        }
+    }
 
-  @Test
-  void createRollsBackWhenMachineFails() {
-    var workspaces = mock(WorkspaceRepository.class);
-    var acl = mock(WorkspaceAclRepository.class);
-    var machines = mock(VirtualMachineRepository.class);
-    var users = mock(dev.jahaziel.identity.api.UserService.class);
-    var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
-    UserId owner = new UserId(UUID.randomUUID());
-    when(users.get(owner)).thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
-    when(workspaces.findByOwnerUserId(owner.value())).thenReturn(List.of());
-    when(machines.save(any())).thenThrow(new RuntimeException("boom"));
-    assertThrows(
-        RuntimeException.class, () -> service.create(owner, "site", 1, 512, new NodeId("n")));
-    verify(workspaces).deleteById(any(UUID.class));
-  }
+    @Test
+    void pathsGuards() {
+        WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+        assertTrue(WorkspacePaths.jailPath("/r", id).equals("/r/jail/" + id.value()));
+        assertTrue(
+                WorkspacePaths.homePath("/r", id).equals("/r/workspaces/" + id.value() + "/home"));
+        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath(null, id));
+        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath("  ", id));
+        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", id));
+    }
 
-  @Test
-  void getWithoutMachineRowThrows() {
-    var workspaces = mock(WorkspaceRepository.class);
-    var acl = mock(WorkspaceAclRepository.class);
-    var machines = mock(VirtualMachineRepository.class);
-    var users = mock(dev.jahaziel.identity.api.UserService.class);
-    var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
-    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    WorkspaceEntity row = new WorkspaceEntity();
-    row.setWorkspaceId(id.value());
-    row.setOwnerUserId(UUID.randomUUID());
-    row.setName("site");
-    row.setState("requested");
-    row.setStateChangedAt(Instant.now());
-    row.setLogicalQuotaBytes(1L);
-    row.setInodeQuota(1L);
-    row.setCreatedAt(Instant.now());
-    when(workspaces.findById(id.value())).thenReturn(Optional.of(row));
-    when(acl.findByIdWorkspaceId(id.value())).thenReturn(List.of());
-    when(machines.findByWorkspaceId(id.value())).thenReturn(Optional.empty());
-    assertThrows(IllegalStateException.class, () -> service.get(id));
-  }
+    @Test
+    void serviceCtorGuards() {
+        var workspaces = mock(WorkspaceRepository.class);
+        var acl = mock(WorkspaceAclRepository.class);
+        var machines = mock(VirtualMachineRepository.class);
+        var users = mock(dev.jahaziel.identity.api.UserService.class);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, "  "));
+    }
 
-  @Test
-  void createRejectsNullAndLongNames() {
-    var workspaces = mock(WorkspaceRepository.class);
-    var acl = mock(WorkspaceAclRepository.class);
-    var machines = mock(VirtualMachineRepository.class);
-    var users = mock(dev.jahaziel.identity.api.UserService.class);
-    var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
-    UserId owner = new UserId(UUID.randomUUID());
-    when(users.get(owner)).thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
-    assertThrows(
-        IllegalArgumentException.class, () -> service.create(owner, null, 1, 512, new NodeId("n")));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.create(owner, "x".repeat(65), 1, 512, new NodeId("n")));
-  }
+    @Test
+    void createRollsBackWhenMachineFails() {
+        var workspaces = mock(WorkspaceRepository.class);
+        var acl = mock(WorkspaceAclRepository.class);
+        var machines = mock(VirtualMachineRepository.class);
+        var users = mock(dev.jahaziel.identity.api.UserService.class);
+        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        UserId owner = new UserId(UUID.randomUUID());
+        when(users.get(owner))
+                .thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
+        when(workspaces.findByOwnerUserId(owner.value())).thenReturn(List.of());
+        when(machines.save(any())).thenThrow(new RuntimeException("boom"));
+        assertThrows(
+                RuntimeException.class,
+                () -> service.create(owner, "site", 1, 512, new NodeId("n")));
+        verify(workspaces).deleteById(any(UUID.class));
+    }
 
-  @Test
-  void mapperIdleAndUnknown() {
-    WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
-    UserId owner = new UserId(UUID.randomUUID());
-    Instant at = Instant.now();
-    WorkspaceEntity row = mock(WorkspaceEntity.class);
-    when(row.getWorkspaceId()).thenReturn(workspaceId.value());
-    when(row.getOwnerUserId()).thenReturn(owner.value());
-    when(row.getName()).thenReturn("club");
-    when(row.getState()).thenReturn("idle");
-    when(row.getStateChangedAt()).thenReturn(at);
-    when(row.getLogicalQuotaBytes()).thenReturn(1L);
-    when(row.getInodeQuota()).thenReturn(1L);
-    VirtualMachineEntity machine = mock(VirtualMachineEntity.class);
-    when(machine.getVmId()).thenReturn(UUID.randomUUID());
-    when(machine.getVcpuCount()).thenReturn(1);
-    when(machine.getMemoryMib()).thenReturn(512L);
-    Workspace workspace = WorkspaceMapper.toDomain(row, List.of(), machine, List.of());
-    assertInstanceOf(WorkspaceState.Idle.class, workspace.state());
-    assertThrows(IllegalArgumentException.class, () -> WorkspaceMapper.stateToString(null));
-  }
+    @Test
+    void getWithoutMachineRowThrows() {
+        var workspaces = mock(WorkspaceRepository.class);
+        var acl = mock(WorkspaceAclRepository.class);
+        var machines = mock(VirtualMachineRepository.class);
+        var users = mock(dev.jahaziel.identity.api.UserService.class);
+        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+        WorkspaceEntity row = new WorkspaceEntity();
+        row.setWorkspaceId(id.value());
+        row.setOwnerUserId(UUID.randomUUID());
+        row.setName("site");
+        row.setState("requested");
+        row.setStateChangedAt(Instant.now());
+        row.setLogicalQuotaBytes(1L);
+        row.setInodeQuota(1L);
+        row.setCreatedAt(Instant.now());
+        when(workspaces.findById(id.value())).thenReturn(Optional.of(row));
+        when(acl.findByIdWorkspaceId(id.value())).thenReturn(List.of());
+        when(machines.findByWorkspaceId(id.value())).thenReturn(Optional.empty());
+        assertThrows(IllegalStateException.class, () -> service.get(id));
+    }
 
-  private Workspace workspace(UUID id) {
-    WorkspaceId workspaceId = new WorkspaceId(id);
-    return new Workspace(
-        workspaceId,
-        new UserId(UUID.randomUUID()),
-        "club",
-        new WorkspaceQuota(1L, 1L),
-        new VirtualMachine(
-            new VirtualMachineId(UUID.randomUUID()),
-            workspaceId,
-            new VirtualMachineConfiguration(1, 512)));
-  }
+    @Test
+    void createRejectsNullAndLongNames() {
+        var workspaces = mock(WorkspaceRepository.class);
+        var acl = mock(WorkspaceAclRepository.class);
+        var machines = mock(VirtualMachineRepository.class);
+        var users = mock(dev.jahaziel.identity.api.UserService.class);
+        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        UserId owner = new UserId(UUID.randomUUID());
+        when(users.get(owner))
+                .thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(owner, null, 1, 512, new NodeId("n")));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(owner, "x".repeat(65), 1, 512, new NodeId("n")));
+    }
+
+    @Test
+    void mapperIdleAndUnknown() {
+        WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
+        UserId owner = new UserId(UUID.randomUUID());
+        Instant at = Instant.now();
+        WorkspaceEntity row = mock(WorkspaceEntity.class);
+        when(row.getWorkspaceId()).thenReturn(workspaceId.value());
+        when(row.getOwnerUserId()).thenReturn(owner.value());
+        when(row.getName()).thenReturn("club");
+        when(row.getState()).thenReturn("idle");
+        when(row.getStateChangedAt()).thenReturn(at);
+        when(row.getLogicalQuotaBytes()).thenReturn(1L);
+        when(row.getInodeQuota()).thenReturn(1L);
+        VirtualMachineEntity machine = mock(VirtualMachineEntity.class);
+        when(machine.getVmId()).thenReturn(UUID.randomUUID());
+        when(machine.getVcpuCount()).thenReturn(1);
+        when(machine.getMemoryMib()).thenReturn(512L);
+        Workspace workspace = WorkspaceMapper.toDomain(row, List.of(), machine, List.of());
+        assertInstanceOf(WorkspaceState.Idle.class, workspace.state());
+        assertThrows(IllegalArgumentException.class, () -> WorkspaceMapper.stateToString(null));
+    }
+
+    private Workspace workspace(UUID id) {
+        WorkspaceId workspaceId = new WorkspaceId(id);
+        return new Workspace(
+                workspaceId,
+                new UserId(UUID.randomUUID()),
+                "club",
+                new WorkspaceQuota(1L, 1L),
+                new VirtualMachine(
+                        new VirtualMachineId(UUID.randomUUID()),
+                        workspaceId,
+                        new VirtualMachineConfiguration(1, 512)));
+    }
 }
