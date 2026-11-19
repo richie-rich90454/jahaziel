@@ -58,6 +58,17 @@ public final class BasisHttp {
     }
 
     public String postJson(String url, String body, Map<String, String> headers, Duration timeout) {
+        return send(jsonRequest(url, body, headers, timeout), url);
+    }
+
+    /** Posts the same proof request but returns the status so callers can log it without bodies. */
+    public int postJsonStatus(
+            String url, String body, Map<String, String> headers, Duration timeout) {
+        return sendStatus(jsonRequest(url, body, headers, timeout), url);
+    }
+
+    private HttpRequest jsonRequest(
+            String url, String body, Map<String, String> headers, Duration timeout) {
         HttpRequest.Builder builder =
                 HttpRequest.newBuilder(URI.create(url))
                         .timeout(timeout)
@@ -66,7 +77,7 @@ public final class BasisHttp {
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             builder.header(entry.getKey(), entry.getValue());
         }
-        return send(builder.build(), url);
+        return builder.build();
     }
 
     private String send(HttpRequest request, String url) {
@@ -75,10 +86,20 @@ public final class BasisHttp {
                     client.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
-                throw new BasisException(
-                        "basis-auth request failed with HTTP " + status + " at " + url);
+                throw BasisOAuthException.from(status, response.body());
             }
             return response.body();
+        } catch (IOException failure) {
+            throw new BasisException("basis-auth request could not reach " + url, failure);
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new BasisException("basis-auth request was interrupted", failure);
+        }
+    }
+
+    private int sendStatus(HttpRequest request, String url) {
+        try {
+            return client.send(request, HttpResponse.BodyHandlers.ofString()).statusCode();
         } catch (IOException failure) {
             throw new BasisException("basis-auth request could not reach " + url, failure);
         } catch (InterruptedException failure) {
