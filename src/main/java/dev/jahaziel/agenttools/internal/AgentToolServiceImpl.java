@@ -538,11 +538,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
     }
 
     static void extractExecutable(
-            Path archive,
-            Path destination,
-            String expectedEntry,
-            String format,
-            long expandedBytes)
+            Path archive, Path destination, String expectedEntry, String format, long expandedBytes)
             throws IOException {
         if ("zip".equals(format)) {
             extractZipExecutable(archive, destination, expectedEntry, expandedBytes);
