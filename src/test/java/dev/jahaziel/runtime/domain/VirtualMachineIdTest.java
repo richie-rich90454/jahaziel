@@ -9,25 +9,27 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import dev.jahaziel.workspace.domain.VirtualMachineId;
-import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 /** Behavior of {@link VirtualMachineId}. */
 class VirtualMachineIdTest {
-  @Test
-  void equalValuesAreEqual() {
-    UUID value = UUID.randomUUID();
-    assertEquals(new VirtualMachineId(value), new VirtualMachineId(value));
-  }
+    @Test
+    void equalValuesAreEqual() {
+        UUID value = UUID.randomUUID();
+        assertEquals(new VirtualMachineId(value), new VirtualMachineId(value));
+    }
 
-  @Test
-  void differentValuesAreNotEqual() {
-    assertNotEquals(
-        new VirtualMachineId(UUID.randomUUID()), new VirtualMachineId(UUID.randomUUID()));
-  }
+    @Test
+    void differentValuesAreNotEqual() {
+        assertNotEquals(
+                new VirtualMachineId(UUID.randomUUID()), new VirtualMachineId(UUID.randomUUID()));
+    }
 
-  @Test
-  void nullValueIsRejected() {
-    assertThrows(NullPointerException.class, () -> new VirtualMachineId(null));
-  }
+    @Test
+    void nullValueIsRejected() {
+        assertThrows(NullPointerException.class, () -> new VirtualMachineId(null));
+    }
 }
