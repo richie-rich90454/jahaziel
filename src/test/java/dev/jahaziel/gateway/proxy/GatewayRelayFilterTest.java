@@ -234,8 +234,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             request.addHeader("Transfer-Encoding", "identity");
             MockHttpServletResponse response2 = new MockHttpServletResponse();
@@ -260,8 +259,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request =
                     new MockHttpServletRequest("POST", "/upload") {
                         @Override
@@ -295,8 +293,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/workbench?token=tok&x=1");
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -327,8 +324,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             CommitTrackingResponse response = new CommitTrackingResponse();
             filter(tokens, directory, targets)
                     .doFilter(workspaceRequest("/?token=tok"), response, mock(FilterChain.class));
@@ -411,9 +407,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(
-                                    LOOPBACK, listener.getLocalPort()));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, listener.getLocalPort()));
             MockHttpServletRequest request = workspaceRequest("/asset.js?token=tok");
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -439,8 +433,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/upload");
             request.setServerName("richard-8080.code.example.com");
             request.setContent("payload-bytes".getBytes(StandardCharsets.UTF_8));
@@ -468,8 +461,7 @@ class GatewayRelayFilterTest {
         WorkspaceDirectory directory = mock(WorkspaceDirectory.class);
         when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
         TargetResolver targets = mock(TargetResolver.class);
-        when(targets.resolve(workspace, 8080))
-                .thenReturn(new InetSocketAddress(LOOPBACK, dead));
+        when(targets.resolve(workspace, 8080)).thenReturn(new InetSocketAddress(LOOPBACK, dead));
         MockHttpServletRequest request = workspaceRequest("/?token=tok");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -524,8 +516,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -559,8 +550,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -798,8 +788,7 @@ class GatewayRelayFilterTest {
                                     });
             GatewayRelayFilter.RelayState state =
                     new GatewayRelayFilter.RelayState(
-                            new InetSocketAddress(
-                                    LOOPBACK, backend.getLocalPort()),
+                            new InetSocketAddress(LOOPBACK, backend.getLocalPort()),
                             "GET / HTTP/1.1\r\n\r\n",
                             GatewayRelayFilter::connect);
             GatewayRelayFilter.RelayUpgrade.pending().set(state);
@@ -929,8 +918,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             MockHttpServletResponse servletResponse = new MockHttpServletResponse();
             filter(tokens, directory, targets)
@@ -956,8 +944,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             request.addHeader("Connection", "keep-alive");
             request.addHeader("Keep-Alive", "timeout=5");
@@ -998,8 +985,7 @@ class GatewayRelayFilterTest {
             when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
-                    .thenReturn(
-                            new InetSocketAddress(LOOPBACK, backendPort));
+                    .thenReturn(new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -1099,10 +1085,7 @@ class GatewayRelayFilterTest {
                                         }
                                         recorder.receive(
                                                 new String(
-                                                        body,
-                                                        0,
-                                                        offset,
-                                                        StandardCharsets.UTF_8));
+                                                        body, 0, offset, StandardCharsets.UTF_8));
                                     }
                                     byte[] reply = responseBody.getBytes(StandardCharsets.UTF_8);
                                     OutputStream out = peer.getOutputStream();
