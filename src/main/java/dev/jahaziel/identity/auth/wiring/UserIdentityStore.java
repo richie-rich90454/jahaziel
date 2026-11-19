@@ -58,4 +58,29 @@ public final class UserIdentityStore {
             Instant linkedAt) {
         jdbc.update(LINK, provider, subject, userId, email, displayName, Timestamp.from(linkedAt));
     }
+
+    /**
+     * Attaches an already-verified identity to an existing account. Only the authenticated caller
+     * chooses the account; an email match is never a reason to link.
+     *
+     * @throws IllegalStateException when the identity already belongs to another account
+     */
+    public void linkToExistingUser(
+            String provider,
+            String subject,
+            UUID existingUserId,
+            String email,
+            String displayName,
+            Instant linkedAt) {
+        Objects.requireNonNull(provider, "provider");
+        Objects.requireNonNull(subject, "subject");
+        Objects.requireNonNull(existingUserId, "existingUserId");
+        UUID owner = findUserId(provider, subject);
+        if (owner != null && !owner.equals(existingUserId)) {
+            throw new IllegalStateException("identity is already linked to another user");
+        }
+        if (owner == null) {
+            link(provider, subject, existingUserId, email, displayName, linkedAt);
+        }
+    }
 }
