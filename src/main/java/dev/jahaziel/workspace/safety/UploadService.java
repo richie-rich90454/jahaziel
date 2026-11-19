@@ -10,10 +10,10 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -83,8 +83,7 @@ public final class UploadService {
             oldText = files.forWorkspace(workspace).read(relativePath).content();
         }
         WorkspaceFiles.Document saved =
-                files.forWorkspace(workspace)
-                        .save(relativePath, text, expectedVersion, !exists);
+                files.forWorkspace(workspace).save(relativePath, text, expectedVersion, !exists);
         byte[] oldBytes = oldText == null ? null : oldText.getBytes(StandardCharsets.UTF_8);
         history.recordWrite(workspace, relativePath, oldBytes, content, actor);
         return saved;
