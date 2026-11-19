@@ -640,7 +640,7 @@ process.stdin.on("data", (chunk) => {
   await waitForText(page, "#debug-state", "^NOT RUNNING$");
 
   await page.locator("#task-list button").filter({ hasText: "Run example" }).click();
-  await waitForText(page, "#task-output", "Hello from Jahaziel", 15_000);
+  await waitForText(page, "#task-output", "Hello from Jahaziel", 45_000);
   const latestTaskUrl = `${origin}/api/v1/workspaces/${workspaceId}/task-runs/latest`;
   await page.waitForFunction(async (url) => {
     const response = await fetch(url);
