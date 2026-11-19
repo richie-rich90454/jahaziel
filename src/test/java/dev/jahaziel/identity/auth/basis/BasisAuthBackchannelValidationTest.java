@@ -57,7 +57,8 @@ final class BasisAuthBackchannelValidationTest {
     @Test
     void malformedNonceOrChallengeIsRejectedWithoutDelivery() {
         assertEquals(400, webhook("short", value('n')).status());
-        assertEquals(400, webhook(value('n'), "bad!challenge-with-wrong-length!!!!!!!!!!").status());
+        assertEquals(
+                400, webhook(value('n'), "bad!challenge-with-wrong-length!!!!!!!!!!").status());
         assertNull(idp.proofBody());
     }
 
@@ -78,7 +79,8 @@ final class BasisAuthBackchannelValidationTest {
     void webhookReturns202BeforeTheProofIsDelivered() throws Exception {
         HttpServer slow = slowProofServer();
         try {
-            PluginContext slowContext = new PluginContext(temp.resolve("slow"), settings(idp.issuer(), base(slow)));
+            PluginContext slowContext =
+                    new PluginContext(temp.resolve("slow"), settings(idp.issuer(), base(slow)));
             BasisAuthPlugin slowPlugin = new BasisAuthPlugin();
             slowPlugin.initialize(slowContext);
 
@@ -138,7 +140,9 @@ final class BasisAuthBackchannelValidationTest {
                         } catch (InterruptedException failure) {
                             Thread.currentThread().interrupt();
                         }
-                        byte[] bytes = "{\"status\":\"successful\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        byte[] bytes =
+                                "{\"status\":\"successful\"}"
+                                        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
                         exchange.sendResponseHeaders(200, bytes.length);
                         exchange.getResponseBody().write(bytes);
                         exchange.close();
