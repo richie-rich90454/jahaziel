@@ -17,6 +17,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,6 +42,11 @@ class LanguagePackServiceImplTest {
     private static final String OLD_ARCH = System.getProperty("os.arch");
 
     @TempDir Path temporary;
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     @AfterEach
     void restoreHostProperties() {
