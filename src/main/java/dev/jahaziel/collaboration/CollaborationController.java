@@ -4,12 +4,6 @@
  */
 package dev.jahaziel.collaboration;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,6 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /** Collaboration endpoints. Every endpoint checks the caller's workspace role first. */
 @RestController
@@ -182,7 +183,9 @@ public final class CollaborationController {
 
     @GetMapping("/comments")
     public List<String> listComments(
-            @PathVariable UUID id, Principal principal, @RequestBody(required = false) Map<String, String> body) {
+            @PathVariable UUID id,
+            Principal principal,
+            @RequestBody(required = false) Map<String, String> body) {
         require(id, principal, Roles.VIEWER);
         List<FileComment> found = comments.list(id.toString(), value(body, "path"));
         List<String> result = new ArrayList<String>();
@@ -213,8 +216,7 @@ public final class CollaborationController {
             @RequestBody Map<String, String> body) {
         String actor = require(id, principal, Roles.VIEWER);
         FileComment comment =
-                comments.resolve(
-                        id.toString(), actor, commentId, bool(body, "resolved"), now());
+                comments.resolve(id.toString(), actor, commentId, bool(body, "resolved"), now());
         return one("resolved", Boolean.toString(comment.resolved()));
     }
 
@@ -228,8 +230,7 @@ public final class CollaborationController {
 
     @PostMapping("/sessions")
     @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, String> startSession(
-            @PathVariable UUID id, Principal principal) {
+    public Map<String, String> startSession(@PathVariable UUID id, Principal principal) {
         String actor = require(id, principal, Roles.EDITOR);
         SessionStart started = sessions.create(id.toString(), actor, now());
         Map<String, String> result = new HashMap<String, String>();
