@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the identifier value
  */
 public record UserId(UUID value) {
-  public UserId {
-    Objects.requireNonNull(value, "value");
-  }
+    public UserId {
+        Objects.requireNonNull(value, "value");
+    }
 }
