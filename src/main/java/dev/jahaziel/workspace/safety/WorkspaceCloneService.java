@@ -6,9 +6,9 @@ package dev.jahaziel.workspace.safety;
 
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.node.domain.NodeId;
+import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import dev.jahaziel.workspace.api.WorkspaceService;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -96,9 +96,10 @@ public final class WorkspaceCloneService {
                             }
 
                             @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
-                                    throws IOException {
-                                String relative = source.relativize(file).toString().replace('\\', '/');
+                            public FileVisitResult visitFile(
+                                    Path file, BasicFileAttributes attributes) throws IOException {
+                                String relative =
+                                        source.relativize(file).toString().replace('\\', '/');
                                 if (!wanted.isEmpty() && !wanted.contains(relative)) {
                                     return FileVisitResult.CONTINUE;
                                 }
