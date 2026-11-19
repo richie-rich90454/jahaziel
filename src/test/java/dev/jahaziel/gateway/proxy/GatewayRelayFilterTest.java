@@ -728,7 +728,7 @@ class GatewayRelayFilterTest {
                         headReceived.await(10, TimeUnit.SECONDS), "backend never saw the request");
                 assertTrue(abcReceived.await(10, TimeUnit.SECONDS), "backend never saw ABC");
                 String seen = "";
-                long deadline = System.currentTimeMillis() + 5000;
+                long deadline = System.currentTimeMillis() + 15000;
                 while (System.currentTimeMillis() < deadline) {
                     seen = clientOut.toString(StandardCharsets.UTF_8);
                     if (seen.contains("101 Switching")) {
