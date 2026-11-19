@@ -16,4 +16,4 @@ import jakarta.validation.constraints.NotNull;
  * @param protocol one of http, https, tcp
  */
 public record RegisterPortRequest(
-    @NotNull @Min(1) @Max(65535) Integer port, @NotBlank String protocol) {}
+        @NotNull @Min(1) @Max(65535) Integer port, @NotBlank String protocol) {}
