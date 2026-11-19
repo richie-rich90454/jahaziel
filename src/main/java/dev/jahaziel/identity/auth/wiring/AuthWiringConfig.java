@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * come from PluginWiringConfig; this class only adds the dispatcher and identity link store.
  */
 @Configuration
-public final class AuthWiringConfig {
+public class AuthWiringConfig {
   /** Reads the ordered list of enabled providers from the shared plugin context. */
   @Bean
   public AuthProviderConfig authProviderConfig(
