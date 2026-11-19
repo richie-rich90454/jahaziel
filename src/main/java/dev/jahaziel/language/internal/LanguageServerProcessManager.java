@@ -5,6 +5,8 @@
 package dev.jahaziel.language.internal;
 
 import dev.jahaziel.language.api.LanguagePackService;
+import dev.jahaziel.platform.Platform;
+import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
 import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
@@ -217,6 +219,13 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         }
     }
 
+    private static String basePath() {
+        Platform.Os os = Platforms.detect(null).os();
+        if (os == Platform.Os.WINDOWS) return "C:\\Windows\\System32;C:\\Windows";
+        if (os == Platform.Os.MACOS) return "/usr/bin:/bin:/usr/sbin:/sbin";
+        return "/usr/local/bin:/usr/bin:/bin";
+    }
+
     private static void configureEnvironment(
             ProcessBuilder builder,
             Path workspaceHome,
@@ -225,11 +234,11 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
             Map<String, String> languageEnvironment) {
         Map<String, String> environment = builder.environment();
         environment.clear();
-        String path = "/usr/local/bin:/usr/bin:/bin";
+        String path = basePath();
         if (javaLanguageServer) {
             Path javaHome = Path.of(System.getProperty("java.home")).toAbsolutePath().normalize();
             environment.put("JAVA_HOME", javaHome.toString());
-            path = javaHome.resolve("bin") + ":" + path;
+            path = javaHome.resolve("bin") + java.io.File.pathSeparator + path;
         }
         environment.put("PATH", path);
         environment.put("HOME", workspaceHome.toString());
