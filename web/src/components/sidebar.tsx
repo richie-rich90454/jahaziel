@@ -46,6 +46,7 @@ import {
     updateGitPath,
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, bindValue, byId, effect, html, on } from "../lib/dom";
+import { bindProblems, problemsMarkup } from "./problems";
 import {
     state,
     toast,
@@ -444,6 +445,7 @@ export function sidebarMarkup(): string {
         <div class="panel-heading"><div><span class="panel-glyph">λ</span><span>Languages</span></div><span id="language-state" class="panel-meta">Optional</span></div>
         <ul id="language-pack-list" class="language-pack-list"></ul>
         <div id="language-diagnostics" class="language-diagnostics" aria-live="polite"></div>
+        ${problemsMarkup()}
       </section>
 
       <section class="git-panel" aria-label="Git source control">
@@ -467,6 +469,7 @@ export function bindSidebar(): void {
     bindGitPanel();
     renderLanguagePacks();
     renderDiagnostics();
+    bindProblems();
     renderDebugLists();
     renderDebugSelects();
     renderGitChanges();
@@ -582,7 +585,11 @@ function bindRunPanel(): void {
             ...runs.map((run) => {
                 const item = document.createElement("li");
                 item.className = "debug-empty";
-                item.textContent = `${run.label}, ${run.status}${run.exitCode === null ? "" : `, exit ${run.exitCode}`}`;
+                const duration =
+                    run.durationMs === undefined
+                        ? ""
+                        : `, ${Math.max(0, Math.round(run.durationMs / 1000))}s`;
+                item.textContent = `${run.label}, ${run.status}${run.exitCode === null ? "" : `, exit ${run.exitCode}`}${duration}`;
                 item.title = run.id;
                 on(item, "click", () => showRun(run));
                 return item;
