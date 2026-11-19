@@ -17,67 +17,67 @@ import java.util.Set;
  * system process, so callers can adopt it without changing process lifecycle behavior.
  */
 public final class ProcessIndex {
-  private final Map<String, Set<Long>> byWorkspace = new HashMap<String, Set<Long>>();
+    private final Map<String, Set<Long>> byWorkspace = new HashMap<String, Set<Long>>();
 
-  public void add(String workspaceId, long pid) {
-    requireWorkspace(workspaceId);
-    if (pid <= 0) {
-      throw new IllegalArgumentException("pid must be positive");
+    public void add(String workspaceId, long pid) {
+        requireWorkspace(workspaceId);
+        if (pid <= 0) {
+            throw new IllegalArgumentException("pid must be positive");
+        }
+        Set<Long> pids = byWorkspace.get(workspaceId);
+        if (pids == null) {
+            pids = new HashSet<Long>();
+            byWorkspace.put(workspaceId, pids);
+        }
+        pids.add(Long.valueOf(pid));
     }
-    Set<Long> pids = byWorkspace.get(workspaceId);
-    if (pids == null) {
-      pids = new HashSet<Long>();
-      byWorkspace.put(workspaceId, pids);
+
+    public boolean remove(String workspaceId, long pid) {
+        requireWorkspace(workspaceId);
+        Set<Long> pids = byWorkspace.get(workspaceId);
+        if (pids == null) {
+            return false;
+        }
+        boolean removed = pids.remove(Long.valueOf(pid));
+        if (pids.isEmpty()) {
+            byWorkspace.remove(workspaceId);
+        }
+        return removed;
     }
-    pids.add(Long.valueOf(pid));
-  }
 
-  public boolean remove(String workspaceId, long pid) {
-    requireWorkspace(workspaceId);
-    Set<Long> pids = byWorkspace.get(workspaceId);
-    if (pids == null) {
-      return false;
+    public void removeWorkspace(String workspaceId) {
+        requireWorkspace(workspaceId);
+        byWorkspace.remove(workspaceId);
     }
-    boolean removed = pids.remove(Long.valueOf(pid));
-    if (pids.isEmpty()) {
-      byWorkspace.remove(workspaceId);
+
+    public Set<Long> pids(String workspaceId) {
+        requireWorkspace(workspaceId);
+        Set<Long> stored = byWorkspace.get(workspaceId);
+        if (stored == null) {
+            return new HashSet<Long>();
+        }
+        return new HashSet<Long>(stored);
     }
-    return removed;
-  }
 
-  public void removeWorkspace(String workspaceId) {
-    requireWorkspace(workspaceId);
-    byWorkspace.remove(workspaceId);
-  }
-
-  public Set<Long> pids(String workspaceId) {
-    requireWorkspace(workspaceId);
-    Set<Long> stored = byWorkspace.get(workspaceId);
-    if (stored == null) {
-      return new HashSet<Long>();
+    public List<Long> list(String workspaceId) {
+        List<Long> result = new ArrayList<Long>(pids(workspaceId));
+        Collections.sort(result);
+        return result;
     }
-    return new HashSet<Long>(stored);
-  }
 
-  public List<Long> list(String workspaceId) {
-    List<Long> result = new ArrayList<Long>(pids(workspaceId));
-    Collections.sort(result);
-    return result;
-  }
-
-  public boolean contains(String workspaceId, long pid) {
-    requireWorkspace(workspaceId);
-    Set<Long> pids = byWorkspace.get(workspaceId);
-    return pids != null && pids.contains(Long.valueOf(pid));
-  }
-
-  public int workspaceCount() {
-    return byWorkspace.size();
-  }
-
-  private static void requireWorkspace(String workspaceId) {
-    if (workspaceId == null || workspaceId.isEmpty()) {
-      throw new IllegalArgumentException("workspaceId must not be empty");
+    public boolean contains(String workspaceId, long pid) {
+        requireWorkspace(workspaceId);
+        Set<Long> pids = byWorkspace.get(workspaceId);
+        return pids != null && pids.contains(Long.valueOf(pid));
     }
-  }
+
+    public int workspaceCount() {
+        return byWorkspace.size();
+    }
+
+    private static void requireWorkspace(String workspaceId) {
+        if (workspaceId == null || workspaceId.isEmpty()) {
+            throw new IllegalArgumentException("workspaceId must not be empty");
+        }
+    }
 }
