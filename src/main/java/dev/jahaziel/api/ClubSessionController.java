@@ -9,8 +9,7 @@ import dev.jahaziel.club.domain.ClubSession;
 import dev.jahaziel.club.session.ClubSessionService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.time.Instant;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.time.Instant;
 
 /** Club session creation, joining, isolated forks and shared demo control. */
 @RestController
@@ -42,8 +44,9 @@ public final class ClubSessionController extends ApiControllerBase {
         ClubDtos.CreateRequest request = body == null ? new ClubDtos.CreateRequest() : body;
         Instant startsAt = parseInstant(request.getStartsAt());
         Instant endsAt = parseInstant(request.getEndsAt());
-        return view(registry.createSession(
-            host, request.getTemplate(), startsAt, endsAt, request.getCapacity()));
+        return view(
+                registry.createSession(
+                        host, request.getTemplate(), startsAt, endsAt, request.getCapacity()));
     }
 
     @GetMapping("/{sessionId}")
@@ -83,7 +86,8 @@ public final class ClubSessionController extends ApiControllerBase {
 
     @PostMapping("/{sessionId}/demo")
     @ResponseStatus(HttpStatus.CREATED)
-    public ClubDtos.WorkspaceRefDto createDemo(@PathVariable String sessionId, Principal principal) {
+    public ClubDtos.WorkspaceRefDto createDemo(
+            @PathVariable String sessionId, Principal principal) {
         UserId user = requireUser(principal);
         ClubSession session = registry.findSession(sessionId);
         requireHost(session, user);
@@ -94,7 +98,8 @@ public final class ClubSessionController extends ApiControllerBase {
     }
 
     @GetMapping("/{sessionId}/demo")
-    public ClubDtos.WorkspaceRefDto followDemo(@PathVariable String sessionId, Principal principal) {
+    public ClubDtos.WorkspaceRefDto followDemo(
+            @PathVariable String sessionId, Principal principal) {
         UserId user = requireUser(principal);
         ClubSession session = registry.findSession(sessionId);
         WorkspaceId workspace = sessions.followDemo(session, user);
@@ -124,8 +129,7 @@ public final class ClubSessionController extends ApiControllerBase {
     }
 
     @PostMapping("/{sessionId}/leaderboard")
-    public ClubDtos.StatusDto leaderboard(
-            @PathVariable String sessionId, Principal principal) {
+    public ClubDtos.StatusDto leaderboard(@PathVariable String sessionId, Principal principal) {
         UserId user = requireUser(principal);
         ClubSession session = registry.findSession(sessionId);
         requireHost(session, user);
