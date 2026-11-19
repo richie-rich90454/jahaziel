@@ -19,24 +19,24 @@ import java.util.Objects;
  * @param loadAverage15m fifteen minute load average
  */
 public record HostSample(
-    double cpuUsagePercent,
-    long memoryUsedBytes,
-    long memoryTotalBytes,
-    long diskUsedBytes,
-    long diskTotalBytes,
-    double loadAverage1m,
-    double loadAverage5m,
-    double loadAverage15m) {
-  public HostSample {
-    if (cpuUsagePercent < 0) {
-      throw new IllegalArgumentException("cpuUsagePercent must not be negative");
+        double cpuUsagePercent,
+        long memoryUsedBytes,
+        long memoryTotalBytes,
+        long diskUsedBytes,
+        long diskTotalBytes,
+        double loadAverage1m,
+        double loadAverage5m,
+        double loadAverage15m) {
+    public HostSample {
+        if (cpuUsagePercent < 0) {
+            throw new IllegalArgumentException("cpuUsagePercent must not be negative");
+        }
+        if (memoryUsedBytes < 0 || memoryTotalBytes < 0) {
+            throw new IllegalArgumentException("memory values must not be negative");
+        }
+        if (diskUsedBytes < 0 || diskTotalBytes < 0) {
+            throw new IllegalArgumentException("disk values must not be negative");
+        }
+        Objects.requireNonNull(cpuUsagePercent, "cpuUsagePercent");
     }
-    if (memoryUsedBytes < 0 || memoryTotalBytes < 0) {
-      throw new IllegalArgumentException("memory values must not be negative");
-    }
-    if (diskUsedBytes < 0 || diskTotalBytes < 0) {
-      throw new IllegalArgumentException("disk values must not be negative");
-    }
-    Objects.requireNonNull(cpuUsagePercent, "cpuUsagePercent");
-  }
 }
