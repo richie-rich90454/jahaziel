@@ -5,6 +5,7 @@
 
 import { errorText } from "../lib/api";
 import { bindDisabled, byId, effect, html, on } from "../lib/dom";
+import { t } from "../lib/i18n";
 import { toast } from "../lib/store";
 import {
     createWorkspace,
@@ -91,17 +92,17 @@ export function homeMarkup(): string {
       <div class="toasts" id="toasts" aria-live="polite"></div>
       <section class="home-intro">
         <div>
-          <p class="eyebrow">Your Linux workspaces</p>
-          <h1>Make room<br /><em>to build.</em></h1>
-          <p class="intro-copy">A focused development environment, running on your server and ready from any browser.</p>
+          <p class="eyebrow">${t("home.eyebrow")}</p>
+          <h1>${t("home.title")}<br /><em>${t("home.titleEm")}</em></h1>
+          <p class="intro-copy">${t("home.intro")}</p>
         </div>
         <div class="intro-stamp" aria-hidden="true"><span>Linux</span><b>↗</b><span>Remote</span><i></i><span>Ready</span></div>
       </section>
       <section class="workspace-section" aria-labelledby="workspace-heading">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Project spaces</p>
-            <h2 id="workspace-heading">Workspaces <span id="workspace-count" class="count-mark">00</span></h2>
+            <p class="eyebrow">${t("home.projectSpaces")}</p>
+            <h2 id="workspace-heading">${t("bar.workspaces")} <span id="workspace-count" class="count-mark">00</span></h2>
           </div>
           <div id="loading-state" class="loading-state">Connecting…</div>
         </div>
@@ -114,16 +115,25 @@ export function homeMarkup(): string {
       </section>
       <section class="create-section" aria-labelledby="create-heading">
         <div class="create-copy">
-          <p class="eyebrow">A clean start</p>
-          <h2 id="create-heading">Create a workspace</h2>
+          <p class="eyebrow">${t("home.createCopy")}</p>
+          <h2 id="create-heading">${t("home.createTitle")}</h2>
           <p id="template-note">Files are created in a private home directory for this workspace.</p>
         </div>
+        <div class="sample-projects" aria-label="${t("home.samples")}">
+          <span class="sample-label">${t("home.samples")}</span>
+          <span class="sample-hint">${t("home.samplesCopy")}</span>
+          <div class="sample-actions">
+            <button class="button button-quiet" type="button" data-sample="python">Python</button>
+            <button class="button button-quiet" type="button" data-sample="node">Node</button>
+            <button class="button button-quiet" type="button" data-sample="empty">Empty</button>
+          </div>
+        </div>
         <form id="workspace-form" class="create-form">
-          <label class="field-label" for="workspace-name">Workspace name</label>
+          <label class="field-label" for="workspace-name">${t("home.workspaceName")}</label>
           <input id="workspace-name" class="input input-bordered" name="name" required maxlength="64" placeholder="e.g. orchid-dashboard" autocomplete="off" />
-          <label class="field-label" for="template-select">Starter</label>
+          <label class="field-label" for="template-select">${t("home.starter")}</label>
           <select id="template-select" class="select select-bordered" name="template"></select>
-          <button id="create-workspace" class="button btn btn-primary" type="submit">Create workspace <span aria-hidden="true">↗</span></button>
+          <button id="create-workspace" class="button btn btn-primary" type="submit">${t("home.createAction")} <span aria-hidden="true">↗</span></button>
         </form>
       </section>
       <footer class="home-footer"><span>Jahaziel, remote source IDE</span><span>Files stay on your server</span></footer>
@@ -152,6 +162,20 @@ export function bindHome(): void {
         select.disabled = templates.length === 0;
         byId<HTMLButtonElement>("create-workspace").disabled = templates.length === 0;
     });
+
+    for (const button of Array.from(
+        document.querySelectorAll<HTMLButtonElement>("[data-sample]"),
+    )) {
+        on(button, "click", () => {
+            const sample = button.dataset.sample ?? "empty";
+            const name = byId<HTMLInputElement>("workspace-name");
+            const starter = byId<HTMLSelectElement>("template-select");
+            if (Array.from(starter.options).some((option) => option.value === sample))
+                starter.value = sample;
+            if (!name.value.trim()) name.value = `sample-${sample}-${Date.now().toString(36)}`;
+            name.focus();
+        });
+    }
 
     on(byId("workspace-form"), "submit", (event) => {
         void createWorkspace(event as SubmitEvent).catch((failure) => {
