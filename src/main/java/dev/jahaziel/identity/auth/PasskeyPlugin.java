@@ -198,14 +198,16 @@ public final class PasskeyPlugin extends AuthProviderPlugin {
             store.updateSignCount(id, observed);
         }
 
+        boolean userVerified = (authData.flags() & 0x04) != 0;
         String sessionId = sessionId();
         Map<String, String> claims = new HashMap<String, String>();
         claims.put("credential_id", id);
         claims.put("rp_id", config.rpId());
         claims.put("sign_count", Long.toString(observed));
-        claims.put("user_verified", ((authData.flags() & 0x04) != 0) ? "true" : "false");
+        claims.put("user_verified", userVerified ? "true" : "false");
         claims.put("session_id", sessionId);
-        AuthIdentity identity = new AuthIdentity("passkey", id, "", "", false, true, claims);
+        AuthIdentity identity =
+                new AuthIdentity("passkey", id, "", "", false, userVerified, claims);
         store.putSession(sessionId, identity);
         return identity;
     }
