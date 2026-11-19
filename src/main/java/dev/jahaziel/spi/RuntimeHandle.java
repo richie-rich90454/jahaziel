@@ -13,7 +13,7 @@ import java.util.UUID;
  * @param value the runtime identifier
  */
 public record RuntimeHandle(UUID value) {
-  public RuntimeHandle {
-    Objects.requireNonNull(value, "value");
-  }
+    public RuntimeHandle {
+        Objects.requireNonNull(value, "value");
+    }
 }
