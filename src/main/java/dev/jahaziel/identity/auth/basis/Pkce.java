@@ -15,8 +15,7 @@ public final class Pkce {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
 
-    private Pkce() {
-    }
+    private Pkce() {}
 
     /** Returns an opaque 43-character value suitable for state, nonce, or a verifier. */
     public static String random() {
@@ -31,8 +30,9 @@ public final class Pkce {
             throw new BasisException("missing PKCE verifier");
         }
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            byte[] digest =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(verifier.getBytes(StandardCharsets.US_ASCII));
             return ENCODER.encodeToString(digest);
         } catch (NoSuchAlgorithmException impossible) {
             throw new BasisException("SHA-256 is unavailable", impossible);
@@ -45,8 +45,9 @@ public final class Pkce {
             return null;
         }
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(accessToken.getBytes(StandardCharsets.US_ASCII));
+            byte[] digest =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(accessToken.getBytes(StandardCharsets.US_ASCII));
             byte[] half = new byte[16];
             System.arraycopy(digest, 0, half, 0, half.length);
             return ENCODER.encodeToString(half);
