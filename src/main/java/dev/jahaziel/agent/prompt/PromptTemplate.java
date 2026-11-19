@@ -13,8 +13,7 @@ public final class PromptTemplate {
     private String createdAt;
     private String updatedAt;
 
-    public PromptTemplate() {
-    }
+    public PromptTemplate() {}
 
     public String getId() {
         return id;
