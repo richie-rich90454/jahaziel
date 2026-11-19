@@ -5,6 +5,7 @@
 package dev.jahaziel.api.dto;
 
 import dev.jahaziel.audit.domain.AuditRecord;
+
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,29 +23,29 @@ import java.util.UUID;
  * @param hash hash of this batch
  */
 public record AuditRecordDto(
-    UUID eventId,
-    Instant timestamp,
-    String actor,
-    String actorType,
-    String action,
-    Optional<String> target,
-    String outcome,
-    String hash) {
-  /**
-   * Maps a record to a DTO.
-   *
-   * @param record the record
-   * @return the DTO
-   */
-  public static AuditRecordDto from(AuditRecord record) {
-    return new AuditRecordDto(
-        record.eventId(),
-        record.timestamp(),
-        record.actor(),
-        record.actorType().name(),
-        record.action(),
-        record.target(),
-        record.outcome().name(),
-        record.hash());
-  }
+        UUID eventId,
+        Instant timestamp,
+        String actor,
+        String actorType,
+        String action,
+        Optional<String> target,
+        String outcome,
+        String hash) {
+    /**
+     * Maps a record to a DTO.
+     *
+     * @param record the record
+     * @return the DTO
+     */
+    public static AuditRecordDto from(AuditRecord record) {
+        return new AuditRecordDto(
+                record.eventId(),
+                record.timestamp(),
+                record.actor(),
+                record.actorType().name(),
+                record.action(),
+                record.target(),
+                record.outcome().name(),
+                record.hash());
+    }
 }
