@@ -8,4 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Repository for AuditTerminalEntity persistence. */
 public interface AuditTerminalRepository
-    extends JpaRepository<AuditTerminalEntity, AuditTerminalEntity.Id> {}
+        extends JpaRepository<AuditTerminalEntity, AuditTerminalEntity.Id> {}
