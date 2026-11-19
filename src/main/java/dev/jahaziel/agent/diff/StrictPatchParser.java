@@ -6,6 +6,7 @@ package dev.jahaziel.agent.diff;
 
 import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,7 @@ import java.util.regex.Pattern;
  */
 public final class StrictPatchParser {
     private static final Pattern HUNK =
-        Pattern.compile("^@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@.*$");
+            Pattern.compile("^@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@.*$");
     private static final int MAX_PATCH_BYTES = 1024 * 1024;
     private static final int MAX_LINES = 20000;
     private static final int MAX_HUNKS = 512;
