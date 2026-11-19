@@ -6,9 +6,9 @@ package dev.jahaziel.spi;
 
 /** Logical storage quota in bytes. Only actual consumption matters physically. */
 public record QuotaBytes(long value) {
-  public QuotaBytes {
-    if (value < 0) {
-      throw new IllegalArgumentException("value must not be negative");
+    public QuotaBytes {
+        if (value < 0) {
+            throw new IllegalArgumentException("value must not be negative");
+        }
     }
-  }
 }
