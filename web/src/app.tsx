@@ -4,7 +4,14 @@
 ///
 
 import { errorText } from "./lib/api";
-import { backToWorkspaces, setPanel, toggleWorkspace } from "./lib/controller";
+import {
+    backToWorkspaces,
+    promptClone,
+    redoHistory,
+    setPanel,
+    toggleWorkspace,
+    undoHistory,
+} from "./lib/controller";
 import { byId, effect, on } from "./lib/dom";
 import { getLocale, LOCALE_LABELS, LOCALES, setLocale, subscribeLocale, t } from "./lib/i18n";
 import { getTheme, setTheme, subscribeTheme, THEMES, THEME_LABELS } from "./lib/theme";
@@ -17,6 +24,11 @@ import { bindServicePanels, servicePanelsMarkup } from "./components/service-pan
 import { bindSidebar, sidebarMarkup } from "./components/sidebar";
 import { bindTerminal, terminalMarkup } from "./components/terminal";
 import { bindTour, tourMarkup } from "./components/tour";
+import {
+    bindWorkspaceTools,
+    watchBannerMarkup,
+    workspaceToolsMarkup,
+} from "./components/workspace-tools";
 
 export function App(): HTMLElement {
     const root = document.createElement("div");
@@ -51,8 +63,23 @@ export function App(): HTMLElement {
         <button id="back-home" class="icon-button back-button" type="button" aria-label="${t("bar.back")}">←</button>
         <div class="breadcrumb"><span>${t("bar.workspaces")}</span><b>/</b><strong id="workbench-title">Workspace</strong></div>
         <span id="workbench-state" class="status status-requested">requested</span>
+        <button id="bar-history-undo" class="icon-button history-control" type="button" title="Undo workspace change" aria-label="Undo workspace change" disabled>↶</button>
+        <button id="bar-history-redo" class="icon-button history-control" type="button" title="Redo workspace change" aria-label="Redo workspace change" disabled>↷</button>
         <div class="bar-spacer"></div>
         <div id="preview-links" class="preview-links"></div>
+        <label class="tools-control" for="tools-select">
+          <span class="sr-only">Workspace tools</span>
+          <select id="tools-select" aria-label="Workspace tools">
+            <option value="files">Files</option>
+            <option value="history">History</option>
+            <option value="trash">Trash</option>
+            <option value="diff">Diff</option>
+            <option value="clone">Clone</option>
+            <option value="config">Config</option>
+            <option value="flags">Flags</option>
+          </select>
+        </label>
+        <button id="bar-clone" class="button btn bar-clone" type="button" title="Clone this workspace">Clone</button>
         <label class="theme-control" for="theme-select">
           <span class="sr-only">${t("bar.theme")}</span>
           <select id="theme-select" aria-label="${t("bar.theme")}">
@@ -64,6 +91,7 @@ export function App(): HTMLElement {
         <button id="refresh-preview-ports" class="button btn preview-refresh" type="button" title="${t("bar.checkPorts")}">${t("bar.checkPorts")}</button>
         <button id="runtime-toggle" class="button btn" type="button">${t("bar.startWorkspace")}</button>
       </div>
+      ${watchBannerMarkup()}
       <nav class="workbench-panel-nav" aria-label="Workspace panels">
         <button type="button" data-panel="files" aria-pressed="true">${t("nav.files")}</button>
         <button type="button" data-panel="editor" aria-pressed="false">${t("nav.editor")}</button>
@@ -78,6 +106,12 @@ export function App(): HTMLElement {
         <button type="button" data-panel="data" aria-pressed="false">Data</button>
         <button type="button" data-panel="club" aria-pressed="false">Club</button>
         <button type="button" data-panel="ops" aria-pressed="false">Ops</button>
+        <button type="button" data-panel="history" aria-pressed="false">History</button>
+        <button type="button" data-panel="trash" aria-pressed="false">Trash</button>
+        <button type="button" data-panel="diff" aria-pressed="false">Diff</button>
+        <button type="button" data-panel="clone" aria-pressed="false">Clone</button>
+        <button type="button" data-panel="config" aria-pressed="false">Config</button>
+        <button type="button" data-panel="flags" aria-pressed="false">Flags</button>
       </nav>
       <div class="workbench-layout">
         ${sidebarMarkup()}
@@ -86,6 +120,7 @@ export function App(): HTMLElement {
           ${terminalMarkup()}
           ${previewMarkup()}
           ${servicePanelsMarkup()}
+          ${workspaceToolsMarkup()}
           <footer class="statusbar"><span>Jahaziel</span><span id="status-language">Plain text</span><span>UTF-8</span><span>Linux</span></footer>
         </section>
       </div>
@@ -142,6 +177,7 @@ export function bindApp(): void {
     bindPreview();
     bindQuickOpen();
     bindServicePanels();
+    bindWorkspaceTools();
     bindTour();
     bindAppearanceControls();
 
@@ -153,6 +189,32 @@ export function bindApp(): void {
     on(byId("back-home"), "click", () => backToWorkspaces());
     on(byId("runtime-toggle"), "click", () => {
         void toggleWorkspace().catch((failure) => toast(errorText(failure), "error"));
+    });
+    on(byId("bar-history-undo"), "click", () => {
+        void undoHistory().catch((failure) => toast(errorText(failure), "error"));
+    });
+    on(byId("bar-history-redo"), "click", () => {
+        void redoHistory().catch((failure) => toast(errorText(failure), "error"));
+    });
+    on(byId("bar-clone"), "click", () => {
+        void promptClone().catch((failure) => toast(errorText(failure), "error"));
+    });
+    effect(() => {
+        byId<HTMLButtonElement>("bar-history-undo").disabled =
+            !state.historyCanUndo || state.historyUnavailable;
+        byId<HTMLButtonElement>("bar-history-redo").disabled =
+            !state.historyCanRedo || state.historyUnavailable;
+        byId<HTMLButtonElement>("bar-history-undo").title = state.historyUnavailable
+            ? "Unavailable on this host"
+            : "Undo workspace change";
+        byId<HTMLButtonElement>("bar-history-redo").title = state.historyUnavailable
+            ? "Unavailable on this host"
+            : "Redo workspace change";
+    });
+    const toolsSelect = byId<HTMLSelectElement>("tools-select");
+    on(toolsSelect, "change", () => setPanel(toolsSelect.value as typeof state.activePanel));
+    effect(() => {
+        toolsSelect.value = state.activePanel;
     });
     effect(() => {
         byId("workbench-title").textContent = state.workbenchTitle;
