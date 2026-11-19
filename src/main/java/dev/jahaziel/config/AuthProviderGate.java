@@ -6,6 +6,7 @@ package dev.jahaziel.config;
 
 import dev.jahaziel.identity.auth.AuthProviderPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
