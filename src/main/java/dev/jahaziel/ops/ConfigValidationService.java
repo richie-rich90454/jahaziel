@@ -190,7 +190,10 @@ public final class ConfigValidationService {
             issues.add(
                     new Issue(
                             "dataDir",
-                            "data directory " + dataDir + " is not writable: " + failure.getMessage(),
+                            "data directory "
+                                    + dataDir
+                                    + " is not writable: "
+                                    + failure.getMessage(),
                             "fix ownership and permissions on " + dataDir));
         }
     }
@@ -222,23 +225,39 @@ public final class ConfigValidationService {
                         new Issue(
                                 "catalog." + name,
                                 "catalog artifact " + name + " checksum mismatch",
-                                "reinstall " + name + "; expected " + expected + ", found " + actual));
+                                "reinstall "
+                                        + name
+                                        + "; expected "
+                                        + expected
+                                        + ", found "
+                                        + actual));
             }
         }
     }
 
     private static void checkIdp(IdpConfig idp, List<Issue> issues) {
         if (idp == null) {
-            issues.add(new Issue("idp", "identity provider is not configured", "set the OIDC issuer, client id and client secret"));
+            issues.add(
+                    new Issue(
+                            "idp",
+                            "identity provider is not configured",
+                            "set the OIDC issuer, client id and client secret"));
             return;
         }
         String issuer = idp.issuer() == null ? "" : idp.issuer().trim();
         if (!issuer.startsWith("https://") || issuer.length() <= "https://".length()) {
             issues.add(
-                    new Issue("idp.issuer", "identity-provider issuer must be an https URL", "set JAHAZIEL_IDP_ISSUER to an https URL"));
+                    new Issue(
+                            "idp.issuer",
+                            "identity-provider issuer must be an https URL",
+                            "set JAHAZIEL_IDP_ISSUER to an https URL"));
         }
         if (idp.clientId() == null || idp.clientId().trim().isEmpty()) {
-            issues.add(new Issue("idp.clientId", "identity-provider client id is blank", "set JAHAZIEL_IDP_CLIENT_ID"));
+            issues.add(
+                    new Issue(
+                            "idp.clientId",
+                            "identity-provider client id is blank",
+                            "set JAHAZIEL_IDP_CLIENT_ID"));
         }
         String secret = idp.clientSecret() == null ? "" : idp.clientSecret().trim();
         if (secret.isEmpty() || secret.contains("change") || secret.contains("example")) {
