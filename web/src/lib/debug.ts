@@ -61,6 +61,14 @@ export function setDebugBreakpointLines(value: string): void {
     setState("debugBreakpointLines", value);
 }
 
+export function setDebugBreakpointCondition(value: string): void {
+    setState("debugBreakpointCondition", value);
+}
+
+export function setDebugBreakpointLogpoint(value: string): void {
+    setState("debugBreakpointLogpoint", value);
+}
+
 export function setDebugWatchExpression(_value: string): void {
     /* expression is read from the form on submit */
 }
@@ -549,9 +557,11 @@ export async function applyDebugBreakpoints(showToast = true): Promise<void> {
                 .filter((line) => Number.isSafeInteger(line) && line > 0),
         ),
     ];
+    const condition = state.debugBreakpointCondition.trim();
+    const logpoint = state.debugBreakpointLogpoint.trim();
     setState("debugBreakpoints", (entries) => [
         ...entries.filter((entry: BreakpointEntry) => entry.path !== path),
-        { path, lines },
+        { path, lines, ...(condition ? { condition } : {}), ...(logpoint ? { logpoint } : {}) },
     ]);
     refreshBreakpointGutterForPath(path);
     const response = await sendDebugBreakpointSet(path, lines);
@@ -567,9 +577,14 @@ export async function applyDebugBreakpoints(showToast = true): Promise<void> {
 
 async function sendDebugBreakpointSet(path: string, lines: number[]): Promise<DapMessage> {
     const name = path.split("/").at(-1) || path;
+    const entry = state.debugBreakpoints.find((item) => item.path === path);
     return dapRequest("setBreakpoints", {
         source: { name, path },
-        breakpoints: lines.map((line) => ({ line })),
+        breakpoints: lines.map((line) => ({
+            line,
+            ...(entry?.condition ? { condition: entry.condition } : {}),
+            ...(entry?.logpoint ? { logMessage: entry.logpoint } : {}),
+        })),
         sourceModified: false,
     });
 }
@@ -581,14 +596,20 @@ async function applyStoredDebugBreakpoints(skipPath?: string | null): Promise<vo
 }
 
 export async function toggleDebugBreakpoint(path: string, line: number): Promise<void> {
-    const current = state.debugBreakpoints.find((entry) => entry.path === path)?.lines ?? [];
+    const existing = state.debugBreakpoints.find((entry) => entry.path === path);
+    const current = existing?.lines ?? [];
     const lines = new Set(current);
     if (lines.has(line)) lines.delete(line);
     else lines.add(line);
     const next = [...lines].sort((left, right) => left - right);
     setState("debugBreakpoints", (entries) => [
         ...entries.filter((entry: BreakpointEntry) => entry.path !== path),
-        { path, lines: next },
+        {
+            path,
+            lines: next,
+            ...(existing?.condition ? { condition: existing.condition } : {}),
+            ...(existing?.logpoint ? { logpoint: existing.logpoint } : {}),
+        },
     ]);
     refreshBreakpointGutterForPath(path);
     if (state.activePath === path) setState("debugBreakpointLines", next.join(", "));
