@@ -11,11 +11,11 @@ import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link Os} detection. */
 class OsTest {
-  @Test
-  void onlyLinuxVirtualizes() {
-    assertTrue(Os.LINUX.supportsVirtualization());
-    assertFalse(Os.WINDOWS.supportsVirtualization());
-    assertFalse(Os.MAC.supportsVirtualization());
-    assertFalse(Os.OTHER.supportsVirtualization());
-  }
+    @Test
+    void onlyLinuxVirtualizes() {
+        assertTrue(Os.LINUX.supportsVirtualization());
+        assertFalse(Os.WINDOWS.supportsVirtualization());
+        assertFalse(Os.MAC.supportsVirtualization());
+        assertFalse(Os.OTHER.supportsVirtualization());
+    }
 }
