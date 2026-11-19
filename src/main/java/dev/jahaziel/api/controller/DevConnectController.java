@@ -55,8 +55,7 @@ public class DevConnectController {
     }
 
     /** Creates the controller with the demo-mode sign-in behavior. */
-    public DevConnectController(
-            DevConnectService devconnect, UserService users, boolean demo) {
+    public DevConnectController(DevConnectService devconnect, UserService users, boolean demo) {
         this(devconnect, users, null, demo);
     }
 
