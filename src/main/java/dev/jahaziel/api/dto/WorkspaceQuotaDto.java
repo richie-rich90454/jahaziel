@@ -13,4 +13,4 @@ package dev.jahaziel.api.dto;
  * @param inodeCountLimit inode limit
  */
 public record WorkspaceQuotaDto(
-    long logicalBytesUsed, long logicalBytesLimit, long inodeCountUsed, long inodeCountLimit) {}
+        long logicalBytesUsed, long logicalBytesLimit, long inodeCountUsed, long inodeCountLimit) {}
