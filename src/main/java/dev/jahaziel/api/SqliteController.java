@@ -7,8 +7,7 @@ package dev.jahaziel.api;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.datatools.DataTable;
 import dev.jahaziel.datatools.SqliteBrowser;
-import java.security.Principal;
-import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Read-only SQLite browsing. Every caller path is confined before it reaches the browser service. */
+import java.security.Principal;
+import java.util.UUID;
+
+/**
+ * Read-only SQLite browsing. Every caller path is confined before it reaches the browser service.
+ */
 @RestController
 @RequestMapping("/api/v1/workspaces/{id}/data/sqlite")
 public final class SqliteController extends ApiControllerBase {
@@ -60,7 +64,13 @@ public final class SqliteController extends ApiControllerBase {
             Principal principal) {
         requireWorkspace(principal, id, READ);
         requireContained(workspaceHome(storageRoot, id), path);
-        return view(browser.rows(new dev.jahaziel.workspace.domain.WorkspaceId(id), path, table, offset, limit));
+        return view(
+                browser.rows(
+                        new dev.jahaziel.workspace.domain.WorkspaceId(id),
+                        path,
+                        table,
+                        offset,
+                        limit));
     }
 
     @PostMapping("/query")
@@ -71,8 +81,11 @@ public final class SqliteController extends ApiControllerBase {
         requireWorkspace(principal, id, READ);
         DataDtos.QueryRequest request = body == null ? new DataDtos.QueryRequest() : body;
         requireContained(workspaceHome(storageRoot, id), request.getPath());
-        return view(browser.query(
-            new dev.jahaziel.workspace.domain.WorkspaceId(id), request.getPath(), request.getSql()));
+        return view(
+                browser.query(
+                        new dev.jahaziel.workspace.domain.WorkspaceId(id),
+                        request.getPath(),
+                        request.getSql()));
     }
 
     private static DataDtos.TableDto view(DataTable table) {
