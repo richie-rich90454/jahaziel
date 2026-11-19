@@ -124,8 +124,9 @@ final class BasisResourceFilterTest {
     @Test
     void malformedAndExpiredTokensGetStandard401() throws Exception {
         String valid = validToken();
-        String last = valid.substring(valid.length() - 1);
-        String tampered = valid.substring(0, valid.length() - 1) + ("A".equals(last) ? "B" : "A");
+        // Replace the last two base64url characters with an invalid character so the signature
+        // cannot decode to the same bytes on any platform.
+        String tampered = valid.substring(0, valid.length() - 2) + "@@";
         assertInvalidToken(call(PATH, bearer(tampered)));
 
         Map<String, Object> expired = claims(RESOURCE);
