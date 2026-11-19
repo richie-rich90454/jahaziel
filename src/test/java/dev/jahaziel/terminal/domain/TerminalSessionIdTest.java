@@ -8,25 +8,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 /** Behavior of {@link TerminalSessionId}. */
 class TerminalSessionIdTest {
-  @Test
-  void equalValuesAreEqual() {
-    UUID value = UUID.randomUUID();
-    assertEquals(new TerminalSessionId(value), new TerminalSessionId(value));
-  }
+    @Test
+    void equalValuesAreEqual() {
+        UUID value = UUID.randomUUID();
+        assertEquals(new TerminalSessionId(value), new TerminalSessionId(value));
+    }
 
-  @Test
-  void differentValuesAreNotEqual() {
-    assertNotEquals(
-        new TerminalSessionId(UUID.randomUUID()), new TerminalSessionId(UUID.randomUUID()));
-  }
+    @Test
+    void differentValuesAreNotEqual() {
+        assertNotEquals(
+                new TerminalSessionId(UUID.randomUUID()), new TerminalSessionId(UUID.randomUUID()));
+    }
 
-  @Test
-  void nullValueIsRejected() {
-    assertThrows(NullPointerException.class, () -> new TerminalSessionId(null));
-  }
+    @Test
+    void nullValueIsRejected() {
+        assertThrows(NullPointerException.class, () -> new TerminalSessionId(null));
+    }
 }
