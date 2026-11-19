@@ -17,6 +17,7 @@ export * from "./i18n";
 export * from "./markdown";
 export * from "./markdown-preview";
 export * from "./paste-upload";
+export * from "./service-panels";
 export * from "./theme";
 export * from "./tour";
 export * from "./tasks";
