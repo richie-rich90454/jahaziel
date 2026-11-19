@@ -8,6 +8,10 @@ import {
     addDebugWatch,
     applyDebugBreakpoints,
     attachDebugSession,
+    bulkCopy,
+    bulkDelete,
+    bulkMove,
+    checkoutBranchSafe,
     chooseDebugLaunchConfiguration,
     commitGitChanges,
     createFile,
@@ -15,10 +19,17 @@ import {
     debugCommand,
     deleteSelected,
     downloadSelected,
+    downloadZip,
     evaluateDebugConsole,
     focusDiagnostic,
+    hasUndo,
+    installPasteUpload,
     loadDebugLaunchConfigurations,
+    selectedPaths,
     loadGitDiff,
+    loadGitExtras,
+    loadGitBlameFor,
+    parseUnifiedDiff,
     reconnectDebugSession,
     refreshGitSafely,
     renderFile,
@@ -30,23 +41,30 @@ import {
     selectDebugStackFrame,
     setDebugArguments,
     setDebugAttachTarget,
+    setDebugBreakpointCondition,
     setDebugBreakpointLines,
+    setDebugBreakpointLogpoint,
     setDebugBreakpointPath,
     setDebugLanguage,
     setDebugMainClass,
     setDebugProgram,
     setDebugStopOnEntry,
     setDebugWorkingDirectory,
+    setGitSideBySide,
     showRun,
+    stageHunk,
     startDebugSession,
     stopDebugSession,
     stopTask,
+    subscribeSelection,
     toggleLanguagePack,
+    toggleSelection,
+    undoBulkOperation,
     updateGitMessage,
     updateGitPath,
 } from "../lib/controller";
-import { bindDisabled, bindHidden, bindText, bindValue, byId, effect, html, on } from "../lib/dom";
-import { bindProblems, problemsMarkup } from "./problems";
+import { bindDisabled, bindHidden, bindText, bindValue, byId, effect, on } from "../lib/dom";
+import { subscribeLocale, t, tp } from "../lib/i18n";
 import {
     state,
     toast,
@@ -55,6 +73,7 @@ import {
     type GitChange,
     type LanguagePack,
 } from "../lib/store";
+import { bindProblems, problemsMarkup } from "./problems";
 
 function guard(action: () => void | Promise<unknown>): void {
     void Promise.resolve(action()).catch((failure: unknown) => toast(errorText(failure), "error"));
@@ -186,7 +205,10 @@ function renderDebugLists(): void {
             ...entries.map((entry) => {
                 const item = document.createElement("li");
                 item.className = "debug-empty";
-                item.textContent = `${entry.path}: ${entry.lines.length ? entry.lines.join(", ") : "cleared"}`;
+                const extras: string[] = [];
+                if (entry.condition) extras.push(`${t("debug.condition")}: ${entry.condition}`);
+                if (entry.logpoint) extras.push(`${t("debug.logpoint")}: ${entry.logpoint}`);
+                item.textContent = `${entry.path}: ${entry.lines.length ? entry.lines.join(", ") : t("debug.clear")}${extras.length ? ` · ${extras.join(" · ")}` : ""}`;
                 return item;
             }),
         );
@@ -326,6 +348,16 @@ export function sidebarMarkup(): string {
         <button id="rename-selected" type="button" title="Rename selected">↗</button>
         <button id="delete-selected" type="button" title="Delete selected">×</button>
       </div>
+      <div id="bulk-actions" class="bulk-actions" aria-label="Bulk file actions" hidden>
+        <span id="bulk-count" class="bulk-count"></span>
+        <input id="bulk-destination" class="bulk-destination" type="text" value="." maxlength="512" aria-label="Destination folder" placeholder="Destination folder" />
+        <button id="bulk-copy" class="text-action" type="button">${t("bulk.copy")}</button>
+        <button id="bulk-move" class="text-action" type="button">${t("bulk.move")}</button>
+        <button id="bulk-delete" class="text-action" type="button">${t("bulk.delete")}</button>
+        <button id="bulk-zip" class="text-action" type="button">${t("bulk.zip")}</button>
+        <button id="bulk-undo" class="text-action" type="button" disabled>${t("bulk.undo")}</button>
+      </div>
+      <div id="upload-zone" class="upload-zone">${t("upload.drop")} · ${t("upload.paste")}</div>
       <ul id="file-tree" class="file-tree"></ul>
 
       <section class="task-panel" aria-label="Workspace setup and run tasks">
@@ -405,7 +437,19 @@ export function sidebarMarkup(): string {
             <label class="debug-field" for="debug-breakpoint-lines">Line numbers
               <input id="debug-breakpoint-lines" type="text" maxlength="512" placeholder="12, 24" autocomplete="off" />
             </label>
-            <button id="debug-apply-breakpoints" type="button" disabled>Set</button>
+            <button id="debug-apply-breakpoints" type="button" disabled>${t("debug.setBreakpoints")}</button>
+          </div>
+          <div class="debug-breakpoint-extras">
+            <label class="debug-field" for="debug-breakpoint-condition">${t("debug.condition")}
+              <input id="debug-breakpoint-condition" type="text" maxlength="1024" placeholder="count > 10" autocomplete="off" spellcheck="false" />
+            </label>
+            <label class="debug-field" for="debug-breakpoint-logpoint">${t("debug.logpoint")}
+              <input id="debug-breakpoint-logpoint" type="text" maxlength="1024" placeholder="value of count: {count}" autocomplete="off" spellcheck="false" />
+            </label>
+            <div class="debug-breakpoint-extra-actions">
+              <button id="debug-add-condition" class="text-action" type="button">${t("debug.addCondition")}</button>
+              <button id="debug-add-logpoint" class="text-action" type="button">${t("debug.addLogpoint")}</button>
+            </div>
           </div>
           <ul id="debug-breakpoint-list" class="debug-list"></ul>
         </section>
@@ -453,9 +497,18 @@ export function sidebarMarkup(): string {
         <ul id="git-changes" class="git-changes"></ul>
         <form id="git-commit-form" class="git-commit-form">
           <textarea id="git-message" maxlength="512" rows="2" placeholder="Commit message" aria-label="Commit message"></textarea>
-          <button id="git-commit" class="button button-save" type="submit" disabled>Commit</button>
+          <button id="git-commit" class="button button-save" type="submit" disabled>${t("git.commit")}</button>
         </form>
         <pre id="git-diff" class="git-diff" hidden></pre>
+        <div class="git-extra-toolbar">
+          <label class="git-check"><input id="git-side-by-side" type="checkbox" checked /> ${t("git.diffSideBySide")}</label>
+          <button id="git-load-extras" class="text-action" type="button">${t("git.history")} & ${t("git.branches")}</button>
+          <button id="git-blame" class="text-action" type="button">${t("git.blame")}</button>
+        </div>
+        <div id="git-branches" class="git-branches" hidden></div>
+        <div id="git-history" class="git-history" hidden></div>
+        <div id="git-blame-view" class="git-blame" hidden></div>
+        <div id="git-diff-split" class="git-diff-split" hidden></div>
       </section>
       <div class="sidebar-foot"><span class="tiny-pulse"></span>Files stored on server</div>
     </aside>
@@ -466,6 +519,7 @@ export function bindSidebar(): void {
     bindFileTree();
     bindRunPanel();
     bindDebugPanel();
+    bindDebugExtras();
     bindGitPanel();
     renderLanguagePacks();
     renderDiagnostics();
@@ -473,6 +527,30 @@ export function bindSidebar(): void {
     renderDebugLists();
     renderDebugSelects();
     renderGitChanges();
+    bindBulkActions();
+    bindGitExtras();
+    installPasteUpload(byId("file-tree"));
+    subscribeLocale(() => {
+        for (const button of Array.from(
+            document.querySelectorAll<HTMLButtonElement>(".file-actions button"),
+        )) {
+            const key: Record<string, string> = {
+                "new-file": "files.newFile",
+                "new-folder": "files.newFolder",
+                "download-selected": "files.download",
+                "rename-selected": "files.rename",
+                "delete-selected": "files.delete",
+            };
+            const translation = key[button.id];
+            if (translation) button.title = t(translation);
+        }
+        byId("bulk-copy").textContent = t("bulk.copy");
+        byId("bulk-move").textContent = t("bulk.move");
+        byId("bulk-delete").textContent = t("bulk.delete");
+        byId("bulk-zip").textContent = t("bulk.zip");
+        byId("bulk-undo").textContent = t("bulk.undo");
+        renderBulkCount();
+    });
     bindText(byId("language-state"), () => state.languageState);
 }
 
@@ -722,4 +800,204 @@ function bindGitPanel(): void {
     on(byId("git-commit-form"), "submit", (event) =>
         guard(() => commitGitChanges(event as SubmitEvent)),
     );
+}
+
+function renderBulkCount(): void {
+    const count = selectedPaths().length;
+    byId("bulk-count").textContent = tp("bulk.selected", count);
+    byId("bulk-actions").hidden = count === 0;
+    byId<HTMLButtonElement>("bulk-undo").disabled = !hasUndo();
+}
+
+function bindBulkActions(): void {
+    subscribeSelection(renderBulkCount);
+    renderBulkCount();
+    const destination = (): string =>
+        byId<HTMLInputElement>("bulk-destination").value.trim() || ".";
+    on(byId("bulk-copy"), "click", () => guard(() => bulkCopy(destination())));
+    on(byId("bulk-move"), "click", () => guard(() => bulkMove(destination())));
+    on(byId("bulk-delete"), "click", () => guard(bulkDelete));
+    on(byId("bulk-zip"), "click", () => guard(downloadZip));
+    on(byId("bulk-undo"), "click", () => guard(undoBulkOperation));
+}
+
+function renderGitBranches(): void {
+    const host = byId("git-branches");
+    effect(() => {
+        const branches = state.gitBranches;
+        if (branches === null) {
+            host.hidden = true;
+            return;
+        }
+        host.hidden = false;
+        if (branches.length === 0) {
+            host.textContent = t("git.unavailable");
+            return;
+        }
+        host.replaceChildren(
+            ...branches.map((branch) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `git-branch${branch.current ? " current" : ""}`;
+                button.textContent = `${branch.current ? "● " : ""}${branch.name}`;
+                button.disabled = branch.current;
+                on(button, "click", () => guard(() => checkoutBranchSafe(branch.name)));
+                return button;
+            }),
+        );
+    });
+}
+
+function renderGitHistory(): void {
+    const host = byId("git-history");
+    effect(() => {
+        const commits = state.gitHistory;
+        if (commits === null) {
+            host.hidden = true;
+            return;
+        }
+        host.hidden = false;
+        if (commits.length === 0) {
+            host.textContent = t("git.unavailable");
+            return;
+        }
+        host.replaceChildren(
+            ...commits.map((commit) => {
+                const item = document.createElement("div");
+                item.className = "git-commit-row";
+                item.textContent = `${commit.id.slice(0, 8)}  ${commit.subject}  ${commit.author} ${commit.date}`;
+                return item;
+            }),
+        );
+    });
+}
+
+function renderGitBlame(): void {
+    const host = byId("git-blame-view");
+    effect(() => {
+        const lines = state.gitBlame;
+        if (lines === null) {
+            host.hidden = true;
+            return;
+        }
+        host.hidden = false;
+        if (lines.length === 0) {
+            host.textContent = t("git.unavailable");
+            return;
+        }
+        host.replaceChildren(
+            ...lines.map((line) => {
+                const row = document.createElement("div");
+                row.className = "git-blame-line";
+                const gutter = document.createElement("span");
+                gutter.className = "git-blame-gutter";
+                gutter.textContent = `${line.commit.slice(0, 7)} ${line.author}`.trim();
+                const text = document.createElement("code");
+                text.textContent = `${line.line}\t${line.text}`;
+                row.append(gutter, text);
+                return row;
+            }),
+        );
+    });
+}
+
+function renderSplitDiff(): void {
+    const host = byId("git-diff-split");
+    effect(() => {
+        const diff = state.gitDiff;
+        const enabled = state.gitSideBySide && !state.gitDiffHidden && Boolean(diff.trim());
+        host.hidden = !enabled;
+        if (!enabled) return;
+        const files = parseUnifiedDiff(diff);
+        if (files.length === 0) {
+            host.textContent = t("markdown.empty");
+            return;
+        }
+        host.replaceChildren(
+            ...files.map((file) => {
+                const section = document.createElement("section");
+                section.className = "diff-file";
+                const heading = document.createElement("h4");
+                heading.textContent = file.file;
+                section.append(heading);
+                for (const hunk of file.hunks) {
+                    const hunkSection = document.createElement("div");
+                    hunkSection.className = "diff-hunk";
+                    const header = document.createElement("div");
+                    header.className = "diff-hunk-header";
+                    header.textContent = hunk.header;
+                    const stage = document.createElement("button");
+                    stage.type = "button";
+                    stage.className = "text-action";
+                    stage.textContent = t("git.stage");
+                    on(stage, "click", () => guard(() => stageHunk(file.file, hunk)));
+                    header.append(stage);
+                    const columns = document.createElement("div");
+                    columns.className = "diff-columns";
+                    const before = document.createElement("pre");
+                    const after = document.createElement("pre");
+                    before.className = "diff-column diff-column-old";
+                    after.className = "diff-column diff-column-new";
+                    for (const line of hunk.lines) {
+                        if (line.kind !== "add")
+                            before.append(
+                                diffLine(line.oldLine, line.text, line.kind === "remove"),
+                            );
+                        if (line.kind !== "remove")
+                            after.append(diffLine(line.newLine, line.text, line.kind === "add"));
+                    }
+                    columns.append(before, after);
+                    hunkSection.append(header, columns);
+                    section.append(hunkSection);
+                }
+                return section;
+            }),
+        );
+    });
+}
+
+function diffLine(line: number | null, text: string, changed: boolean): HTMLDivElement {
+    const row = document.createElement("div");
+    row.className = `diff-line${changed ? " diff-line-changed" : ""}`;
+    row.textContent = `${line ?? ""}\t${text}`;
+    return row;
+}
+
+function bindGitExtras(): void {
+    const toggle = byId<HTMLInputElement>("git-side-by-side");
+    toggle.checked = state.gitSideBySide;
+    on(toggle, "change", () => setGitSideBySide(toggle.checked));
+    on(byId("git-load-extras"), "click", () =>
+        guard(async () => {
+            await loadGitExtras();
+            toast(`${t("git.history")} / ${t("git.branches")}`);
+        }),
+    );
+    on(byId("git-blame"), "click", () =>
+        guard(async () => {
+            const path = state.activePath ?? state.selectedPath;
+            if (!path) throw new Error("Open a file to blame.");
+            await loadGitBlameFor(path);
+        }),
+    );
+    renderGitBranches();
+    renderGitHistory();
+    renderGitBlame();
+    renderSplitDiff();
+}
+
+export function bindDebugExtras(): void {
+    const condition = byId<HTMLInputElement>("debug-breakpoint-condition");
+    const logpoint = byId<HTMLInputElement>("debug-breakpoint-logpoint");
+    bindValue(condition, () => state.debugBreakpointCondition);
+    bindValue(logpoint, () => state.debugBreakpointLogpoint);
+    on(condition, "input", () => setDebugBreakpointCondition(condition.value));
+    on(logpoint, "input", () => setDebugBreakpointLogpoint(logpoint.value));
+    on(byId("debug-add-condition"), "click", () => guard(applyDebugBreakpoints));
+    on(byId("debug-add-logpoint"), "click", () => guard(applyDebugBreakpoints));
+    subscribeLocale(() => {
+        byId("debug-add-condition").textContent = t("debug.addCondition");
+        byId("debug-add-logpoint").textContent = t("debug.addLogpoint");
+        byId("debug-apply-breakpoints").textContent = t("debug.setBreakpoints");
+    });
 }
