@@ -45,9 +45,9 @@ public final class LocalPasswordPlugin extends AuthProviderPlugin {
 
     @Override
     public void initialize(PluginContext context) {
-        store = new LocalStore(context);
         Object supplied = context.service(SERVICE_CLOCK);
         clock = supplied instanceof Clock ? (Clock) supplied : Clock.systemUTC();
+        store = new LocalStore(context, clock);
         context.putService(SERVICE_STORE, store);
         bootstrapAdmin(context);
     }
