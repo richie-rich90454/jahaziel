@@ -5,19 +5,22 @@
 package dev.jahaziel.identity.auth.basis;
 
 import com.nimbusds.jwt.JWTClaimsSet;
+
 import dev.jahaziel.identity.auth.basis.TokenVerifier.TokenRejectedException;
 import dev.jahaziel.identity.auth.basis.TokenVerifier.VerifiedToken;
+
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.text.ParseException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /** Receiver for webhook verification, logout tokens, and access-token revocations. */
 public final class BackchannelHandler {
@@ -29,7 +32,8 @@ public final class BackchannelHandler {
     private final TokenVerifier verifier;
     private final BasisStore store;
 
-    public BackchannelHandler(BasisConfig config, BasisHttp http, TokenVerifier verifier, BasisStore store) {
+    public BackchannelHandler(
+            BasisConfig config, BasisHttp http, TokenVerifier verifier, BasisStore store) {
         this.config = config;
         this.http = http;
         this.verifier = verifier;
@@ -66,8 +70,10 @@ public final class BackchannelHandler {
     private HttpResult verifyWebhook(Map<String, String> form) {
         String nonce = form.get("nonce");
         String challenge = form.get("challenge");
-        if (nonce == null || challenge == null
-                || config.internalUrl() == null || config.resourceSecret() == null) {
+        if (nonce == null
+                || challenge == null
+                || config.internalUrl() == null
+                || config.resourceSecret() == null) {
             return HttpResult.badRequest();
         }
         ObjectNode proof = mapper.createObjectNode();
@@ -77,8 +83,11 @@ public final class BackchannelHandler {
         headers.put("Authorization", "Bearer " + config.resourceSecret());
         headers.put("X-Basis-Resource", BasisHttp.encode(config.resource()));
         try {
-            http.postJson(config.internalUrl() + "/internal/backchannel/validate",
-                    mapper.writeValueAsString(proof), headers, PROOF_TIMEOUT);
+            http.postJson(
+                    config.internalUrl() + "/internal/backchannel/validate",
+                    mapper.writeValueAsString(proof),
+                    headers,
+                    PROOF_TIMEOUT);
         } catch (BasisException failure) {
             // The proof is advisory to this receiver: a failed post leaves the saved URL list
             // unchanged. Never log the secret, challenge, or proof.
@@ -87,8 +96,9 @@ public final class BackchannelHandler {
     }
 
     private HttpResult logout(Map<String, String> form) {
-        VerifiedToken verified = verifier.verifyBackchannelToken(
-                form.get("logout_token"), "logout+jwt", config.resource());
+        VerifiedToken verified =
+                verifier.verifyBackchannelToken(
+                        form.get("logout_token"), "logout+jwt", config.resource());
         if (verified.claims().getClaim(TokenVerifier.LOGOUT_EVENT) == null) {
             throw new TokenRejectedException("logout token lacks backchannel event");
         }
@@ -107,8 +117,8 @@ public final class BackchannelHandler {
         if (jti == null || validAfterText == null || token == null) {
             return HttpResult.badRequest();
         }
-        VerifiedToken verified = verifier.verifyBackchannelToken(
-                token, "at-revocation+jwt", config.resource());
+        VerifiedToken verified =
+                verifier.verifyBackchannelToken(token, "at-revocation+jwt", config.resource());
         JWTClaimsSet claims = verified.claims();
         if (!jti.equals(stringClaim(claims, "access_token_jti"))) {
             throw new TokenRejectedException("revocation jti mismatch");
