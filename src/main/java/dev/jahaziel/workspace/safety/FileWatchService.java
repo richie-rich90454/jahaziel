@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Polls workspace file mtimes and hashes; no operating-system watcher and no external dependency. */
+/**
+ * Polls workspace file mtimes and hashes; no operating-system watcher and no external dependency.
+ */
 @Component
 public final class FileWatchService {
     private final String storageRoot;
@@ -76,14 +78,16 @@ public final class FileWatchService {
                         @Override
                         public FileVisitResult preVisitDirectory(
                                 Path directory, BasicFileAttributes attributes) {
-                            if (!directory.equals(root) && ignored(directory.getFileName().toString())) {
+                            if (!directory.equals(root)
+                                    && ignored(directory.getFileName().toString())) {
                                 return FileVisitResult.SKIP_SUBTREE;
                             }
                             return FileVisitResult.CONTINUE;
                         }
 
                         @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        public FileVisitResult visitFile(
+                                Path file, BasicFileAttributes attributes) {
                             if (!attributes.isRegularFile()) {
                                 return FileVisitResult.CONTINUE;
                             }
