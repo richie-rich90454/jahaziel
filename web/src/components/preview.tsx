@@ -10,6 +10,7 @@ import {
     refreshPortStatuses,
     registerPreviewPort,
     reloadPreview,
+    resizePreviewBy,
     resizePreviewStart,
     selectPreviewPort,
 } from "../lib/controller";
@@ -18,7 +19,7 @@ import { state, toast } from "../lib/store";
 
 export function previewMarkup(): string {
     return `
-    <div id="preview-resizer" class="preview-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize preview panel" tabindex="0"></div>
+    <div id="preview-resizer" class="preview-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize preview panel" aria-valuemin="120" aria-valuemax="720" aria-valuenow="240" tabindex="0"></div>
     <section id="preview-dock" class="preview-dock" aria-label="Workspace preview" hidden>
       <div class="preview-heading">
         <label for="preview-port-select">Preview</label>
@@ -85,9 +86,22 @@ export function bindPreview(): void {
     });
     const select = byId<HTMLSelectElement>("preview-port-select");
     on(select, "change", () => selectPreviewPort(Number(select.value)));
-    on(byId("preview-resizer"), "pointerdown", (event) =>
-        resizePreviewStart(event as PointerEvent),
-    );
+    const resizer = byId("preview-resizer");
+    on(resizer, "pointerdown", (event) => resizePreviewStart(event as PointerEvent));
+    on(resizer, "keydown", (event) => {
+        const steps: Record<string, number> = {
+            ArrowUp: 24,
+            ArrowDown: -24,
+            PageUp: 120,
+            PageDown: -120,
+            Home: -100_000,
+            End: 100_000,
+        };
+        const delta = steps[event.key];
+        if (delta === undefined) return;
+        event.preventDefault();
+        resizePreviewBy(delta);
+    });
     on(byId("find-preview-ports"), "click", () => {
         void findPreviewPorts().catch((failure) => toast(errorText(failure), "error"));
     });
