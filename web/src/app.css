@@ -970,6 +970,51 @@ button:active:not(:disabled) {
 .language-diagnostic-location {
     color: var(--muted);
 }
+.problems-subpanel {
+    border-top: 1px solid var(--line);
+    padding: 8px 0 4px;
+}
+.problems-subpanel h3 {
+    margin: 0 10px 6px;
+    color: var(--muted);
+    font: 11px/1.4 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.problems-list {
+    display: grid;
+    gap: 3px;
+    margin: 0;
+    padding: 0 10px 6px;
+    list-style: none;
+}
+.problem-entry {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border: 0;
+    padding: 5px 6px;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    font: 11px/1.4 var(--mono);
+}
+.problem-entry:hover {
+    background: var(--accent-soft);
+}
+.problem-error {
+    color: var(--color-error);
+}
+.problem-warning {
+    color: var(--color-warning);
+}
+.problem-location {
+    color: var(--muted);
+    padding-left: 6px;
+}
 
 .setup-row {
     display: flex;
@@ -1509,6 +1554,18 @@ button:active:not(:disabled) {
     color: var(--ink);
     font-family: var(--mono);
     font-size: 12px;
+}
+.image-preview {
+    display: grid;
+    place-items: center;
+    overflow: auto;
+    background: var(--paper);
+}
+.image-preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 .cm-editor .cm-gutters {
     border-right: 1px solid var(--line);
