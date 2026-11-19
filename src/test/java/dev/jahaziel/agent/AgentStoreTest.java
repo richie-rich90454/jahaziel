@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
@@ -25,6 +26,11 @@ import java.util.UUID;
 
 class AgentStoreTest {
     @TempDir Path temporary;
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     @Test
     void everyWriteStaysUnderTheDataRoot() throws IOException {
