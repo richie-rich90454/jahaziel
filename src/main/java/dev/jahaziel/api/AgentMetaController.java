@@ -9,15 +9,17 @@ import dev.jahaziel.agent.usage.UsageMeters;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /** Model allowlist and usage counters. Model ids are configuration-only, never browser-supplied. */
 @RestController
@@ -25,8 +27,7 @@ public final class AgentMetaController extends ApiControllerBase {
     private final ModelCatalog models;
     private final UsageMeters usage;
 
-    public AgentMetaController(
-            ModelCatalog models, UsageMeters usage, AuthorizationService auth) {
+    public AgentMetaController(ModelCatalog models, UsageMeters usage, AuthorizationService auth) {
         super(auth);
         this.models = models;
         this.usage = usage;
