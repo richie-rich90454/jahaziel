@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 
 import dev.jahaziel.identity.domain.UserId;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,6 +29,11 @@ import java.util.zip.GZIPOutputStream;
 
 class AgentToolServiceImplTest {
     @TempDir Path temporary;
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     @Test
     void extractsOnlyTheExpectedExecutableFromThePinnedArchiveShape() throws Exception {
