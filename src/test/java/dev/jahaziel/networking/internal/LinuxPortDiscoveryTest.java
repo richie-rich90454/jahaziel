@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -16,7 +18,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.Test;
 
 class LinuxPortDiscoveryTest {
     private static final String ROW_8080 =
@@ -66,8 +67,8 @@ class LinuxPortDiscoveryTest {
 
     @Test
     void skipsMalformedAndNonListenRows() {
-        String table = ROW_8080 + "\n" + ROW_ESTABLISHED + "\n" + ROW_BAD_PORT + "\n"
-                + ROW_SHORT + "\n";
+        String table =
+                ROW_8080 + "\n" + ROW_ESTABLISHED + "\n" + ROW_BAD_PORT + "\n" + ROW_SHORT + "\n";
         Map<String, Integer> parsed = new LinuxPortDiscovery().parseListenTable(reader(table));
         assertEquals(1, parsed.size());
         assertTrue(parsed.containsKey("1111"));
@@ -77,8 +78,9 @@ class LinuxPortDiscoveryTest {
 
     @Test
     void extractsSocketInodesFromLinkTargets() {
-        List<String> targets = Arrays.asList(
-                "socket:[1111]", "pipe:[5]", "socket:[2222]", "/dev/null", "socket:[3333]");
+        List<String> targets =
+                Arrays.asList(
+                        "socket:[1111]", "pipe:[5]", "socket:[2222]", "/dev/null", "socket:[3333]");
         Set<String> expected = new HashSet<String>();
         expected.add("1111");
         expected.add("2222");
@@ -88,27 +90,29 @@ class LinuxPortDiscoveryTest {
 
     @Test
     void mapsInodesToSortedPorts() {
-        Map<String, Integer> sockets = new LinuxPortDiscovery().parseListenTable(
-                reader(ROW_8080 + "\n" + ROW_10000_V6 + "\n"));
+        Map<String, Integer> sockets =
+                new LinuxPortDiscovery()
+                        .parseListenTable(reader(ROW_8080 + "\n" + ROW_10000_V6 + "\n"));
         Set<String> inodes = new HashSet<String>();
         inodes.add("3333");
         inodes.add("1111");
         inodes.add("9999");
         List<Integer> ports = new LinuxPortDiscovery().portsForInodes(sockets, inodes);
-        assertEquals(
-                Arrays.asList(Integer.valueOf(8080), Integer.valueOf(10000)), ports);
+        assertEquals(Arrays.asList(Integer.valueOf(8080), Integer.valueOf(10000)), ports);
     }
 
     @Test
     void boundedParsingOnlyInspectsConfiguredNumberOfLines() {
         StringBuilder table = new StringBuilder();
         for (int i = 0; i < 10; i++) {
-            table.append("  0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000"
-                    + " 00000000 1000 0 ");
+            table.append(
+                    "  0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000"
+                            + " 00000000 1000 0 ");
             table.append(1000 + i);
             table.append(" 1\n");
         }
-        Map<String, Integer> parsed = new BoundedDiscovery(3).parseListenTable(reader(table.toString()));
+        Map<String, Integer> parsed =
+                new BoundedDiscovery(3).parseListenTable(reader(table.toString()));
         assertEquals(3, parsed.size());
         assertTrue(parsed.containsKey("1000"));
         assertTrue(parsed.containsKey("1002"));
