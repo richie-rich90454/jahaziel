@@ -30,6 +30,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.WebConnection;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -46,6 +47,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,15 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Behavior of {@link GatewayRelayFilter} against stub backends and mock requests. */
 class GatewayRelayFilterTest {
     private static final Duration TTL = Duration.ofSeconds(900);
+    private static final List<HttpServer> SERVERS = new ArrayList<HttpServer>();
+
+    @AfterEach
+    void stopBackends() {
+        for (HttpServer server : SERVERS) {
+            server.stop(0);
+        }
+        SERVERS.clear();
+    }
 
     private GatewayRelayFilter filter(
             JwtVerifier tokens, WorkspaceDirectory directory, TargetResolver targets) {
@@ -350,10 +361,7 @@ class GatewayRelayFilterTest {
                             .start(
                                     () -> {
                                         try (Socket client = listener.accept()) {
-                                            InputStream in = client.getInputStream();
-                                            while (in.read() >= 0) {
-                                                // drain the request head
-                                            }
+                                            client.setSoTimeout(5000);
                                             OutputStream out = client.getOutputStream();
                                             out.write(
                                                     ("HTTP/1.1 200 OK\r\n"
@@ -398,7 +406,8 @@ class GatewayRelayFilterTest {
             MockHttpServletRequest request = workspaceRequest("/asset.js?token=tok");
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
-            backend.join();
+            backend.join(TimeUnit.SECONDS.toMillis(10));
+            assertTrue(!backend.isAlive(), "backend did not finish");
             assertEquals(200, response.getStatus());
             assertEquals(body, response.getContentAsString());
             assertNull(response.getHeader("Transfer-Encoding"));
@@ -1030,6 +1039,7 @@ class GatewayRelayFilterTest {
                     exchange.close();
                 });
         server.start();
+        SERVERS.add(server);
         return server;
     }
 
@@ -1062,6 +1072,7 @@ class GatewayRelayFilterTest {
                     exchange.close();
                 });
         server.start();
+        SERVERS.add(server);
         return server;
     }
 }
