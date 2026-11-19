@@ -6,7 +6,7 @@ package dev.jahaziel.language.api;
 
 /** A pinned language-pack download or verification failed. */
 public final class LanguagePackInstallException extends RuntimeException {
-  public LanguagePackInstallException(String message, Throwable cause) {
-    super(message, cause);
-  }
+    public LanguagePackInstallException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
