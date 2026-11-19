@@ -11,9 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -23,8 +21,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Append-only journal of reversible file operations with undo and redo pointers. State is kept under
- * the jar data directory and never touches git metadata.
+ * Append-only journal of reversible file operations with undo and redo pointers. State is kept
+ * under the jar data directory and never touches git metadata.
  */
 @Component
 public final class OperationHistory {
@@ -199,7 +197,8 @@ public final class OperationHistory {
         try {
             Files.deleteIfExists(target);
         } catch (java.nio.file.DirectoryNotEmptyException ignored) {
-            // Replaying a directory creation keeps its contents; only an empty directory is removed.
+            // Replaying a directory creation keeps its contents; only an empty directory is
+            // removed.
         } catch (IOException failure) {
             throw new UncheckedIOException("cannot replay delete", failure);
         }
