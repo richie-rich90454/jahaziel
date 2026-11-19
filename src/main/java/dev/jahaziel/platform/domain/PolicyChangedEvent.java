@@ -15,12 +15,12 @@ import java.util.Objects;
  * @param occurredAt when the event occurred
  */
 public record PolicyChangedEvent(String scope, String scopeId, Instant occurredAt)
-    implements DomainEvent {
-  public PolicyChangedEvent {
-    if (scope == null || scope.isBlank()) {
-      throw new IllegalArgumentException("scope must not be blank");
+        implements DomainEvent {
+    public PolicyChangedEvent {
+        if (scope == null || scope.isBlank()) {
+            throw new IllegalArgumentException("scope must not be blank");
+        }
+        Objects.requireNonNull(scopeId, "scopeId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
     }
-    Objects.requireNonNull(scopeId, "scopeId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
 }
