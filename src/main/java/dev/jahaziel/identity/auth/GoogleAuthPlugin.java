@@ -12,11 +12,15 @@ import java.util.Collections;
 
 /** Google OIDC provider. Config keys use the "google" prefix. */
 public final class GoogleAuthPlugin extends OidcProviderPlugin {
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            "google",
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(AuthCapability.OIDC, AuthCapability.OAUTH2, AuthCapability.MFA_ASSURANCE));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    "google",
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(
+                            AuthCapability.OIDC,
+                            AuthCapability.OAUTH2,
+                            AuthCapability.MFA_ASSURANCE));
 
     public GoogleAuthPlugin() {
         super(DESCRIPTOR);
