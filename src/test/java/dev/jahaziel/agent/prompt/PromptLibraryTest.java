@@ -12,14 +12,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class PromptLibraryTest {
     @TempDir Path temporary;
@@ -51,11 +54,9 @@ class PromptLibraryTest {
     @Test
     void renderSubstitutesSupportedVariablesInOnePass() {
         PromptLibrary library = library();
-        PromptTemplate template =
-            library.createUser(owner, "Ctx", "File ${file} has ${selection}");
+        PromptTemplate template = library.createUser(owner, "Ctx", "File ${file} has ${selection}");
 
-        String rendered =
-            library.render(owner, template.getId(), "${selection}", "selected text");
+        String rendered = library.render(owner, template.getId(), "${selection}", "selected text");
 
         assertEquals("File ${selection} has selected text", rendered);
     }
@@ -64,26 +65,26 @@ class PromptLibraryTest {
     void unknownVariablesAndMalformedBracesAreRejected() {
         final PromptLibrary library = library();
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    library.createUser(owner, "Bad", "Run ${shell}");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        library.createUser(owner, "Bad", "Run ${shell}");
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    library.createUser(owner, "Bad", "Run ${file");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        library.createUser(owner, "Bad", "Run ${file");
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    library.createUser(owner, "Bad", "Run file}");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        library.createUser(owner, "Bad", "Run file}");
+                    }
+                });
     }
 
     @Test
@@ -92,19 +93,19 @@ class PromptLibraryTest {
         final PromptTemplate mine = library.createUser(owner, "Mine", "My ${file}");
 
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    library.getUser(other, mine.getId());
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        library.getUser(other, mine.getId());
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    library.deleteUser(other, mine.getId());
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        library.deleteUser(other, mine.getId());
+                    }
+                });
         List<PromptTemplate> others = library.list(other);
         assertEquals(0, others.size());
     }
@@ -118,8 +119,10 @@ class PromptLibraryTest {
 
         Path global = data.resolve("agent").resolve("prompts").resolve("global.json");
         Path user =
-            data.resolve("agent").resolve("prompts").resolve("users")
-                .resolve(owner.value().toString() + ".json");
+                data.resolve("agent")
+                        .resolve("prompts")
+                        .resolve("users")
+                        .resolve(owner.value().toString() + ".json");
         assertTrue(Files.isRegularFile(global));
         assertTrue(Files.isRegularFile(user));
         assertTrue(user.toAbsolutePath().startsWith(data.toAbsolutePath()));
