@@ -21,95 +21,101 @@ import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.security.Principal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 /** Endpoints of {@link PortController} with stubbed services. Standalone MockMvc. */
 class PortControllerTest {
-  private MockMvc mvc;
+    private MockMvc mvc;
 
-  private PortService ports;
+    private PortService ports;
 
-  private UserService users;
+    private UserService users;
 
-  private AuthorizationService auth;
+    private AuthorizationService auth;
 
-  private GatewayRouteService routes;
+    private GatewayRouteService routes;
 
-  private JwtService tokens;
+    private JwtService tokens;
 
-  private final Principal principal = () -> UUID.randomUUID().toString();
+    private final Principal principal = () -> UUID.randomUUID().toString();
 
-  @BeforeEach
-  void setUp() {
-    ports = mock(PortService.class);
-    users = mock(UserService.class);
-    auth = mock(AuthorizationService.class);
-    routes = mock(GatewayRouteService.class);
-    tokens = mock(JwtService.class);
-    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
-    mvc =
-        MockMvcBuilders.standaloneSetup(
-                new PortController(
-                    ports,
-                    mock(PortCandidateService.class),
-                    port -> true,
-                    users,
-                    auth,
-                    routes,
-                    tokens,
-                    new GatewayEndpoint("https", "code.test", 443),
-                    900))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build();
-  }
+    @BeforeEach
+    void setUp() {
+        ports = mock(PortService.class);
+        users = mock(UserService.class);
+        auth = mock(AuthorizationService.class);
+        routes = mock(GatewayRouteService.class);
+        tokens = mock(JwtService.class);
+        when(auth.isAllowed(any(), any(), any())).thenReturn(true);
+        mvc =
+                MockMvcBuilders.standaloneSetup(
+                                new PortController(
+                                        ports,
+                                        mock(PortCandidateService.class),
+                                        port -> true,
+                                        users,
+                                        auth,
+                                        routes,
+                                        tokens,
+                                        new GatewayEndpoint("https", "code.test", 443),
+                                        900))
+                        .setControllerAdvice(new ApiExceptionHandler())
+                        .build();
+    }
 
-  @Test
-  void listsCandidatePorts() throws Exception {
-    UUID workspace = UUID.randomUUID();
-    UUID user = UUID.randomUUID();
-    when(auth.isAllowed(any(), any(), any())).thenReturn(true);
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspace + "/ports/candidates")
-                .principal(() -> user.toString()))
-        .andExpect(status().isOk());
-  }
+    @Test
+    void listsCandidatePorts() throws Exception {
+        UUID workspace = UUID.randomUUID();
+        UUID user = UUID.randomUUID();
+        when(auth.isAllowed(any(), any(), any())).thenReturn(true);
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspace + "/ports/candidates")
+                                .principal(() -> user.toString()))
+                .andExpect(status().isOk());
+    }
 
-  @Test
-  void listsPortsWithUrls() throws Exception {
-    UUID workspace = UUID.randomUUID();
-    UUID user = UUID.randomUUID();
-    PortBinding binding =
-        new PortBinding(user, 8080, workspace, "http", Instant.parse("2026-01-02T03:04:05Z"));
-    when(ports.bindingsByWorkspace(new WorkspaceId(workspace))).thenReturn(List.of(binding));
-    when(users.slug(new UserId(user))).thenReturn("richard");
-    when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
-    mvc.perform(
-            get("/api/v1/workspaces/" + workspace + "/ports")
-                .principal(principal)
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].port").value(8080))
-        .andExpect(jsonPath("$[0].listening").value(true))
-        .andExpect(
-            jsonPath("$[0].url")
-                .value("https://preview.code.test/" + workspace + "/8080/?token=tok"));
-  }
+    @Test
+    void listsPortsWithUrls() throws Exception {
+        UUID workspace = UUID.randomUUID();
+        UUID user = UUID.randomUUID();
+        PortBinding binding =
+                new PortBinding(
+                        user, 8080, workspace, "http", Instant.parse("2026-01-02T03:04:05Z"));
+        when(ports.bindingsByWorkspace(new WorkspaceId(workspace))).thenReturn(List.of(binding));
+        when(users.slug(new UserId(user))).thenReturn("richard");
+        when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
+        mvc.perform(
+                        get("/api/v1/workspaces/" + workspace + "/ports")
+                                .principal(principal)
+                                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].port").value(8080))
+                .andExpect(jsonPath("$[0].listening").value(true))
+                .andExpect(
+                        jsonPath("$[0].url")
+                                .value(
+                                        "https://preview.code.test/"
+                                                + workspace
+                                                + "/8080/?token=tok"));
+    }
 
-  @Test
-  void missingWorkspaceIsNotFound() throws Exception {
-    WorkspaceId id = new WorkspaceId(UUID.randomUUID());
-    when(ports.bindingsByWorkspace(id))
-        .thenThrow(new dev.jahaziel.workspace.api.WorkspaceNotFoundException(id));
-    mvc.perform(get("/api/v1/workspaces/" + id.value() + "/ports").principal(principal))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-  }
+    @Test
+    void missingWorkspaceIsNotFound() throws Exception {
+        WorkspaceId id = new WorkspaceId(UUID.randomUUID());
+        when(ports.bindingsByWorkspace(id))
+                .thenThrow(new dev.jahaziel.workspace.api.WorkspaceNotFoundException(id));
+        mvc.perform(get("/api/v1/workspaces/" + id.value() + "/ports").principal(principal))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
 }
