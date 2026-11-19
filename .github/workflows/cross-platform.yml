@@ -71,8 +71,8 @@ jobs:
           pnpm run format:check
           pnpm run build
       - name: Verify Java sources and tests
-        shell: pwsh
-        run: .\mvnw.cmd -B test -Dfmt.skip=true -Dlicense.skip=true
+        shell: cmd
+        run: mvnw.cmd -B test -Dfmt.skip=true -Dlicense.skip=true
       - name: List Windows E2E suite shape
         working-directory: web
         shell: pwsh
