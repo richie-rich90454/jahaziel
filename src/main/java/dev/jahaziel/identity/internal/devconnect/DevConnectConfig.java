@@ -6,6 +6,8 @@ package dev.jahaziel.identity.internal.devconnect;
 
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.auth.wiring.AuthProviderDispatcher;
+import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
 import dev.jahaziel.identity.persistence.AppUserRepository;
 import dev.jahaziel.identity.persistence.BffSessionRepository;
 import dev.jahaziel.identity.persistence.OidcPendingRepository;
@@ -82,6 +84,8 @@ public class DevConnectConfig {
    * @param roles the role-grant store
    * @param tokens the API token issuer
    * @param clock the clock
+   * @param dispatcher the auth provider dispatcher
+   * @param identities the identity link store
    * @return the service
    */
   @Bean
@@ -93,7 +97,10 @@ public class DevConnectConfig {
       AppUserRepository users,
       UserRoleRepository roles,
       JwtService tokens,
-      Clock clock) {
-    return new DevConnectServiceImpl(props, client, pending, sessions, users, roles, tokens, clock);
+      Clock clock,
+      AuthProviderDispatcher dispatcher,
+      UserIdentityStore identities) {
+    return new DevConnectServiceImpl(
+        props, client, pending, sessions, users, roles, tokens, clock, dispatcher, identities);
   }
 }
