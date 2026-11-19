@@ -196,6 +196,45 @@ public final class BasisStore {
         return node == null || node.isNull() ? null : decrypt(node.asString());
     }
 
+    /**
+     * Rotates a refresh token atomically. A mismatched old token means the token was already used,
+     * so the whole session family for this subject is revoked.
+     */
+    public synchronized void consumeAndReplace(
+            String sessionId, String expected, String replacement) {
+        JsonNode node = refresh.get(sessionId);
+        if (node == null || node.isNull()) {
+            throw new RefreshReuseException();
+        }
+        if (!expected.equals(decrypt(node.asString()))) {
+            AuthIdentity identity = getSession(sessionId);
+            if (identity == null) {
+                clearRefresh(sessionId);
+            } else {
+                removeSessionsForSubject(identity.subject());
+            }
+            throw new RefreshReuseException();
+        }
+        refresh.put(sessionId, encrypt(replacement));
+        flush();
+    }
+
+    /** Clears refresh state so a new sign-in is required. */
+    public synchronized void clearRefresh(String sessionId) {
+        if (refresh.remove(sessionId) != null) {
+            flush();
+        }
+    }
+
+    /** Records the absolute expiry of the latest access token for diagnostics. */
+    public synchronized void putTokenExpiresAt(String sessionId, long expiresAt) {
+        JsonNode node = sessions.get(sessionId);
+        if (node != null && node.isObject()) {
+            ((ObjectNode) node).put("accessTokenExpiresAt", expiresAt);
+            flush();
+        }
+    }
+
     private ObjectNode loadRoot() {
         if (!Files.exists(file)) {
             return mapper.createObjectNode();
