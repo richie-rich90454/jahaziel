@@ -6,15 +6,11 @@ package dev.jahaziel.identity.auth.local;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.plugin.PluginContext;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,6 +21,12 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /** File-backed users, pending logins, and sessions, all below the plugin data dir. */
 public final class LocalStore {
@@ -61,9 +63,24 @@ public final class LocalStore {
         return users.get(username) != null;
     }
 
-    public synchronized void createUser(String username, String email, byte[] salt, byte[] hash,
-            int iterations, String encryptedSecret) {
-        User user = new User(username, email, salt, hash, iterations, encryptedSecret, -1L, false, false);
+    public synchronized void createUser(
+            String username,
+            String email,
+            byte[] salt,
+            byte[] hash,
+            int iterations,
+            String encryptedSecret) {
+        User user =
+                new User(
+                        username,
+                        email,
+                        salt,
+                        hash,
+                        iterations,
+                        encryptedSecret,
+                        -1L,
+                        false,
+                        false);
         writeUser(user);
     }
 
@@ -85,8 +102,16 @@ public final class LocalStore {
         int iterations = node.path("iterations").asInt();
         boolean enrolled = node.path("enrolled").asBoolean(false);
         boolean admin = node.path("admin").asBoolean(false);
-        return new User(username, email, decode(text(node, "salt")), decode(text(node, "hash")),
-                iterations, encryptedSecret, totpCounter, enrolled, admin);
+        return new User(
+                username,
+                email,
+                decode(text(node, "salt")),
+                decode(text(node, "hash")),
+                iterations,
+                encryptedSecret,
+                totpCounter,
+                enrolled,
+                admin);
     }
 
     public synchronized void saveUser(User user) {
@@ -103,7 +128,8 @@ public final class LocalStore {
         return encrypt(secret);
     }
 
-    public synchronized void putPending(String state, String nonce, String redirectUri, long createdAt) {
+    public synchronized void putPending(
+            String state, String nonce, String redirectUri, long createdAt) {
         ObjectNode node = mapper.createObjectNode();
         node.put("nonce", nonce);
         node.put("redirectUri", redirectUri);
@@ -199,16 +225,24 @@ public final class LocalStore {
     private SecretKey loadKey() {
         try {
             if (Files.exists(keyFile)) {
-                byte[] encoded = Base64.getDecoder().decode(
-                        new String(Files.readAllBytes(keyFile), StandardCharsets.UTF_8).trim());
+                byte[] encoded =
+                        Base64.getDecoder()
+                                .decode(
+                                        new String(
+                                                        Files.readAllBytes(keyFile),
+                                                        StandardCharsets.UTF_8)
+                                                .trim());
                 return new SecretKeySpec(encoded, "AES");
             }
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256);
             SecretKey generated = generator.generateKey();
             String encoded = Base64.getEncoder().encodeToString(generated.getEncoded());
-            Files.write(keyFile, encoded.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    keyFile,
+                    encoded.getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
             return generated;
         } catch (IOException failure) {
             throw new LocalAuthException("cannot persist local auth key", failure);
@@ -250,8 +284,11 @@ public final class LocalStore {
 
     private void flush(Path file, ObjectNode node) {
         try {
-            Files.write(file, mapper.writeValueAsString(node).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    file,
+                    mapper.writeValueAsString(node).getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException failure) {
             throw new LocalAuthException("cannot persist local auth store", failure);
         }
@@ -282,8 +319,16 @@ public final class LocalStore {
         private boolean enrolled;
         private boolean admin;
 
-        private User(String username, String email, byte[] salt, byte[] hash, int iterations,
-                String encryptedSecret, long totpCounter, boolean enrolled, boolean admin) {
+        private User(
+                String username,
+                String email,
+                byte[] salt,
+                byte[] hash,
+                int iterations,
+                String encryptedSecret,
+                long totpCounter,
+                boolean enrolled,
+                boolean admin) {
             this.username = username;
             this.email = email;
             this.salt = salt;
