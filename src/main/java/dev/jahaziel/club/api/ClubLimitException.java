@@ -6,14 +6,14 @@ package dev.jahaziel.club.api;
 
 /** Thrown when a session capacity or rate limit is exceeded. */
 public class ClubLimitException extends RuntimeException {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  /**
-   * Creates the exception.
-   *
-   * @param message the reason, safe to show to the caller
-   */
-  public ClubLimitException(String message) {
-    super(message);
-  }
+    /**
+     * Creates the exception.
+     *
+     * @param message the reason, safe to show to the caller
+     */
+    public ClubLimitException(String message) {
+        super(message);
+    }
 }
