@@ -110,11 +110,9 @@ class LanguagePackPlatformResolutionTest {
                 new LanguagePackServiceImpl.Definition(
                         "rust", "Rust Analyzer", "test", "linux", Map.of());
         LanguagePackServiceImpl.Definition cpp =
-                new LanguagePackServiceImpl.Definition(
-                        "cpp", "clangd", "test", "darwin", Map.of());
+                new LanguagePackServiceImpl.Definition("cpp", "clangd", "test", "darwin", Map.of());
         LanguagePackServiceImpl.Definition python =
-                new LanguagePackServiceImpl.Definition(
-                        "python", "Pyright", "test", Map.of());
+                new LanguagePackServiceImpl.Definition("python", "Pyright", "test", Map.of());
         return new LanguagePackServiceImpl(
                 temporary.resolve("cache"),
                 mock(HttpClient.class),
