@@ -18,18 +18,18 @@ import java.util.Optional;
  * @param limit maximum events to return
  */
 public record AuditQuery(
-    Optional<Instant> from,
-    Optional<Instant> to,
-    Optional<String> actor,
-    Optional<String> action,
-    int limit) {
-  public AuditQuery {
-    Objects.requireNonNull(from, "from");
-    Objects.requireNonNull(to, "to");
-    Objects.requireNonNull(actor, "actor");
-    Objects.requireNonNull(action, "action");
-    if (limit < 1) {
-      throw new IllegalArgumentException("limit must be positive");
+        Optional<Instant> from,
+        Optional<Instant> to,
+        Optional<String> actor,
+        Optional<String> action,
+        int limit) {
+    public AuditQuery {
+        Objects.requireNonNull(from, "from");
+        Objects.requireNonNull(to, "to");
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(action, "action");
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
     }
-  }
 }
