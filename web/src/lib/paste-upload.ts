@@ -12,6 +12,8 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const TEXT_TYPES = /^(text\/|application\/(json|xml|javascript)|.*\+(json|xml)$)/i;
 const IMAGE_TYPES = /^image\/(png|jpe?g|gif|webp|svg\+xml|bmp)$/i;
 
+let uploadUnavailableShown = false;
+
 function workspaceId(): string | null {
     return state.workspace?.workspaceId ?? null;
 }
@@ -69,8 +71,59 @@ async function saveBlob(file: File): Promise<void> {
     );
 }
 
+function validate(file: File): string | null {
+    if (file.size > MAX_BYTES) return `${file.name}: ${t("upload.limit")}`;
+    const text =
+        TEXT_TYPES.test(file.type) ||
+        /\.(txt|md|json|csv|html?|css|js|ts|py|java|go|rs|xml)$/i.test(file.name);
+    const image = IMAGE_TYPES.test(file.type) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(file.name);
+    return text || image ? null : `${file.name}: ${t("upload.limit")}`;
+}
+
+/** Uploads each file as base64 JSON; a 404 keeps the local fallback. */
+async function uploadBatch(files: File[]): Promise<boolean> {
+    const id = workspaceId();
+    if (!id) return false;
+    let uploaded = 0;
+    for (const file of files) {
+        const dataUrl = await readAsDataUrl(file);
+        const content = dataUrl.slice(dataUrl.indexOf(",") + 1);
+        const response = await fetch(`/api/v1/workspaces/${id}/upload`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: uniqueName(file.name), content, encoding: "base64" }),
+        });
+        if (response.status === 404 || response.status === 405) {
+            if (!uploadUnavailableShown) {
+                uploadUnavailableShown = true;
+                toast("Unavailable on this host — saving files directly.");
+            }
+            return uploaded > 0;
+        }
+        if (!response.ok) throw new Error(`${response.status} ${t("upload.limit")}`);
+        uploaded += 1;
+    }
+    return uploaded > 0;
+}
+
 async function handleFiles(files: File[]): Promise<void> {
     if (!workspaceId() || files.length === 0) return;
+    const errors = files.map(validate).filter((error): error is string => error !== null);
+    if (errors.length) {
+        for (const error of errors) toast(error, "error");
+        return;
+    }
+    try {
+        if (await uploadBatch(files)) {
+            await refreshFiles();
+            toast(`${t("upload.drop")}: ${files.length}`);
+            return;
+        }
+    } catch (failure) {
+        toast(errorText(failure), "error");
+        return;
+    }
     for (const file of files) {
         try {
             await saveBlob(file);
@@ -129,5 +182,14 @@ export function installPasteUpload(host: HTMLElement): void {
     });
     host.addEventListener("paste", (event) => {
         void handlePaste(event as ClipboardEvent);
+    });
+}
+
+/** Wires an explicit file-picker to the same validated upload path. */
+export function installUploadInput(input: HTMLInputElement): void {
+    input.addEventListener("change", () => {
+        const files = Array.from(input.files ?? []);
+        if (files.length) void handleFiles(files);
+        input.value = "";
     });
 }
