@@ -4,10 +4,18 @@
  */
 package dev.jahaziel.identity.auth.github;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import dev.jahaziel.identity.auth.AuthCapability;
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.GitHubAuthPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,21 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 final class GitHubAuthPluginTest {
     private static final String CLIENT_ID = "octo-client";
     private static final String SECRET = "octo-secret-1234567890";
     private static final String REDIRECT = "https://app.example.org/oauth/github";
     private static final String ACCESS_TOKEN = "test-access-token";
 
-    @TempDir
-    Path temp;
+    @TempDir Path temp;
 
     private LoopbackGitHub stub;
     private Map<String, String> settings;
@@ -146,8 +146,9 @@ final class GitHubAuthPluginTest {
 
     @Test
     void verifiedNonPrimaryWinsWhenPrimaryIsUnverified() {
-        stub.emails("[{\"email\":\"primary-unverified@example.org\",\"primary\":true,\"verified\":false},"
-                + "{\"email\":\"verified@example.org\",\"primary\":false,\"verified\":true}]");
+        stub.emails(
+                "[{\"email\":\"primary-unverified@example.org\",\"primary\":true,\"verified\":false},"
+                        + "{\"email\":\"verified@example.org\",\"primary\":false,\"verified\":true}]");
 
         AuthIdentity identity = login("state-5");
 
@@ -207,13 +208,15 @@ final class GitHubAuthPluginTest {
     void everyPersistedFileStaysUnderTheDataDir() throws Exception {
         login("state-11");
         final List<String> relative = new ArrayList<String>();
-        Files.walkFileTree(temp, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                relative.add(temp.relativize(file).toString().replace('\\', '/'));
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        Files.walkFileTree(
+                temp,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        relative.add(temp.relativize(file).toString().replace('\\', '/'));
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
         assertTrue(relative.contains("identity/github-auth-store.json"));
         assertTrue(relative.contains("keys/github-auth.key"));
         for (int index = 0; index < relative.size(); index++) {
