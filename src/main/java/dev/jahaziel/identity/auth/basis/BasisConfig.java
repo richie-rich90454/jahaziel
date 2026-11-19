@@ -22,21 +22,33 @@ public final class BasisConfig {
     private final Path keysDir;
 
     public BasisConfig(PluginContext context) {
-        this.issuer = required(context, "missing basis-auth issuer",
-                "basis.auth-issuer", "BASIS_AUTH_ISSUER");
-        this.clientId = required(context, "missing basis-auth client id",
-                "basis.client-id", "BASIS_CLIENT_ID");
-        this.clientSecret = first(context,
-                "basis.client-secret", "BASIS_CLIENT_SECRET");
-        this.resource = required(context, "missing basis-auth resource",
-                "basis.resource", "BASIS_RESOURCE");
-        this.resourceSecret = first(context,
-                "basis.resource-secret", "BASIS_RESOURCE_SECRET");
-        this.internalUrl = first(context,
-                "basis.internal-url", "BASIS_AUTH_INTERNAL_URL", "BASIS_INTERNAL_URL");
+        this.issuer =
+                required(
+                        context,
+                        "missing basis-auth issuer",
+                        "basis.auth-issuer",
+                        "BASIS_AUTH_ISSUER");
+        this.clientId =
+                required(
+                        context,
+                        "missing basis-auth client id",
+                        "basis.client-id",
+                        "BASIS_CLIENT_ID");
+        this.clientSecret = first(context, "basis.client-secret", "BASIS_CLIENT_SECRET");
+        this.resource =
+                required(
+                        context, "missing basis-auth resource", "basis.resource", "BASIS_RESOURCE");
+        this.resourceSecret = first(context, "basis.resource-secret", "BASIS_RESOURCE_SECRET");
+        this.internalUrl =
+                first(
+                        context,
+                        "basis.internal-url",
+                        "BASIS_AUTH_INTERNAL_URL",
+                        "BASIS_INTERNAL_URL");
         this.scopes = first(context, "basis.scopes", "BASIS_AUTH_SCOPES", "BASIS_SCOPES");
-        this.offlineAccess = Boolean.parseBoolean(first(context,
-                "basis.offline-access", "BASIS_AUTH_OFFLINE_ACCESS"));
+        this.offlineAccess =
+                Boolean.parseBoolean(
+                        first(context, "basis.offline-access", "BASIS_AUTH_OFFLINE_ACCESS"));
         this.identityDir = context.dataDir().resolve("identity");
         this.keysDir = context.dataDir().resolve("keys");
     }
