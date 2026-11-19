@@ -199,7 +199,9 @@ public final class OutboundWebhooks {
                 continue;
             }
             String body = body(stored.event);
-            int status = transport.send(stored.event.targetUrl(), body, sign(stored.event.secret(), body));
+            int status =
+                    transport.send(
+                            stored.event.targetUrl(), body, sign(stored.event.secret(), body));
             if (status >= 200 && status < 300) {
                 OpsFiles.deleteIfPresent(file);
                 delivered++;
@@ -262,7 +264,11 @@ public final class OutboundWebhooks {
         }
         WebhookEvent event =
                 new WebhookEvent(
-                        parts[0], decode(parts[1]), decode(parts[2]), decode(parts[3]), decode(parts[4]));
+                        parts[0],
+                        decode(parts[1]),
+                        decode(parts[2]),
+                        decode(parts[3]),
+                        decode(parts[4]));
         return new Stored(event, Integer.parseInt(parts[5]), Long.parseLong(parts[6].trim()));
     }
 
@@ -283,7 +289,8 @@ public final class OutboundWebhooks {
     }
 
     private static String encode(String value) {
-        return Base64.getEncoder().encodeToString((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder()
+                .encodeToString((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
     }
 
     private static String decode(String value) {
