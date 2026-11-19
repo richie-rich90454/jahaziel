@@ -13,6 +13,7 @@ import { editorMarkup, bindEditor } from "./components/editor";
 import { bindHome, homeMarkup } from "./components/home";
 import { bindPreview, previewMarkup } from "./components/preview";
 import { bindQuickOpen, quickOpenMarkup } from "./components/quick-open";
+import { bindServicePanels, servicePanelsMarkup } from "./components/service-panels";
 import { bindSidebar, sidebarMarkup } from "./components/sidebar";
 import { bindTerminal, terminalMarkup } from "./components/terminal";
 import { bindTour, tourMarkup } from "./components/tour";
@@ -72,6 +73,11 @@ export function App(): HTMLElement {
         <button type="button" data-panel="git" aria-pressed="false">${t("nav.git")}</button>
         <button type="button" data-panel="terminal" aria-pressed="false">${t("nav.terminal")}</button>
         <button type="button" data-panel="preview" aria-pressed="false">${t("nav.preview")}</button>
+        <button type="button" data-panel="collaboration" aria-pressed="false">Collaborate</button>
+        <button type="button" data-panel="agent" aria-pressed="false">Agent</button>
+        <button type="button" data-panel="data" aria-pressed="false">Data</button>
+        <button type="button" data-panel="club" aria-pressed="false">Club</button>
+        <button type="button" data-panel="ops" aria-pressed="false">Ops</button>
       </nav>
       <div class="workbench-layout">
         ${sidebarMarkup()}
@@ -79,6 +85,7 @@ export function App(): HTMLElement {
           ${editorMarkup()}
           ${terminalMarkup()}
           ${previewMarkup()}
+          ${servicePanelsMarkup()}
           <footer class="statusbar"><span>Jahaziel</span><span id="status-language">Plain text</span><span>UTF-8</span><span>Linux</span></footer>
         </section>
       </div>
@@ -134,6 +141,7 @@ export function bindApp(): void {
     bindTerminal();
     bindPreview();
     bindQuickOpen();
+    bindServicePanels();
     bindTour();
     bindAppearanceControls();
 
