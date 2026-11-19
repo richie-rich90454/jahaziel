@@ -13,13 +13,13 @@ import java.util.Objects;
  * @param port the workspace port
  */
 public record ParsedHost(String userSlug, int port) {
-  public ParsedHost {
-    if (userSlug == null || userSlug.isBlank()) {
-      throw new IllegalArgumentException("userSlug must not be blank");
+    public ParsedHost {
+        if (userSlug == null || userSlug.isBlank()) {
+            throw new IllegalArgumentException("userSlug must not be blank");
+        }
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("port must be between 1 and 65535");
+        }
+        Objects.requireNonNull(userSlug, "userSlug");
     }
-    if (port < 1 || port > 65535) {
-      throw new IllegalArgumentException("port must be between 1 and 65535");
-    }
-    Objects.requireNonNull(userSlug, "userSlug");
-  }
 }
