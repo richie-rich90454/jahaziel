@@ -65,19 +65,20 @@ final class BasisAuthBackchannelTest {
 
     @Test
     void testActionReturns202AndPostsHmacProof() {
+        String nonce = challengeValue('n');
+        String challenge = challengeValue('c');
         Map<String, String> form = new HashMap<String, String>();
         form.put("action", "test");
-        form.put("nonce", "nonce-abc");
-        form.put("challenge", "challenge-xyz");
+        form.put("nonce", nonce);
+        form.put("challenge", challenge);
 
         HttpResult result = plugin.backchannel().handle(form);
 
         assertEquals(202, result.status());
-        assertNotNull(idp.proofBody());
-        assertEquals("nonce-abc", idp.proofBody().get("nonce").asString());
+        waitForProof(nonce);
+        assertEquals(nonce, idp.proofBody().get("nonce").asString());
         assertEquals(
-                hmac(RESOURCE_SECRET, "challenge-xyz"),
-                idp.proofBody().get("challenge_hash").asString());
+                hmac(RESOURCE_SECRET, challenge), idp.proofBody().get("challenge_hash").asString());
         assertEquals("Bearer " + RESOURCE_SECRET, idp.proofAuthorization());
         assertEquals(BasisHttp.encode(RESOURCE), idp.proofResource());
     }
@@ -188,6 +189,26 @@ final class BasisAuthBackchannelTest {
         parameters.put("state", state);
         parameters.put("code", code);
         return plugin.handleCallback(context, parameters);
+    }
+
+    private static String challengeValue(char value) {
+        StringBuilder result = new StringBuilder();
+        for (int index = 0; index < 43; index++) {
+            result.append(value);
+        }
+        return result.toString();
+    }
+
+    private void waitForProof(String nonce) {
+        for (int attempt = 0; attempt < 200 && idp.proofBody() == null; attempt++) {
+            try {
+                Thread.sleep(10L);
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+        assertNotNull(idp.proofBody(), "proof for " + nonce + " was not delivered");
     }
 
     private static String hmac(String key, String message) {
