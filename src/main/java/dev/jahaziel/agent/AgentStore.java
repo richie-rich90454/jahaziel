@@ -4,6 +4,8 @@
  */
 package dev.jahaziel.agent;
 
+import tools.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import tools.jackson.databind.ObjectMapper;
 
 /**
  * Shared file storage for every agent feature. All paths resolve under one data root, symbolic
@@ -31,8 +32,7 @@ public final class AgentStore {
     private final ObjectMapper json;
 
     public AgentStore(Path dataRoot, ObjectMapper json) {
-        this.dataRoot =
-            Objects.requireNonNull(dataRoot, "dataRoot").toAbsolutePath().normalize();
+        this.dataRoot = Objects.requireNonNull(dataRoot, "dataRoot").toAbsolutePath().normalize();
         this.json = Objects.requireNonNull(json, "json");
     }
 
@@ -128,17 +128,19 @@ public final class AgentStore {
         Path temporary = file.resolveSibling(file.getFileName().toString() + ".tmp");
         rejectSymlinks(temporary);
         try {
-            Files.writeString(
-                temporary, json.writeValueAsString(value), StandardCharsets.UTF_8);
+            Files.writeString(temporary, json.writeValueAsString(value), StandardCharsets.UTF_8);
             try {
                 Files.move(
-                    temporary, file,
-                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                        temporary,
+                        file,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
             } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
                 Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException failure) {
-            throw new UncheckedIOException("cannot write agent state under the data directory", failure);
+            throw new UncheckedIOException(
+                    "cannot write agent state under the data directory", failure);
         }
     }
 
@@ -152,7 +154,8 @@ public final class AgentStore {
         try {
             return json.readValue(Files.readString(file, StandardCharsets.UTF_8), type);
         } catch (IOException failure) {
-            throw new UncheckedIOException("cannot read agent state under the data directory", failure);
+            throw new UncheckedIOException(
+                    "cannot read agent state under the data directory", failure);
         }
     }
 
@@ -169,13 +172,14 @@ public final class AgentStore {
         rejectSymlinks(file);
         try {
             Files.writeString(
-                file,
-                line + "\n",
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND);
+                    file,
+                    line + "\n",
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND);
         } catch (IOException failure) {
-            throw new UncheckedIOException("cannot append agent state under the data directory", failure);
+            throw new UncheckedIOException(
+                    "cannot append agent state under the data directory", failure);
         }
     }
 
@@ -209,7 +213,8 @@ public final class AgentStore {
                 }
             }
         } catch (IOException failure) {
-            throw new UncheckedIOException("cannot list agent state under the data directory", failure);
+            throw new UncheckedIOException(
+                    "cannot list agent state under the data directory", failure);
         }
         return result;
     }
@@ -221,7 +226,8 @@ public final class AgentStore {
         try {
             Files.deleteIfExists(file);
         } catch (IOException failure) {
-            throw new UncheckedIOException("cannot delete agent state under the data directory", failure);
+            throw new UncheckedIOException(
+                    "cannot delete agent state under the data directory", failure);
         }
     }
 
