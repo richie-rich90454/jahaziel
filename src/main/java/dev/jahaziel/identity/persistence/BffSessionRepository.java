@@ -4,18 +4,19 @@
  */
 package dev.jahaziel.identity.persistence;
 
-import java.time.Instant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 /** Repository for BffSessionEntity persistence. */
 public interface BffSessionRepository extends JpaRepository<BffSessionEntity, String> {
-  /**
-   * Removes sessions that expired before a cutoff.
-   *
-   * @param cutoff the exclusive expiry bound
-   * @return the number of rows removed
-   */
-  @Transactional
-  long deleteByExpiresAtBefore(Instant cutoff);
+    /**
+     * Removes sessions that expired before a cutoff.
+     *
+     * @param cutoff the exclusive expiry bound
+     * @return the number of rows removed
+     */
+    @Transactional
+    long deleteByExpiresAtBefore(Instant cutoff);
 }
