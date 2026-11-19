@@ -9,6 +9,7 @@ import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+
 import dev.jahaziel.identity.auth.AuthIdentity;
 
 import java.text.ParseException;
@@ -50,7 +51,8 @@ public final class TokenVerifier {
         return new VerifiedToken(jwt, claims);
     }
 
-    public VerifiedToken verifyBackchannelToken(String token, String expectedType, String audience) {
+    public VerifiedToken verifyBackchannelToken(
+            String token, String expectedType, String audience) {
         SignedJWT jwt = parse(token);
         requireAlgorithm(jwt);
         requireType(jwt, expectedType);
