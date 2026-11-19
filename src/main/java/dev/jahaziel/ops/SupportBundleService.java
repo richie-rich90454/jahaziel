@@ -65,7 +65,10 @@ public final class SupportBundleService {
     public Path createBundle(
             Map<String, String> config, Map<String, String> health, List<String> auditTail) {
         Map<String, byte[]> entries = new LinkedHashMap<String, byte[]>();
-        entries.put("config.txt", OpsFiles.sanitizedMap(config == null ? new LinkedHashMap<String, String>() : config).getBytes(StandardCharsets.UTF_8));
+        entries.put(
+                "config.txt",
+                OpsFiles.sanitizedMap(config == null ? new LinkedHashMap<String, String>() : config)
+                        .getBytes(StandardCharsets.UTF_8));
         entries.put("health.json", healthJson(health).getBytes(StandardCharsets.UTF_8));
         entries.put("audit-tail.txt", auditText(auditTail).getBytes(StandardCharsets.UTF_8));
         addLogs(entries);
@@ -78,7 +81,10 @@ public final class SupportBundleService {
         }
         StringBuilder manifest = new StringBuilder("# sha256 manifest v1\n");
         for (int i = 0; i < names.size(); i++) {
-            manifest.append(hashes.get(names.get(i))).append("  ").append(names.get(i)).append('\n');
+            manifest.append(hashes.get(names.get(i)))
+                    .append("  ")
+                    .append(names.get(i))
+                    .append('\n');
         }
         entries.put("manifest.sha256", manifest.toString().getBytes(StandardCharsets.UTF_8));
 
@@ -126,8 +132,12 @@ public final class SupportBundleService {
                 continue;
             }
             try {
-                String text = OpsFiles.sanitizeText(new String(Files.readAllBytes(file), StandardCharsets.UTF_8));
-                entries.put("logs/" + file.getFileName().toString(), text.getBytes(StandardCharsets.UTF_8));
+                String text =
+                        OpsFiles.sanitizeText(
+                                new String(Files.readAllBytes(file), StandardCharsets.UTF_8));
+                entries.put(
+                        "logs/" + file.getFileName().toString(),
+                        text.getBytes(StandardCharsets.UTF_8));
             } catch (IOException failure) {
                 throw new IllegalStateException("cannot read log file " + file, failure);
             }
@@ -149,7 +159,9 @@ public final class SupportBundleService {
             }
             first = false;
             out.append('"').append(OpsFiles.jsonEscape(key)).append("\":");
-            out.append('"').append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(values.get(key)))).append('"');
+            out.append('"')
+                    .append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(values.get(key))))
+                    .append('"');
         }
         return out.append('}').toString();
     }
