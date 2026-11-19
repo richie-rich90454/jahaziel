@@ -23,7 +23,13 @@ export type Panel =
     | "agent"
     | "data"
     | "club"
-    | "ops";
+    | "ops"
+    | "history"
+    | "trash"
+    | "diff"
+    | "clone"
+    | "config"
+    | "flags";
 
 export interface User {
     displayName: string;
@@ -162,6 +168,43 @@ export interface QuickResult {
     detail: string;
     kind: "panel" | "document" | "match" | "command" | "empty";
     value: string;
+}
+export interface HistoryEntry {
+    id: string;
+    label?: string;
+    action?: string;
+    path?: string;
+    undone?: boolean;
+    createdAt?: string;
+}
+export interface TrashEntry {
+    id: string;
+    path: string;
+    deletedAt?: number | string;
+    size?: number;
+}
+export interface SnapshotRow {
+    path: string;
+    status: string;
+    added?: number;
+    removed?: number;
+}
+export interface ConfigView {
+    value: string;
+    saved: string;
+    diff: string;
+    error: string;
+    restartRequired: boolean;
+    unavailable: boolean;
+}
+export interface FeatureFlag {
+    name: string;
+    description?: string;
+    enabled: boolean;
+    userOverride?: boolean | null;
+    workspaceOverride?: boolean | null;
+    dependsOn?: string[];
+    capability?: string;
 }
 
 export interface UiState {
@@ -314,6 +357,32 @@ export interface UiState {
     quickOpenResults: QuickResult[];
     toasts: ToastItem[];
     draftStorageWarningShown: boolean;
+
+    historyEntries: HistoryEntry[];
+    historyCanUndo: boolean;
+    historyCanRedo: boolean;
+    historyUnavailable: boolean;
+    historyState: string;
+    trashItems: TrashEntry[];
+    trashUnavailable: boolean;
+    trashState: string;
+    snapshotIds: string[];
+    snapshotId: string;
+    snapshotRows: SnapshotRow[];
+    snapshotUnavailable: boolean;
+    snapshotState: string;
+    cloneUnavailable: boolean;
+    cloneState: string;
+    watchBannerVisible: boolean;
+    watchPaths: string[];
+    watchUnavailable: boolean;
+    watchState: string;
+    presence: string[];
+    config: ConfigView;
+    flags: FeatureFlag[];
+    flagsUnavailable: boolean;
+    flagsState: string;
+    bulkProgress: string;
 }
 
 const [state, rawSetState] = createStore<UiState>({
@@ -467,6 +536,39 @@ const [state, rawSetState] = createStore<UiState>({
     quickOpenResults: [],
     toasts: [],
     draftStorageWarningShown: false,
+
+    historyEntries: [],
+    historyCanUndo: false,
+    historyCanRedo: false,
+    historyUnavailable: false,
+    historyState: "History",
+    trashItems: [],
+    trashUnavailable: false,
+    trashState: "Trash",
+    snapshotIds: [],
+    snapshotId: "",
+    snapshotRows: [],
+    snapshotUnavailable: false,
+    snapshotState: "Snapshots",
+    cloneUnavailable: false,
+    cloneState: "Clone",
+    watchBannerVisible: false,
+    watchPaths: [],
+    watchUnavailable: false,
+    watchState: "Watching",
+    presence: [],
+    config: {
+        value: "",
+        saved: "",
+        diff: "",
+        error: "",
+        restartRequired: false,
+        unavailable: false,
+    },
+    flags: [],
+    flagsUnavailable: false,
+    flagsState: "Feature flags",
+    bulkProgress: "",
 });
 
 export { state };
