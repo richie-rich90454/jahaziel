@@ -5,15 +5,11 @@
 package dev.jahaziel.identity.auth.github;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,6 +20,12 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /** File-backed pending logins, sessions, and AES-GCM encrypted access tokens. */
 public final class GitHubStore {
@@ -162,16 +164,24 @@ public final class GitHubStore {
     private SecretKey loadKey() {
         try {
             if (Files.exists(keyFile)) {
-                byte[] encoded = Base64.getDecoder().decode(
-                        new String(Files.readAllBytes(keyFile), StandardCharsets.UTF_8).trim());
+                byte[] encoded =
+                        Base64.getDecoder()
+                                .decode(
+                                        new String(
+                                                        Files.readAllBytes(keyFile),
+                                                        StandardCharsets.UTF_8)
+                                                .trim());
                 return new SecretKeySpec(encoded, "AES");
             }
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256);
             SecretKey generated = generator.generateKey();
             String encoded = Base64.getEncoder().encodeToString(generated.getEncoded());
-            Files.write(keyFile, encoded.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    keyFile,
+                    encoded.getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
             return generated;
         } catch (IOException failure) {
             throw new GitHubException("cannot persist github encryption key", failure);
@@ -213,8 +223,11 @@ public final class GitHubStore {
 
     private void flush() {
         try {
-            Files.write(file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(
+                    file,
+                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException failure) {
             throw new GitHubException("cannot persist github store", failure);
         }
