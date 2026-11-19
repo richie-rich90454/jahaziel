@@ -16,10 +16,10 @@ import java.util.UUID;
  * @param scopes the granted scopes
  */
 public record GatewaySession(UUID userId, UUID workspaceId, List<String> scopes) {
-  public GatewaySession {
-    Objects.requireNonNull(userId, "userId");
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(scopes, "scopes");
-    scopes = List.copyOf(scopes);
-  }
+    public GatewaySession {
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(scopes, "scopes");
+        scopes = List.copyOf(scopes);
+    }
 }
