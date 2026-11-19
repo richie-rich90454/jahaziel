@@ -44,15 +44,18 @@ import dev.jahaziel.spi.AuditSink;
 import dev.jahaziel.workspace.api.WorkspaceFiles;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceTaskService;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import tools.jackson.databind.ObjectMapper;
 
 /** Wires the agent, data-tool, club and ops services used by the API controllers. */
 @Configuration
@@ -70,20 +73,21 @@ public class ApiModulesConfig {
         return new AuditSink() {
             @Override
             public void write(AuditEvent event) {
-                audit.append(new AuditRecord(
-                    event.eventId(),
-                    event.timestamp(),
-                    event.actor(),
-                    event.actorType(),
-                    event.action(),
-                    event.target(),
-                    event.targetType(),
-                    event.outcome(),
-                    event.sourceIp(),
-                    event.sourceNode(),
-                    event.details(),
-                    event.prevHash(),
-                    event.hash()));
+                audit.append(
+                        new AuditRecord(
+                                event.eventId(),
+                                event.timestamp(),
+                                event.actor(),
+                                event.actorType(),
+                                event.action(),
+                                event.target(),
+                                event.targetType(),
+                                event.outcome(),
+                                event.sourceIp(),
+                                event.sourceNode(),
+                                event.details(),
+                                event.prevHash(),
+                                event.hash()));
             }
 
             @Override
