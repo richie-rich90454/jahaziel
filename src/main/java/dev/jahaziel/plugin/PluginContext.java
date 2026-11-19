@@ -39,7 +39,8 @@ public final class PluginContext {
     }
 
     public void putService(String name, Object service) {
-        services.put(Objects.requireNonNull(name, "name"), Objects.requireNonNull(service, "service"));
+        services.put(
+                Objects.requireNonNull(name, "name"), Objects.requireNonNull(service, "service"));
     }
 
     public Object service(String name) {
