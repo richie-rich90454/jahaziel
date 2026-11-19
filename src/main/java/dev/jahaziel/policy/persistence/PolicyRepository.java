@@ -4,8 +4,9 @@
  */
 package dev.jahaziel.policy.persistence;
 
-import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
 
 /** Repository for PolicyEntity persistence. */
 public interface PolicyRepository extends JpaRepository<PolicyEntity, UUID> {}
