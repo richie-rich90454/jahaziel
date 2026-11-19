@@ -45,10 +45,10 @@ final class LdapPluginTest {
     }
 
     @Test
-    void descriptorAdvertisesPasswordOnly() {
+    void descriptorAdvertisesPasswordAndMfaAssurance() {
         assertEquals("ldap", plugin.descriptor().name());
         assertTrue(plugin.supports(AuthCapability.PASSWORD));
-        assertFalse(plugin.supports(AuthCapability.MFA_ASSURANCE));
+        assertTrue(plugin.supports(AuthCapability.MFA_ASSURANCE));
         assertFalse(plugin.supports(AuthCapability.PASSKEY));
     }
 
