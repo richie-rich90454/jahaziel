@@ -15,10 +15,21 @@ public final class OpsDtos {
         private String fileName;
         private boolean verified;
 
-        public String getFileName() { return fileName; }
-        public void setFileName(String value) { this.fileName = value; }
-        public boolean isVerified() { return verified; }
-        public void setVerified(boolean value) { this.verified = value; }
+        public String getFileName() {
+            return fileName;
+        }
+
+        public void setFileName(String value) {
+            this.fileName = value;
+        }
+
+        public boolean isVerified() {
+            return verified;
+        }
+
+        public void setVerified(boolean value) {
+            this.verified = value;
+        }
     }
 
     /** Backup objectives and newest archive name. */
@@ -28,14 +39,37 @@ public final class OpsDtos {
         private long rpoMinutes;
         private long rtoMinutes;
 
-        public String getLatest() { return latest; }
-        public void setLatest(String value) { this.latest = value; }
-        public int getCount() { return count; }
-        public void setCount(int value) { this.count = value; }
-        public long getRpoMinutes() { return rpoMinutes; }
-        public void setRpoMinutes(long value) { this.rpoMinutes = value; }
-        public long getRtoMinutes() { return rtoMinutes; }
-        public void setRtoMinutes(long value) { this.rtoMinutes = value; }
+        public String getLatest() {
+            return latest;
+        }
+
+        public void setLatest(String value) {
+            this.latest = value;
+        }
+
+        public int getCount() {
+            return count;
+        }
+
+        public void setCount(int value) {
+            this.count = value;
+        }
+
+        public long getRpoMinutes() {
+            return rpoMinutes;
+        }
+
+        public void setRpoMinutes(long value) {
+            this.rpoMinutes = value;
+        }
+
+        public long getRtoMinutes() {
+            return rtoMinutes;
+        }
+
+        public void setRtoMinutes(long value) {
+            this.rtoMinutes = value;
+        }
     }
 
     /** Optional audit filters. A null field means no constraint. */
@@ -48,20 +82,61 @@ public final class OpsDtos {
         private String result;
         private String format;
 
-        public String getFrom() { return from; }
-        public void setFrom(String value) { this.from = value; }
-        public String getTo() { return to; }
-        public void setTo(String value) { this.to = value; }
-        public String getActor() { return actor; }
-        public void setActor(String value) { this.actor = value; }
-        public String getAction() { return action; }
-        public void setAction(String value) { this.action = value; }
-        public String getWorkspace() { return workspace; }
-        public void setWorkspace(String value) { this.workspace = value; }
-        public String getResult() { return result; }
-        public void setResult(String value) { this.result = value; }
-        public String getFormat() { return format; }
-        public void setFormat(String value) { this.format = value; }
+        public String getFrom() {
+            return from;
+        }
+
+        public void setFrom(String value) {
+            this.from = value;
+        }
+
+        public String getTo() {
+            return to;
+        }
+
+        public void setTo(String value) {
+            this.to = value;
+        }
+
+        public String getActor() {
+            return actor;
+        }
+
+        public void setActor(String value) {
+            this.actor = value;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String value) {
+            this.action = value;
+        }
+
+        public String getWorkspace() {
+            return workspace;
+        }
+
+        public void setWorkspace(String value) {
+            this.workspace = value;
+        }
+
+        public String getResult() {
+            return result;
+        }
+
+        public void setResult(String value) {
+            this.result = value;
+        }
+
+        public String getFormat() {
+            return format;
+        }
+
+        public void setFormat(String value) {
+            this.format = value;
+        }
     }
 
     /** One bounded audit entry view. */
@@ -73,18 +148,53 @@ public final class OpsDtos {
         private String workspace;
         private String result;
 
-        public String getEventId() { return eventId; }
-        public void setEventId(String value) { this.eventId = value; }
-        public String getTimestamp() { return timestamp; }
-        public void setTimestamp(String value) { this.timestamp = value; }
-        public String getActor() { return actor; }
-        public void setActor(String value) { this.actor = value; }
-        public String getAction() { return action; }
-        public void setAction(String value) { this.action = value; }
-        public String getWorkspace() { return workspace; }
-        public void setWorkspace(String value) { this.workspace = value; }
-        public String getResult() { return result; }
-        public void setResult(String value) { this.result = value; }
+        public String getEventId() {
+            return eventId;
+        }
+
+        public void setEventId(String value) {
+            this.eventId = value;
+        }
+
+        public String getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(String value) {
+            this.timestamp = value;
+        }
+
+        public String getActor() {
+            return actor;
+        }
+
+        public void setActor(String value) {
+            this.actor = value;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String value) {
+            this.action = value;
+        }
+
+        public String getWorkspace() {
+            return workspace;
+        }
+
+        public void setWorkspace(String value) {
+            this.workspace = value;
+        }
+
+        public String getResult() {
+            return result;
+        }
+
+        public void setResult(String value) {
+            this.result = value;
+        }
     }
 
     /** An audit export in CSV or JSON. */
@@ -92,10 +202,21 @@ public final class OpsDtos {
         private String format;
         private String content;
 
-        public String getFormat() { return format; }
-        public void setFormat(String value) { this.format = value; }
-        public String getContent() { return content; }
-        public void setContent(String value) { this.content = value; }
+        public String getFormat() {
+            return format;
+        }
+
+        public void setFormat(String value) {
+            this.format = value;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        public void setContent(String value) {
+            this.content = value;
+        }
     }
 
     /** GDPR operation input. Deletion additionally requires a typed confirmation. */
@@ -103,10 +224,21 @@ public final class OpsDtos {
         private String userId;
         private String confirmation;
 
-        public String getUserId() { return userId; }
-        public void setUserId(String value) { this.userId = value; }
-        public String getConfirmation() { return confirmation; }
-        public void setConfirmation(String value) { this.confirmation = value; }
+        public String getUserId() {
+            return userId;
+        }
+
+        public void setUserId(String value) {
+            this.userId = value;
+        }
+
+        public String getConfirmation() {
+            return confirmation;
+        }
+
+        public void setConfirmation(String value) {
+            this.confirmation = value;
+        }
     }
 
     /** A GDPR operation result: a file name for export, a pseudonym for deletion. */
@@ -114,9 +246,18 @@ public final class OpsDtos {
         private String result;
 
         public GdprDto() {}
-        public GdprDto(String value) { this.result = value; }
-        public String getResult() { return result; }
-        public void setResult(String value) { this.result = value; }
+
+        public GdprDto(String value) {
+            this.result = value;
+        }
+
+        public String getResult() {
+            return result;
+        }
+
+        public void setResult(String value) {
+            this.result = value;
+        }
     }
 
     /** A new approval request. */
@@ -125,12 +266,29 @@ public final class OpsDtos {
         private String target;
         private Map<String, String> payload;
 
-        public String getType() { return type; }
-        public void setType(String value) { this.type = value; }
-        public String getTarget() { return target; }
-        public void setTarget(String value) { this.target = value; }
-        public Map<String, String> getPayload() { return payload; }
-        public void setPayload(Map<String, String> value) { this.payload = value; }
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String value) {
+            this.type = value;
+        }
+
+        public String getTarget() {
+            return target;
+        }
+
+        public void setTarget(String value) {
+            this.target = value;
+        }
+
+        public Map<String, String> getPayload() {
+            return payload;
+        }
+
+        public void setPayload(Map<String, String> value) {
+            this.payload = value;
+        }
     }
 
     /** One approval request view. */
@@ -142,26 +300,66 @@ public final class OpsDtos {
         private String status;
         private String createdAt;
 
-        public String getId() { return id; }
-        public void setId(String value) { this.id = value; }
-        public String getType() { return type; }
-        public void setType(String value) { this.type = value; }
-        public String getRequester() { return requester; }
-        public void setRequester(String value) { this.requester = value; }
-        public String getTarget() { return target; }
-        public void setTarget(String value) { this.target = value; }
-        public String getStatus() { return status; }
-        public void setStatus(String value) { this.status = value; }
-        public String getCreatedAt() { return createdAt; }
-        public void setCreatedAt(String value) { this.createdAt = value; }
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String value) {
+            this.id = value;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String value) {
+            this.type = value;
+        }
+
+        public String getRequester() {
+            return requester;
+        }
+
+        public void setRequester(String value) {
+            this.requester = value;
+        }
+
+        public String getTarget() {
+            return target;
+        }
+
+        public void setTarget(String value) {
+            this.target = value;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String value) {
+            this.status = value;
+        }
+
+        public String getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(String value) {
+            this.createdAt = value;
+        }
     }
 
     /** A decision reason for rejection. */
     public static final class DecisionRequest {
         private String reason;
 
-        public String getReason() { return reason; }
-        public void setReason(String value) { this.reason = value; }
+        public String getReason() {
+            return reason;
+        }
+
+        public void setReason(String value) {
+            this.reason = value;
+        }
     }
 
     /** Generic status body. */
@@ -169,8 +367,17 @@ public final class OpsDtos {
         private String status;
 
         public StatusDto() {}
-        public StatusDto(String value) { this.status = value; }
-        public String getStatus() { return status; }
-        public void setStatus(String value) { this.status = value; }
+
+        public StatusDto(String value) {
+            this.status = value;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String value) {
+            this.status = value;
+        }
     }
 }
