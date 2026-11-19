@@ -8,20 +8,20 @@ import java.time.Instant;
 
 /** Domain event. Security-relevant events persist to the audit store before delivery. */
 public sealed interface DomainEvent
-    permits WorkspaceCreatedEvent,
-        WorkspaceDeletedEvent,
-        RuntimeStartedEvent,
-        RuntimeStoppedEvent,
-        SnapshotCreatedEvent,
-        PolicyChangedEvent,
-        TerminalSessionStartedEvent,
-        SecurityViolationEvent,
-        NodeRegisteredEvent,
-        NodeLostEvent {
-  /**
-   * Returns when the event occurred.
-   *
-   * @return the occurrence instant
-   */
-  Instant occurredAt();
+        permits WorkspaceCreatedEvent,
+                WorkspaceDeletedEvent,
+                RuntimeStartedEvent,
+                RuntimeStoppedEvent,
+                SnapshotCreatedEvent,
+                PolicyChangedEvent,
+                TerminalSessionStartedEvent,
+                SecurityViolationEvent,
+                NodeRegisteredEvent,
+                NodeLostEvent {
+    /**
+     * Returns when the event occurred.
+     *
+     * @return the occurrence instant
+     */
+    Instant occurredAt();
 }
