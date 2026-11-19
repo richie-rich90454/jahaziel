@@ -8,23 +8,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 
 class WindowsPortDiscoveryTest {
-    private static final List<String> NETSTAT = Arrays.asList(
-            "Proto  Local Address          Foreign Address        State           PID",
-            "TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       1234",
-            "TCP    [::]:8080              [::]:0                 LISTENING       1234",
-            "TCP    127.0.0.1:3000         0.0.0.0:0              LISTENING       5678",
-            "TCP    127.0.0.1:3000         0.0.0.0:0              LISTENING       5678",
-            "TCP    10.0.0.5:54321         1.2.3.4:80             ESTABLISHED     1234",
-            "UDP    0.0.0.0:53             0.0.0.0:0              LISTENING       9999",
-            "TCP    0.0.0.0:notaport        0.0.0.0:0              LISTENING       1234",
-            "TCP    0.0.0.0:9999           0.0.0.0:0              LISTENING       nope");
+    private static final List<String> NETSTAT =
+            Arrays.asList(
+                    "Proto  Local Address          Foreign Address        State           PID",
+                    "TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       1234",
+                    "TCP    [::]:8080              [::]:0                 LISTENING       1234",
+                    "TCP    127.0.0.1:3000         0.0.0.0:0              LISTENING       5678",
+                    "TCP    127.0.0.1:3000         0.0.0.0:0              LISTENING       5678",
+                    "TCP    10.0.0.5:54321         1.2.3.4:80             ESTABLISHED     1234",
+                    "UDP    0.0.0.0:53             0.0.0.0:0              LISTENING       9999",
+                    "TCP    0.0.0.0:notaport        0.0.0.0:0              LISTENING       1234",
+                    "TCP    0.0.0.0:9999           0.0.0.0:0              LISTENING       nope");
 
     private static final class UnsupportedDiscovery extends WindowsPortDiscovery {
         @Override
