@@ -9,6 +9,7 @@ import dev.jahaziel.spi.ActorType;
 import dev.jahaziel.spi.AuditEvent;
 import dev.jahaziel.spi.AuditSink;
 import dev.jahaziel.spi.Outcome;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Objects;
@@ -46,20 +47,20 @@ public final class AgentAudit {
             details.put(detailKey, detailValue);
         }
         AuditEvent event =
-            new AuditEvent(
-                UUID.randomUUID(),
-                Instant.now(),
-                user.value().toString(),
-                ActorType.USER,
-                action,
-                Optional.of(target),
-                Optional.of(targetType),
-                Outcome.SUCCESS,
-                Optional.<String>empty(),
-                Optional.<String>empty(),
-                details,
-                Optional.<String>empty(),
-                "");
+                new AuditEvent(
+                        UUID.randomUUID(),
+                        Instant.now(),
+                        user.value().toString(),
+                        ActorType.USER,
+                        action,
+                        Optional.of(target),
+                        Optional.of(targetType),
+                        Outcome.SUCCESS,
+                        Optional.<String>empty(),
+                        Optional.<String>empty(),
+                        details,
+                        Optional.<String>empty(),
+                        "");
         sink.write(event);
     }
 }
