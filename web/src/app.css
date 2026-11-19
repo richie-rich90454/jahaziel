@@ -2799,7 +2799,13 @@ button:active:not(:disabled) {
         [data-active-panel="agent"],
         [data-active-panel="data"],
         [data-active-panel="club"],
-        [data-active-panel="ops"]
+        [data-active-panel="ops"],
+        [data-active-panel="history"],
+        [data-active-panel="trash"],
+        [data-active-panel="diff"],
+        [data-active-panel="clone"],
+        [data-active-panel="config"],
+        [data-active-panel="flags"]
     )
     :is(
         .editor-chrome,
@@ -2824,4 +2830,57 @@ button:active:not(:disabled) {
     .diff-columns {
         grid-template-columns: 1fr;
     }
+}
+
+/* ---- Workspace tools ------------------------------------------------------ */
+.history-control {
+    min-width: 36px;
+    font-size: 17px;
+}
+.history-control:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.tools-control select,
+.bar-clone {
+    min-height: 40px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font: 12px var(--sans, inherit);
+    padding: 0 8px;
+}
+.bulk-progress {
+    font: 10px var(--mono);
+    color: var(--muted);
+}
+.upload-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.upload-picker input {
+    max-width: 160px;
+    font-size: 11px;
+}
+.watch-banner {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--accent-soft, var(--line-soft));
+    font-size: 12px;
+}
+.watch-banner[hidden] {
+    display: none;
+}
+.diff-added {
+    color: var(--accent);
+}
+.diff-removed {
+    color: var(--error, #b00020);
 }
