@@ -18,15 +18,15 @@ import java.util.UUID;
  * @param occurredAt when the event occurred
  */
 public record SecurityViolationEvent(
-    UUID workspaceId, String violationType, Map<String, String> details, Instant occurredAt)
-    implements DomainEvent {
-  public SecurityViolationEvent {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    if (violationType == null || violationType.isBlank()) {
-      throw new IllegalArgumentException("violationType must not be blank");
+        UUID workspaceId, String violationType, Map<String, String> details, Instant occurredAt)
+        implements DomainEvent {
+    public SecurityViolationEvent {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        if (violationType == null || violationType.isBlank()) {
+            throw new IllegalArgumentException("violationType must not be blank");
+        }
+        Objects.requireNonNull(details, "details");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+        details = Map.copyOf(details);
     }
-    Objects.requireNonNull(details, "details");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-    details = Map.copyOf(details);
-  }
 }
