@@ -13,6 +13,7 @@ import dev.jahaziel.identity.auth.github.GitHubLoginCancelledException;
 import dev.jahaziel.identity.auth.github.GitHubStore;
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,11 +31,12 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
 
     private static final String PROVIDER = "github";
 
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            PROVIDER,
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(AuthCapability.OAUTH2, AuthCapability.MFA_ASSURANCE));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    PROVIDER,
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(AuthCapability.OAUTH2, AuthCapability.MFA_ASSURANCE));
 
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
 
@@ -57,11 +59,11 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
     }
 
     @Override
-    public void shutdown() {
-    }
+    public void shutdown() {}
 
     @Override
-    public String startLogin(PluginContext context, String state, String nonce, String redirectUri) {
+    public String startLogin(
+            PluginContext context, String state, String nonce, String redirectUri) {
         store.putPending(state, redirectUri);
         StringBuilder url = new StringBuilder(config.authorizeUrl());
         url.append(config.authorizeUrl().contains("?") ? '&' : '?');
@@ -89,24 +91,27 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
             throw new GitHubException("missing authorization code");
         }
         String accessToken = exchange(code, pending.redirectUri());
-        GitHubHttp.Response userResponse = http.getJson(config.userUrl(), accessToken, HTTP_TIMEOUT);
+        GitHubHttp.Response userResponse =
+                http.getJson(config.userUrl(), accessToken, HTTP_TIMEOUT);
         JsonNode user = parse(userResponse.body(), "github user response");
-        JsonNode emails = parse(
-                http.getJson(config.emailsUrl(), accessToken, HTTP_TIMEOUT).body(),
-                "github emails response");
+        JsonNode emails =
+                parse(
+                        http.getJson(config.emailsUrl(), accessToken, HTTP_TIMEOUT).body(),
+                        "github emails response");
 
         EmailChoice email = chooseEmail(emails);
         String sessionId = Pkce.random();
         Map<String, String> claims = new HashMap<String, String>();
         claims.put("session_id", sessionId);
-        AuthIdentity identity = new AuthIdentity(
-                PROVIDER,
-                subject(user),
-                email.email(),
-                firstText(user, "name", "login"),
-                email.verified(),
-                mfaObserved(userResponse, user),
-                claims);
+        AuthIdentity identity =
+                new AuthIdentity(
+                        PROVIDER,
+                        subject(user),
+                        email.email(),
+                        firstText(user, "name", "login"),
+                        email.verified(),
+                        mfaObserved(userResponse, user),
+                        claims);
         store.putSession(sessionId, identity);
         store.putAccessToken(sessionId, accessToken);
         return identity;
@@ -131,9 +136,10 @@ public final class GitHubAuthPlugin extends AuthProviderPlugin {
         form.put("code", code);
         form.put("grant_type", "authorization_code");
         form.put("redirect_uri", redirectUri);
-        JsonNode node = parse(
-                http.postForm(config.tokenUrl(), BasisHttp.form(form), HTTP_TIMEOUT).body(),
-                "github token response");
+        JsonNode node =
+                parse(
+                        http.postForm(config.tokenUrl(), BasisHttp.form(form), HTTP_TIMEOUT).body(),
+                        "github token response");
         JsonNode error = node.get("error");
         if (error != null && !error.isNull()) {
             throw new GitHubException("github token exchange was rejected");
