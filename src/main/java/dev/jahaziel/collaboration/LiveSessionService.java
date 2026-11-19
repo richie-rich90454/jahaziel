@@ -4,11 +4,12 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 
 /**
  * Single-controller, multi-observer live sessions. Observers must give explicit consent. The
@@ -50,8 +51,7 @@ public final class LiveSessionService {
     }
 
     /** An observer joins only with explicit consent and an active controller. */
-    public void joinAsObserver(
-            String sessionId, String observer, boolean consent, long nowMillis) {
+    public void joinAsObserver(String sessionId, String observer, boolean consent, long nowMillis) {
         LiveSession session = requireSession(sessionId);
         if (!session.active()) {
             throw new IllegalArgumentException("session is no longer active");
@@ -67,8 +67,7 @@ public final class LiveSessionService {
         store.putSession(session);
         Map<String, String> details = new HashMap<String, String>();
         details.put("session", sessionId);
-        audit.record(
-                session.workspaceId(), observer, "session.observe", observer, details);
+        audit.record(session.workspaceId(), observer, "session.observe", observer, details);
     }
 
     public void leaveObserver(String sessionId, String observer) {
