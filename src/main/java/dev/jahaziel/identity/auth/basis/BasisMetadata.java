@@ -10,6 +10,7 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
+
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -76,11 +77,12 @@ public final class BasisMetadata {
         } catch (JacksonException failure) {
             throw new BasisException("basis-auth discovery is not JSON", failure);
         }
-        Discovery loaded = new Discovery(
-                required(node, "issuer", url),
-                required(node, "authorization_endpoint", url),
-                required(node, "token_endpoint", url),
-                required(node, "jwks_uri", url));
+        Discovery loaded =
+                new Discovery(
+                        required(node, "issuer", url),
+                        required(node, "authorization_endpoint", url),
+                        required(node, "token_endpoint", url),
+                        required(node, "jwks_uri", url));
         if (!config.issuer().equals(loaded.issuer())) {
             throw new BasisException("basis-auth discovery issuer does not match configuration");
         }
@@ -142,7 +144,8 @@ public final class BasisMetadata {
         private final String tokenEndpoint;
         private final String jwksUri;
 
-        private Discovery(String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
+        private Discovery(
+                String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
             this.issuer = issuer;
             this.authorizationEndpoint = authorizationEndpoint;
             this.tokenEndpoint = tokenEndpoint;
