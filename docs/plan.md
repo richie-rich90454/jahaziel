@@ -4,7 +4,7 @@
 
 ## Product contract
 
-Jahaziel is a self-hosted, browser-based source IDE for trusted users who need to work on code stored on a Linux server. iPad is the primary client: Safari, Chrome, and Edge on the current and two previous major iPadOS versions, with touch-only and keyboard/trackpad interaction in portrait, landscape, Split View, and Stage Manager. Windows, macOS, and Linux desktops are also browser clients. Jahaziel server releases target Linux x64 and Linux arm64; Ubuntu 26.04 LTS is the documented reference host; native Windows and macOS servers are deferred.
+Jahaziel is a self-hosted, browser-based source IDE for trusted users who need to work on code stored on a self-hosted server. iPad is the primary client: Safari, Chrome, and Edge on the current and two previous major iPadOS versions, with touch-only and keyboard/trackpad interaction in portrait, landscape, Split View, and Stage Manager. Windows, macOS, and Linux desktops are also browser clients and may host the server. The same jar targets Linux x64 and arm64, macOS, and Windows; Ubuntu 26.04 LTS on Linux is the CI-verified reference host, and native real-host acceptance on macOS and Windows is still open.
 
 The release workflow is: sign in → create a workspace from a server-managed template → edit and save files → open a terminal → run a task → preview a port → restart the server and recover files. The first release is a modular monolith in one executable jar, on one application port, with persistent state below the configured data directory.
 
@@ -21,7 +21,8 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 - Maven and pnpm dependency stores, wrapper downloads, and generated frontend outputs live under ignored repository-local directories. `./dev.ps1 cache:report` reports these sizes; `./dev.ps1 cache:prune` is dry-run by default and only removes known generated caches with `--apply`.
 - Do not fetch VS Code sources, language packs, compilers, interpreters, or runtime images during app builds. Do not touch existing ignored IDE build outputs.
 - Use the existing pnpm 12 installation. Resolve project package scripts from project metadata and respect pnpm lockfiles; do not silently substitute a package manager or install a project runtime.
-- A change is one cohesive behavior, including the code, documentation, and focused verification that make it reviewable.
+- A change is one cohesive behavior, including the code, documentation, and focused verification that make it reviewable; prefer small, single-file commits where the change allows.
+- Application source favors Java 8 / AP CSA-level syntax and 4-space indentation as a maintainability goal; the build still uses JDK 25. The SolidJS + DaisyUI frontend uses 4-space `oxfmt` formatting.
 
 ## Architecture boundaries
 
@@ -120,4 +121,4 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 
 ## Explicitly deferred
 
-Native Windows/macOS servers; VS Code extension compatibility; extension marketplace; real-time collaborative editing; hostile multi-tenant isolation; automatic language-pack downloads; automatic tool/cache cleanup; and Firecracker release claims before native verification.
+Real-host acceptance on native macOS and Windows servers; workbench panels for the backend-only collaboration, agent, agent-tool, data-tool, Club, observability, and compliance modules; VS Code extension compatibility; extension marketplace; real-time collaborative editing UI; hostile multi-tenant isolation; automatic language-pack downloads; automatic tool/cache cleanup; and Firecracker release claims before native verification.
