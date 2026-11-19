@@ -4,12 +4,13 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Service;
 
 /**
  * In-memory presence registry. Heartbeats every 30 seconds keep an entry alive; entries expire
