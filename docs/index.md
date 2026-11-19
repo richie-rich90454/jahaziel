@@ -7,15 +7,16 @@
 
 # Jahaziel
 
-A lightweight, self-hosted browser IDE for trusted users working with code on Linux servers.
+A lightweight, self-hosted browser IDE for trusted users working with code on their own server.
 
-Jahaziel keeps source files on the server and serves an editor, authenticated terminal, run tasks, and workspace previews from one Java application. The browser workbench uses CodeMirror 6 and xterm.js. The server targets Linux x64 and arm64; Windows, macOS, and Linux computers connect through a browser.
+Jahaziel keeps source files on the server and serves an editor, authenticated terminal, run tasks, and workspace previews from one Java application. The browser workbench uses SolidJS, DaisyUI, CodeMirror 6, and xterm.js. The same jar runs on Linux, macOS, and Windows; Linux x64 and arm64 are the CI-verified targets, and real-host acceptance on the other OSes is still open.
 
 ## Start here
 
-- [Deploy on a Linux server](./deployment/single-server.md) for the complete jar, identity-provider, systemd, HTTPS, backup, and upgrade walkthrough.
+- [Deploy on a Linux server](./deployment/single-server.md) for the complete jar, identity-provider, systemd, HTTPS, backup, and upgrade walkthrough, plus launchd and Windows service templates.
 - [Try the quick start](./guide/quick-start.md) with an existing jar or local demo.
 - [Use the workbench](./guide/using-jahaziel.md) to create a workspace, edit and save files, run commands, and preview a project.
+- [Check platforms and supervisors](./guide/platforms.md) for per-OS process and port behavior.
 - [Review the current product plan](./plan.md) and [release acceptance checklist](./operations/acceptance.md).
 
 ## What it includes
@@ -26,6 +27,13 @@ Jahaziel keeps source files on the server and serves an editor, authenticated te
 - Git status, diffs, staging, and commits for existing repositories.
 - Pinned language tools that administrators or workspace owners opt into.
 - Operations for health checks, logs, diagnostics, backup, and restore.
+
+Additional delivered modules are backend-only at this stage (domain/service
+layer, no dedicated workbench panel): collaboration (`dev.jahaziel.collaboration`),
+agent assistant (`dev.jahaziel.agent`) and agent tools (`dev.jahaziel.agenttools`), data tools
+(`dev.jahaziel.datatools`), Club (`dev.jahaziel.club`), observability
+(`dev.jahaziel.monitoring`), and compliance (`dev.jahaziel.audit`,
+`dev.jahaziel.policy`, `dev.jahaziel.administration`).
 
 ## Trust boundary
 
