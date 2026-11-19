@@ -8,8 +8,10 @@
 # Release acceptance
 
 Release acceptance covers a Linux x64 server and a native Linux arm64 server.
-Windows, macOS, and Linux desktop browsers are clients. Linux x64 and arm64 are
-built, tested, packaged, and smoke-launched on native CI runners. The arm64 job
+Windows, macOS, and Linux desktop browsers are clients and may also host the
+jar, but native real-host acceptance on macOS and Windows is still open; their
+launchd and WinSW service templates are not release-verified. Linux x64 and
+arm64 are built, tested, packaged, and smoke-launched on native CI runners. The arm64 job
 must report `aarch64`; emulation does not substitute for it. Both jobs also run
 a headless browser flow against the packaged jar. Browser tooling stays in the
 hosted runner's temporary directory and is not part of the app or release jar.
