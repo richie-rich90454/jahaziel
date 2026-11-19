@@ -17,9 +17,9 @@ import java.util.UUID;
  * @param jailPath absolute path to the per-VM jail directory
  */
 public record WorkspaceHandle(UUID workspaceId, Path homePath, Path jailPath) {
-  public WorkspaceHandle {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(homePath, "homePath");
-    Objects.requireNonNull(jailPath, "jailPath");
-  }
+    public WorkspaceHandle {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(homePath, "homePath");
+        Objects.requireNonNull(jailPath, "jailPath");
+    }
 }
