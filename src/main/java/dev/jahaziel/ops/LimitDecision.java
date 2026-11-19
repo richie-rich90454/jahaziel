@@ -8,6 +8,7 @@ package dev.jahaziel.ops;
 public final class LimitDecision {
     /** HTTP 403: a durable quota is exhausted. */
     public static final int FORBIDDEN = 403;
+
     /** HTTP 429: a request rate is exceeded. */
     public static final int TOO_MANY = 429;
 
