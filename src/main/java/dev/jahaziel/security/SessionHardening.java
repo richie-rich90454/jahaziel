@@ -49,8 +49,8 @@ public final class SessionHardening {
     }
 
     /**
-     * Rotates the session id when the role changes. The old id is revoked so a stolen pre-escalation
-     * id cannot ride the new privilege.
+     * Rotates the session id when the role changes. The old id is revoked so a stolen
+     * pre-escalation id cannot ride the new privilege.
      */
     public String rotate(String sessionId, String newRole, long now) {
         String currentRole = roleBySession.get(sessionId);
