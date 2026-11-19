@@ -23,8 +23,7 @@ public final class UnifiedPatch {
     private List<Hunk> hunks = new ArrayList<Hunk>();
     private List<String> decisions = new ArrayList<String>();
 
-    public UnifiedPatch() {
-    }
+    public UnifiedPatch() {}
 
     public String getId() {
         return id;
@@ -106,8 +105,7 @@ public final class UnifiedPatch {
         private int newCount;
         private List<String> lines = new ArrayList<String>();
 
-        public Hunk() {
-        }
+        public Hunk() {}
 
         public int getOldStart() {
             return oldStart;
