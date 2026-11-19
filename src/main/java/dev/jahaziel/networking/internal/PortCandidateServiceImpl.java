@@ -8,6 +8,7 @@ import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ public final class PortCandidateServiceImpl implements PortCandidateService {
     private final WorkspaceProcessRegistry registry;
     private final PortDiscoveries discoveries;
 
+    @Autowired
     public PortCandidateServiceImpl(WorkspaceProcessRegistry registry) {
         this(registry, new PortDiscoveries());
     }
