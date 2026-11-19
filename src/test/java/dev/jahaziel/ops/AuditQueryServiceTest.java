@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.jupiter.api.Test;
 
 /** Behavior of {@link AuditQueryService}: filters, exports and hash-chain verification. */
 class AuditQueryServiceTest {
@@ -19,7 +20,8 @@ class AuditQueryServiceTest {
         Instant t0 = Instant.parse("2026-01-01T00:00:00Z");
         List<AuditQueryService.AuditEntry> entries = new ArrayList<AuditQueryService.AuditEntry>();
         AuditQueryService.AuditEntry first =
-                new AuditQueryService.AuditEntry("id1", t0, "alice", "login", "ws1", "SUCCESS", "ok", "");
+                new AuditQueryService.AuditEntry(
+                        "id1", t0, "alice", "login", "ws1", "SUCCESS", "ok", "");
         entries.add(first);
         entries.add(
                 new AuditQueryService.AuditEntry(
@@ -33,7 +35,14 @@ class AuditQueryServiceTest {
                         first.hash()));
         AuditQueryService.AuditEntry third =
                 new AuditQueryService.AuditEntry(
-                        "id3", t0.plusSeconds(20), "alice", "delete", "ws2", "FAILURE", "denied", entries.get(1).hash());
+                        "id3",
+                        t0.plusSeconds(20),
+                        "alice",
+                        "delete",
+                        "ws2",
+                        "FAILURE",
+                        "denied",
+                        entries.get(1).hash());
         entries.add(third);
         return entries;
     }
@@ -83,7 +92,8 @@ class AuditQueryServiceTest {
         assertTrue(valid.valid());
         assertEquals(-1, valid.brokenIndex());
 
-        List<AuditQueryService.AuditEntry> tampered = new ArrayList<AuditQueryService.AuditEntry>(entries);
+        List<AuditQueryService.AuditEntry> tampered =
+                new ArrayList<AuditQueryService.AuditEntry>(entries);
         tampered.set(
                 2,
                 new AuditQueryService.AuditEntry(
