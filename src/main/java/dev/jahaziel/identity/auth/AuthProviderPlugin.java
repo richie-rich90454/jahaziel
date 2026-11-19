@@ -19,7 +19,8 @@ public abstract class AuthProviderPlugin extends Plugin {
     public abstract String startLogin(
             PluginContext context, String state, String nonce, String redirectUri);
 
-    public abstract AuthIdentity handleCallback(PluginContext context, Map<String, String> parameters);
+    public abstract AuthIdentity handleCallback(
+            PluginContext context, Map<String, String> parameters);
 
     public abstract AuthIdentity currentIdentity(PluginContext context, String sessionId);
 
