@@ -46,11 +46,9 @@ class AgentToolPlatformCapabilityTest {
 
         assertEquals(
                 "",
-                AgentToolServiceImpl.hostCapabilityMessage(
-                        Platform.Os.LINUX, Platform.Arch.X64));
+                AgentToolServiceImpl.hostCapabilityMessage(Platform.Os.LINUX, Platform.Arch.X64));
         assertTrue(
-                AgentToolServiceImpl.hostCapabilityMessage(
-                                Platform.Os.WINDOWS, Platform.Arch.ARM64)
+                AgentToolServiceImpl.hostCapabilityMessage(Platform.Os.WINDOWS, Platform.Arch.ARM64)
                         .contains("UNAVAILABLE_ON_THIS_HOST"));
     }
 
