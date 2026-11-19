@@ -12,6 +12,8 @@ import java.util.Map;
 /** Collects the plugin settings the auth plugins read into the map their context expects. */
 public final class PluginSettings {
     private static final String[] KEYS = {
+        "auth.providers",
+        "AUTH_PROVIDERS",
         "basis.auth-issuer",
         "BASIS_AUTH_ISSUER",
         "basis.client-id",
