@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Jahaziel',
-  description: 'A lightweight self-hosted browser IDE for trusted users working on Linux servers.',
+  description: 'A lightweight self-hosted browser IDE for trusted users on Linux, macOS, and Windows.',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/quick-start' },
