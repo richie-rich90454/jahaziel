@@ -13,10 +13,12 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.AuthProviderPlugin;
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -42,8 +44,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Shared OIDC authorization-code flow. Discovery and keys are cached for five minutes;
- * pending logins and sessions are persisted beneath the plugin data directory.
+ * Shared OIDC authorization-code flow. Discovery and keys are cached for five minutes; pending
+ * logins and sessions are persisted beneath the plugin data directory.
  */
 public abstract class OidcProviderPlugin extends AuthProviderPlugin {
     private static final long TTL_MILLIS = 5L * 60L * 1000L;
@@ -53,9 +55,8 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final HttpClient httpClient =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     protected PluginContext context;
     private String issuer;
@@ -114,7 +115,8 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
         this.context = context;
         this.issuer = configuredIssuer();
         this.clientId = requiredSetting(prefix() + ".client-id", env(prefix(), "CLIENT_ID"));
-        this.clientSecret = firstSetting(prefix() + ".client-secret", env(prefix(), "CLIENT_SECRET"));
+        this.clientSecret =
+                firstSetting(prefix() + ".client-secret", env(prefix(), "CLIENT_SECRET"));
         this.scopes = buildScopes();
         this.redirectUri = firstSetting(prefix() + ".redirect-uri", env(prefix(), "REDIRECT_URI"));
         this.store = new OidcStore(context.dataDir(), providerName());
@@ -122,14 +124,15 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
     }
 
     @Override
-    public void shutdown() {
-    }
+    public void shutdown() {}
 
     @Override
-    public String startLogin(PluginContext context, String state, String nonce, String redirectUri) {
+    public String startLogin(
+            PluginContext context, String state, String nonce, String redirectUri) {
         requireText(state, "state");
         requireText(nonce, "nonce");
-        String callback = redirectUri == null || redirectUri.length() == 0 ? this.redirectUri : redirectUri;
+        String callback =
+                redirectUri == null || redirectUri.length() == 0 ? this.redirectUri : redirectUri;
         requireText(callback, "redirect URI");
         String verifier = randomValue();
         store.putPending(state, nonce, verifier, callback);
@@ -151,7 +154,7 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
     @Override
     public AuthIdentity handleCallback(PluginContext context, Map<String, String> parameters) {
         Map<String, String> values =
-            parameters == null ? java.util.Collections.<String, String>emptyMap() : parameters;
+                parameters == null ? java.util.Collections.<String, String>emptyMap() : parameters;
         String state = values.get("state");
         OidcStore.Pending pending = state == null ? null : store.takePending(state);
         if (pending == null) {
@@ -163,19 +166,21 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
         String code = values.get("code");
         requireText(code, "authorization code");
         Map<String, String> tokens = exchange(code, pending.verifier(), pending.redirectUri());
-        JWTClaimsSet claims = verifyIdToken(tokens.get("id_token"), pending.nonce(), tokens.get("access_token"));
+        JWTClaimsSet claims =
+                verifyIdToken(tokens.get("id_token"), pending.nonce(), tokens.get("access_token"));
         AuthIdentity derived = identity(claims);
         String sessionId = randomValue();
         Map<String, String> claimsWithSession = new HashMap<String, String>(derived.claims());
         claimsWithSession.put("session_id", sessionId);
-        AuthIdentity identity = new AuthIdentity(
-                derived.provider(),
-                derived.subject(),
-                derived.email(),
-                derived.displayName(),
-                derived.emailVerified(),
-                derived.mfaAssured(),
-                claimsWithSession);
+        AuthIdentity identity =
+                new AuthIdentity(
+                        derived.provider(),
+                        derived.subject(),
+                        derived.email(),
+                        derived.displayName(),
+                        derived.emailVerified(),
+                        derived.mfaAssured(),
+                        claimsWithSession);
         store.putSession(sessionId, identity);
         return identity;
     }
@@ -364,13 +369,15 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
         } catch (JacksonException failure) {
             throw new OidcException(providerName() + " discovery is not JSON", failure);
         }
-        Discovery loaded = new Discovery(
-                required(node, "issuer", url),
-                required(node, "authorization_endpoint", url),
-                required(node, "token_endpoint", url),
-                required(node, "jwks_uri", url));
+        Discovery loaded =
+                new Discovery(
+                        required(node, "issuer", url),
+                        required(node, "authorization_endpoint", url),
+                        required(node, "token_endpoint", url),
+                        required(node, "jwks_uri", url));
         if (!issuerMatches(issuer, loaded.issuer())) {
-            throw new OidcException(providerName() + " discovery issuer does not match configuration");
+            throw new OidcException(
+                    providerName() + " discovery issuer does not match configuration");
         }
         return loaded;
     }
@@ -434,18 +441,17 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
     }
 
     private String get(String url) {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(FETCH_TIMEOUT)
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder(URI.create(url)).timeout(FETCH_TIMEOUT).GET().build();
         return send(request, url);
     }
 
     private String postForm(String url, String body, String authorization) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .timeout(TOKEN_TIMEOUT)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder(URI.create(url))
+                        .timeout(TOKEN_TIMEOUT)
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (authorization != null) {
             builder.header("Authorization", authorization);
         }
@@ -454,7 +460,8 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
 
     private String send(HttpRequest request, String url) {
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
                 throw new OidcException(providerName() + " HTTP " + status + " at " + url);
@@ -511,7 +518,8 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
 
     private static byte[] sha256(String value) {
         try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.US_ASCII));
+            return MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.US_ASCII));
         } catch (NoSuchAlgorithmException impossible) {
             throw new OidcException("SHA-256 is unavailable", impossible);
         }
@@ -616,7 +624,8 @@ public abstract class OidcProviderPlugin extends AuthProviderPlugin {
         private final String tokenEndpoint;
         private final String jwksUri;
 
-        private Discovery(String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
+        private Discovery(
+                String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
             this.issuer = issuer;
             this.authorizationEndpoint = authorizationEndpoint;
             this.tokenEndpoint = tokenEndpoint;
