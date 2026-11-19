@@ -9,13 +9,23 @@
 
 Last verified against version 0.1.0-SNAPSHOT.
 
+basis-auth credentials accept two spellings: the canonical `BASIS_AUTH_*` names
+(used by the [downstream integration guide](../basis_auth_setup_guide.md#41-configuration))
+and the legacy `BASIS_*` aliases from earlier `.env` files. Both are equivalent;
+the dotted names in parentheses are the `.env`/`application.yml` form. All values
+are read once at startup.
+
 | Variable | Used for |
 |---|---|
 | `BASIS_AUTH_ISSUER` | DevConnect issuer (`basis.auth-issuer`) |
 | `BASIS_REDIRECT_URI` | Callback URL (`basis.redirect-uri`) |
-| `BASIS_CLIENT_ID` | Client id (`basis.client-id`) |
-| `BASIS_CLIENT_SECRET` | Client secret (`basis.client-secret`) |
-| `BASIS_RESOURCE` | Audience (`basis.resource`) |
+| `BASIS_AUTH_CLIENT_ID`, `BASIS_CLIENT_ID` | Client id (`basis.client-id`); `BASIS_CLIENT_ID` is the legacy alias |
+| `BASIS_AUTH_CLIENT_SECRET`, `BASIS_CLIENT_SECRET` | Client secret (`basis.client-secret`); empty means public client |
+| `BASIS_AUTH_RESOURCE`, `BASIS_RESOURCE` | Audience (`basis.resource`) |
+| `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_RESOURCE_SECRET` | Resource secret for webhook proof and internal API authentication (`basis.resource-secret`) |
+| `BASIS_AUTH_INTERNAL_URL` | Base URL for internal API calls (`basis.internal-url`); only when calling the internal API |
+| `BASIS_AUTH_SCOPES` | Scopes to request from the IdP (`basis.scopes`) |
+| `BASIS_AUTH_OFFLINE_ACCESS` | Request offline access so the IdP issues a refresh token (`basis.offline-access`; default `false`) |
 | `BASIS_ADMIN_BOOTSTRAP_EMAIL` | Verified email that receives `ROLE_ADMIN` on first verified login (`basis.admin-bootstrap-email`) |
 | `BASIS_ADMIN_REQUIRED_ACR` | ACR value proving MFA for the bootstrapped admin (`basis.admin-required-acr`) |
 | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_ISSUER`, `MICROSOFT_REDIRECT_URI`, `MICROSOFT_SCOPES` | Microsoft Entra ID provider plugin |
@@ -36,4 +46,7 @@ Last verified against version 0.1.0-SNAPSHOT.
 
 File values come from jar-adjacent `.env`; real environment wins. `--demo`
 strips the `BASIS_*` entries before boot. Full prose in the
-[configuration guide](../guide/configuration.md).
+[configuration guide](../guide/configuration.md). For client and resource secret
+rotation, see the guide's
+[secret rotation](../guide/configuration.md#secret-rotation) section and the
+downstream guide sections 10.4/10.5.
