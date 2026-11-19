@@ -4,11 +4,12 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 
 /** Owner-only workspace membership mutations. Every mutation is audit-logged. */
 @Service
@@ -80,11 +81,7 @@ public final class MembershipService {
             throw new CollaborationAccessDeniedException("invitation belongs to another user");
         }
         Member member =
-                new Member(
-                        invitation.workspaceId(),
-                        acceptingUser,
-                        invitation.role(),
-                        nowMillis);
+                new Member(invitation.workspaceId(), acceptingUser, invitation.role(), nowMillis);
         store.putMember(member);
         invitation.accepted(true);
         invitation.acceptedAt(nowMillis);
@@ -126,7 +123,8 @@ public final class MembershipService {
             throw new IllegalArgumentException("the owner cannot be removed");
         }
         store.removeMember(workspaceId, target);
-        audit.record(workspaceId, actor, "membership.remove", target, new HashMap<String, String>());
+        audit.record(
+                workspaceId, actor, "membership.remove", target, new HashMap<String, String>());
     }
 
     /** Transfers ownership to an existing member; the old owner becomes an editor. */
