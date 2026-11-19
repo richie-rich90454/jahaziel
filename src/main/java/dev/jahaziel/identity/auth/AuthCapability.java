@@ -16,6 +16,5 @@ public final class AuthCapability {
     public static final String PASSKEY = "passkey";
     public static final String API_TOKEN = "api-token";
 
-    private AuthCapability() {
-    }
+    private AuthCapability() {}
 }
