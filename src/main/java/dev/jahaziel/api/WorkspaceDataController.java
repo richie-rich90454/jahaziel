@@ -19,10 +19,7 @@ import dev.jahaziel.datatools.NotebookRunner;
 import dev.jahaziel.datatools.SearchIndex;
 import dev.jahaziel.workspace.api.WorkspaceFiles;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +27,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /** CSV, notebook, search-index and file-history endpoints for one authorized workspace. */
 @RestController
@@ -89,8 +91,12 @@ public final class WorkspaceDataController extends ApiControllerBase {
         WorkspaceId workspace = requireWorkspace(principal, id, WRITE);
         DataDtos.CsvRequest request = body == null ? new DataDtos.CsvRequest() : body;
         requireContained(workspaceHome(storageRoot, id), request.getPath());
-        return document(csvWriter.save(
-            workspace, request.getPath(), csvReader.read(request.getContent()), request.getExpectedVersion()));
+        return document(
+                csvWriter.save(
+                        workspace,
+                        request.getPath(),
+                        csvReader.read(request.getContent()),
+                        request.getExpectedVersion()));
     }
 
     @PostMapping("/notebooks/{notebookId}/cells")
@@ -103,8 +109,8 @@ public final class WorkspaceDataController extends ApiControllerBase {
         requireContained(workspaceHome(storageRoot, id), notebookId);
         DataDtos.CellsRequest request = body == null ? new DataDtos.CellsRequest() : body;
         List<NotebookCell> cells = new ArrayList<NotebookCell>();
-        List<DataDtos.CellDto> values = request.getCells() == null
-            ? new ArrayList<DataDtos.CellDto>() : request.getCells();
+        List<DataDtos.CellDto> values =
+                request.getCells() == null ? new ArrayList<DataDtos.CellDto>() : request.getCells();
         for (int index = 0; index < values.size(); index++) {
             cells.add(new NotebookCell(values.get(index).getId(), values.get(index).getSource()));
         }
@@ -144,15 +150,13 @@ public final class WorkspaceDataController extends ApiControllerBase {
     }
 
     @PostMapping("/search/index")
-    public DataDtos.CountDto index(
-            @PathVariable UUID id, Principal principal) {
+    public DataDtos.CountDto index(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = requireWorkspace(principal, id, WRITE);
         return new DataDtos.CountDto(search.index(workspace));
     }
 
     @PostMapping("/search/rebuild")
-    public DataDtos.CountDto rebuild(
-            @PathVariable UUID id, Principal principal) {
+    public DataDtos.CountDto rebuild(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = requireWorkspace(principal, id, WRITE);
         return new DataDtos.CountDto(search.rebuild(workspace));
     }
@@ -217,8 +221,12 @@ public final class WorkspaceDataController extends ApiControllerBase {
         WorkspaceId workspace = requireWorkspace(principal, id, WRITE);
         DataDtos.RestoreRequest request = body == null ? new DataDtos.RestoreRequest() : body;
         requireContained(workspaceHome(storageRoot, id), request.getPath());
-        return document(history.restoreFile(
-            workspace, request.getSnapshotId(), request.getPath(), request.getExpectedVersion()));
+        return document(
+                history.restoreFile(
+                        workspace,
+                        request.getSnapshotId(),
+                        request.getPath(),
+                        request.getExpectedVersion()));
     }
 
     private static DataDtos.TableDto view(CsvTable table) {
