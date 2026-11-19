@@ -25,147 +25,151 @@ import dev.jahaziel.spi.WorkspaceStorage;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Behavior of {@link SnapshotServiceImpl} with stubbed collaborators. */
 class SnapshotServiceImplTest {
-  @TempDir Path temporaryDirectory;
+    @TempDir Path temporaryDirectory;
 
-  private SnapshotRepository snapshots;
-  private WorkspaceService workspaces;
-  private WorkspaceStorage storage;
-  private AuditService audit;
-  private SnapshotServiceImpl service;
-  private WorkspaceId workspaceId;
-  private UserId ownerId;
+    private SnapshotRepository snapshots;
+    private WorkspaceService workspaces;
+    private WorkspaceStorage storage;
+    private AuditService audit;
+    private SnapshotServiceImpl service;
+    private WorkspaceId workspaceId;
+    private UserId ownerId;
 
-  @BeforeEach
-  void setUp() {
-    snapshots = mock(SnapshotRepository.class);
-    workspaces = mock(WorkspaceService.class);
-    storage = mock(WorkspaceStorage.class);
-    audit = mock(AuditService.class);
-    service = new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/var/lib/jahaziel");
-    workspaceId = new WorkspaceId(UUID.randomUUID());
-    ownerId = new UserId(UUID.randomUUID());
-  }
+    @BeforeEach
+    void setUp() {
+        snapshots = mock(SnapshotRepository.class);
+        workspaces = mock(WorkspaceService.class);
+        storage = mock(WorkspaceStorage.class);
+        audit = mock(AuditService.class);
+        service =
+                new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/var/lib/jahaziel");
+        workspaceId = new WorkspaceId(UUID.randomUUID());
+        ownerId = new UserId(UUID.randomUUID());
+    }
 
-  @Test
-  void createsSnapshotRowWithMeasuredMetadata() throws Exception {
-    Workspace workspace = workspace();
-    when(workspaces.get(workspaceId)).thenReturn(workspace);
-    Path snapshotPath = temporaryDirectory.resolve("daily");
-    Files.createDirectories(snapshotPath.resolve("src"));
-    Files.writeString(snapshotPath.resolve("src/Main.java"), "class Main {}\n");
-    SnapshotHandle handle = new SnapshotHandle(UUID.randomUUID(), snapshotPath, Instant.now());
-    when(storage.snapshot(any(), any())).thenReturn(handle);
-    when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of());
-    SnapshotMetadata metadata = service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x");
-    assertEquals("daily", metadata.tag());
-    assertEquals(SnapshotKind.MANUAL, metadata.kind());
-    assertEquals(14, metadata.logicalBytes());
-    assertEquals(64, metadata.manifestSha256().length());
-    org.mockito.ArgumentCaptor<SnapshotEntity> saved =
-        org.mockito.ArgumentCaptor.forClass(SnapshotEntity.class);
-    verify(snapshots).save(saved.capture());
-    assertEquals(14, saved.getValue().getLogicalBytes());
-    assertEquals(metadata.physicalBytes(), saved.getValue().getPhysicalBytes());
-    assertEquals(metadata.manifestSha256(), saved.getValue().getSha256OfManifest());
-    verify(audit).append(any());
-  }
+    @Test
+    void createsSnapshotRowWithMeasuredMetadata() throws Exception {
+        Workspace workspace = workspace();
+        when(workspaces.get(workspaceId)).thenReturn(workspace);
+        Path snapshotPath = temporaryDirectory.resolve("daily");
+        Files.createDirectories(snapshotPath.resolve("src"));
+        Files.writeString(snapshotPath.resolve("src/Main.java"), "class Main {}\n");
+        SnapshotHandle handle = new SnapshotHandle(UUID.randomUUID(), snapshotPath, Instant.now());
+        when(storage.snapshot(any(), any())).thenReturn(handle);
+        when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of());
+        SnapshotMetadata metadata =
+                service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x");
+        assertEquals("daily", metadata.tag());
+        assertEquals(SnapshotKind.MANUAL, metadata.kind());
+        assertEquals(14, metadata.logicalBytes());
+        assertEquals(64, metadata.manifestSha256().length());
+        org.mockito.ArgumentCaptor<SnapshotEntity> saved =
+                org.mockito.ArgumentCaptor.forClass(SnapshotEntity.class);
+        verify(snapshots).save(saved.capture());
+        assertEquals(14, saved.getValue().getLogicalBytes());
+        assertEquals(metadata.physicalBytes(), saved.getValue().getPhysicalBytes());
+        assertEquals(metadata.manifestSha256(), saved.getValue().getSha256OfManifest());
+        verify(audit).append(any());
+    }
 
-  @Test
-  void createRejectsDuplicateTag() {
-    SnapshotEntity existing = row("daily", Instant.now());
-    when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(existing));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x"));
-  }
+    @Test
+    void createRejectsDuplicateTag() {
+        SnapshotEntity existing = row("daily", Instant.now());
+        when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(existing));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x"));
+    }
 
-  @Test
-  void createRejectsBadInput() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.create(workspaceId, "  ", SnapshotKind.MANUAL, "u"));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.create(workspaceId, "t", SnapshotKind.MANUAL, "  "));
-  }
+    @Test
+    void createRejectsBadInput() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(workspaceId, "  ", SnapshotKind.MANUAL, "u"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(workspaceId, "t", SnapshotKind.MANUAL, "  "));
+    }
 
-  @Test
-  void listsNewestFirst() {
-    SnapshotEntity first = row("a", Instant.parse("2026-01-02T03:00:00Z"));
-    SnapshotEntity second = row("b", Instant.parse("2026-01-03T03:00:00Z"));
-    when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(first, second));
-    List<SnapshotMetadata> listed = service.list(workspaceId);
-    assertEquals(2, listed.size());
-    assertEquals("b", listed.get(0).tag());
-  }
+    @Test
+    void listsNewestFirst() {
+        SnapshotEntity first = row("a", Instant.parse("2026-01-02T03:00:00Z"));
+        SnapshotEntity second = row("b", Instant.parse("2026-01-03T03:00:00Z"));
+        when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(first, second));
+        List<SnapshotMetadata> listed = service.list(workspaceId);
+        assertEquals(2, listed.size());
+        assertEquals("b", listed.get(0).tag());
+    }
 
-  @Test
-  void missingSnapshotThrowsWithId() {
-    SnapshotId id = new SnapshotId(UUID.randomUUID());
-    when(snapshots.findById(id.value())).thenReturn(Optional.empty());
-    assertThrows(SnapshotNotFoundException.class, () -> service.restore(workspaceId, id));
-    assertThrows(SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
-    verify(storage, never()).restore(any(), any());
-  }
+    @Test
+    void missingSnapshotThrowsWithId() {
+        SnapshotId id = new SnapshotId(UUID.randomUUID());
+        when(snapshots.findById(id.value())).thenReturn(Optional.empty());
+        assertThrows(SnapshotNotFoundException.class, () -> service.restore(workspaceId, id));
+        assertThrows(SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
+        verify(storage, never()).restore(any(), any());
+    }
 
-  @Test
-  void restoreAndDeleteDelegate() {
-    SnapshotEntity row = row("daily", Instant.now());
-    when(snapshots.findById(any())).thenReturn(Optional.of(row));
-    Workspace workspace = workspace();
-    when(workspaces.get(workspaceId)).thenReturn(workspace);
-    service.restore(workspaceId, new SnapshotId(UUID.randomUUID()));
-    verify(storage).restore(any(), any());
-    service.delete(workspaceId, new SnapshotId(UUID.randomUUID()));
-    verify(storage).deleteSnapshot(any());
-    verify(snapshots).delete(row);
-  }
+    @Test
+    void restoreAndDeleteDelegate() {
+        SnapshotEntity row = row("daily", Instant.now());
+        when(snapshots.findById(any())).thenReturn(Optional.of(row));
+        Workspace workspace = workspace();
+        when(workspaces.get(workspaceId)).thenReturn(workspace);
+        service.restore(workspaceId, new SnapshotId(UUID.randomUUID()));
+        verify(storage).restore(any(), any());
+        service.delete(workspaceId, new SnapshotId(UUID.randomUUID()));
+        verify(storage).deleteSnapshot(any());
+        verify(snapshots).delete(row);
+    }
 
-  @Test
-  void deleteRejectsSnapshotFromAnotherWorkspace() {
-    SnapshotEntity row = row("daily", Instant.now());
-    when(snapshots.findById(any())).thenReturn(Optional.of(row));
-    WorkspaceId otherWorkspace = new WorkspaceId(UUID.randomUUID());
+    @Test
+    void deleteRejectsSnapshotFromAnotherWorkspace() {
+        SnapshotEntity row = row("daily", Instant.now());
+        when(snapshots.findById(any())).thenReturn(Optional.of(row));
+        WorkspaceId otherWorkspace = new WorkspaceId(UUID.randomUUID());
 
-    assertThrows(
-        SnapshotNotFoundException.class,
-        () -> service.delete(otherWorkspace, new SnapshotId(UUID.randomUUID())));
-    verify(storage, never()).deleteSnapshot(any());
-    verify(snapshots, never()).delete(any(SnapshotEntity.class));
-  }
+        assertThrows(
+                SnapshotNotFoundException.class,
+                () -> service.delete(otherWorkspace, new SnapshotId(UUID.randomUUID())));
+        verify(storage, never()).deleteSnapshot(any());
+        verify(snapshots, never()).delete(any(SnapshotEntity.class));
+    }
 
-  private Workspace workspace() {
-    Workspace workspace = mock(Workspace.class);
-    when(workspace.id()).thenReturn(workspaceId);
-    when(workspace.owner()).thenReturn(ownerId);
-    return workspace;
-  }
+    private Workspace workspace() {
+        Workspace workspace = mock(Workspace.class);
+        when(workspace.id()).thenReturn(workspaceId);
+        when(workspace.owner()).thenReturn(ownerId);
+        return workspace;
+    }
 
-  private SnapshotEntity row(String tag, Instant at) {
-    SnapshotEntity row = mock(SnapshotEntity.class);
-    when(row.getSnapshotId()).thenReturn(UUID.randomUUID());
-    when(row.getWorkspaceId()).thenReturn(workspaceId.value());
-    when(row.getTag()).thenReturn(tag);
-    when(row.getKind()).thenReturn("manual");
-    when(row.getCreatedAt()).thenReturn(at);
-    when(row.getCreatedBy()).thenReturn("user:x");
-    when(row.getSnapshotPath()).thenReturn("/snaps/" + tag);
-    when(row.getLogicalBytes()).thenReturn(0L);
-    when(row.getPhysicalBytes()).thenReturn(0L);
-    when(row.getParentSnapshotId()).thenReturn(null);
-    when(row.getSha256OfManifest()).thenReturn("");
-    return row;
-  }
+    private SnapshotEntity row(String tag, Instant at) {
+        SnapshotEntity row = mock(SnapshotEntity.class);
+        when(row.getSnapshotId()).thenReturn(UUID.randomUUID());
+        when(row.getWorkspaceId()).thenReturn(workspaceId.value());
+        when(row.getTag()).thenReturn(tag);
+        when(row.getKind()).thenReturn("manual");
+        when(row.getCreatedAt()).thenReturn(at);
+        when(row.getCreatedBy()).thenReturn("user:x");
+        when(row.getSnapshotPath()).thenReturn("/snaps/" + tag);
+        when(row.getLogicalBytes()).thenReturn(0L);
+        when(row.getPhysicalBytes()).thenReturn(0L);
+        when(row.getParentSnapshotId()).thenReturn(null);
+        when(row.getSha256OfManifest()).thenReturn("");
+        return row;
+    }
 }
