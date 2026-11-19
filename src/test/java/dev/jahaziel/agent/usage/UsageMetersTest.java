@@ -12,13 +12,15 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class UsageMetersTest {
     @TempDir Path temporary;
@@ -64,9 +66,10 @@ class UsageMetersTest {
         meters.record(user, workspace, 1, 1);
 
         Path snapshot =
-            data.resolve("agent").resolve("usage")
-                .resolve(user.value().toString())
-                .resolve(workspace.value().toString() + ".json");
+                data.resolve("agent")
+                        .resolve("usage")
+                        .resolve(user.value().toString())
+                        .resolve(workspace.value().toString() + ".json");
         assertTrue(Files.isRegularFile(snapshot));
         assertTrue(snapshot.toAbsolutePath().startsWith(data.toAbsolutePath()));
     }
