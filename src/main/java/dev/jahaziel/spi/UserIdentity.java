@@ -17,14 +17,18 @@ import java.util.Objects;
  * @param groups group names the user belongs to
  */
 public record UserIdentity(
-    String externalId, String email, String displayName, List<String> roles, List<String> groups) {
-  public UserIdentity {
-    Objects.requireNonNull(externalId, "externalId");
-    Objects.requireNonNull(email, "email");
-    Objects.requireNonNull(displayName, "displayName");
-    Objects.requireNonNull(roles, "roles");
-    Objects.requireNonNull(groups, "groups");
-    roles = List.copyOf(roles);
-    groups = List.copyOf(groups);
-  }
+        String externalId,
+        String email,
+        String displayName,
+        List<String> roles,
+        List<String> groups) {
+    public UserIdentity {
+        Objects.requireNonNull(externalId, "externalId");
+        Objects.requireNonNull(email, "email");
+        Objects.requireNonNull(displayName, "displayName");
+        Objects.requireNonNull(roles, "roles");
+        Objects.requireNonNull(groups, "groups");
+        roles = List.copyOf(roles);
+        groups = List.copyOf(groups);
+    }
 }
