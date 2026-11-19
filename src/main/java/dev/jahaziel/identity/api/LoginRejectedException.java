@@ -9,14 +9,14 @@ package dev.jahaziel.identity.api;
  * already linked to a different subject. Answer with 403; an operator resolves it.
  */
 public class LoginRejectedException extends RuntimeException {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  /**
-   * Creates the rejection.
-   *
-   * @param message the operator-facing reason
-   */
-  public LoginRejectedException(String message) {
-    super(message);
-  }
+    /**
+     * Creates the rejection.
+     *
+     * @param message the operator-facing reason
+     */
+    public LoginRejectedException(String message) {
+        super(message);
+    }
 }
