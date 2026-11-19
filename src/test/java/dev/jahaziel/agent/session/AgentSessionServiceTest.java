@@ -14,14 +14,17 @@ import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.agent.support.FakeAgentToolService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class AgentSessionServiceTest {
     @TempDir Path temporary;
@@ -57,12 +60,12 @@ class AgentSessionServiceTest {
         AgentSession session = service.create(user, workspace, "main");
 
         Path index =
-            data.resolve("agent").resolve("sessions")
-                .resolve(user.value().toString())
-                .resolve(workspace.value().toString())
-                .resolve("index.json");
-        Path transcript =
-            index.getParent().resolve(session.getId()).resolve("transcript.log");
+                data.resolve("agent")
+                        .resolve("sessions")
+                        .resolve(user.value().toString())
+                        .resolve(workspace.value().toString())
+                        .resolve("index.json");
+        Path transcript = index.getParent().resolve(session.getId()).resolve("transcript.log");
         assertTrue(java.nio.file.Files.isRegularFile(index));
         assertTrue(java.nio.file.Files.isRegularFile(transcript));
         assertTrue(index.toAbsolutePath().startsWith(data.toAbsolutePath()));
@@ -72,25 +75,25 @@ class AgentSessionServiceTest {
     @Test
     void invalidNamesAndMissingInstallationAreRejected() {
         final AgentSessionService service =
-            service(new FakeAgentToolService(temporary.resolve("data")));
+                service(new FakeAgentToolService(temporary.resolve("data")));
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.create(user, workspace, "../escape");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.create(user, workspace, "../escape");
+                    }
+                });
 
         final FakeAgentToolService missing = new FakeAgentToolService(temporary.resolve("data"));
         missing.setStatus("NOT_INSTALLED");
         final AgentSessionService blocked = service(missing);
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    blocked.create(user, workspace, "main");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        blocked.create(user, workspace, "main");
+                    }
+                });
     }
 
     @Test
@@ -107,7 +110,7 @@ class AgentSessionServiceTest {
 
     private AgentSessionService service(FakeAgentToolService tools) {
         return new AgentSessionService(
-            new AgentStore(temporary.resolve("data"), new ObjectMapper()), tools);
+                new AgentStore(temporary.resolve("data"), new ObjectMapper()), tools);
     }
 
     private static void assertThrowsAgent(Executable executable) {
