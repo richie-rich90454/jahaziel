@@ -6,14 +6,14 @@ package dev.jahaziel.club.api;
 
 /** Thrown when a club role or ownership check fails. */
 public class ClubAccessDeniedException extends RuntimeException {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  /**
-   * Creates the exception.
-   *
-   * @param message the reason, safe to show to the caller
-   */
-  public ClubAccessDeniedException(String message) {
-    super(message);
-  }
+    /**
+     * Creates the exception.
+     *
+     * @param message the reason, safe to show to the caller
+     */
+    public ClubAccessDeniedException(String message) {
+        super(message);
+    }
 }
