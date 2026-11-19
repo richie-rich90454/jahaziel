@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.api;
 
 import dev.jahaziel.identity.domain.UserId;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -20,12 +21,12 @@ import java.util.UUID;
  * @param expiresAt when the token expires
  */
 public record JwtSession(
-    UserId user, Optional<UUID> workspaceId, List<String> scopes, Instant expiresAt) {
-  public JwtSession {
-    Objects.requireNonNull(user, "user");
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(scopes, "scopes");
-    Objects.requireNonNull(expiresAt, "expiresAt");
-    scopes = List.copyOf(scopes);
-  }
+        UserId user, Optional<UUID> workspaceId, List<String> scopes, Instant expiresAt) {
+    public JwtSession {
+        Objects.requireNonNull(user, "user");
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(scopes, "scopes");
+        Objects.requireNonNull(expiresAt, "expiresAt");
+        scopes = List.copyOf(scopes);
+    }
 }
