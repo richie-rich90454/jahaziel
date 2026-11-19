@@ -63,8 +63,7 @@ final class WorkspaceCloneServiceTest {
         WorkspaceCloneResult result =
                 service.cloneFromTemplate(SafetyFixtures.user(), "starter", "from-template", null);
         assertEquals(1, result.getCopiedFiles());
-        assertEquals(
-                "t", SafetyFixtures.read(SafetyPaths.home(data, created).resolve("t.txt")));
+        assertEquals("t", SafetyFixtures.read(SafetyPaths.home(data, created).resolve("t.txt")));
     }
 
     private static final class FakeWorkspaces implements WorkspaceService {
