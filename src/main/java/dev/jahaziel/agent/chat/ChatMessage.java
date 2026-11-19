@@ -13,8 +13,7 @@ public final class ChatMessage {
     private String selection;
     private String createdAt;
 
-    public ChatMessage() {
-    }
+    public ChatMessage() {}
 
     public String getId() {
         return id;
