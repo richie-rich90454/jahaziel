@@ -10,7 +10,9 @@
 Last verified against version 0.1.0-SNAPSHOT.
 
 `.env` lives beside the jar. Real environment variables always win over
-`.env` values. Login stays off until all five `BASIS_*` values are set.
+`.env` values. Login is off until at least one authentication provider plugin is
+configured; the `BASIS_*` values below configure the reference basis-auth
+provider, not every possible login source.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -33,6 +35,44 @@ Last verified against version 0.1.0-SNAPSHOT.
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
 [CLI reference](../reference/cli.md).
+
+## Authentication providers
+
+Sign-in is plugin-based. `dev.jahaziel.plugin` provides the kernel;
+`dev.jahaziel.identity.auth` defines `AuthProviderPlugin` and an ordered
+`AuthPluginRegistry`. OAuth/basis-auth is one plugin among many.
+
+Providers are resolved in this priority order; the first enabled and configured
+provider that can authenticate the request wins:
+
+| Priority | Provider | Plugin name |
+|---|---|---|
+| 1 | basis-auth (DevConnect/Basis OIDC) | `basis-auth` |
+| 2 | Microsoft Entra ID, Google, GitHub | `microsoft`, `google`, `github` |
+| 3 | Generic OIDC | `oidc` |
+| 4 | Local password + TOTP | `local` |
+| 5 | Passkey (WebAuthn) | `passkey` |
+| 6 | Other | `api-token`, `ldap` |
+
+Configuration keys are namespaced per provider. Dotted keys come from `.env` or
+`application.yml`; uppercase keys are the equivalent environment variables.
+
+| Provider | Required | Optional |
+|---|---|---|
+| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_RESOURCE` | `BASIS_CLIENT_SECRET`, `BASIS_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`, `BASIS_AUTH_OFFLINE_ACCESS`, `BASIS_ADMIN_BOOTSTRAP_EMAIL`, `BASIS_ADMIN_REQUIRED_ACR` |
+| `microsoft` | `microsoft.client-id` / `MICROSOFT_CLIENT_ID` | `microsoft.client-secret`, `microsoft.redirect-uri`, `microsoft.issuer`, `microsoft.scopes` |
+| `google` | `google.client-id` / `GOOGLE_CLIENT_ID` | `google.client-secret`, `google.redirect-uri`, `google.issuer`, `google.scopes` |
+| `oidc` | `oidc.client-id` / `OIDC_CLIENT_ID` | `oidc.client-secret`, `oidc.redirect-uri`, `oidc.issuer`, `oidc.scopes` |
+| `github` | `github.client-id` / `GITHUB_CLIENT_ID` | `github.client-secret`, `github.scopes`, `github.authorize-url`, `github.token-url`, `github.user-url`, `github.emails-url` |
+| `local` | `local.username`, `local.password` | `local.email` |
+| `passkey` | `passkey.origin`, `passkey.rp-id` | `passkey.rp-name` |
+| `api-token` | — | `api-token.ttl-millis`, `api-token.issuer` |
+| `ldap` | `ldap.url`, `ldap.base-dn` | `ldap.subject-attribute`, `ldap.email-attribute`, `ldap.display-name-attribute`, `ldap.mfa-attribute`, `ldap.mfa-value`, `ldap.user-filter`, `ldap.bind-dn`, `ldap.bind-password` |
+
+Identities are linked by **(provider, subject)** — `AuthIdentity.linkKey()` is
+`provider + ":" + subject`. Email is profile data only and never links accounts
+on its own. The `local` provider grants `ROLE_ADMIN` only after TOTP enrollment;
+OIDC providers assert MFA through IdP claims.
 
 ## Debug adapters
 
