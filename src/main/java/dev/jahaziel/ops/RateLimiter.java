@@ -55,7 +55,14 @@ public final class RateLimiter {
         }
         if (state.count >= limit) {
             return LimitDecision.throttled(
-                    "rate limit exceeded for " + key + ": " + state.count + "/" + limit + " per " + window);
+                    "rate limit exceeded for "
+                            + key
+                            + ": "
+                            + state.count
+                            + "/"
+                            + limit
+                            + " per "
+                            + window);
         }
         state.count++;
         return LimitDecision.allow();
