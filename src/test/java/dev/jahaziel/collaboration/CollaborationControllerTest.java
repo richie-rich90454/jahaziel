@@ -8,14 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 final class CollaborationControllerTest {
     @Test
@@ -23,7 +24,8 @@ final class CollaborationControllerTest {
         final CollaborationFixture fixture = new CollaborationFixture(System.currentTimeMillis());
         final UUID workspace = UUID.fromString(CollaborationFixture.WORKSPACE);
         List<String> members =
-                fixture.controller.members(workspace, CollaborationFixture.principal(CollaborationFixture.VIEWER));
+                fixture.controller.members(
+                        workspace, CollaborationFixture.principal(CollaborationFixture.VIEWER));
         assertEquals(3, members.size());
 
         final Map<String, String> invite = new HashMap<String, String>();
