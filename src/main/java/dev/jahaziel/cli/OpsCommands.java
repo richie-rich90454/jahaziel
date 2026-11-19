@@ -11,6 +11,7 @@ import dev.jahaziel.ops.RestoreDrillService;
 import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.ops.SupportBundleService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -158,7 +159,8 @@ final class OpsCommands {
 
     private static int auditQuery(Path data, String[] args, PrintStream out, PrintStream err) {
         String format = Cli.flag(args, "--format");
-        String useFormat = format == null ? "csv" : format.trim().toLowerCase(java.util.Locale.ROOT);
+        String useFormat =
+                format == null ? "csv" : format.trim().toLowerCase(java.util.Locale.ROOT);
         if (!"csv".equals(useFormat) && !"json".equals(useFormat)) {
             err.println("jahaziel ops: --format must be csv or json");
             return 2;
@@ -191,7 +193,8 @@ final class OpsCommands {
             return 2;
         }
         GdprService service = new GdprService(data);
-        List<AuditQueryService.AuditEntry> audits = forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
+        List<AuditQueryService.AuditEntry> audits =
+                forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
         Path archive = service.exportUser(userId, new LinkedHashMap<String, String>(), audits);
         out.println("jahaziel: GDPR export: " + archive + " (userId=" + userId + ")");
         return 0;
@@ -209,7 +212,8 @@ final class OpsCommands {
             return 2;
         }
         GdprService service = new GdprService(data);
-        List<AuditQueryService.AuditEntry> audits = forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
+        List<AuditQueryService.AuditEntry> audits =
+                forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
         String pseudonym = service.deleteUser(userId, confirmation, audits);
         out.println("jahaziel: deleted " + userId + " (retained as " + pseudonym + ")");
         return 0;
@@ -246,8 +250,7 @@ final class OpsCommands {
             out.println("jahaziel: reindex: no workspaces found");
             return 0;
         }
-        SearchIndex index =
-                new SearchIndex(data, Arrays.asList(".git", "node_modules", "*.tmp"));
+        SearchIndex index = new SearchIndex(data, Arrays.asList(".git", "node_modules", "*.tmp"));
         for (int i = 0; i < ids.size(); i++) {
             UUID id = ids.get(i);
             int updated = index.rebuild(new WorkspaceId(id));
@@ -277,7 +280,8 @@ final class OpsCommands {
         }
         List<String> lines = new ArrayList<String>();
         try {
-            String[] parts = new String(Files.readAllBytes(file), StandardCharsets.UTF_8).split("\\R", -1);
+            String[] parts =
+                    new String(Files.readAllBytes(file), StandardCharsets.UTF_8).split("\\R", -1);
             for (int i = 0; i < parts.length; i++) {
                 lines.add(parts[i]);
             }
