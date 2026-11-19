@@ -5,83 +5,84 @@
 package dev.jahaziel.workspace.api;
 
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 /** Server-managed template setup and run tasks for one workspace. */
 public interface WorkspaceTaskService {
-  /** Associates the server-owned template with a newly created workspace. */
-  void initialize(WorkspaceId workspaceId, String templateName);
+    /** Associates the server-owned template with a newly created workspace. */
+    void initialize(WorkspaceId workspaceId, String templateName);
 
-  /** Returns current setup progress and bounded output. */
-  SetupStatus setupStatus(WorkspaceId workspaceId);
+    /** Returns current setup progress and bounded output. */
+    SetupStatus setupStatus(WorkspaceId workspaceId);
 
-  /** Starts the template's setup steps again after a failure. */
-  SetupStatus retrySetup(WorkspaceId workspaceId);
+    /** Starts the template's setup steps again after a failure. */
+    SetupStatus retrySetup(WorkspaceId workspaceId);
 
-  /** Returns the safe task labels that may be run; no command data is exposed. */
-  List<Task> tasks(WorkspaceId workspaceId);
+    /** Returns the safe task labels that may be run; no command data is exposed. */
+    List<Task> tasks(WorkspaceId workspaceId);
 
-  /** Returns active targets created by server-declared debuggable tasks. */
-  List<DebugTarget> debugTargets(WorkspaceId workspaceId);
+    /** Returns active targets created by server-declared debuggable tasks. */
+    List<DebugTarget> debugTargets(WorkspaceId workspaceId);
 
-  /** Resolves one target only while it remains active in the specified workspace. */
-  DebugTarget debugTarget(WorkspaceId workspaceId, UUID targetId);
+    /** Resolves one target only while it remains active in the specified workspace. */
+    DebugTarget debugTarget(WorkspaceId workspaceId, UUID targetId);
 
-  /**
-   * Returns packs declared by this workspace's server-managed template. An empty list means the
-   * template places no restriction on the server catalog.
-   */
-  default List<String> supportedLanguagePacks(WorkspaceId workspaceId) {
-    return List.of();
-  }
+    /**
+     * Returns packs declared by this workspace's server-managed template. An empty list means the
+     * template places no restriction on the server catalog.
+     */
+    default List<String> supportedLanguagePacks(WorkspaceId workspaceId) {
+        return List.of();
+    }
 
-  /** Starts a declared task by its server-owned id. */
-  TaskRun startTask(WorkspaceId workspaceId, String taskId);
+    /** Starts a declared task by its server-owned id. */
+    TaskRun startTask(WorkspaceId workspaceId, String taskId);
 
-  /** Reads one run, including its bounded output. */
-  TaskRun taskRun(UUID runId);
+    /** Reads one run, including its bounded output. */
+    TaskRun taskRun(UUID runId);
 
-  /** Returns the most recent run for a workspace so the workbench can recover its status. */
-  TaskRun latestTaskRun(WorkspaceId workspaceId);
+    /** Returns the most recent run for a workspace so the workbench can recover its status. */
+    TaskRun latestTaskRun(WorkspaceId workspaceId);
 
-  /** Stops a running declared task belonging to the specified workspace. */
-  TaskRun stopTask(WorkspaceId workspaceId, UUID runId);
+    /** Stops a running declared task belonging to the specified workspace. */
+    TaskRun stopTask(WorkspaceId workspaceId, UUID runId);
 
-  /** Stops template setup and run processes when the workspace is stopped or destroyed. */
-  void closeByWorkspace(WorkspaceId workspaceId);
+    /** Stops template setup and run processes when the workspace is stopped or destroyed. */
+    void closeByWorkspace(WorkspaceId workspaceId);
 
-  /** Allows setup retries after the workspace has started again. */
-  void allowByWorkspace(WorkspaceId workspaceId);
+    /** Allows setup retries after the workspace has started again. */
+    void allowByWorkspace(WorkspaceId workspaceId);
 
-  /** Stops every setup and run process during server shutdown. */
-  void closeAll();
+    /** Stops every setup and run process during server shutdown. */
+    void closeAll();
 
-  record SetupStatus(
-      String status, String output, String error, Instant updatedAt, UUID correlationId) {}
+    record SetupStatus(
+            String status, String output, String error, Instant updatedAt, UUID correlationId) {}
 
-  record Task(String id, String label, Integer port) {}
+    record Task(String id, String label, Integer port) {}
 
-  /** Internal attach details for a live server-owned task process. */
-  record DebugTarget(
-      UUID id,
-      UUID workspaceId,
-      UUID taskRunId,
-      String languageId,
-      String label,
-      long processId,
-      Integer debugPort,
-      String program) {}
+    /** Internal attach details for a live server-owned task process. */
+    record DebugTarget(
+            UUID id,
+            UUID workspaceId,
+            UUID taskRunId,
+            String languageId,
+            String label,
+            long processId,
+            Integer debugPort,
+            String program) {}
 
-  record TaskRun(
-      UUID id,
-      UUID workspaceId,
-      String taskId,
-      String label,
-      String status,
-      String output,
-      Integer exitCode,
-      Instant startedAt,
-      Instant finishedAt) {}
+    record TaskRun(
+            UUID id,
+            UUID workspaceId,
+            String taskId,
+            String label,
+            String status,
+            String output,
+            Integer exitCode,
+            Instant startedAt,
+            Instant finishedAt) {}
 }
