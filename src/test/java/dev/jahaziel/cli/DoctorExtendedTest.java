@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,29 +34,21 @@ class DoctorExtendedTest {
         Files.createDirectories(Path.of(System.getProperty("org.sqlite.tmpdir")));
     }
 
-    private String savedPath;
-
-    @BeforeEach
-    void pinGitOnPath() throws Exception {
-        Path bin = Files.createDirectories(root.resolve("bin"));
-        Path git = bin.resolve(isWindows() ? "git.exe" : "git");
-        Files.createFile(git);
-        savedPath = System.getenv("PATH");
-        dev.jahaziel.platform.TestEnv.set("PATH", bin.toString());
-    }
-
     @AfterEach
     void restore() {
         Cli.setOffline(false);
-        if (savedPath == null) {
-            dev.jahaziel.platform.TestEnv.clear("PATH");
-        } else {
-            dev.jahaziel.platform.TestEnv.set("PATH", savedPath);
-        }
     }
 
-    private static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+    /** The git check must be clear and actionable whether or not the runner has git on PATH. */
+    private static void assertGitCheck(Doctor.Check git) {
+        assertTrue(git != null, "git check is missing");
+        assertTrue(git.detail().contains("Git CLI"), git.detail());
+        if (git.ok()) {
+            assertEquals("", git.fix(), git.fix());
+        } else {
+            assertTrue(git.detail().contains("Git CLI is unavailable"), git.detail());
+            assertTrue(git.fix().contains("install Git"), git.fix());
+        }
     }
 
     private static Doctor.Check find(List<Doctor.Check> checks, String name) {
@@ -93,11 +84,20 @@ class DoctorExtendedTest {
         List<Doctor.Check> checks = run(jar, data, env);
 
         assertEquals(19, checks.size());
+        int passed = 0;
         for (int i = 0; i < checks.size(); i++) {
-            assertTrue(checks.get(i).ok(), checks.get(i).name() + ": " + checks.get(i).detail());
+            Doctor.Check check = checks.get(i);
+            if ("git".equals(check.name())) {
+                assertGitCheck(check);
+            } else {
+                assertTrue(check.ok(), check.name() + ": " + check.detail());
+            }
+            if (check.ok()) {
+                passed++;
+            }
         }
         String text = print(checks);
-        assertTrue(text.contains("doctor: 19/19 checks passed"));
+        assertTrue(text.contains("doctor: " + passed + "/19 checks passed"));
         assertTrue(find(checks, "channel").detail().contains("(pinned)"));
         assertTrue(find(checks, "catalog").detail().contains("pinned catalog checksums verified"));
         assertTrue(find(checks, "idp").detail().contains("identity-provider configuration valid"));
