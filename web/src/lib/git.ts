@@ -6,6 +6,14 @@
 import { api, errorText } from "./api";
 import { setState, state, toast, type GitDiff, type GitStatus } from "./store";
 import { runtime } from "./runtime";
+import {
+    checkoutGitBranch,
+    loadGitBlame,
+    loadGitBranches,
+    loadGitHistory,
+    stageGitHunk,
+    type DiffHunk,
+} from "./git-extras";
 
 export async function refreshGit(): Promise<void> {
     const workspace = state.workspace;
@@ -57,6 +65,13 @@ export function resetGitPanel(): void {
     setState("gitChanges", []);
     setState("gitDiffHidden", true);
     setState("gitMessage", "");
+    setState("gitHistory", null);
+    setState("gitHistoryLoaded", false);
+    setState("gitBranches", null);
+    setState("gitBranchesLoaded", false);
+    setState("gitBlame", null);
+    setState("gitBlamePath", "");
+    setState("gitHunkSupported", null);
 }
 
 export async function loadGitDiff(path: string): Promise<void> {
@@ -98,4 +113,49 @@ export async function commitGitChanges(event: SubmitEvent): Promise<void> {
 export function updateGitMessage(value: string): void {
     setState("gitMessage", value);
     setState("gitCommitDisabled", !runtime.gitHasStaged || !value.trim());
+}
+
+/** Best-effort load of history and branches; null means the host has no such endpoint. */
+export async function loadGitExtras(): Promise<void> {
+    const [history, branches] = await Promise.all([
+        loadGitHistory().catch(() => null),
+        loadGitBranches().catch(() => null),
+    ]);
+    setState("gitHistory", history);
+    setState("gitHistoryLoaded", true);
+    setState("gitBranches", branches);
+    setState("gitBranchesLoaded", true);
+}
+
+export async function checkoutBranchSafe(name: string): Promise<void> {
+    const changed = await checkoutGitBranch(name);
+    if (!changed) {
+        toast("Branch checkout is unavailable on this host.", "error");
+        return;
+    }
+    refreshGitSafely();
+    void loadGitExtras().catch((failure) => toast(errorText(failure), "error"));
+}
+
+export async function loadGitBlameFor(path: string): Promise<void> {
+    setState("gitBlamePath", path);
+    setState("gitBlame", null);
+    const blame = await loadGitBlame(path).catch(() => null);
+    if (state.gitBlamePath !== path) return;
+    setState("gitBlame", blame);
+}
+
+export function setGitSideBySide(value: boolean): void {
+    setState("gitSideBySide", value);
+}
+
+export async function stageHunk(path: string, hunk: DiffHunk): Promise<void> {
+    const accepted = await stageGitHunk(path, hunk);
+    setState("gitHunkSupported", accepted);
+    if (!accepted) {
+        toast("Per-hunk staging is unavailable on this host; use whole-file staging.", "error");
+        return;
+    }
+    refreshGitSafely();
+    await loadGitDiff(path);
 }
