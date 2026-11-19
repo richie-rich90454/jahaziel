@@ -25,31 +25,35 @@ public final class GitHubHttp {
     }
 
     public Response postForm(String url, String body, Duration timeout) {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(timeout)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder(URI.create(url))
+                        .timeout(timeout)
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .header("Accept", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                        .build();
         return send(request, url);
     }
 
     public Response getJson(String url, String bearerToken, Duration timeout) {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(timeout)
-                .header("Accept", "application/json")
-                .header("Authorization", "Bearer " + bearerToken)
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder(URI.create(url))
+                        .timeout(timeout)
+                        .header("Accept", "application/json")
+                        .header("Authorization", "Bearer " + bearerToken)
+                        .GET()
+                        .build();
         return send(request, url);
     }
 
     private Response send(HttpRequest request, String url) {
         try {
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
-                throw new GitHubException("github request failed with HTTP " + status + " at " + url);
+                throw new GitHubException(
+                        "github request failed with HTTP " + status + " at " + url);
             }
             Map<String, String> headers = new HashMap<String, String>();
             Map<String, List<String>> raw = response.headers().map();
