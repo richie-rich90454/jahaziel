@@ -7,7 +7,7 @@
 
 # Deploy Jahaziel on a Linux server
 
-This guide installs one Jahaziel jar as a systemd service on Ubuntu 26.04 LTS (the reference host) or another supported Linux x64 or arm64 host, stores its files in `/var/lib/jahaziel`, and serves it through Caddy over HTTPS. The browser workbench is designed first for iPad Safari, Chrome, and Edge, and also supports desktop browsers.
+This guide installs one Jahaziel jar as a systemd service on Ubuntu 26.04 LTS (the reference host) or another supported Linux host, stores its files in `/var/lib/jahaziel`, and serves it through Caddy over HTTPS. The same jar and jar-adjacent layout also run on macOS and Windows with the [service templates per OS](#service-templates-per-os); those hosts have not passed real-host acceptance yet. The browser workbench is designed first for iPad Safari, Chrome, and Edge, and also supports desktop browsers.
 
 Jahaziel is a remote source IDE for trusted users. Workspaces have separate homes, but terminals, tasks, Git, and debug adapters run as native processes under the same Linux service account. This trusted service-account process model is not per-user OS isolation; do not expose this deployment to mutually untrusted users.
 
@@ -15,15 +15,27 @@ Jahaziel is a remote source IDE for trusted users. Workspaces have separate home
 
 | Component | Value |
 |---|---|
-| Server | Linux x86_64 or arm64 |
+| Server | Linux x86_64 or arm64 (CI-verified); macOS and Windows also run the same jar |
 | Java | Runtime 25 or newer |
 | Application | One executable jar |
-| Application port | `11451`, bound to loopback by the supplied systemd unit |
+| Application port | `11451`, bound to loopback by the supplied service definitions |
 | Public access | Caddy on ports 80 and 443, with separate IDE and preview hostnames |
 | Persistent app files | `/var/lib/jahaziel/.env` and `/var/lib/jahaziel/data/` |
-| Login | Existing compatible DevConnect/Basis identity provider |
+| Login | One or more authentication provider plugins; basis-auth is the reference OIDC provider |
 
 Use a DNS name you control, such as `code.example.com`. The preview host is `preview.code.example.com`. Replace both examples with your real names throughout this guide.
+
+## Service templates per OS
+
+All OSes use the same workflow: build the jar locally (or download a CI artifact), copy `jahaziel.jar` into a writable directory, run `java -jar jahaziel.jar init` and `doctor` there, then register the host's supervisor. Application state is **jar-adjacent**: `.env`, `data/` (SQLite database, workspace homes, keys, logs, and language packs) and any template-configured temp directory stay under `<jar>/`. Only the service definition lives outside that directory, where the OS requires it.
+
+| OS | Template | Service definition | Install helper |
+|---|---|---|---|
+| Linux | `ops/services/jahaziel.service` | `/etc/systemd/system/jahaziel.service` | `systemctl daemon-reload`, then `systemctl enable --now jahaziel` |
+| macOS | `ops/launchd/dev.jahaziel.plist.template` | `/Library/LaunchDaemons/<label>.plist` | `ops/launchd/install.sh <jar-dir> [label]` |
+| Windows | `ops/windows/jahaziel-service.xml.template` | WinSW service registered with Windows Services; its `jahaziel-service.xml` config stays jar-adjacent | `ops/windows/install.ps1 -JarDir <jar-dir> -WinSw <winsw.exe>` |
+
+The launchd and WinSW templates substitute the jar directory into the definition and keep stdout/stderr logs and `java.io.tmpdir` under `<jar>/data`. The systemd unit uses `PrivateTmp` and the journal instead. The rest of this guide covers the Linux reference deployment; macOS and Windows templates are provided for development and production, but native real-host acceptance on those OSes is still open.
 
 ## 1. Prepare the Linux host
 
@@ -298,7 +310,7 @@ The service account owns the jar directory and application data:
 | `/var/lib/jahaziel/data/keys/` | Application signing keys |
 | `/var/lib/jahaziel/data/logs/` | Application logs |
 
-Back up `.env` and the full `data/` directory. Protect both from unauthorized access and store copies off host. The CLI `backup` command writes its archive beside the jar.
+Everything the application owns is contained in the jar directory: `.env` plus the full `data/` tree. The service definition is the only part kept outside it, at the OS-required location shown in [service templates per OS](#service-templates-per-os). Back up `.env` and `data/` together. Protect both from unauthorized access and store copies off host. The CLI `backup` command writes its archive beside the jar.
 
 ## Troubleshooting
 
