@@ -33,12 +33,27 @@ public final class BasisConfig {
                         context,
                         "missing basis-auth client id",
                         "basis.client-id",
-                        "BASIS_CLIENT_ID");
-        this.clientSecret = first(context, "basis.client-secret", "BASIS_CLIENT_SECRET");
+                        "BASIS_CLIENT_ID",
+                        "BASIS_AUTH_CLIENT_ID");
+        this.clientSecret =
+                first(
+                        context,
+                        "basis.client-secret",
+                        "BASIS_CLIENT_SECRET",
+                        "BASIS_AUTH_CLIENT_SECRET");
         this.resource =
                 required(
-                        context, "missing basis-auth resource", "basis.resource", "BASIS_RESOURCE");
-        this.resourceSecret = first(context, "basis.resource-secret", "BASIS_RESOURCE_SECRET");
+                        context,
+                        "missing basis-auth resource",
+                        "basis.resource",
+                        "BASIS_RESOURCE",
+                        "BASIS_AUTH_RESOURCE");
+        this.resourceSecret =
+                first(
+                        context,
+                        "basis.resource-secret",
+                        "BASIS_RESOURCE_SECRET",
+                        "BASIS_AUTH_RESOURCE_SECRET");
         this.internalUrl =
                 first(
                         context,
