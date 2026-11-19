@@ -8,6 +8,9 @@ import dev.jahaziel.identity.api.DevConnectException;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.LoginRejectedException;
+import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.identity.auth.wiring.AuthProviderDispatcher;
+import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.persistence.AppUserEntity;
 import dev.jahaziel.identity.persistence.AppUserRepository;
@@ -20,7 +23,10 @@ import dev.jahaziel.identity.persistence.UserRoleRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,9 +47,11 @@ public class DevConnectServiceImpl implements DevConnectService {
   private final UserRoleRepository roles;
   private final JwtService tokens;
   private final Clock clock;
+  private final AuthProviderDispatcher dispatcher;
+  private final UserIdentityStore identities;
 
   /**
-   * Creates the service.
+   * Creates the service without plugin dispatch, preserving the DevConnect-only entry point.
    *
    * @param props the DevConnect settings
    * @param client the IdP client
@@ -63,6 +71,34 @@ public class DevConnectServiceImpl implements DevConnectService {
       UserRoleRepository roles,
       JwtService tokens,
       Clock clock) {
+    this(props, client, pending, sessions, users, roles, tokens, clock, null, null);
+  }
+
+  /**
+   * Creates the service with plugin dispatch. A null dispatcher selects the DevConnect flow.
+   *
+   * @param props the DevConnect settings
+   * @param client the IdP client
+   * @param pending the half-finished login store
+   * @param sessions the browser session store
+   * @param users the account store
+   * @param roles the role-grant store
+   * @param tokens the API token issuer
+   * @param clock the clock
+   * @param dispatcher the provider dispatcher, or null
+   * @param identities the identity link store, or null
+   */
+  public DevConnectServiceImpl(
+      DevConnectProperties props,
+      DevConnectClient client,
+      OidcPendingRepository pending,
+      BffSessionRepository sessions,
+      AppUserRepository users,
+      UserRoleRepository roles,
+      JwtService tokens,
+      Clock clock,
+      AuthProviderDispatcher dispatcher,
+      UserIdentityStore identities) {
     this.props = Objects.requireNonNull(props, "props");
     this.client = Objects.requireNonNull(client, "client");
     this.pending = Objects.requireNonNull(pending, "pending");
@@ -71,6 +107,8 @@ public class DevConnectServiceImpl implements DevConnectService {
     this.roles = Objects.requireNonNull(roles, "roles");
     this.tokens = Objects.requireNonNull(tokens, "tokens");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.dispatcher = dispatcher;
+    this.identities = identities;
   }
 
   @Override
@@ -91,6 +129,12 @@ public class DevConnectServiceImpl implements DevConnectService {
   @Override
   @Transactional
   public String startLogin() {
+    if (dispatcher != null && dispatcher.handles()) {
+      String url = dispatcher.startLogin(Pkce.state(), Pkce.nonce(), props.getRedirectUri());
+      if (url != null && !url.isBlank()) {
+        return url;
+      }
+    }
     requireConfigured();
     Instant now = clock.instant();
     pending.deleteByExpiresAtBefore(now);
@@ -109,6 +153,15 @@ public class DevConnectServiceImpl implements DevConnectService {
   @Override
   @Transactional
   public LoginResult completeLogin(String state, String code) {
+    if (dispatcher != null && dispatcher.handles()) {
+      Map<String, String> parameters = new HashMap<String, String>();
+      parameters.put("state", state);
+      parameters.put("code", code);
+      AuthIdentity identity = dispatcher.handleCallback(parameters);
+      if (identity != null) {
+        return completePluginLogin(identity);
+      }
+    }
     requireConfigured();
     if (state == null || state.isBlank() || code == null || code.isBlank()) {
       throw new LoginRejectedException("login state or code is missing");
@@ -155,19 +208,34 @@ public class DevConnectServiceImpl implements DevConnectService {
       return Optional.empty();
     }
     Optional<BffSessionEntity> found = sessions.findById(sessionId);
-    if (found.isEmpty() || found.get().getExpiresAt().isBefore(clock.instant())) {
-      return Optional.empty();
+    if (found.isPresent() && !found.get().getExpiresAt().isBefore(clock.instant())) {
+      UUID userId = found.get().getUserId();
+      Optional<AppUserEntity> user = users.findById(userId);
+      if (user.isPresent() && ACTIVE.equals(user.get().getStatus())) {
+        return Optional.of(new UserId(userId));
+      }
     }
-    UUID userId = found.get().getUserId();
-    return users
-        .findById(userId)
-        .filter(user -> ACTIVE.equals(user.getStatus()))
-        .map(user -> new UserId(userId));
+    if (dispatcher != null && dispatcher.handles() && identities != null) {
+      AuthIdentity identity = dispatcher.currentIdentity(sessionId);
+      if (identity != null) {
+        UUID linked = identities.findUserId(identity.provider(), identity.subject());
+        if (linked != null) {
+          Optional<AppUserEntity> user = users.findById(linked);
+          if (user.isPresent() && ACTIVE.equals(user.get().getStatus())) {
+            return Optional.of(new UserId(linked));
+          }
+        }
+      }
+    }
+    return Optional.empty();
   }
 
   @Override
   @Transactional
   public void logout(String sessionId) {
+    if (dispatcher != null) {
+      dispatcher.endSession(sessionId);
+    }
     if (sessionId != null && !sessionId.isBlank()) {
       sessions.findById(sessionId).ifPresent(sessions::delete);
     }
@@ -179,6 +247,102 @@ public class DevConnectServiceImpl implements DevConnectService {
           "DevConnect is not configured: set BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI,"
               + " BASIS_CLIENT_ID, BASIS_CLIENT_SECRET, and BASIS_RESOURCE");
     }
+  }
+
+  private LoginResult completePluginLogin(AuthIdentity identity) {
+    if (identities == null) {
+      throw new LoginRejectedException("identity linking is unavailable");
+    }
+    AppUserEntity user = provisionLinked(identity);
+    applyPluginAdminBootstrap(user, identity);
+    Instant now = clock.instant();
+    String sessionId = identity.claims().get("session_id");
+    if (sessionId == null || sessionId.isBlank()) {
+      sessionId = Pkce.state();
+    }
+    BffSessionEntity session = new BffSessionEntity();
+    session.setSessionId(sessionId);
+    session.setUserId(user.getUserId());
+    session.setCreatedAt(now);
+    session.setExpiresAt(now.plus(props.getSessionTtl()));
+    sessions.save(session);
+    sessions.deleteByExpiresAtBefore(now);
+    String apiToken =
+        tokens.issue(new UserId(user.getUserId()), null, Collections.emptyList(), props.getTokenTtl());
+    return new LoginResult(user.getUserId(), sessionId, apiToken);
+  }
+
+  private AppUserEntity provisionLinked(AuthIdentity identity) {
+    UUID linked = identities.findUserId(identity.provider(), identity.subject());
+    if (linked != null) {
+      AppUserEntity user = users.findById(linked).orElse(null);
+      if (user == null) {
+        throw new LoginRejectedException("linked account is missing");
+      }
+      requireActive(user);
+      return touch(user, identity.email(), identity.displayName());
+    }
+    // No (provider, subject) link exists. Never join on email: create a fresh local account.
+    Instant now = clock.instant();
+    AppUserEntity user = new AppUserEntity();
+    user.setUserId(UUID.randomUUID());
+    user.setExternalId(identity.linkKey());
+    user.setEmail(identity.email());
+    user.setDisplayName(identity.displayName());
+    user.setCreatedAt(now);
+    user.setLastLoginAt(now);
+    user.setStatus(ACTIVE);
+    user.setMfaEnabled(false);
+    AppUserEntity saved = users.save(user);
+
+    UserRoleEntity role = new UserRoleEntity();
+    role.setId(new UserRoleEntity.Id(saved.getUserId(), ROLE_USER));
+    role.setGrantedAt(now);
+    role.setGrantedBy(GRANTOR);
+    roles.save(role);
+    identities.link(
+        identity.provider(),
+        identity.subject(),
+        saved.getUserId(),
+        identity.email(),
+        identity.displayName(),
+        now);
+    return saved;
+  }
+
+  private void applyPluginAdminBootstrap(AppUserEntity user, AuthIdentity identity) {
+    String bootstrapEmail = props.getAdminBootstrapEmail();
+    if (bootstrapEmail == null || bootstrapEmail.isBlank()) return;
+    if (!identity.emailVerified()) return;
+    if (!bootstrapEmail.trim().equalsIgnoreCase(user.getEmail())) return;
+    Instant now = clock.instant();
+    UserRoleEntity existing = null;
+    try {
+      existing = roles.findById(new UserRoleEntity.Id(user.getUserId(), "ROLE_ADMIN")).orElse(null);
+    } catch (RuntimeException ignored) {
+      existing = null;
+    }
+    if (existing == null) {
+      UserRoleEntity role = new UserRoleEntity();
+      role.setId(new UserRoleEntity.Id(user.getUserId(), "ROLE_ADMIN"));
+      role.setGrantedAt(now);
+      role.setGrantedBy("admin-bootstrap");
+      roles.save(role);
+    }
+    boolean mfaAssured = identity.mfaAssured() || localTotpAssured(identity);
+    if (mfaAssured != user.isMfaEnabled()) {
+      user.setMfaEnabled(mfaAssured);
+      users.save(user);
+    }
+  }
+
+  private static boolean localTotpAssured(AuthIdentity identity) {
+    if (!"local".equals(identity.provider())) {
+      return false;
+    }
+    Map<String, String> claims = identity.claims();
+    return "complete".equals(claims.get("mfa_enrollment"))
+        || Boolean.parseBoolean(claims.get("totp"));
   }
 
   private void applyAdminBootstrap(AppUserEntity user, boolean emailVerified, Jwt idToken) {
