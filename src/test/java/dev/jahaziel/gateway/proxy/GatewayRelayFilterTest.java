@@ -15,8 +15,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sun.net.httpserver.HttpServer;
-
 import dev.jahaziel.gateway.auth.GatewaySession;
 import dev.jahaziel.gateway.auth.JwtRejectedException;
 import dev.jahaziel.gateway.auth.JwtVerifier;
@@ -44,6 +42,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -59,14 +58,26 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Behavior of {@link GatewayRelayFilter} against stub backends and mock requests. */
 class GatewayRelayFilterTest {
     private static final Duration TTL = Duration.ofSeconds(900);
-    private static final List<HttpServer> SERVERS = new ArrayList<HttpServer>();
+    // Bind and dial the same IPv4 loopback so Linux IPv6-preferred resolution cannot split them.
+    private static final InetAddress LOOPBACK = ipv4Loopback();
+
+    private static InetAddress ipv4Loopback() {
+        try {
+            return InetAddress.getByAddress(new byte[] {127, 0, 0, 1});
+        } catch (UnknownHostException impossible) {
+            throw new IllegalStateException("IPv4 loopback must resolve", impossible);
+        }
+    }
+
+    // Per-test: stopping a server must never tear down another test's in-flight exchange.
+    private final List<StubBackend> servers = new ArrayList<StubBackend>();
 
     @AfterEach
     void stopBackends() {
-        for (HttpServer server : SERVERS) {
-            server.stop(0);
+        for (StubBackend server : servers) {
+            server.stop();
         }
-        SERVERS.clear();
+        servers.clear();
     }
 
     private GatewayRelayFilter filter(
@@ -185,7 +196,7 @@ class GatewayRelayFilterTest {
     @Test
     void acceptsIdentityTransferEncoding() throws Exception {
         String response = "HTTP/1.1 200 OK\r\nContent-Length: 15\r\n\r\nidentity-marker";
-        try (ServerSocket backend = new ServerSocket(0)) {
+        try (ServerSocket backend = new ServerSocket(0, 0, LOOPBACK)) {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
@@ -224,7 +235,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             request.addHeader("Transfer-Encoding", "identity");
             MockHttpServletResponse response2 = new MockHttpServletResponse();
@@ -238,7 +249,7 @@ class GatewayRelayFilterTest {
 
     @Test
     void failsOnTruncatedBody() throws Exception {
-        HttpServer backend = dummyBackend("unused");
+        StubBackend backend = dummyBackend("unused");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -250,7 +261,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request =
                     new MockHttpServletRequest("POST", "/upload") {
                         @Override
@@ -267,13 +278,13 @@ class GatewayRelayFilterTest {
                     IOException.class,
                     () -> relay.doFilter(request, response, mock(FilterChain.class)));
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
     @Test
     void relaysHttpAndSetsSessionCookie() throws Exception {
-        HttpServer backend = dummyBackend("ide-marker");
+        StubBackend backend = dummyBackend("ide-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -285,7 +296,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/workbench?token=tok&x=1");
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -294,7 +305,7 @@ class GatewayRelayFilterTest {
             String cookie = response.getHeader("Set-Cookie");
             assertTrue(cookie != null && cookie.startsWith("jahaziel-session=tok"), cookie);
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
@@ -305,7 +316,7 @@ class GatewayRelayFilterTest {
         // cookie. Headers set after the body is flushed are dropped by the container, which left
         // every
         // asset request unauthorized and the workbench blank.
-        HttpServer backend = dummyBackend("ide-marker");
+        StubBackend backend = dummyBackend("ide-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -317,7 +328,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             CommitTrackingResponse response = new CommitTrackingResponse();
             filter(tokens, directory, targets)
                     .doFilter(workspaceRequest("/?token=tok"), response, mock(FilterChain.class));
@@ -325,7 +336,7 @@ class GatewayRelayFilterTest {
                     response.cookieSetBeforeCommit,
                     "Set-Cookie arrived after the response committed");
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
@@ -355,7 +366,7 @@ class GatewayRelayFilterTest {
         // already-framed bytes made the container frame them again, so every asset body arrived
         // corrupted (browser: "Invalid or unexpected token").
         String body = "globalThis.__jahaziel = {chunk:'work'};".repeat(64);
-        try (ServerSocket listener = new ServerSocket(0)) {
+        try (ServerSocket listener = new ServerSocket(0, 0, LOOPBACK)) {
             Thread backend =
                     Thread.ofVirtual()
                             .start(
@@ -402,7 +413,7 @@ class GatewayRelayFilterTest {
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
                             new InetSocketAddress(
-                                    InetAddress.getLoopbackAddress(), listener.getLocalPort()));
+                                    LOOPBACK, listener.getLocalPort()));
             MockHttpServletRequest request = workspaceRequest("/asset.js?token=tok");
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -417,7 +428,7 @@ class GatewayRelayFilterTest {
     @Test
     void proxiesPostBodies() throws Exception {
         AtomicBody backend = new AtomicBody();
-        HttpServer server = backendServer(backend);
+        StubBackend server = backendServer(backend);
         int backendPort = server.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -429,7 +440,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/upload");
             request.setServerName("richard-8080.code.example.com");
             request.setContent("payload-bytes".getBytes(StandardCharsets.UTF_8));
@@ -440,14 +451,14 @@ class GatewayRelayFilterTest {
             assertEquals(200, response.getStatus());
             assertEquals("payload-bytes", backend.received());
         } finally {
-            server.stop(0);
+            server.stop();
         }
     }
 
     @Test
     void answers502WhenBackendDown() throws Exception {
         int dead;
-        try (ServerSocket socket = new ServerSocket(0)) {
+        try (ServerSocket socket = new ServerSocket(0, 0, LOOPBACK)) {
             dead = socket.getLocalPort();
         }
         UUID user = UUID.randomUUID();
@@ -458,7 +469,7 @@ class GatewayRelayFilterTest {
         when(directory.lookup("richard", 8080)).thenReturn(Optional.of(workspace));
         TargetResolver targets = mock(TargetResolver.class);
         when(targets.resolve(workspace, 8080))
-                .thenReturn(new InetSocketAddress(InetAddress.getLoopbackAddress(), dead));
+                .thenReturn(new InetSocketAddress(LOOPBACK, dead));
         MockHttpServletRequest request = workspaceRequest("/?token=tok");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter(tokens, directory, targets).doFilter(request, response, mock(FilterChain.class));
@@ -499,7 +510,7 @@ class GatewayRelayFilterTest {
 
     @Test
     void refreshesNearExpiryCookie() throws Exception {
-        HttpServer backend = dummyBackend("ide-marker");
+        StubBackend backend = dummyBackend("ide-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -514,7 +525,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -529,13 +540,13 @@ class GatewayRelayFilterTest {
             assertEquals(200, response.getStatus());
             assertTrue(response.getHeader("Set-Cookie").startsWith("jahaziel-session=fresh"));
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
     @Test
     void skipsRefreshWhenFarFromExpiry() throws Exception {
-        HttpServer backend = dummyBackend("ide-marker");
+        StubBackend backend = dummyBackend("ide-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -549,7 +560,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -565,7 +576,7 @@ class GatewayRelayFilterTest {
             assertTrue(response.getHeader("Set-Cookie").startsWith("jahaziel-session=" + lasting));
             verify(sessions, never()).issue(any(), any(), any(), any());
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
@@ -635,7 +646,7 @@ class GatewayRelayFilterTest {
                 new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.CountDownLatch abcReceived =
                 new java.util.concurrent.CountDownLatch(1);
-        try (ServerSocket backend = new ServerSocket(0)) {
+        try (ServerSocket backend = new ServerSocket(0, 0, LOOPBACK)) {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
@@ -674,7 +685,7 @@ class GatewayRelayFilterTest {
             int backendPort = backend.getLocalPort();
             GatewayRelayFilter.RelayState state =
                     new GatewayRelayFilter.RelayState(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort),
+                            new InetSocketAddress(LOOPBACK, backendPort),
                             rawRequest,
                             GatewayRelayFilter::connect);
             GatewayRelayFilter.RelayUpgrade.pending().set(state);
@@ -754,12 +765,12 @@ class GatewayRelayFilterTest {
     @Test
     void relayUpgradeInitFailsOnDeadBackend() throws Exception {
         int dead;
-        try (ServerSocket socket = new ServerSocket(0)) {
+        try (ServerSocket socket = new ServerSocket(0, 0, LOOPBACK)) {
             dead = socket.getLocalPort();
         }
         GatewayRelayFilter.RelayState state =
                 new GatewayRelayFilter.RelayState(
-                        new InetSocketAddress(InetAddress.getLoopbackAddress(), dead),
+                        new InetSocketAddress(LOOPBACK, dead),
                         "GET / HTTP/1.1\r\n\r\n",
                         GatewayRelayFilter::connect);
         GatewayRelayFilter.RelayUpgrade.pending().set(state);
@@ -774,7 +785,7 @@ class GatewayRelayFilterTest {
 
     @Test
     void relayUpgradeInitFailsOnBrokenConnection() throws Exception {
-        try (ServerSocket backend = new ServerSocket(0)) {
+        try (ServerSocket backend = new ServerSocket(0, 0, LOOPBACK)) {
             // Accepted socket stays open so the backend connect succeeds; the client side breaks.
             Thread acceptor =
                     Thread.ofVirtual()
@@ -788,7 +799,7 @@ class GatewayRelayFilterTest {
             GatewayRelayFilter.RelayState state =
                     new GatewayRelayFilter.RelayState(
                             new InetSocketAddress(
-                                    InetAddress.getLoopbackAddress(), backend.getLocalPort()),
+                                    LOOPBACK, backend.getLocalPort()),
                             "GET / HTTP/1.1\r\n\r\n",
                             GatewayRelayFilter::connect);
             GatewayRelayFilter.RelayUpgrade.pending().set(state);
@@ -809,7 +820,7 @@ class GatewayRelayFilterTest {
     void relayUpgradeInitFailsOnFactoryFailure() {
         GatewayRelayFilter.RelayState state =
                 new GatewayRelayFilter.RelayState(
-                        new InetSocketAddress(InetAddress.getLoopbackAddress(), 9),
+                        new InetSocketAddress(LOOPBACK, 9),
                         "GET / HTTP/1.1\r\n\r\n",
                         backend -> {
                             throw new IOException("refused");
@@ -842,7 +853,7 @@ class GatewayRelayFilterTest {
                 };
         GatewayRelayFilter.RelayState state =
                 new GatewayRelayFilter.RelayState(
-                        new InetSocketAddress(InetAddress.getLoopbackAddress(), 9),
+                        new InetSocketAddress(LOOPBACK, 9),
                         "GET / HTTP/1.1\r\n\r\n",
                         backend -> fake);
         GatewayRelayFilter.RelayUpgrade.pending().set(state);
@@ -880,7 +891,7 @@ class GatewayRelayFilterTest {
                         + "marker-"
                         + "\rX\r\n"
                         + "tail";
-        try (ServerSocket backend = new ServerSocket(0)) {
+        try (ServerSocket backend = new ServerSocket(0, 0, LOOPBACK)) {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
@@ -919,7 +930,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             MockHttpServletResponse servletResponse = new MockHttpServletResponse();
             filter(tokens, directory, targets)
@@ -934,7 +945,7 @@ class GatewayRelayFilterTest {
 
     @Test
     void skipsHopHeadersOnForward() throws Exception {
-        HttpServer backend = dummyBackend("hop-marker");
+        StubBackend backend = dummyBackend("hop-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -946,7 +957,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             MockHttpServletRequest request = workspaceRequest("/?token=tok");
             request.addHeader("Connection", "keep-alive");
             request.addHeader("Keep-Alive", "timeout=5");
@@ -956,7 +967,7 @@ class GatewayRelayFilterTest {
             assertEquals(200, response.getStatus());
             assertTrue(response.getContentAsString().contains("hop-marker"));
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
@@ -973,7 +984,7 @@ class GatewayRelayFilterTest {
 
     @Test
     void refreshesBearerSessionNearExpiry() throws Exception {
-        HttpServer backend = dummyBackend("bearer-marker");
+        StubBackend backend = dummyBackend("bearer-marker");
         int backendPort = backend.getAddress().getPort();
         try {
             UUID user = UUID.randomUUID();
@@ -988,7 +999,7 @@ class GatewayRelayFilterTest {
             TargetResolver targets = mock(TargetResolver.class);
             when(targets.resolve(workspace, 8080))
                     .thenReturn(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), backendPort));
+                            new InetSocketAddress(LOOPBACK, backendPort));
             GatewayRelayFilter relay =
                     new GatewayRelayFilter(
                             new HostParser("code.example.com"),
@@ -1006,7 +1017,7 @@ class GatewayRelayFilterTest {
             assertTrue(
                     response.getHeader("Set-Cookie").startsWith("jahaziel-session=fresh-bearer"));
         } finally {
-            backend.stop(0);
+            backend.stop();
         }
     }
 
@@ -1027,20 +1038,8 @@ class GatewayRelayFilterTest {
                 + ".s";
     }
 
-    private static HttpServer dummyBackend(String marker) throws IOException {
-        HttpServer server =
-                HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        server.createContext(
-                "/",
-                exchange -> {
-                    byte[] body = marker.getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(200, body.length);
-                    exchange.getResponseBody().write(body);
-                    exchange.close();
-                });
-        server.start();
-        SERVERS.add(server);
-        return server;
+    private StubBackend dummyBackend(String marker) throws IOException {
+        return stubBackend(marker, null);
     }
 
     private static final class AtomicBody {
@@ -1055,24 +1054,117 @@ class GatewayRelayFilterTest {
         }
     }
 
-    private static HttpServer backendServer(AtomicBody holder) throws IOException {
-        HttpServer server =
-                HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        server.createContext(
-                "/upload",
-                exchange -> {
-                    String body =
-                            new String(
-                                    exchange.getRequestBody().readAllBytes(),
-                                    StandardCharsets.UTF_8);
-                    holder.receive(body);
-                    byte[] ok = "ok".getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(200, ok.length);
-                    exchange.getResponseBody().write(ok);
-                    exchange.close();
-                });
-        server.start();
-        SERVERS.add(server);
-        return server;
+    private StubBackend backendServer(AtomicBody holder) throws IOException {
+        return stubBackend("ok", holder);
+    }
+
+    /** One-shot raw-socket backend: fixed 200 reply, no platform-specific HTTP stack. */
+    private StubBackend stubBackend(final String responseBody, final AtomicBody recorder)
+            throws IOException {
+        final ServerSocket listener = new ServerSocket(0, 0, LOOPBACK);
+        Thread acceptor =
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try (Socket peer = listener.accept()) {
+                                    peer.setSoTimeout(2000);
+                                    InputStream in = peer.getInputStream();
+                                    ByteArrayOutputStream head = new ByteArrayOutputStream();
+                                    int current;
+                                    while ((current = in.read()) >= 0) {
+                                        head.write(current);
+                                        byte[] bytes = head.toByteArray();
+                                        int size = bytes.length;
+                                        if (size >= 4
+                                                && bytes[size - 4] == '\r'
+                                                && bytes[size - 3] == '\n'
+                                                && bytes[size - 2] == '\r'
+                                                && bytes[size - 1] == '\n') {
+                                            break;
+                                        }
+                                    }
+                                    if (recorder != null) {
+                                        int length =
+                                                contentLength(
+                                                        head.toString(StandardCharsets.US_ASCII));
+                                        byte[] body = new byte[length];
+                                        int offset = 0;
+                                        while (offset < length) {
+                                            int read = in.read(body, offset, length - offset);
+                                            if (read < 0) {
+                                                break;
+                                            }
+                                            offset += read;
+                                        }
+                                        recorder.receive(
+                                                new String(
+                                                        body,
+                                                        0,
+                                                        offset,
+                                                        StandardCharsets.UTF_8));
+                                    }
+                                    byte[] reply = responseBody.getBytes(StandardCharsets.UTF_8);
+                                    OutputStream out = peer.getOutputStream();
+                                    out.write(
+                                            ("HTTP/1.1 200 OK\r\nContent-Length: "
+                                                            + reply.length
+                                                            + "\r\nConnection: close\r\n\r\n")
+                                                    .getBytes(StandardCharsets.US_ASCII));
+                                    out.write(reply);
+                                    out.flush();
+                                } catch (IOException done) {
+                                    // The relay hung up; nothing left to answer.
+                                }
+                            }
+                        });
+        acceptor.setDaemon(true);
+        acceptor.start();
+        StubBackend backend = new StubBackend(listener, acceptor);
+        servers.add(backend);
+        return backend;
+    }
+
+    private static int contentLength(String head) {
+        String[] lines = head.split("\r\n");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (line.toLowerCase(java.util.Locale.ROOT).startsWith("content-length:")) {
+                try {
+                    return Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+                } catch (NumberFormatException ignored) {
+                    return 0;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /** One-shot stub bound to IPv4 loopback, owned and stopped by the test that created it. */
+    private static final class StubBackend {
+        private final ServerSocket listener;
+        private final Thread acceptor;
+
+        StubBackend(ServerSocket listener, Thread acceptor) {
+            this.listener = listener;
+            this.acceptor = acceptor;
+        }
+
+        InetSocketAddress getAddress() {
+            return new InetSocketAddress(listener.getInetAddress(), listener.getLocalPort());
+        }
+
+        void stop() {
+            try {
+                listener.close();
+            } catch (IOException closed) {
+                // Already closed.
+            }
+            try {
+                acceptor.join(TimeUnit.SECONDS.toMillis(5));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }
