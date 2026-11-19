@@ -8,6 +8,7 @@ import dev.jahaziel.club.domain.ClubRoles;
 import dev.jahaziel.club.domain.ClubSession;
 import dev.jahaziel.club.tutorial.TutorialLesson;
 import dev.jahaziel.identity.domain.UserId;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,8 +22,8 @@ public final class ClubRegistry {
     public ClubSession createSession(
             UserId host, String template, Instant startsAt, Instant endsAt, int capacity) {
         ClubSession session =
-            new ClubSession(
-                UUID.randomUUID().toString(), host, template, startsAt, endsAt, capacity);
+                new ClubSession(
+                        UUID.randomUUID().toString(), host, template, startsAt, endsAt, capacity);
         session.join(host, ClubRoles.INSTRUCTOR);
         sessions.put(session.id(), session);
         return session;
