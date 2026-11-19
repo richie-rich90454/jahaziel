@@ -45,8 +45,7 @@ public final class TrashService {
     }
 
     /** Moves a file or directory into the trash. */
-    public synchronized TrashEntry trash(
-            WorkspaceId workspace, String relativePath, String actor) {
+    public synchronized TrashEntry trash(WorkspaceId workspace, String relativePath, String actor) {
         Path home = SafetyPaths.home(storageRoot, workspace);
         Path source = SafetyPaths.resolveInside(home, relativePath);
         if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
@@ -70,7 +69,9 @@ public final class TrashService {
         }
         String id = UUID.randomUUID().toString();
         String kind = Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS) ? DIRECTORY : FILE;
-        Path payload = payloadRoot(workspace, id).resolve(relativePath.replace('/', java.io.File.separatorChar));
+        Path payload =
+                payloadRoot(workspace, id)
+                        .resolve(relativePath.replace('/', java.io.File.separatorChar));
         try {
             copyTree(source, payload);
             deleteTree(source);
@@ -98,8 +99,9 @@ public final class TrashService {
     public synchronized TrashEntry restore(WorkspaceId workspace, String itemId) {
         List<TrashEntry> entries = load(workspace);
         TrashEntry found = find(entries, itemId);
-        Path stored = payloadRoot(workspace, itemId)
-                .resolve(found.getPath().replace('/', java.io.File.separatorChar));
+        Path stored =
+                payloadRoot(workspace, itemId)
+                        .resolve(found.getPath().replace('/', java.io.File.separatorChar));
         Path home = SafetyPaths.home(storageRoot, workspace);
         Path target = SafetyPaths.resolveInside(home, found.getPath());
         if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
@@ -162,7 +164,10 @@ public final class TrashService {
     }
 
     private Path payloadRoot(WorkspaceId workspace, String itemId) {
-        return SafetyPaths.trash(storageRoot, workspace).resolve("items").resolve(itemId).resolve("payload");
+        return SafetyPaths.trash(storageRoot, workspace)
+                .resolve("items")
+                .resolve(itemId)
+                .resolve("payload");
     }
 
     private long used(List<TrashEntry> entries) {
@@ -230,7 +235,8 @@ public final class TrashService {
                     .append(entry.getKind())
                     .append('\n');
         }
-        SafetyPaths.writeText(SafetyPaths.trash(storageRoot, workspace).resolve("index.dat"), text.toString());
+        SafetyPaths.writeText(
+                SafetyPaths.trash(storageRoot, workspace).resolve("index.dat"), text.toString());
     }
 
     private static long measure(Path root) throws IOException {
@@ -254,7 +260,8 @@ public final class TrashService {
                     @Override
                     public FileVisitResult preVisitDirectory(
                             Path directory, BasicFileAttributes attributes) throws IOException {
-                        Files.createDirectories(destination.resolve(source.relativize(directory).toString()));
+                        Files.createDirectories(
+                                destination.resolve(source.relativize(directory).toString()));
                         return FileVisitResult.CONTINUE;
                     }
 
