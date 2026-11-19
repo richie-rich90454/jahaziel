@@ -636,6 +636,8 @@ class GatewayRelayFilterTest {
                 new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.CountDownLatch abcReceived =
                 new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch switchingSeen =
+                new java.util.concurrent.CountDownLatch(1);
         try (ServerSocket backend = new ServerSocket(0, 0, LOOPBACK)) {
             Thread acceptor =
                     Thread.ofVirtual()
@@ -711,6 +713,11 @@ class GatewayRelayFilterTest {
                             @Override
                             public void write(int b) {
                                 clientOut.write(b);
+                                if (clientOut
+                                        .toString(StandardCharsets.UTF_8)
+                                        .contains("101 Switching")) {
+                                    switchingSeen.countDown();
+                                }
                             }
 
                             @Override
@@ -727,16 +734,9 @@ class GatewayRelayFilterTest {
                 assertTrue(
                         headReceived.await(10, TimeUnit.SECONDS), "backend never saw the request");
                 assertTrue(abcReceived.await(10, TimeUnit.SECONDS), "backend never saw ABC");
-                String seen = "";
-                long deadline = System.currentTimeMillis() + 15000;
-                while (System.currentTimeMillis() < deadline) {
-                    seen = clientOut.toString(StandardCharsets.UTF_8);
-                    if (seen.contains("101 Switching")) {
-                        break;
-                    }
-                    Thread.sleep(10);
-                }
-                assertTrue(seen.contains("101 Switching"), seen);
+                assertTrue(
+                        switchingSeen.await(15, TimeUnit.SECONDS),
+                        clientOut.toString(StandardCharsets.UTF_8));
                 acceptor.join(TimeUnit.SECONDS.toMillis(10));
             } finally {
                 GatewayRelayFilter.RelayUpgrade.pending().remove();
