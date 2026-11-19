@@ -4,15 +4,16 @@
  */
 package dev.jahaziel.identity.auth.local;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 final class LocalTotpTest {
-    private static final byte[] RFC_SECRET = "12345678901234567890".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] RFC_SECRET =
+            "12345678901234567890".getBytes(StandardCharsets.US_ASCII);
 
     @Test
     void matchesRfc6238Sha1VectorsTruncatedToSixDigits() {
