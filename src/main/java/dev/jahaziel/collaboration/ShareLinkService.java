@@ -4,11 +4,12 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 
 /** Persisted, hash-only share links with scope, expiry, one-time use, and revocation. */
 @Service
@@ -81,8 +82,7 @@ public final class ShareLinkService {
         }
         Map<String, String> details = new HashMap<String, String>();
         details.put("scope", link.scope());
-        audit.record(
-                link.workspaceId(), link.createdBy(), "share.redeem", link.id(), details);
+        audit.record(link.workspaceId(), link.createdBy(), "share.redeem", link.id(), details);
         return link;
     }
 
