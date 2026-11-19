@@ -4,9 +4,17 @@
  */
 package dev.jahaziel.identity.auth.oidc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.GenericOidcPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,17 +28,9 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /** Hermetic coverage of the shared authorization-code flow. */
 final class OidcProviderPluginTest {
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private StubIdp idp;
     private GenericOidcPlugin plugin;
@@ -86,13 +86,18 @@ final class OidcProviderPluginTest {
 
     @Test
     void codeExchangeUsesBasicAuthAndDerivesIdentity() {
-        String url = plugin.startLogin(context, "state-exchange", "nonce-exchange", "http://app.test/callback");
+        String url =
+                plugin.startLogin(
+                        context, "state-exchange", "nonce-exchange", "http://app.test/callback");
         String challenge = query(url).get("code_challenge");
         idp.setNextClaims(claims("nonce-exchange", ",\"amr\":[\"pwd\",\"otp\"]"));
         AuthIdentity identity = plugin.handleCallback(context, params("state-exchange", "code-42"));
 
-        String expectedBasic = "Basic " + Base64.getEncoder()
-                .encodeToString("test-client:test-secret".getBytes(StandardCharsets.UTF_8));
+        String expectedBasic =
+                "Basic "
+                        + Base64.getEncoder()
+                                .encodeToString(
+                                        "test-client:test-secret".getBytes(StandardCharsets.UTF_8));
         assertEquals(expectedBasic, idp.lastAuthorization());
         assertEquals("authorization_code", idp.lastForm().get("grant_type"));
         assertEquals("code-42", idp.lastForm().get("code"));
@@ -135,7 +140,8 @@ final class OidcProviderPluginTest {
         GenericOidcPlugin publicPlugin = new GenericOidcPlugin();
         PluginContext publicContext = new PluginContext(tempDir, settings);
         publicPlugin.initialize(publicContext);
-        publicPlugin.startLogin(publicContext, "state-public", "nonce-public", "http://app.test/callback");
+        publicPlugin.startLogin(
+                publicContext, "state-public", "nonce-public", "http://app.test/callback");
         idp.setNextClaims(claims("nonce-public", ""));
         publicPlugin.handleCallback(publicContext, params("state-public", "code"));
         assertNull(idp.lastAuthorization());
@@ -146,25 +152,31 @@ final class OidcProviderPluginTest {
     @Test
     void atHashMismatchRejected() {
         plugin.startLogin(context, "state-hash", "nonce-hash", "http://app.test/callback");
-        idp.setNextClaims(claims("nonce-hash", ",\"at_hash\":\"" + StubIdp.atHash("wrong-token") + "\""));
+        idp.setNextClaims(
+                claims("nonce-hash", ",\"at_hash\":\"" + StubIdp.atHash("wrong-token") + "\""));
         assertRejected("access token hash mismatch", params("state-hash", "code"));
     }
 
     @Test
     void validAtHashAccepted() {
         plugin.startLogin(context, "state-hash-ok", "nonce-hash-ok", "http://app.test/callback");
-        idp.setNextClaims(claims("nonce-hash-ok",
-                ",\"at_hash\":\"" + StubIdp.atHash(StubIdp.ACCESS_TOKEN) + "\""));
+        idp.setNextClaims(
+                claims(
+                        "nonce-hash-ok",
+                        ",\"at_hash\":\"" + StubIdp.atHash(StubIdp.ACCESS_TOKEN) + "\""));
         assertNotNull(plugin.handleCallback(context, params("state-hash-ok", "code")));
     }
 
     private void assertRejected(String expectedMessage, Map<String, String> parameters) {
-        OidcException failure = assertThrows(OidcException.class, new Executable() {
-            @Override
-            public void execute() {
-                plugin.handleCallback(context, parameters);
-            }
-        });
+        OidcException failure =
+                assertThrows(
+                        OidcException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                plugin.handleCallback(context, parameters);
+                            }
+                        });
         assertTrue(failure.getMessage().contains(expectedMessage), failure.getMessage());
     }
 
@@ -179,12 +191,22 @@ final class OidcProviderPluginTest {
 
     private String claims(String nonce, String extra) {
         long expiry = System.currentTimeMillis() / 1000L + 600L;
-        return "{\"iss\":\"" + idp.issuer() + "\","
-                + "\"aud\":\"" + StubIdp.CLIENT_ID + "\","
+        return "{\"iss\":\""
+                + idp.issuer()
+                + "\","
+                + "\"aud\":\""
+                + StubIdp.CLIENT_ID
+                + "\","
                 + "\"sub\":\"user-123\","
-                + "\"nonce\":\"" + nonce + "\","
-                + "\"exp\":" + expiry + ","
-                + "\"iat\":" + (expiry - 60L) + ","
+                + "\"nonce\":\""
+                + nonce
+                + "\","
+                + "\"exp\":"
+                + expiry
+                + ","
+                + "\"iat\":"
+                + (expiry - 60L)
+                + ","
                 + "\"email\":\"user@example.test\","
                 + "\"name\":\"Test User\","
                 + "\"email_verified\":true"
