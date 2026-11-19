@@ -14,10 +14,13 @@ import java.util.Map;
 public final class QuotaService {
     /** Resource name for storage bytes. */
     public static final String STORAGE = "storage";
+
     /** Resource name for concurrent processes. */
     public static final String PROCESS = "process";
+
     /** Resource name for terminal and language sessions. */
     public static final String SESSION = "session";
+
     /** Resource name for retained snapshots. */
     public static final String SNAPSHOT = "snapshot";
 
@@ -25,10 +28,13 @@ public final class QuotaService {
     public static final class LimitSet {
         /** Maximum storage bytes per workspace. */
         public final long storageBytes = 1024L * 1024L * 1024L;
+
         /** Maximum concurrent processes per user. */
         public final long processes = 20L;
+
         /** Maximum simultaneous sessions per user. */
         public final long sessions = 50L;
+
         /** Maximum snapshots per workspace. */
         public final long snapshots = 30L;
 
@@ -51,7 +57,17 @@ public final class QuotaService {
         long used = usage.containsKey(key) ? usage.get(key).longValue() : 0L;
         if (used + amount > limit) {
             return LimitDecision.forbidden(
-                    resource + " quota exceeded for " + scope + " " + id + ": " + used + "+" + amount + " > " + limit);
+                    resource
+                            + " quota exceeded for "
+                            + scope
+                            + " "
+                            + id
+                            + ": "
+                            + used
+                            + "+"
+                            + amount
+                            + " > "
+                            + limit);
         }
         usage.put(key, Long.valueOf(used + amount));
         return LimitDecision.allow();
