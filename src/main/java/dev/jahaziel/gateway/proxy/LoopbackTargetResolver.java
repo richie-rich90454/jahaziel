@@ -10,9 +10,9 @@ import java.util.UUID;
 
 /** Resolves workspace ports to loopback addresses. Single-node stand-in for vsock dialing. */
 public final class LoopbackTargetResolver implements TargetResolver {
-  @Override
-  public InetSocketAddress resolve(UUID workspaceId, int port) {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    return new InetSocketAddress("127.0.0.1", port);
-  }
+    @Override
+    public InetSocketAddress resolve(UUID workspaceId, int port) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        return new InetSocketAddress("127.0.0.1", port);
+    }
 }
