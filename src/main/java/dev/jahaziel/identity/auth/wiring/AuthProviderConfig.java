@@ -46,22 +46,13 @@ public final class AuthProviderConfig {
     }
 
     /**
-     * Reads the configured order, or derives it from the already-gated registry when no explicit
-     * order is set. An empty registry yields an empty config, which selects the DevConnect
-     * fallback.
+     * Reads only the configured order. With no explicit {@code auth.providers} setting this stays
+     * empty so the existing DevConnect flow remains the fallback; a registered-but-unconfigured
+     * provider must never silently become the active login path.
      */
     public static AuthProviderConfig fromSettings(
             PluginContext context, AuthPluginRegistry registry) {
-        AuthProviderConfig explicit = fromSettings(context);
-        if (!explicit.isEmpty() || registry == null) {
-            return explicit;
-        }
-        List<AuthProviderPlugin> available = registry.all();
-        List<String> names = new ArrayList<String>();
-        for (int index = 0; index < available.size(); index++) {
-            names.add(available.get(index).descriptor().name());
-        }
-        return new AuthProviderConfig(names, context);
+        return fromSettings(context);
     }
 
     /** Returns the enabled providers in preference order. */
