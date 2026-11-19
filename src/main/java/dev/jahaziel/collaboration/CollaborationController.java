@@ -267,7 +267,7 @@ public final class CollaborationController {
         sessions.disconnectController(sessionId, actor);
     }
 
-    @PostMapping("/shares")
+    @PostMapping("/share-links")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, String> createShare(
             @PathVariable UUID id, Principal principal, @RequestBody Map<String, String> body) {
@@ -286,7 +286,7 @@ public final class CollaborationController {
         return result;
     }
 
-    @GetMapping("/shares")
+    @GetMapping("/share-links")
     public List<String> listShares(@PathVariable UUID id, Principal principal) {
         require(id, principal, Roles.VIEWER);
         List<ShareLink> found = shares.list(id.toString());
@@ -297,7 +297,7 @@ public final class CollaborationController {
         return result;
     }
 
-    @DeleteMapping("/shares/{shareId}")
+    @DeleteMapping("/share-links/{shareId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeShare(
             @PathVariable UUID id, @PathVariable String shareId, Principal principal) {
