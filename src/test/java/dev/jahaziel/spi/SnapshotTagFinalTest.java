@@ -11,19 +11,19 @@ import org.junit.jupiter.api.Test;
 
 /** Final gap tests: every operand of the tag guard. */
 class SnapshotTagFinalTest {
-  @Test
-  void rejectsEachBadShape() {
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(null));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("  "));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a..b"));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a/b"));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a\\b"));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(".hidden"));
-    assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("/abs"));
-  }
+    @Test
+    void rejectsEachBadShape() {
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(null));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("  "));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a..b"));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a/b"));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a\\b"));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(".hidden"));
+        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("/abs"));
+    }
 
-  @Test
-  void acceptsPlainTag() {
-    assertEquals("v1", new SnapshotTag("v1").value());
-  }
+    @Test
+    void acceptsPlainTag() {
+        assertEquals("v1", new SnapshotTag("v1").value());
+    }
 }
