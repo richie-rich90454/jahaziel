@@ -8,124 +8,83 @@ import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Discovers listening ports owned by live workspace task/terminal process trees.
  *
- * <p>Read-only: parses {@code /proc/net/tcp} and per-process socket descriptors. Never registers a
- * port, opens a gateway route, or executes a command. Candidate ports are suggestions only; a port
- * must be explicitly registered and preview URLs remain workspace-authorized. On non-Linux hosts it
- * returns no candidates.
+ * <p>Read-only and cross-platform: delegates OS-specific discovery to {@link PortDiscoveries} and
+ * keeps only ports held by processes the workspace registry tracks. Never registers a port, opens a
+ * gateway route, or runs a command from user input. Candidate ports are suggestions only; a port
+ * must be explicitly registered and preview URLs remain workspace-authorized.
  */
 @Service
 public final class PortCandidateServiceImpl implements PortCandidateService {
-    private static final Logger log = LoggerFactory.getLogger(PortCandidateServiceImpl.class);
     private static final int MAX_CANDIDATES = 64;
-    private static final String LISTEN = "0A";
 
     private final WorkspaceProcessRegistry registry;
+    private final PortDiscoveries discoveries;
 
     public PortCandidateServiceImpl(WorkspaceProcessRegistry registry) {
+        this(registry, new PortDiscoveries());
+    }
+
+    PortCandidateServiceImpl(WorkspaceProcessRegistry registry, PortDiscoveries discoveries) {
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.discoveries = Objects.requireNonNull(discoveries, "discoveries");
     }
 
     @Override
     public List<Candidate> candidates(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        Path proc = Path.of("/proc");
-        if (!Files.isDirectory(proc, LinkOption.NOFOLLOW_LINKS)) return List.of();
+        Map<Integer, Set<Source>> byPort = new TreeMap<Integer, Set<Source>>();
 
-        Map<Integer, Set<Source>> byPort = new HashMap<>();
-        Map<String, Integer> inodePort = listenSocketPorts(proc);
-        if (inodePort.isEmpty()) return List.of();
+        Set<WorkspaceProcessRegistry.Kind> kinds = new HashSet<WorkspaceProcessRegistry.Kind>();
+        kinds.add(WorkspaceProcessRegistry.Kind.TASK);
+        kinds.add(WorkspaceProcessRegistry.Kind.TERMINAL);
 
+        List<Long> taskPids = new ArrayList<Long>();
+        List<Long> terminalPids = new ArrayList<Long>();
         for (WorkspaceProcessRegistry.TrackedProcess tracked :
-                registry.trackedProcessTree(
-                        workspaceId,
-                        Set.of(
-                                WorkspaceProcessRegistry.Kind.TASK,
-                                WorkspaceProcessRegistry.Kind.TERMINAL))) {
-            Source source =
-                    tracked.kind() == WorkspaceProcessRegistry.Kind.TASK
-                            ? Source.TASK
-                            : Source.TERMINAL;
-            for (String inode : socketInodes(proc, tracked.processId())) {
-                Integer port = inodePort.get(inode);
-                if (port != null)
-                    byPort.computeIfAbsent(port, ignored -> new LinkedHashSet<>()).add(source);
+                registry.trackedProcessTree(workspaceId, kinds)) {
+            if (tracked.kind() == WorkspaceProcessRegistry.Kind.TASK) {
+                taskPids.add(Long.valueOf(tracked.processId()));
+            } else if (tracked.kind() == WorkspaceProcessRegistry.Kind.TERMINAL) {
+                terminalPids.add(Long.valueOf(tracked.processId()));
             }
         }
+        for (Integer port : discoveries.candidates(taskPids)) {
+            addSource(byPort, port, Source.TASK);
+        }
+        for (Integer port : discoveries.candidates(terminalPids)) {
+            addSource(byPort, port, Source.TERMINAL);
+        }
 
-        return byPort.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .limit(MAX_CANDIDATES)
-                .map(entry -> new Candidate(entry.getKey(), List.copyOf(entry.getValue())))
-                .toList();
-    }
-
-    private static Map<String, Integer> listenSocketPorts(Path proc) {
-        Map<String, Integer> result = new HashMap<>();
-        for (String table : List.of("tcp", "tcp6")) {
-            Path path = proc.resolve("net").resolve(table);
-            List<String> lines;
-            try {
-                lines = Files.readAllLines(path, StandardCharsets.US_ASCII);
-            } catch (IOException failure) {
-                log.debug("cannot read {}", path, failure);
-                continue;
-            }
-            for (String line : lines) {
-                String[] fields = line.trim().split("\\s+");
-                if (fields.length < 10 || !fields[3].equals(LISTEN)) continue;
-                String local = fields[1];
-                int colon = local.lastIndexOf(':');
-                if (colon < 0 || colon + 1 >= local.length()) continue;
-                try {
-                    int port = Integer.parseUnsignedInt(local.substring(colon + 1), 16);
-                    if (port >= 1 && port <= 65535) result.put(fields[9], port);
-                } catch (NumberFormatException ignored) {
-                    // Skip malformed kernel table rows.
-                }
-            }
+        List<Candidate> result = new ArrayList<Candidate>();
+        for (Map.Entry<Integer, Set<Source>> entry : byPort.entrySet()) {
+            if (result.size() >= MAX_CANDIDATES) break;
+            result.add(
+                    new Candidate(
+                            entry.getKey().intValue(), new ArrayList<Source>(entry.getValue())));
         }
         return result;
     }
 
-    private static Set<String> socketInodes(Path proc, long pid) {
-        Path fdDir = proc.resolve(Long.toString(pid)).resolve("fd");
-        Set<String> inodes = new LinkedHashSet<>();
-        List<Path> fds;
-        try (var stream = Files.list(fdDir)) {
-            fds = stream.toList();
-        } catch (IOException failure) {
-            return inodes;
+    private static void addSource(Map<Integer, Set<Source>> byPort, Integer port, Source source) {
+        Set<Source> sources = byPort.get(port);
+        if (sources == null) {
+            sources = new LinkedHashSet<Source>();
+            byPort.put(port, sources);
         }
-        for (Path fd : fds) {
-            try {
-                String target = Files.readSymbolicLink(fd).toString();
-                int open = target.indexOf("socket:[");
-                if (open < 0) continue;
-                int close = target.indexOf(']', open);
-                if (close > open) inodes.add(target.substring(open + 8, close));
-            } catch (IOException | UnsupportedOperationException ignored) {
-                // Descriptor may vanish between listing and read.
-            }
-        }
-        return inodes;
+        sources.add(source);
     }
 }
