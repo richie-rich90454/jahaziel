@@ -33,6 +33,8 @@ import {
     refreshTerminalSessions,
 } from "./terminal";
 import { refreshFiles } from "./files";
+import { installHistoryShortcuts, loadHistory } from "./history";
+import { startWatching, stopWatching } from "./watch";
 
 export async function loadIdentity(): Promise<void> {
     try {
@@ -124,6 +126,8 @@ export async function openWorkspace(workspace: Workspace, navigate = true): Prom
             );
         }
         setPage("workbench");
+        void loadHistory().catch(() => undefined);
+        startWatching();
         refreshGitSafely();
         void refreshDebugSessions().catch((failure) => toast(errorText(failure), "error"));
         await refreshFiles();
@@ -205,6 +209,8 @@ export async function openWorkspace(workspace: Workspace, navigate = true): Prom
         );
     setPage("workbench");
     setPanel("files");
+    void loadHistory().catch(() => undefined);
+    startWatching();
     refreshGitSafely();
     void refreshDebugSessions().catch((failure) => toast(errorText(failure), "error"));
     await refreshFiles();
@@ -244,6 +250,7 @@ export async function toggleWorkspace(): Promise<void> {
 }
 
 export async function backToWorkspaces(navigate = true): Promise<void> {
+    stopWatching();
     if (
         [...runtime.openDocuments.values()].some((opened) => opened.dirty) &&
         !window.confirm("Some files have unsaved changes. Leave this workspace?")
@@ -305,6 +312,7 @@ export function restoreWorkspaceFromLocation(): void {
 }
 
 export async function main(): Promise<void> {
+    installHistoryShortcuts();
     await loadIdentity();
     if (state.user) {
         await Promise.all([loadTemplates(), renderWorkspaces()]);
