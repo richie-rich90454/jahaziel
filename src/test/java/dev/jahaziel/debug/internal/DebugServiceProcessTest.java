@@ -28,6 +28,7 @@ import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -55,6 +56,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 class DebugServiceProcessTest {
     @TempDir Path temporaryDirectory;
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporaryDirectory = temporaryDirectory.toRealPath();
+    }
 
     @Test
     @Timeout(30)
