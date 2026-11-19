@@ -19,15 +19,25 @@ import dev.jahaziel.networking.internal.LinuxPortDiscovery;
 import dev.jahaziel.networking.internal.MacPortDiscovery;
 import dev.jahaziel.networking.internal.WindowsPortDiscovery;
 import dev.jahaziel.ops.GracefulDrainService;
+import dev.jahaziel.ops.OpsLimitFilter;
 import dev.jahaziel.ops.OpsShutdownHook;
+import dev.jahaziel.ops.OpsWebhookListener;
+import dev.jahaziel.ops.OutboundWebhooks;
+import dev.jahaziel.ops.QuotaService;
+import dev.jahaziel.ops.RateLimiter;
+import dev.jahaziel.ops.ScheduledBackupRunner;
+import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.platform.spi.LinuxProcessEnvironment;
 import dev.jahaziel.platform.spi.MacProcessEnvironment;
 import dev.jahaziel.platform.spi.WindowsProcessEnvironment;
 import dev.jahaziel.plugin.PluginContext;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 
 import java.nio.file.Path;
@@ -169,6 +179,47 @@ public class PluginWiringConfig {
     @Bean(initMethod = "register", destroyMethod = "unregister")
     public OpsShutdownHookRegistrar opsShutdownHookRegistrar(OpsShutdownHook hook) {
         return new OpsShutdownHookRegistrar(hook);
+    }
+
+    /** Returns the ops event listener; an empty webhook URL disables emission. */
+    @Bean
+    public OpsWebhookListener opsWebhookListener(
+            OutboundWebhooks hooks,
+            @Value("${jahaziel.ops.webhook-url:}") String url,
+            @Value("${jahaziel.ops.webhook-secret:}") String secret) {
+        return new OpsWebhookListener(hooks, url, secret);
+    }
+
+    /** Returns the automatic backup runner, started and stopped with the context. */
+    @Bean(initMethod = "start", destroyMethod = "stop")
+    public ScheduledBackupRunner scheduledBackupRunner(
+            ScheduledBackupService backups,
+            OpsWebhookListener webhooks,
+            @Value("${jahaziel.storage.root}") String storageRoot,
+            @Value("${jahaziel.ops.backup-interval-ms:86400000}") long intervalMillis) {
+        return new ScheduledBackupRunner(
+                backups, Path.of(storageRoot, "workspaces"), webhooks, intervalMillis);
+    }
+
+    /** Registers quota and rate checks for API calls only; absent services fail open. */
+    @Bean
+    public FilterRegistrationBean<OpsLimitFilter> opsLimitFilter(
+            ObjectProvider<QuotaService> quotas,
+            ObjectProvider<RateLimiter> limiter,
+            @Value("${jahaziel.ops.rate-limit-per-minute:120}") int rateLimit,
+            @Value("${jahaziel.ops.quota-sessions:50}") long sessionLimit) {
+        OpsLimitFilter filter =
+                new OpsLimitFilter(
+                        quotas.getIfAvailable(),
+                        limiter.getIfAvailable(),
+                        rateLimit,
+                        60000L,
+                        sessionLimit);
+        FilterRegistrationBean<OpsLimitFilter> registration =
+                new FilterRegistrationBean<OpsLimitFilter>(filter);
+        registration.addUrlPatterns("/api/v1/*");
+        registration.setOrder(Ordered.LOWEST_PRECEDENCE - 10);
+        return registration;
     }
 
     private static AuthProviderPlugin find(List<AuthProviderPlugin> providers, String name) {
