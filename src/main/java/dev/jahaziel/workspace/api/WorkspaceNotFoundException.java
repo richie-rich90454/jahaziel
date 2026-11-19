@@ -8,20 +8,20 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 
 /** Thrown when a workspace does not exist. */
 public final class WorkspaceNotFoundException extends RuntimeException {
-  private final WorkspaceId workspaceId;
+    private final WorkspaceId workspaceId;
 
-  /**
-   * Creates the exception.
-   *
-   * @param workspaceId the missing workspace identifier
-   */
-  public WorkspaceNotFoundException(WorkspaceId workspaceId) {
-    super("Workspace " + workspaceId + " not found");
-    this.workspaceId = workspaceId;
-  }
+    /**
+     * Creates the exception.
+     *
+     * @param workspaceId the missing workspace identifier
+     */
+    public WorkspaceNotFoundException(WorkspaceId workspaceId) {
+        super("Workspace " + workspaceId + " not found");
+        this.workspaceId = workspaceId;
+    }
 
-  /** Returns the missing workspace identifier. */
-  public WorkspaceId workspaceId() {
-    return workspaceId;
-  }
+    /** Returns the missing workspace identifier. */
+    public WorkspaceId workspaceId() {
+        return workspaceId;
+    }
 }
