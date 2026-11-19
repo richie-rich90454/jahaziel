@@ -75,9 +75,7 @@ final class BasisAuthErrorTest {
     @Test
     void httpParsesOAuthErrorIntoACodedExceptionWithoutKeepingTheBody() {
         BasisOAuthException failure =
-                assertThrows(
-                        BasisOAuthException.class,
-                        new ThrowingGet(url + "/error"));
+                assertThrows(BasisOAuthException.class, new ThrowingGet(url + "/error"));
 
         assertEquals(14401, failure.code());
         assertEquals("invalid_scope", failure.error());
@@ -124,5 +122,4 @@ final class BasisAuthErrorTest {
             http.get(target, Duration.ofSeconds(5));
         }
     }
-
 }
