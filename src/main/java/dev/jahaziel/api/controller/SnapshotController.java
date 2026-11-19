@@ -16,10 +16,9 @@ import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import jakarta.validation.Valid;
-import java.security.Principal;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,110 +29,115 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+import java.util.List;
+import java.util.UUID;
+
 /** User-facing snapshot endpoints. Manual snapshots count against quota. */
 @RestController
 @RequestMapping("/api/v1")
 public class SnapshotController {
-  private final SnapshotService snapshots;
-  private final WorkspaceService workspaces;
-  private final AuthorizationService auth;
-  private final WorkspaceDtoFactory dtos;
+    private final SnapshotService snapshots;
+    private final WorkspaceService workspaces;
+    private final AuthorizationService auth;
+    private final WorkspaceDtoFactory dtos;
 
-  /**
-   * Creates the controller.
-   *
-   * @param snapshots the snapshot service
-   * @param workspaces the workspace lookup for restore responses
-   * @param auth the authorization checks
-   * @param dtos the workspace read-model factory
-   */
-  public SnapshotController(
-      SnapshotService snapshots,
-      WorkspaceService workspaces,
-      AuthorizationService auth,
-      WorkspaceDtoFactory dtos) {
-    this.snapshots = snapshots;
-    this.workspaces = workspaces;
-    this.auth = auth;
-    this.dtos = dtos;
-  }
-
-  /**
-   * Lists a workspace's snapshots newest first.
-   *
-   * @param id the workspace identifier
-   * @param principal the acting user
-   * @return the snapshot DTOs
-   */
-  @GetMapping("/workspaces/{id}/snapshots")
-  public List<SnapshotDto> list(@PathVariable UUID id, Principal principal) {
-    WorkspaceId workspace = require(principal, id, "read");
-    return snapshots.list(workspace).stream().map(SnapshotDto::from).toList();
-  }
-
-  /**
-   * Creates a manual snapshot.
-   *
-   * @param id the workspace identifier
-   * @param request the tag
-   * @param principal the acting user
-   * @return the snapshot DTO
-   */
-  @PostMapping("/workspaces/{id}/snapshots")
-  @ResponseStatus(HttpStatus.CREATED)
-  public SnapshotDto create(
-      @PathVariable UUID id,
-      @Valid @RequestBody CreateSnapshotRequest request,
-      Principal principal) {
-    WorkspaceId workspace = require(principal, id, "write");
-    return SnapshotDto.from(
-        snapshots.create(workspace, request.tag(), SnapshotKind.MANUAL, principal.getName()));
-  }
-
-  /**
-   * Restores a workspace home from a snapshot.
-   *
-   * @param id the workspace identifier
-   * @param snapshotId the snapshot identifier
-   * @param principal the acting user
-   * @return the workspace DTO
-   */
-  @PostMapping("/workspaces/{id}/snapshots/{snapshotId}/restore")
-  public WorkspaceDto restore(
-      @PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
-    WorkspaceId workspace = require(principal, id, "write");
-    snapshots.restore(workspace, new SnapshotId(snapshotId));
-    return dtos.forUser(userId(principal), workspaces.describe(workspace));
-  }
-
-  /**
-   * Deletes a snapshot owned by the workspace.
-   *
-   * @param id the workspace identifier
-   * @param snapshotId the snapshot identifier
-   * @param principal the acting user
-   */
-  @DeleteMapping("/workspaces/{id}/snapshots/{snapshotId}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
-    WorkspaceId workspace = require(principal, id, "write");
-    snapshots.delete(workspace, new SnapshotId(snapshotId));
-  }
-
-  private WorkspaceId require(Principal principal, UUID id, String permission) {
-    UserId user = userId(principal);
-    WorkspaceId workspace = new WorkspaceId(id);
-    if (!auth.isAllowed(user, permission, workspace)) {
-      throw new AccessDeniedException(user, permission);
+    /**
+     * Creates the controller.
+     *
+     * @param snapshots the snapshot service
+     * @param workspaces the workspace lookup for restore responses
+     * @param auth the authorization checks
+     * @param dtos the workspace read-model factory
+     */
+    public SnapshotController(
+            SnapshotService snapshots,
+            WorkspaceService workspaces,
+            AuthorizationService auth,
+            WorkspaceDtoFactory dtos) {
+        this.snapshots = snapshots;
+        this.workspaces = workspaces;
+        this.auth = auth;
+        this.dtos = dtos;
     }
-    return workspace;
-  }
 
-  private static UserId userId(Principal principal) {
-    try {
-      return new UserId(UUID.fromString(principal.getName()));
-    } catch (IllegalArgumentException failure) {
-      throw new IllegalArgumentException("principal is not a user id");
+    /**
+     * Lists a workspace's snapshots newest first.
+     *
+     * @param id the workspace identifier
+     * @param principal the acting user
+     * @return the snapshot DTOs
+     */
+    @GetMapping("/workspaces/{id}/snapshots")
+    public List<SnapshotDto> list(@PathVariable UUID id, Principal principal) {
+        WorkspaceId workspace = require(principal, id, "read");
+        return snapshots.list(workspace).stream().map(SnapshotDto::from).toList();
     }
-  }
+
+    /**
+     * Creates a manual snapshot.
+     *
+     * @param id the workspace identifier
+     * @param request the tag
+     * @param principal the acting user
+     * @return the snapshot DTO
+     */
+    @PostMapping("/workspaces/{id}/snapshots")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SnapshotDto create(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateSnapshotRequest request,
+            Principal principal) {
+        WorkspaceId workspace = require(principal, id, "write");
+        return SnapshotDto.from(
+                snapshots.create(
+                        workspace, request.tag(), SnapshotKind.MANUAL, principal.getName()));
+    }
+
+    /**
+     * Restores a workspace home from a snapshot.
+     *
+     * @param id the workspace identifier
+     * @param snapshotId the snapshot identifier
+     * @param principal the acting user
+     * @return the workspace DTO
+     */
+    @PostMapping("/workspaces/{id}/snapshots/{snapshotId}/restore")
+    public WorkspaceDto restore(
+            @PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
+        WorkspaceId workspace = require(principal, id, "write");
+        snapshots.restore(workspace, new SnapshotId(snapshotId));
+        return dtos.forUser(userId(principal), workspaces.describe(workspace));
+    }
+
+    /**
+     * Deletes a snapshot owned by the workspace.
+     *
+     * @param id the workspace identifier
+     * @param snapshotId the snapshot identifier
+     * @param principal the acting user
+     */
+    @DeleteMapping("/workspaces/{id}/snapshots/{snapshotId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id, @PathVariable UUID snapshotId, Principal principal) {
+        WorkspaceId workspace = require(principal, id, "write");
+        snapshots.delete(workspace, new SnapshotId(snapshotId));
+    }
+
+    private WorkspaceId require(Principal principal, UUID id, String permission) {
+        UserId user = userId(principal);
+        WorkspaceId workspace = new WorkspaceId(id);
+        if (!auth.isAllowed(user, permission, workspace)) {
+            throw new AccessDeniedException(user, permission);
+        }
+        return workspace;
+    }
+
+    private static UserId userId(Principal principal) {
+        try {
+            return new UserId(UUID.fromString(principal.getName()));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException("principal is not a user id");
+        }
+    }
 }
