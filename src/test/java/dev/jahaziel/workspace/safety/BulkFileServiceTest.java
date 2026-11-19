@@ -34,18 +34,26 @@ final class BulkFileServiceTest {
 
         List<String> one = new ArrayList<String>();
         one.add("a.txt");
-        assertEquals(1, service.bulk(workspace, BulkFileService.COPY, one, "copy.txt", "user").getApplied());
+        assertEquals(
+                1,
+                service.bulk(workspace, BulkFileService.COPY, one, "copy.txt", "user")
+                        .getApplied());
         assertEquals("a", SafetyFixtures.read(home.resolve("copy.txt")));
 
         List<String> move = new ArrayList<String>();
         move.add("b.txt");
-        assertEquals(1, service.bulk(workspace, BulkFileService.MOVE, move, "moved.txt", "user").getApplied());
+        assertEquals(
+                1,
+                service.bulk(workspace, BulkFileService.MOVE, move, "moved.txt", "user")
+                        .getApplied());
         assertTrue(!Files.exists(home.resolve("b.txt")));
         assertEquals("b", SafetyFixtures.read(home.resolve("moved.txt")));
 
         List<String> remove = new ArrayList<String>();
         remove.add("copy.txt");
-        assertEquals(1, service.bulk(workspace, BulkFileService.DELETE, remove, null, "user").getApplied());
+        assertEquals(
+                1,
+                service.bulk(workspace, BulkFileService.DELETE, remove, null, "user").getApplied());
         assertTrue(!Files.exists(home.resolve("copy.txt")));
     }
 
