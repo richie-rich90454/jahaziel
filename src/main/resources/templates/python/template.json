@@ -6,17 +6,49 @@
   "ports": [8000],
   "languagePacks": ["python"],
   "setupSteps": [
-    { "id": "venv", "command": ["python3", "-m", "venv", ".venv"] },
-    { "id": "install", "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] }
+    {
+      "id": "venv",
+      "command": ["python3", "-m", "venv", ".venv"],
+      "os": {
+        "windows": { "command": ["python", "-m", "venv", ".venv"] },
+        "darwin": { "command": ["python3", "-m", "venv", ".venv"] }
+      }
+    },
+    {
+      "id": "install",
+      "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"],
+      "os": {
+        "windows": { "command": [".venv\\Scripts\\python.exe", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] },
+        "darwin": { "command": [".venv/bin/python", "-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt"] }
+      }
+    }
   ],
   "runTasks": [
-    { "id": "example", "label": "Run example", "command": [".venv/bin/python", "main.py"] },
+    {
+      "id": "example",
+      "label": "Run example",
+      "command": [".venv/bin/python", "main.py"],
+      "os": {
+        "windows": { "command": [".venv\\Scripts\\python.exe", "main.py"] },
+        "darwin": { "command": [".venv/bin/python", "main.py"] }
+      }
+    },
     {
       "id": "preview",
       "label": "Start Python preview server",
       "command": [".venv/bin/python", "-u", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}", "dev_server.py"],
       "port": 8000,
-      "debug": { "language": "python", "executable": "python3", "program": "dev_server.py" }
+      "debug": { "language": "python", "executable": "python3", "program": "dev_server.py" },
+      "os": {
+        "windows": {
+          "command": [".venv\\Scripts\\python.exe", "-u", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}", "dev_server.py"],
+          "debug": { "language": "python", "executable": "python", "program": "dev_server.py" }
+        },
+        "darwin": {
+          "command": [".venv/bin/python", "-u", "-m", "debugpy", "--listen", "127.0.0.1:${JAHZIEL_DEBUG_PORT}", "dev_server.py"],
+          "debug": { "language": "python", "executable": "python3", "program": "dev_server.py" }
+        }
+      }
     }
   ],
   "starterFiles": {
