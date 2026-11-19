@@ -4,10 +4,18 @@
  */
 package dev.jahaziel.identity.auth.local;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import dev.jahaziel.identity.auth.AuthCapability;
 import dev.jahaziel.identity.auth.AuthIdentity;
 import dev.jahaziel.identity.auth.LocalPasswordPlugin;
 import dev.jahaziel.plugin.PluginContext;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,13 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-
 final class LocalPasswordPluginTest {
     private static final long FIXED_EPOCH = 1700000000L;
     private static final String USERNAME = "admin";
@@ -40,8 +41,7 @@ final class LocalPasswordPluginTest {
     private static final String EMAIL = "admin@example.org";
     private static final String REDIRECT = "https://app.example.org/callback";
 
-    @TempDir
-    Path temp;
+    @TempDir Path temp;
 
     private PluginContext context;
     private LocalPasswordPlugin plugin;
@@ -54,7 +54,8 @@ final class LocalPasswordPluginTest {
         settings.put("local.password", PASSWORD);
         settings.put("local.email", EMAIL);
         context = new PluginContext(temp, settings);
-        context.putService(LocalPasswordPlugin.SERVICE_CLOCK,
+        context.putService(
+                LocalPasswordPlugin.SERVICE_CLOCK,
                 Clock.fixed(Instant.ofEpochSecond(FIXED_EPOCH), ZoneOffset.UTC));
         plugin = new LocalPasswordPlugin();
         plugin.initialize(context);
@@ -74,7 +75,9 @@ final class LocalPasswordPluginTest {
     void startLoginReturnsLocalPathAndPersistsPendingState() throws IOException {
         String path = plugin.startLogin(context, "state-one", "nonce-one", REDIRECT);
         assertEquals("/login/local", path);
-        String pending = new String(Files.readAllBytes(temp.resolve("local").resolve("pending.json")), "UTF-8");
+        String pending =
+                new String(
+                        Files.readAllBytes(temp.resolve("local").resolve("pending.json")), "UTF-8");
         assertTrue(pending.contains("state-one"));
     }
 
@@ -127,7 +130,8 @@ final class LocalPasswordPluginTest {
         assertTrue(assured.mfaAssured());
         assertEquals("complete", assured.claims().get("mfa_enrollment"));
         assertEquals("true", assured.claims().get("admin"));
-        assertTrue(plugin.currentIdentity(context, assured.claims().get("session_id")).mfaAssured());
+        assertTrue(
+                plugin.currentIdentity(context, assured.claims().get("session_id")).mfaAssured());
 
         LocalStore store = (LocalStore) context.service(LocalPasswordPlugin.SERVICE_STORE);
         LocalStore.User user = store.getUser(USERNAME);
@@ -161,20 +165,25 @@ final class LocalPasswordPluginTest {
 
     @Test
     void totpSecretIsEncryptedAtRestAndAllFilesStayUnderDataDir() throws IOException {
-        String rawSecret = java.util.Base64.getEncoder().encodeToString(plugin.totpSecret(USERNAME));
-        String stored = new String(Files.readAllBytes(temp.resolve("local").resolve("users.json")), "UTF-8");
+        String rawSecret =
+                java.util.Base64.getEncoder().encodeToString(plugin.totpSecret(USERNAME));
+        String stored =
+                new String(
+                        Files.readAllBytes(temp.resolve("local").resolve("users.json")), "UTF-8");
         assertFalse(stored.contains(rawSecret));
 
         login(PASSWORD, Totp.code(plugin.totpSecret(USERNAME), FIXED_EPOCH));
 
         final List<String> relative = new ArrayList<String>();
-        Files.walkFileTree(temp, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                relative.add(temp.relativize(file).toString().replace('\\', '/'));
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        Files.walkFileTree(
+                temp,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        relative.add(temp.relativize(file).toString().replace('\\', '/'));
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
         assertTrue(relative.contains("local/users.json"));
         assertTrue(relative.contains("local/pending.json"));
         assertTrue(relative.contains("local/sessions.json"));
