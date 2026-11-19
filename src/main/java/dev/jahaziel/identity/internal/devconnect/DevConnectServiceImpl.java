@@ -37,9 +37,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Database-backed DevConnect login. Transactional, so Spring proxies it. */
 public class DevConnectServiceImpl implements DevConnectService {
+    private static final Duration DEFAULT_PLUGIN_TTL = Duration.ofMinutes(15L);
     private static final String ROLE_USER = "ROLE_USER";
     private static final String GRANTOR = "devconnect";
     private static final String ACTIVE = "active";
@@ -55,6 +57,9 @@ public class DevConnectServiceImpl implements DevConnectService {
     private final Clock clock;
     private final AuthProviderDispatcher dispatcher;
     private final UserIdentityStore identities;
+    private final Duration pluginIdentityTtl;
+    private final Map<String, TimedIdentity> pluginIdentities =
+            new ConcurrentHashMap<String, TimedIdentity>();
 
     /**
      * Creates the service without plugin dispatch, preserving the DevConnect-only entry point.
@@ -78,6 +83,46 @@ public class DevConnectServiceImpl implements DevConnectService {
             JwtService tokens,
             Clock clock) {
         this(props, client, pending, sessions, users, roles, tokens, clock, null, null);
+    }
+
+    /**
+     * Creates the service with plugin dispatch and a configured plugin identity lifetime.
+     *
+     * @param props the DevConnect settings
+     * @param client the IdP client
+     * @param pending the half-finished login store
+     * @param sessions the browser session store
+     * @param users the account store
+     * @param roles the role-grant store
+     * @param tokens the API token issuer
+     * @param clock the clock
+     * @param dispatcher the provider dispatcher, or null
+     * @param identities the identity link store, or null
+     * @param pluginIdentityTtl how long an unexpiring plugin identity may back a browser session
+     */
+    public DevConnectServiceImpl(
+            DevConnectProperties props,
+            DevConnectClient client,
+            OidcPendingRepository pending,
+            BffSessionRepository sessions,
+            AppUserRepository users,
+            UserRoleRepository roles,
+            JwtService tokens,
+            Clock clock,
+            AuthProviderDispatcher dispatcher,
+            UserIdentityStore identities,
+            Duration pluginIdentityTtl) {
+        this.props = Objects.requireNonNull(props, "props");
+        this.client = Objects.requireNonNull(client, "client");
+        this.pending = Objects.requireNonNull(pending, "pending");
+        this.sessions = Objects.requireNonNull(sessions, "sessions");
+        this.users = Objects.requireNonNull(users, "users");
+        this.roles = Objects.requireNonNull(roles, "roles");
+        this.tokens = Objects.requireNonNull(tokens, "tokens");
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.dispatcher = dispatcher;
+        this.identities = identities;
+        this.pluginIdentityTtl = Objects.requireNonNull(pluginIdentityTtl, "pluginIdentityTtl");
     }
 
     /**
@@ -115,6 +160,7 @@ public class DevConnectServiceImpl implements DevConnectService {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.dispatcher = dispatcher;
         this.identities = identities;
+        this.pluginIdentityTtl = DEFAULT_PLUGIN_TTL;
     }
 
     @Override
@@ -215,31 +261,63 @@ public class DevConnectServiceImpl implements DevConnectService {
             return Optional.empty();
         }
         Optional<BffSessionEntity> found = sessions.findById(sessionId);
-        if (found.isPresent() && !found.get().getExpiresAt().isBefore(clock.instant())) {
-            UUID userId = found.get().getUserId();
+        if (found.isPresent()) {
+            BffSessionEntity session = found.get();
+            if (session.getExpiresAt().isBefore(clock.instant())) {
+                return Optional.empty();
+            }
+            UUID userId = session.getUserId();
             Optional<AppUserEntity> user = users.findById(userId);
             if (user.isPresent() && ACTIVE.equals(user.get().getStatus())) {
                 return Optional.of(new UserId(userId));
             }
+            return Optional.empty();
         }
-        if (dispatcher != null && dispatcher.handles() && identities != null) {
-            AuthIdentity identity = dispatcher.currentIdentity(sessionId);
-            if (identity != null) {
-                UUID linked = identities.findUserId(identity.provider(), identity.subject());
-                if (linked != null) {
-                    Optional<AppUserEntity> user = users.findById(linked);
-                    if (user.isPresent() && ACTIVE.equals(user.get().getStatus())) {
-                        return Optional.of(new UserId(linked));
-                    }
+        // A missing BFF row is the only case where a provider session may back a browser session.
+        AuthIdentity identity = freshPluginIdentity(sessionId);
+        if (identity != null && identities != null) {
+            UUID linked = identities.findUserId(identity.provider(), identity.subject());
+            if (linked != null) {
+                Optional<AppUserEntity> user = users.findById(linked);
+                if (user.isPresent() && ACTIVE.equals(user.get().getStatus())) {
+                    return Optional.of(new UserId(linked));
                 }
             }
         }
         return Optional.empty();
     }
 
+    /**
+     * Plugin stores never expire their sessions, so the first observation starts a bounded window.
+     * The window is recorded per session id and never refreshed by later calls.
+     */
+    private AuthIdentity freshPluginIdentity(String sessionId) {
+        if (dispatcher == null || !dispatcher.handles()) {
+            return null;
+        }
+        Instant now = clock.instant();
+        TimedIdentity cached = pluginIdentities.get(sessionId);
+        if (cached != null) {
+            if (!cached.expiresAt().isAfter(now)) {
+                pluginIdentities.remove(sessionId);
+                return null;
+            }
+            return cached.identity();
+        }
+        AuthIdentity identity = dispatcher.currentIdentity(sessionId);
+        if (identity == null) {
+            return null;
+        }
+        pluginIdentities.put(sessionId, new TimedIdentity(identity, now, pluginIdentityTtl));
+        return identity;
+    }
+
     @Override
     @Transactional
     public void logout(String sessionId) {
+        if (sessionId != null) {
+            pluginIdentities.remove(sessionId);
+        }
         if (dispatcher != null) {
             dispatcher.endSession(sessionId);
         }
@@ -261,6 +339,7 @@ public class DevConnectServiceImpl implements DevConnectService {
             throw new LoginRejectedException("identity linking is unavailable");
         }
         AppUserEntity user = provisionLinked(identity);
+        applyMfaStatus(user, identity.mfaAssured() || localTotpAssured(identity));
         applyPluginAdminBootstrap(user, identity);
         Instant now = clock.instant();
         String sessionId = identity.claims().get("session_id");
@@ -282,6 +361,38 @@ public class DevConnectServiceImpl implements DevConnectService {
                         Collections.emptyList(),
                         props.getTokenTtl());
         return new LoginResult(user.getUserId(), sessionId, apiToken);
+    }
+
+    /**
+     * Completes a non-redirect (credential) login with an identity the provider already verified.
+     */
+    public LoginResult completeCredentialLogin(AuthIdentity identity) {
+        if (dispatcher == null || !dispatcher.handles() || identity == null) {
+            throw new LoginRejectedException("no credential identity to complete");
+        }
+        return completePluginLogin(identity);
+    }
+
+    /** Attaches a verified second identity to the signed-in account; email is never a join key. */
+    public void linkCredentialIdentity(UUID userId, AuthIdentity identity) {
+        if (identities == null || userId == null || identity == null) {
+            throw new LoginRejectedException("identity linking is unavailable");
+        }
+        Optional<AppUserEntity> user = users.findById(userId);
+        if (!user.isPresent() || !ACTIVE.equals(user.get().getStatus())) {
+            throw new LoginRejectedException("account is not active");
+        }
+        UUID owner = identities.findUserId(identity.provider(), identity.subject());
+        if (owner != null && !owner.equals(userId)) {
+            throw new LoginRejectedException("identity is already linked to another user");
+        }
+        identities.linkToExistingUser(
+                identity.provider(),
+                identity.subject(),
+                userId,
+                identity.email(),
+                identity.displayName(),
+                clock.instant());
     }
 
     /** Rotates the provider tokens before handing the browser an API token. */
@@ -375,7 +486,12 @@ public class DevConnectServiceImpl implements DevConnectService {
             role.setGrantedBy("admin-bootstrap");
             roles.save(role);
         }
-        boolean mfaAssured = identity.mfaAssured() || localTotpAssured(identity);
+    }
+
+    /**
+     * Persists the latest login's assurance for every plugin, so a weaker re-login fails closed.
+     */
+    private void applyMfaStatus(AppUserEntity user, boolean mfaAssured) {
         if (mfaAssured != user.isMfaEnabled()) {
             user.setMfaEnabled(mfaAssured);
             users.save(user);
@@ -507,6 +623,27 @@ public class DevConnectServiceImpl implements DevConnectService {
         if (!ACTIVE.equals(user.getStatus())) {
             throw new LoginRejectedException(
                     "account is " + user.getStatus() + "; an operator must re-enable it");
+        }
+    }
+
+    /** An AuthIdentity plus the time it was first seen, so plugin sessions cannot live forever. */
+    private static final class TimedIdentity {
+        private final AuthIdentity identity;
+        private final Instant issuedAt;
+        private final Instant expiresAt;
+
+        private TimedIdentity(AuthIdentity identity, Instant issuedAt, Duration lifetime) {
+            this.identity = identity;
+            this.issuedAt = issuedAt;
+            this.expiresAt = issuedAt.plus(lifetime);
+        }
+
+        private AuthIdentity identity() {
+            return identity;
+        }
+
+        private Instant expiresAt() {
+            return expiresAt;
         }
     }
 }
