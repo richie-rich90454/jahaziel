@@ -15,6 +15,7 @@ import dev.jahaziel.workspace.domain.WorkspaceState;
 import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceAclEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,187 +25,188 @@ import java.util.UUID;
  * boundary, not in the domain.
  */
 public final class WorkspaceMapper {
-  private WorkspaceMapper() {}
+    private WorkspaceMapper() {}
 
-  /**
-   * Maps a workspace to its row.
-   *
-   * @param workspace the workspace
-   * @param homePath the home folder path on the host
-   * @param jailPath the jail path on the host
-   * @return the row
-   */
-  public static WorkspaceEntity toEntity(Workspace workspace, String homePath, String jailPath) {
-    WorkspaceEntity row = new WorkspaceEntity();
-    row.setWorkspaceId(workspace.id().value());
-    row.setOwnerUserId(workspace.owner().value());
-    row.setName(workspace.name());
-    row.setState(stateToString(workspace.state()));
-    row.setStateReason(stateReasonOf(workspace.state()));
-    row.setStateChangedAt(Instant.now());
-    row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
-    row.setInodeQuota(workspace.quota().inodeLimit());
-    row.setCreatedAt(Instant.now());
-    return row;
-  }
+    /**
+     * Maps a workspace to its row.
+     *
+     * @param workspace the workspace
+     * @param homePath the home folder path on the host
+     * @param jailPath the jail path on the host
+     * @return the row
+     */
+    public static WorkspaceEntity toEntity(Workspace workspace, String homePath, String jailPath) {
+        WorkspaceEntity row = new WorkspaceEntity();
+        row.setWorkspaceId(workspace.id().value());
+        row.setOwnerUserId(workspace.owner().value());
+        row.setName(workspace.name());
+        row.setState(stateToString(workspace.state()));
+        row.setStateReason(stateReasonOf(workspace.state()));
+        row.setStateChangedAt(Instant.now());
+        row.setLogicalQuotaBytes(workspace.quota().logicalBytes());
+        row.setInodeQuota(workspace.quota().inodeLimit());
+        row.setCreatedAt(Instant.now());
+        return row;
+    }
 
-  /**
-   * Maps a machine to its row.
-   *
-   * @param machine the machine
-   * @param workspaceId the workspace
-   * @param nodeId the hosting node
-   * @param homePath the home folder path on the host
-   * @param jailPath the jail path on the host
-   * @return the row
-   */
-  public static VirtualMachineEntity toMachineEntity(
-      VirtualMachine machine,
-      WorkspaceId workspaceId,
-      String nodeId,
-      String homePath,
-      String jailPath) {
-    VirtualMachineEntity row = new VirtualMachineEntity();
-    row.setVmId(machine.id().value());
-    row.setWorkspaceId(workspaceId.value());
-    row.setNodeId(nodeId);
-    row.setState("stopped");
-    row.setVcpuCount(machine.config().vcpuCount());
-    row.setMemoryMib(machine.config().memoryMib());
-    row.setHomePath(homePath);
-    row.setJailPath(jailPath);
-    row.setCreatedAt(Instant.now());
-    return row;
-  }
+    /**
+     * Maps a machine to its row.
+     *
+     * @param machine the machine
+     * @param workspaceId the workspace
+     * @param nodeId the hosting node
+     * @param homePath the home folder path on the host
+     * @param jailPath the jail path on the host
+     * @return the row
+     */
+    public static VirtualMachineEntity toMachineEntity(
+            VirtualMachine machine,
+            WorkspaceId workspaceId,
+            String nodeId,
+            String homePath,
+            String jailPath) {
+        VirtualMachineEntity row = new VirtualMachineEntity();
+        row.setVmId(machine.id().value());
+        row.setWorkspaceId(workspaceId.value());
+        row.setNodeId(nodeId);
+        row.setState("stopped");
+        row.setVcpuCount(machine.config().vcpuCount());
+        row.setMemoryMib(machine.config().memoryMib());
+        row.setHomePath(homePath);
+        row.setJailPath(jailPath);
+        row.setCreatedAt(Instant.now());
+        return row;
+    }
 
-  /**
-   * Rebuilds a workspace from its rows. A stored failure reason survives the round trip; rows
-   * written before reasons were stored fall back to recording that it was not recorded.
-   *
-   * @param row the workspace row
-   * @param aclRows the grant rows
-   * @param machineRow the machine row
-   * @param snapshotIds the snapshot identifiers
-   * @return the workspace
-   */
-  public static Workspace toDomain(
-      WorkspaceEntity row,
-      List<WorkspaceAclEntity> aclRows,
-      VirtualMachineEntity machineRow,
-      List<UUID> snapshotIds) {
-    VirtualMachine machine =
-        new VirtualMachine(
-            new VirtualMachineId(machineRow.getVmId()),
-            new WorkspaceId(row.getWorkspaceId()),
-            new VirtualMachineConfiguration(machineRow.getVcpuCount(), machineRow.getMemoryMib()));
-    Workspace workspace =
-        new Workspace(
-            new WorkspaceId(row.getWorkspaceId()),
-            new UserId(row.getOwnerUserId()),
-            row.getName(),
-            new WorkspaceQuota(row.getLogicalQuotaBytes(), row.getInodeQuota()),
-            machine);
-    for (WorkspaceAclEntity acl : aclRows) {
-      workspace.grant(acl.getId().getGranteeUserId(), acl.getId().getPermission());
+    /**
+     * Rebuilds a workspace from its rows. A stored failure reason survives the round trip; rows
+     * written before reasons were stored fall back to recording that it was not recorded.
+     *
+     * @param row the workspace row
+     * @param aclRows the grant rows
+     * @param machineRow the machine row
+     * @param snapshotIds the snapshot identifiers
+     * @return the workspace
+     */
+    public static Workspace toDomain(
+            WorkspaceEntity row,
+            List<WorkspaceAclEntity> aclRows,
+            VirtualMachineEntity machineRow,
+            List<UUID> snapshotIds) {
+        VirtualMachine machine =
+                new VirtualMachine(
+                        new VirtualMachineId(machineRow.getVmId()),
+                        new WorkspaceId(row.getWorkspaceId()),
+                        new VirtualMachineConfiguration(
+                                machineRow.getVcpuCount(), machineRow.getMemoryMib()));
+        Workspace workspace =
+                new Workspace(
+                        new WorkspaceId(row.getWorkspaceId()),
+                        new UserId(row.getOwnerUserId()),
+                        row.getName(),
+                        new WorkspaceQuota(row.getLogicalQuotaBytes(), row.getInodeQuota()),
+                        machine);
+        for (WorkspaceAclEntity acl : aclRows) {
+            workspace.grant(acl.getId().getGranteeUserId(), acl.getId().getPermission());
+        }
+        for (UUID snapshotId : snapshotIds) {
+            workspace.recordSnapshot(snapshotId);
+        }
+        replay(workspace, row.getState(), row.getStateChangedAt(), row.getStateReason());
+        return workspace;
     }
-    for (UUID snapshotId : snapshotIds) {
-      workspace.recordSnapshot(snapshotId);
-    }
-    replay(workspace, row.getState(), row.getStateChangedAt(), row.getStateReason());
-    return workspace;
-  }
 
-  /**
-   * Returns the storable failure reason for a state: the reason while failed, null otherwise, so
-   * leaving failed clears the stored reason.
-   *
-   * @param state the state
-   * @return the reason or null
-   */
-  public static String stateReasonOf(WorkspaceState state) {
-    if (state instanceof WorkspaceState.Failed failed) {
-      return failed.reason();
+    /**
+     * Returns the storable failure reason for a state: the reason while failed, null otherwise, so
+     * leaving failed clears the stored reason.
+     *
+     * @param state the state
+     * @return the reason or null
+     */
+    public static String stateReasonOf(WorkspaceState state) {
+        if (state instanceof WorkspaceState.Failed failed) {
+            return failed.reason();
+        }
+        return null;
     }
-    return null;
-  }
 
-  /**
-   * Maps a state to its stored form.
-   *
-   * @param state the state
-   * @return the lowercase stored form
-   */
-  public static String stateToString(WorkspaceState state) {
-    if (state instanceof WorkspaceState.Requested) {
-      return "requested";
+    /**
+     * Maps a state to its stored form.
+     *
+     * @param state the state
+     * @return the lowercase stored form
+     */
+    public static String stateToString(WorkspaceState state) {
+        if (state instanceof WorkspaceState.Requested) {
+            return "requested";
+        }
+        if (state instanceof WorkspaceState.Preparing) {
+            return "preparing";
+        }
+        if (state instanceof WorkspaceState.Booting) {
+            return "booting";
+        }
+        if (state instanceof WorkspaceState.Ready) {
+            return "ready";
+        }
+        if (state instanceof WorkspaceState.Active) {
+            return "active";
+        }
+        if (state instanceof WorkspaceState.Idle) {
+            return "idle";
+        }
+        if (state instanceof WorkspaceState.Suspended) {
+            return "suspended";
+        }
+        if (state instanceof WorkspaceState.Destroyed) {
+            return "destroyed";
+        }
+        if (state instanceof WorkspaceState.Failed) {
+            return "failed";
+        }
+        throw new IllegalArgumentException("Unknown state " + state);
     }
-    if (state instanceof WorkspaceState.Preparing) {
-      return "preparing";
-    }
-    if (state instanceof WorkspaceState.Booting) {
-      return "booting";
-    }
-    if (state instanceof WorkspaceState.Ready) {
-      return "ready";
-    }
-    if (state instanceof WorkspaceState.Active) {
-      return "active";
-    }
-    if (state instanceof WorkspaceState.Idle) {
-      return "idle";
-    }
-    if (state instanceof WorkspaceState.Suspended) {
-      return "suspended";
-    }
-    if (state instanceof WorkspaceState.Destroyed) {
-      return "destroyed";
-    }
-    if (state instanceof WorkspaceState.Failed) {
-      return "failed";
-    }
-    throw new IllegalArgumentException("Unknown state " + state);
-  }
 
-  private static void replay(Workspace workspace, String state, Instant at, String reason) {
-    switch (state) {
-      case "requested" -> {}
-      case "preparing" -> workspace.prepare();
-      case "booting" -> {
-        workspace.prepare();
-        workspace.boot();
-      }
-      case "ready" -> {
+    private static void replay(Workspace workspace, String state, Instant at, String reason) {
+        switch (state) {
+            case "requested" -> {}
+            case "preparing" -> workspace.prepare();
+            case "booting" -> {
+                workspace.prepare();
+                workspace.boot();
+            }
+            case "ready" -> {
+                workspace.prepare();
+                workspace.boot();
+                workspace.markReady();
+            }
+            case "active" -> start(workspace);
+            case "idle" -> {
+                start(workspace);
+                workspace.markIdle(at);
+            }
+            case "suspended" -> {
+                start(workspace);
+                workspace.suspend();
+            }
+            case "destroyed" -> {
+                start(workspace);
+                workspace.destroy();
+            }
+            case "failed" -> {
+                start(workspace);
+                workspace.fail(reason == null ? "not recorded" : reason);
+            }
+            default ->
+                    throw new IllegalStateException(
+                            "Workspace " + workspace.id() + " has unknown state " + state);
+        }
+    }
+
+    private static void start(Workspace workspace) {
         workspace.prepare();
         workspace.boot();
         workspace.markReady();
-      }
-      case "active" -> start(workspace);
-      case "idle" -> {
-        start(workspace);
-        workspace.markIdle(at);
-      }
-      case "suspended" -> {
-        start(workspace);
-        workspace.suspend();
-      }
-      case "destroyed" -> {
-        start(workspace);
-        workspace.destroy();
-      }
-      case "failed" -> {
-        start(workspace);
-        workspace.fail(reason == null ? "not recorded" : reason);
-      }
-      default ->
-          throw new IllegalStateException(
-              "Workspace " + workspace.id() + " has unknown state " + state);
+        workspace.start();
     }
-  }
-
-  private static void start(Workspace workspace) {
-    workspace.prepare();
-    workspace.boot();
-    workspace.markReady();
-    workspace.start();
-  }
 }
