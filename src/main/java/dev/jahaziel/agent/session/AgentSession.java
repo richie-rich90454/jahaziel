@@ -15,8 +15,7 @@ public final class AgentSession {
     private String createdAt;
     private String updatedAt;
 
-    public AgentSession() {
-    }
+    public AgentSession() {}
 
     public String getId() {
         return id;
