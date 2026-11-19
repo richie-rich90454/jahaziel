@@ -7,6 +7,8 @@ package dev.jahaziel.api.controller;
 import dev.jahaziel.api.dto.UserDto;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.UserService;
+import dev.jahaziel.identity.auth.credential.CredentialAuthService;
+import dev.jahaziel.identity.auth.credential.CredentialSubmission;
 import dev.jahaziel.identity.domain.UserId;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,26 +41,35 @@ public class DevConnectController {
 
     private final DevConnectService devconnect;
     private final UserService users;
+    private final CredentialAuthService credentials;
     private final boolean demo;
 
     /**
-     * Creates the controller.
+     * Creates the controller without credential routing.
      *
      * @param devconnect the login service
      * @param users the user lookup
      */
     public DevConnectController(DevConnectService devconnect, UserService users) {
-        this(devconnect, users, false);
+        this(devconnect, users, null, false);
     }
 
     /** Creates the controller with the demo-mode sign-in behavior. */
+    public DevConnectController(
+            DevConnectService devconnect, UserService users, boolean demo) {
+        this(devconnect, users, null, demo);
+    }
+
+    /** Creates the controller with credential routing for non-redirect providers. */
     @Autowired
     public DevConnectController(
             DevConnectService devconnect,
             UserService users,
+            CredentialAuthService credentials,
             @Value("${jahaziel.demo:false}") boolean demo) {
         this.devconnect = devconnect;
         this.users = users;
+        this.credentials = credentials;
         this.demo = demo;
     }
 
@@ -88,14 +100,75 @@ public class DevConnectController {
         if (error != null) {
             return redirect(FAILURE_REDIRECT);
         }
-        DevConnectService.LoginResult result = devconnect.completeLogin(state, code);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .header(
-                        HttpHeaders.SET_COOKIE,
-                        sessionCookie(result.sessionId()).toString(),
-                        tokenCookie(result.apiToken()).toString())
-                .location(URI.create(SUCCESS_REDIRECT))
-                .build();
+        return withCookies(devconnect.completeLogin(state, code));
+    }
+
+    /**
+     * Starts a passkey ceremony. The returned options carry the state the browser must submit back.
+     *
+     * @return the WebAuthn options document
+     */
+    @GetMapping("/api/auth/passkey/options")
+    public ResponseEntity<String> passkeyOptions() {
+        return ResponseEntity.ok(credentials.passkeyOptions());
+    }
+
+    /**
+     * Completes a local username, password, and optional TOTP login.
+     *
+     * @param submission the explicit credential fields
+     * @return the session and token cookies
+     */
+    @PostMapping("/api/auth/local")
+    public ResponseEntity<Void> local(@RequestBody CredentialSubmission submission) {
+        return withCookies(credentials.local(submission));
+    }
+
+    /**
+     * Completes a passkey registration or assertion.
+     *
+     * @param submission the explicit WebAuthn response fields
+     * @return the session and token cookies
+     */
+    @PostMapping("/api/auth/passkey")
+    public ResponseEntity<Void> passkey(@RequestBody CredentialSubmission submission) {
+        return withCookies(credentials.passkey(submission));
+    }
+
+    /**
+     * Completes an LDAP bind login.
+     *
+     * @param submission the explicit bind credentials
+     * @return the session and token cookies
+     */
+    @PostMapping("/api/auth/ldap")
+    public ResponseEntity<Void> ldap(@RequestBody CredentialSubmission submission) {
+        return withCookies(credentials.ldap(submission));
+    }
+
+    /**
+     * Exchanges an issued API token for a browser session.
+     *
+     * @param submission the explicit token field
+     * @return the session and token cookies
+     */
+    @PostMapping("/api/auth/token")
+    public ResponseEntity<Void> token(@RequestBody CredentialSubmission submission) {
+        return withCookies(credentials.token(submission));
+    }
+
+    /**
+     * Attaches a second verified identity to the signed-in account. Never joins on email.
+     *
+     * @param submission the credential fields plus the provider to verify
+     * @param principal the signed-in user
+     * @return an empty response
+     */
+    @PostMapping("/api/auth/link")
+    public ResponseEntity<Void> link(
+            @RequestBody CredentialSubmission submission, Principal principal) {
+        credentials.link(userId(principal).value(), submission);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -132,6 +205,16 @@ public class DevConnectController {
                         HttpHeaders.SET_COOKIE,
                         cleared(DevConnectService.SESSION_COOKIE).toString(),
                         cleared(DevConnectService.TOKEN_COOKIE).toString())
+                .build();
+    }
+
+    private ResponseEntity<Void> withCookies(DevConnectService.LoginResult result) {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(
+                        HttpHeaders.SET_COOKIE,
+                        sessionCookie(result.sessionId()).toString(),
+                        tokenCookie(result.apiToken()).toString())
+                .location(URI.create(SUCCESS_REDIRECT))
                 .build();
     }
 
