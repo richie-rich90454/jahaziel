@@ -5,6 +5,7 @@
 package dev.jahaziel.config;
 
 import dev.jahaziel.ops.OpsShutdownHook;
+
 import java.util.Objects;
 
 /** Attaches and detaches the graceful-drain hook with the JVM lifecycle. */
