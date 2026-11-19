@@ -7,29 +7,30 @@ package dev.jahaziel.networking.internal;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import org.junit.jupiter.api.Test;
 
 class LoopbackPortStatusProbeTest {
-  private final LoopbackPortStatusProbe probe = new LoopbackPortStatusProbe();
+    private final LoopbackPortStatusProbe probe = new LoopbackPortStatusProbe();
 
-  @Test
-  void reportsListeningLoopbackPort() throws IOException {
-    try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
-      assertTrue(probe.isListening(server.getLocalPort()));
+    @Test
+    void reportsListeningLoopbackPort() throws IOException {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            assertTrue(probe.isListening(server.getLocalPort()));
+        }
     }
-  }
 
-  @Test
-  void reportsClosedAndInvalidPortsAsNotListening() throws IOException {
-    int port;
-    try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
-      port = server.getLocalPort();
+    @Test
+    void reportsClosedAndInvalidPortsAsNotListening() throws IOException {
+        int port;
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            port = server.getLocalPort();
+        }
+        assertFalse(probe.isListening(port));
+        assertFalse(probe.isListening(0));
+        assertFalse(probe.isListening(65536));
     }
-    assertFalse(probe.isListening(port));
-    assertFalse(probe.isListening(0));
-    assertFalse(probe.isListening(65536));
-  }
 }
