@@ -4,6 +4,11 @@
  */
 package dev.jahaziel.identity.auth;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
 
@@ -15,11 +20,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class AuthPluginRegistryTest {
     @Test
@@ -58,7 +58,8 @@ final class AuthPluginRegistryTest {
             }
 
             @Override
-            public AuthIdentity handleCallback(PluginContext context, Map<String, String> parameters) {
+            public AuthIdentity handleCallback(
+                    PluginContext context, Map<String, String> parameters) {
                 return identity(name);
             }
 
@@ -68,16 +69,13 @@ final class AuthPluginRegistryTest {
             }
 
             @Override
-            public void endSession(PluginContext context, String sessionId) {
-            }
+            public void endSession(PluginContext context, String sessionId) {}
 
             @Override
-            public void initialize(PluginContext context) {
-            }
+            public void initialize(PluginContext context) {}
 
             @Override
-            public void shutdown() {
-            }
+            public void shutdown() {}
         };
     }
 
