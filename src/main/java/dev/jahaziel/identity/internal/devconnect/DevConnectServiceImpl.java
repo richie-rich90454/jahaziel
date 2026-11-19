@@ -9,6 +9,8 @@ import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.LoginRejectedException;
 import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.identity.auth.AuthProviderPlugin;
+import dev.jahaziel.identity.auth.BasisAuthPlugin;
 import dev.jahaziel.identity.auth.wiring.AuthProviderDispatcher;
 import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
 import dev.jahaziel.identity.domain.UserId;
@@ -20,6 +22,7 @@ import dev.jahaziel.identity.persistence.OidcPendingEntity;
 import dev.jahaziel.identity.persistence.OidcPendingRepository;
 import dev.jahaziel.identity.persistence.UserRoleEntity;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
+import dev.jahaziel.plugin.PluginContext;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +43,7 @@ public class DevConnectServiceImpl implements DevConnectService {
     private static final String ROLE_USER = "ROLE_USER";
     private static final String GRANTOR = "devconnect";
     private static final String ACTIVE = "active";
+    private static final String PROVIDER_BASIS = "basis-auth";
 
     private final DevConnectProperties props;
     private final DevConnectClient client;
@@ -270,6 +274,7 @@ public class DevConnectServiceImpl implements DevConnectService {
         session.setExpiresAt(now.plus(props.getSessionTtl()));
         sessions.save(session);
         sessions.deleteByExpiresAtBefore(now);
+        refreshProviderSession(sessionId);
         String apiToken =
                 tokens.issue(
                         new UserId(user.getUserId()),
@@ -277,6 +282,38 @@ public class DevConnectServiceImpl implements DevConnectService {
                         Collections.emptyList(),
                         props.getTokenTtl());
         return new LoginResult(user.getUserId(), sessionId, apiToken);
+    }
+
+    /** Rotates the provider tokens before handing the browser an API token. */
+    private void refreshProviderSession(String sessionId) {
+        if (dispatcher == null || sessionId == null) {
+            return;
+        }
+        AuthProviderPlugin provider = dispatcher.active();
+        if (provider == null || !PROVIDER_BASIS.equals(provider.descriptor().name())) {
+            return;
+        }
+        PluginContext pluginContext =
+                provider instanceof BasisAuthPlugin ? ((BasisAuthPlugin) provider).context() : null;
+        provider.refresh(pluginContext, sessionId);
+    }
+
+    /** Ends every BFF session for the local user linked to a verified provider subject. */
+    public void endSessionsForSubject(String provider, String subject) {
+        if (identities == null || provider == null || subject == null) {
+            return;
+        }
+        UUID userId = identities.findUserId(provider, subject);
+        if (userId == null) {
+            return;
+        }
+        List<BffSessionEntity> existing = sessions.findAll();
+        for (int index = 0; index < existing.size(); index++) {
+            BffSessionEntity session = existing.get(index);
+            if (userId.equals(session.getUserId())) {
+                sessions.delete(session);
+            }
+        }
     }
 
     private AppUserEntity provisionLinked(AuthIdentity identity) {
