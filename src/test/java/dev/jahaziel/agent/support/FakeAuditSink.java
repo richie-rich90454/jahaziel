@@ -7,6 +7,7 @@ package dev.jahaziel.agent.support;
 import dev.jahaziel.spi.AuditEvent;
 import dev.jahaziel.spi.AuditQuery;
 import dev.jahaziel.spi.AuditSink;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
