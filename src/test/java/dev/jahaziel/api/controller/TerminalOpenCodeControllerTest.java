@@ -21,64 +21,67 @@ import dev.jahaziel.terminal.api.TerminalService;
 import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.List;
-import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.security.Principal;
+import java.util.List;
+import java.util.UUID;
+
 class TerminalOpenCodeControllerTest {
-  private final TerminalService terminals = mock(TerminalService.class);
-  private final AuthorizationService authorization = mock(AuthorizationService.class);
-  private final AgentToolService tools = mock(AgentToolService.class);
-  private final UserId user = new UserId(UUID.randomUUID());
-  private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
-  private final Principal principal = () -> user.value().toString();
-  private final TerminalController controller =
-      new TerminalController(terminals, authorization, tools);
+    private final TerminalService terminals = mock(TerminalService.class);
+    private final AuthorizationService authorization = mock(AuthorizationService.class);
+    private final AgentToolService tools = mock(AgentToolService.class);
+    private final UserId user = new UserId(UUID.randomUUID());
+    private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+    private final Principal principal = () -> user.value().toString();
+    private final TerminalController controller =
+            new TerminalController(terminals, authorization, tools);
 
-  @BeforeEach
-  void allowWorkspaceWrites() {
-    when(authorization.isAllowed(user, "write", workspace)).thenReturn(true);
-  }
+    @BeforeEach
+    void allowWorkspaceWrites() {
+        when(authorization.isAllowed(user, "write", workspace)).thenReturn(true);
+    }
 
-  @Test
-  void startsOnlyTheServerManagedOpenCodeCommandInAnAuthorizedWorkspace() {
-    when(tools.catalog(user)).thenReturn(List.of(status("INSTALLED")));
-    TerminalSession session =
-        new TerminalSession(new TerminalSessionId(UUID.randomUUID()), workspace, user, 30, 120);
-    when(terminals.open(workspace, user, 30, 120)).thenReturn(session);
+    @Test
+    void startsOnlyTheServerManagedOpenCodeCommandInAnAuthorizedWorkspace() {
+        when(tools.catalog(user)).thenReturn(List.of(status("INSTALLED")));
+        TerminalSession session =
+                new TerminalSession(
+                        new TerminalSessionId(UUID.randomUUID()), workspace, user, 30, 120);
+        when(terminals.open(workspace, user, 30, 120)).thenReturn(session);
 
-    var result = controller.openOpenCode(workspace.value(), 30, 120, principal);
+        var result = controller.openOpenCode(workspace.value(), 30, 120, principal);
 
-    assertEquals(session.id().value(), result.sessionId());
-    verify(terminals).write(session.id(), "opencode\r");
-  }
+        assertEquals(session.id().value(), result.sessionId());
+        verify(terminals).write(session.id(), "opencode\r");
+    }
 
-  @Test
-  void refusesToLaunchWhenTheUserHasNotInstalledOpenCode() {
-    when(tools.catalog(user)).thenReturn(List.of(status("NOT_INSTALLED")));
+    @Test
+    void refusesToLaunchWhenTheUserHasNotInstalledOpenCode() {
+        when(tools.catalog(user)).thenReturn(List.of(status("NOT_INSTALLED")));
 
-    assertThrows(
-        AgentToolNotInstalledException.class,
-        () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
+        assertThrows(
+                AgentToolNotInstalledException.class,
+                () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
 
-    verify(terminals, never()).open(workspace, user, 30, 120);
-  }
+        verify(terminals, never()).open(workspace, user, 30, 120);
+    }
 
-  @Test
-  void checksWorkspaceAuthorizationBeforeReadingTheUserToolCatalog() {
-    when(authorization.isAllowed(user, "write", workspace)).thenReturn(false);
+    @Test
+    void checksWorkspaceAuthorizationBeforeReadingTheUserToolCatalog() {
+        when(authorization.isAllowed(user, "write", workspace)).thenReturn(false);
 
-    assertThrows(
-        AccessDeniedException.class,
-        () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
+        assertThrows(
+                AccessDeniedException.class,
+                () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
 
-    verify(tools, never()).catalog(user);
-    verify(terminals, never()).open(workspace, user, 30, 120);
-  }
+        verify(tools, never()).catalog(user);
+        verify(terminals, never()).open(workspace, user, 30, 120);
+    }
 
-  private static ToolStatus status(String status) {
-    return new ToolStatus("opencode", "OpenCode", "1.19.5", "x64", status, 10, 20, 0, "");
-  }
+    private static ToolStatus status(String status) {
+        return new ToolStatus("opencode", "OpenCode", "1.19.5", "x64", status, 10, 20, 0, "");
+    }
 }
