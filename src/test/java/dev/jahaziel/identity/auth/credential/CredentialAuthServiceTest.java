@@ -158,8 +158,7 @@ final class CredentialAuthServiceTest {
         AuthProviderDispatcher dispatcher =
                 new AuthProviderDispatcher(
                         registry,
-                        new AuthProviderConfig(
-                                Arrays.asList(plugin.descriptor().name()), context));
+                        new AuthProviderConfig(Arrays.asList(plugin.descriptor().name()), context));
         return new CredentialAuthService(dispatcher, login, context, "https://app.example/cb");
     }
 
@@ -171,7 +170,10 @@ final class CredentialAuthServiceTest {
         private StubPlugin(String name, String subject, String[] capabilities) {
             super(
                     new PluginDescriptor(
-                            name, "1", Collections.<String>emptyList(), Arrays.asList(capabilities)));
+                            name,
+                            "1",
+                            Collections.<String>emptyList(),
+                            Arrays.asList(capabilities)));
             this.subject = subject;
         }
 
