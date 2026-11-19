@@ -13,23 +13,41 @@ import com.nimbusds.jwt.SignedJWT;
 import dev.jahaziel.identity.auth.AuthIdentity;
 
 import java.text.ParseException;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** RS256 verification for ID, backchannel, and access tokens. Fails closed on every doubt. */
 public final class TokenVerifier {
     public static final String LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
+    private static final long CLOCK_SKEW_SECONDS = 60L;
 
     private final BasisConfig config;
     private final BasisMetadata metadata;
     private final BasisStore store;
+    private final BasisInternalClient subjects;
 
     public TokenVerifier(BasisConfig config, BasisMetadata metadata, BasisStore store) {
+        this(config, metadata, store, null);
+    }
+
+    /**
+     * Creates a verifier with an optional live subject check. The legacy constructor keeps working
+     * for the backchannel receiver; resource-API callers inject the internal client.
+     */
+    public TokenVerifier(
+            BasisConfig config,
+            BasisMetadata metadata,
+            BasisStore store,
+            BasisInternalClient subjects) {
         this.config = config;
         this.metadata = metadata;
         this.store = store;
+        this.subjects = subjects;
     }
 
     public VerifiedToken verifyIdToken(String token, String expectedNonce, String accessToken) {
@@ -39,7 +57,7 @@ public final class TokenVerifier {
         JWTClaimsSet claims = claims(jwt);
         requireIssuer(claims);
         requireAudience(claims, config.clientId());
-        requireExpiry(claims);
+        requireExpiry(claims, 0L);
         String nonce = stringClaim(claims, "nonce");
         if (expectedNonce == null || !expectedNonce.equals(nonce)) {
             throw new TokenRejectedException("ID token nonce mismatch");
@@ -53,6 +71,11 @@ public final class TokenVerifier {
 
     public VerifiedToken verifyBackchannelToken(
             String token, String expectedType, String audience) {
+        return verifyBackchannelToken(token, expectedType, audience, 0L);
+    }
+
+    private VerifiedToken verifyBackchannelToken(
+            String token, String expectedType, String audience, long skewSeconds) {
         SignedJWT jwt = parse(token);
         requireAlgorithm(jwt);
         requireType(jwt, expectedType);
@@ -60,21 +83,55 @@ public final class TokenVerifier {
         JWTClaimsSet claims = claims(jwt);
         requireIssuer(claims);
         requireAudience(claims, audience);
-        requireExpiry(claims);
+        requireExpiry(claims, skewSeconds);
         return new VerifiedToken(jwt, claims);
     }
 
+    /** Verifies a resource access token and exposes its parsed scopes and permissions. */
     public VerifiedToken verifyAccessToken(String token) {
-        VerifiedToken verified = verifyBackchannelToken(token, "at+jwt", config.resource());
-        String subject = stringClaim(verified.claims(), "sub");
-        String jti = stringClaim(verified.claims(), "jti");
-        if (subject == null || jti == null) {
-            throw new TokenRejectedException("access token lacks sub or jti");
+        VerifiedToken verified =
+                verifyBackchannelToken(token, "at+jwt", config.resource(), CLOCK_SKEW_SECONDS);
+        JWTClaimsSet claims = verified.claims();
+        String subject = requiredText(claims, "sub");
+        String jti = requiredText(claims, "jti");
+        String scopesText = "";
+        String permissionsText = "";
+        if (subjects != null) {
+            // Resource-API verification requires the full documented claim set. The legacy
+            // constructor keeps the backchannel receiver's historical access-token contract.
+            requiredText(claims, "client_id");
+            requiredText(claims, "gty");
+            scopesText = requiredText(claims, "scope");
+            permissionsText = requiredText(claims, "permissions");
         }
-        if (store.isDenied(jti, System.currentTimeMillis() / 1000L)) {
+        if (claims.getIssueTime() == null || claims.getExpirationTime() == null) {
+            throw new TokenRejectedException("access token lacks iat or exp");
+        }
+        if (claims.getIssuer() == null || !config.issuer().equals(claims.getIssuer())) {
+            throw new TokenRejectedException("access token lacks iss");
+        }
+        List<String> audiences = claims.getAudience();
+        if (audiences == null || !audiences.contains(config.resource())) {
+            throw new TokenRejectedException("access token lacks aud");
+        }
+        Set<String> scopes = new HashSet<String>();
+        addWords(scopes, scopesText);
+        Set<String> permissions = new HashSet<String>();
+        addWords(permissions, permissionsText);
+        if (subjects != null && (scopes.isEmpty() || permissions.isEmpty())) {
+            throw new TokenRejectedException("access token has empty scope or permissions");
+        }
+        if (store.isDenied(jti, System.currentTimeMillis() / 1000L + CLOCK_SKEW_SECONDS)) {
             throw new TokenRejectedException("access token is revoked");
         }
-        return verified;
+        if (subjects != null) {
+            try {
+                subjects.verify(subject, claims.getIssueTime().getTime() / 1000L);
+            } catch (BasisException failure) {
+                throw new TokenRejectedException("access token subject rejected");
+            }
+        }
+        return new VerifiedToken(verified.jwt(), claims, scopes, permissions);
     }
 
     public AuthIdentity identity(VerifiedToken verified) {
@@ -200,10 +257,50 @@ public final class TokenVerifier {
         }
     }
 
-    private static void requireExpiry(JWTClaimsSet claims) {
+    private static void requireExpiry(JWTClaimsSet claims, long skewSeconds) {
         Date expiry = claims.getExpirationTime();
-        if (expiry == null || !expiry.after(new Date())) {
+        if (expiry == null
+                || expiry.getTime() + skewSeconds * 1000L <= System.currentTimeMillis()) {
             throw new TokenRejectedException("expired token");
+        }
+    }
+
+    private static String requiredText(JWTClaimsSet claims, String name) {
+        String value = textClaim(claims, name);
+        if (value == null || value.length() == 0) {
+            throw new TokenRejectedException("access token lacks " + name);
+        }
+        return value;
+    }
+
+    private static String textClaim(JWTClaimsSet claims, String name) {
+        Object value = claims.getClaim(name);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String) {
+            return (String) value;
+        }
+        if (value instanceof List) {
+            StringBuilder joined = new StringBuilder();
+            List<?> values = (List<?>) value;
+            for (int index = 0; index < values.size(); index++) {
+                if (joined.length() > 0) {
+                    joined.append(' ');
+                }
+                joined.append(String.valueOf(values.get(index)));
+            }
+            return joined.toString();
+        }
+        throw new TokenRejectedException("malformed token claim " + name);
+    }
+
+    private static void addWords(Set<String> target, String text) {
+        String[] words = text.trim().split("\\s+");
+        for (int index = 0; index < words.length; index++) {
+            if (words[index].length() > 0) {
+                target.add(words[index]);
+            }
         }
     }
 
@@ -243,14 +340,26 @@ public final class TokenVerifier {
         }
     }
 
-    /** Verified token plus its claims. */
+    /**
+     * Verified token plus its claims, with space-delimited scopes and permissions for access
+     * tokens.
+     */
     public static final class VerifiedToken {
         private final SignedJWT jwt;
         private final JWTClaimsSet claims;
+        private final Set<String> scopes;
+        private final Set<String> permissions;
 
         private VerifiedToken(SignedJWT jwt, JWTClaimsSet claims) {
+            this(jwt, claims, Collections.<String>emptySet(), Collections.<String>emptySet());
+        }
+
+        private VerifiedToken(
+                SignedJWT jwt, JWTClaimsSet claims, Set<String> scopes, Set<String> permissions) {
             this.jwt = jwt;
             this.claims = claims;
+            this.scopes = Collections.unmodifiableSet(new HashSet<String>(scopes));
+            this.permissions = Collections.unmodifiableSet(new HashSet<String>(permissions));
         }
 
         public SignedJWT jwt() {
@@ -259,6 +368,14 @@ public final class TokenVerifier {
 
         public JWTClaimsSet claims() {
             return claims;
+        }
+
+        public Set<String> scopes() {
+            return scopes;
+        }
+
+        public Set<String> permissions() {
+            return permissions;
         }
     }
 }
