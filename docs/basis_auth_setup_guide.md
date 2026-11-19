@@ -785,3 +785,15 @@ This application implements the contract above through `BasisAuthPlugin` in
 - **Browser login.** Browsers continue to use the application's own BFF session
   and JWT after a successful basis-auth callback. Direct API clients may use a
   valid basis access token on workspace endpoints as described above.
+- **Verified principal.** After `BasisResourceFilter` validates a basis access
+  token, it resolves the local user from the `(basis-auth, sub)` link and
+  publishes `basis.verified.userId`. `SecurityConfig` authenticates workspace
+  API requests carrying that attribute; app session and app JWT paths are
+  unchanged. The filter does not reveal the access token to handlers.
+- **Other login providers.** Credential-based providers (local password + TOTP,
+  passkey, LDAP bind, API-token exchange) submit to `/api/auth/local`,
+  `/api/auth/passkey`, `/api/auth/ldap` and `/api/auth/token`; passkey ceremony
+  options come from `/api/auth/passkey/options`. Authenticated users can attach
+  an additional provider identity via `/api/auth/link`. These endpoints do not
+  change the basis-auth contract above, but they share the same
+  `(provider, subject)` identity store and never join accounts by email.
