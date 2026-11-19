@@ -5,7 +5,6 @@
 package dev.jahaziel.identity.auth.wiring;
 
 import dev.jahaziel.identity.auth.AuthPluginRegistry;
-import dev.jahaziel.identity.auth.AuthProviderPlugin;
 import dev.jahaziel.plugin.PluginContext;
 
 import java.util.ArrayList;
