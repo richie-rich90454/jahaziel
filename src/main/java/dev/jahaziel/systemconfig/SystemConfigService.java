@@ -23,8 +23,13 @@ public final class SystemConfigService {
     public static final String MASK = "********";
 
     private static final String[] DENIED_KEYS = {
-        "PATH", "CLASSPATH", "JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "LD_PRELOAD",
-        "LD_LIBRARY_PATH", "NODE_OPTIONS"
+        "PATH",
+        "CLASSPATH",
+        "JAVA_TOOL_OPTIONS",
+        "JDK_JAVA_OPTIONS",
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "NODE_OPTIONS"
     };
 
     private final Path jarDir;
@@ -70,7 +75,8 @@ public final class SystemConfigService {
         }
         Path resolved = candidate.toAbsolutePath().normalize();
         Path base = jarDir.toAbsolutePath().normalize();
-        return resolved.startsWith(base) && resolved.getParent() != null
+        return resolved.startsWith(base)
+                && resolved.getParent() != null
                 && resolved.getParent().equals(base);
     }
 
@@ -88,7 +94,8 @@ public final class SystemConfigService {
                 || requested.equals(".")
                 || requested.equals("..")
                 || requested.indexOf('\0') >= 0) {
-            throw new IllegalArgumentException("config path must be a file inside the jar directory");
+            throw new IllegalArgumentException(
+                    "config path must be a file inside the jar directory");
         }
         Path candidate = jarDir.resolve(requested).normalize();
         if (!isInsideJarDir(candidate)) {
