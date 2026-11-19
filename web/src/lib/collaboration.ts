@@ -300,6 +300,11 @@ export async function renderQuickOpen(query: string): Promise<void> {
         "git",
         "terminal",
         "preview",
+        "collaboration",
+        "agent",
+        "data",
+        "club",
+        "ops",
     ];
     const trimmed = query.trim();
     if (trimmed.length < 2) {
