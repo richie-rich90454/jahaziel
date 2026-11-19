@@ -9,11 +9,11 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Base64;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Confined paths for safety state. Every file this package owns lives below the jar data root; no
@@ -40,23 +40,17 @@ public final class SafetyPaths {
 
     /** Returns the operation-history folder of one workspace. */
     public static Path history(String storageRoot, WorkspaceId workspace) {
-        return root(storageRoot)
-                .resolve("history")
-                .resolve(workspace.value().toString());
+        return root(storageRoot).resolve("history").resolve(workspace.value().toString());
     }
 
     /** Returns the trash folder of one workspace. */
     public static Path trash(String storageRoot, WorkspaceId workspace) {
-        return root(storageRoot)
-                .resolve("trash")
-                .resolve(workspace.value().toString());
+        return root(storageRoot).resolve("trash").resolve(workspace.value().toString());
     }
 
     /** Returns the watch baseline folder of one workspace. */
     public static Path watch(String storageRoot, WorkspaceId workspace) {
-        return root(storageRoot)
-                .resolve("watch")
-                .resolve(workspace.value().toString());
+        return root(storageRoot).resolve("watch").resolve(workspace.value().toString());
     }
 
     /** Returns the shared flags folder. */
@@ -70,8 +64,8 @@ public final class SafetyPaths {
     }
 
     /**
-     * Resolves a caller-supplied relative path inside a root, rejecting traversal, links that escape
-     * the root, and Windows device names. The root is created when absent.
+     * Resolves a caller-supplied relative path inside a root, rejecting traversal, links that
+     * escape the root, and Windows device names. The root is created when absent.
      *
      * @param root the containment root
      * @param relative the workspace-relative path
