@@ -5,6 +5,7 @@
 package dev.jahaziel.api.dto;
 
 import dev.jahaziel.terminal.domain.TerminalSession;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -20,27 +21,27 @@ import java.util.UUID;
  * @param cols terminal columns
  */
 public record TerminalSessionDto(
-    UUID sessionId,
-    UUID workspaceId,
-    UUID userId,
-    Instant startedAt,
-    Instant lastActivityAt,
-    int rows,
-    int cols) {
-  /**
-   * Maps a session to a DTO.
-   *
-   * @param session the session
-   * @return the DTO
-   */
-  public static TerminalSessionDto from(TerminalSession session) {
-    return new TerminalSessionDto(
-        session.id().value(),
-        session.workspaceId().value(),
-        session.userId().value(),
-        session.startedAt(),
-        session.lastActivityAt(),
-        session.rowCount(),
-        session.colCount());
-  }
+        UUID sessionId,
+        UUID workspaceId,
+        UUID userId,
+        Instant startedAt,
+        Instant lastActivityAt,
+        int rows,
+        int cols) {
+    /**
+     * Maps a session to a DTO.
+     *
+     * @param session the session
+     * @return the DTO
+     */
+    public static TerminalSessionDto from(TerminalSession session) {
+        return new TerminalSessionDto(
+                session.id().value(),
+                session.workspaceId().value(),
+                session.userId().value(),
+                session.startedAt(),
+                session.lastActivityAt(),
+                session.rowCount(),
+                session.colCount());
+    }
 }
