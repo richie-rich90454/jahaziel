@@ -23,7 +23,8 @@ import java.util.Map;
  * keys are dropped and token values are masked before anything reaches disk.
  */
 public final class StructuredLogger {
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ROOT);
+    private static final DateTimeFormatter DAY =
+            DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ROOT);
     private static final DateTimeFormatter STAMP =
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
 
@@ -64,15 +65,12 @@ public final class StructuredLogger {
         Path active = currentFile();
         String line = render(level, event, fields) + "\n";
         byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
-        if (Files.exists(active) && (sizeOf(active) + bytes.length > maxBytes || !day().equals(currentDay))) {
+        if (Files.exists(active)
+                && (sizeOf(active) + bytes.length > maxBytes || !day().equals(currentDay))) {
             rotate(active);
         }
         try {
-            Files.write(
-                    active,
-                    bytes,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.APPEND);
+            Files.write(active, bytes, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException failure) {
             throw new IllegalStateException("cannot write log entry", failure);
         }
@@ -86,9 +84,15 @@ public final class StructuredLogger {
 
     private String render(String level, String event, Map<String, String> fields) {
         StringBuilder out = new StringBuilder();
-        out.append("{\"ts\":\"").append(OpsFiles.jsonEscape(Instant.now(clock).toString())).append('"');
-        out.append(",\"level\":\"").append(OpsFiles.jsonEscape(level == null ? "INFO" : level)).append('"');
-        out.append(",\"event\":\"").append(OpsFiles.jsonEscape(event == null ? "" : event)).append('"');
+        out.append("{\"ts\":\"")
+                .append(OpsFiles.jsonEscape(Instant.now(clock).toString()))
+                .append('"');
+        out.append(",\"level\":\"")
+                .append(OpsFiles.jsonEscape(level == null ? "INFO" : level))
+                .append('"');
+        out.append(",\"event\":\"")
+                .append(OpsFiles.jsonEscape(event == null ? "" : event))
+                .append('"');
         out.append(",\"fields\":{");
         List<String> keys = fields == null ? new ArrayList<String>() : OpsFiles.sortedKeys(fields);
         boolean first = true;
@@ -102,7 +106,9 @@ public final class StructuredLogger {
             }
             first = false;
             out.append('"').append(OpsFiles.jsonEscape(key)).append("\":");
-            out.append('"').append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(fields.get(key)))).append('"');
+            out.append('"')
+                    .append(OpsFiles.jsonEscape(OpsFiles.sanitizeText(fields.get(key))))
+                    .append('"');
         }
         out.append("}}");
         return out.toString();
