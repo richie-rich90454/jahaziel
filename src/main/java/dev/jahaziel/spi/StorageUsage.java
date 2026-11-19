@@ -13,19 +13,19 @@ package dev.jahaziel.spi;
  * @param deduplicatedBytes savings from sharing, logical minus physical
  */
 public record StorageUsage(
-    long logicalBytes, long physicalBytes, long snapshotBytes, long deduplicatedBytes) {
-  public StorageUsage {
-    if (logicalBytes < 0) {
-      throw new IllegalArgumentException("logicalBytes must not be negative");
+        long logicalBytes, long physicalBytes, long snapshotBytes, long deduplicatedBytes) {
+    public StorageUsage {
+        if (logicalBytes < 0) {
+            throw new IllegalArgumentException("logicalBytes must not be negative");
+        }
+        if (physicalBytes < 0) {
+            throw new IllegalArgumentException("physicalBytes must not be negative");
+        }
+        if (snapshotBytes < 0) {
+            throw new IllegalArgumentException("snapshotBytes must not be negative");
+        }
+        if (deduplicatedBytes < 0) {
+            throw new IllegalArgumentException("deduplicatedBytes must not be negative");
+        }
     }
-    if (physicalBytes < 0) {
-      throw new IllegalArgumentException("physicalBytes must not be negative");
-    }
-    if (snapshotBytes < 0) {
-      throw new IllegalArgumentException("snapshotBytes must not be negative");
-    }
-    if (deduplicatedBytes < 0) {
-      throw new IllegalArgumentException("deduplicatedBytes must not be negative");
-    }
-  }
 }
