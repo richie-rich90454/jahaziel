@@ -26,6 +26,11 @@ public abstract class AuthProviderPlugin extends Plugin {
 
     public abstract void endSession(PluginContext context, String sessionId);
 
+    /** Refreshes a provider session, or returns null when the provider has no refresh grant. */
+    public AuthIdentity refresh(PluginContext context, String sessionId) {
+        return null;
+    }
+
     public boolean supports(String capability) {
         return descriptor().provides(capability);
     }
