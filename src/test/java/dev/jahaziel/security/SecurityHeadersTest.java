@@ -8,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.HashMap;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
 
 class SecurityHeadersTest {
 
@@ -29,10 +30,8 @@ class SecurityHeadersTest {
         HashMap<String, String> headers = SecurityHeaders.defaults();
 
         assertEquals(SecurityHeaders.CSP, headers.get(SecurityHeaders.CONTENT_SECURITY_POLICY));
-        assertEquals(
-                SecurityHeaders.NOSNIFF, headers.get(SecurityHeaders.X_CONTENT_TYPE_OPTIONS));
-        assertEquals(
-                SecurityHeaders.NO_REFERRER, headers.get(SecurityHeaders.REFERRER_POLICY));
+        assertEquals(SecurityHeaders.NOSNIFF, headers.get(SecurityHeaders.X_CONTENT_TYPE_OPTIONS));
+        assertEquals(SecurityHeaders.NO_REFERRER, headers.get(SecurityHeaders.REFERRER_POLICY));
         assertEquals(SecurityHeaders.HSTS, headers.get(SecurityHeaders.STRICT_TRANSPORT_SECURITY));
         assertEquals(SecurityHeaders.DENY, headers.get(SecurityHeaders.X_FRAME_OPTIONS));
     }
