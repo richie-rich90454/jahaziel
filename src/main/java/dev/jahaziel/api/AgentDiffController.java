@@ -9,10 +9,7 @@ import dev.jahaziel.agent.diff.UnifiedPatch;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +18,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /** Staging and per-hunk review of agent patches. Patches are never applied by these endpoints. */
 @RestController
