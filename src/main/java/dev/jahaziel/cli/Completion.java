@@ -125,7 +125,8 @@ public final class Completion {
         if ("powershell".equals(normalized)) {
             return powershell();
         }
-        throw new IllegalArgumentException("unsupported shell: " + shell + " (bash, zsh, powershell)");
+        throw new IllegalArgumentException(
+                "unsupported shell: " + shell + " (bash, zsh, powershell)");
     }
 
     private static List<String> words() {
@@ -189,7 +190,8 @@ public final class Completion {
 
     private static String powershell() {
         StringBuilder out = new StringBuilder();
-        out.append("# generated locally by `jahaziel completion powershell`; no install required\n");
+        out.append(
+                "# generated locally by `jahaziel completion powershell`; no install required\n");
         out.append("Register-ArgumentCompleter -Native -CommandName jahaziel -ScriptBlock {\n");
         out.append("    param($wordToComplete, $commandAst, $cursorPosition)\n");
         StringBuilder list = new StringBuilder("    $words = @(");
