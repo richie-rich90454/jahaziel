@@ -1,7 +1,9 @@
 #!/bin/sh
+#
 # Copyright 2026 The Jahaziel Authors
 # SPDX-License-Identifier: Apache-2.0
-# Usage: uninstall.sh [label]
+#
+
 set -eu
 LABEL=${1:-dev.jahaziel}
 PLIST="/Library/LaunchDaemons/${LABEL}.plist"
