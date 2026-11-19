@@ -22,8 +22,7 @@ public final class Totp {
     private static final int MODULUS = 1000000;
     private static final String MAC_ALGORITHM = "HmacSHA1";
 
-    private Totp() {
-    }
+    private Totp() {}
 
     /** Returns a fresh 160-bit HMAC secret. */
     public static byte[] newSecret() {
@@ -38,8 +37,8 @@ public final class Totp {
     }
 
     /**
-     * Returns the matching counter, or -1 when the code is invalid, outside the
-     * window, or replays a counter that was already used.
+     * Returns the matching counter, or -1 when the code is invalid, outside the window, or replays
+     * a counter that was already used.
      */
     public static int verify(byte[] secret, String supplied, long epochSeconds, long lastCounter) {
         if (supplied == null) {
@@ -73,10 +72,11 @@ public final class Totp {
             mac.init(new SecretKeySpec(secret, MAC_ALGORITHM));
             byte[] digest = mac.doFinal(message);
             int offset = digest[digest.length - 1] & 0x0f;
-            int binary = ((digest[offset] & 0x7f) << 24)
-                    | ((digest[offset + 1] & 0xff) << 16)
-                    | ((digest[offset + 2] & 0xff) << 8)
-                    | (digest[offset + 3] & 0xff);
+            int binary =
+                    ((digest[offset] & 0x7f) << 24)
+                            | ((digest[offset + 1] & 0xff) << 16)
+                            | ((digest[offset + 2] & 0xff) << 8)
+                            | (digest[offset + 3] & 0xff);
             return pad(binary % MODULUS);
         } catch (GeneralSecurityException failure) {
             throw new LocalAuthException("TOTP calculation failed", failure);
