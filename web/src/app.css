@@ -2015,7 +2015,15 @@ button:active:not(:disabled) {
     }
     #workbench-page[data-active-panel="editor"] .editor-column,
     #workbench-page[data-active-panel="terminal"] .editor-column,
-    #workbench-page[data-active-panel="preview"] .editor-column {
+    #workbench-page[data-active-panel="preview"] .editor-column,
+    #workbench-page:is(
+            [data-active-panel="collaboration"],
+            [data-active-panel="agent"],
+            [data-active-panel="data"],
+            [data-active-panel="club"],
+            [data-active-panel="ops"]
+        )
+        .editor-column {
         display: flex;
     }
     #workbench-page[data-active-panel="files"] .file-sidebar > .task-panel,
@@ -2634,6 +2642,174 @@ button:active:not(:disabled) {
     grid-column: 1 / -1;
     color: var(--muted, #6c776d);
     font-size: 11px;
+}
+
+/* ---- Backend service panels ---------------------------------------------- */
+.service-panel {
+    display: none;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+    background: var(--paper);
+}
+.service-panel.is-active {
+    display: flex;
+}
+.service-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+}
+.service-head h2 {
+    margin: 0;
+    font-size: 15px;
+}
+.service-status,
+.service-result,
+.svc-meta {
+    color: var(--muted);
+    font-size: 12px;
+}
+.service-unavailable {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--color-error, #b4483c);
+    color: var(--color-error, #b4483c);
+    font-size: 12px;
+}
+.service-intro {
+    margin: 12px 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+.svc-block {
+    margin: 0 0 18px;
+    padding: 12px;
+    border: 1px solid var(--line);
+}
+.svc-block h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+}
+.svc-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 6px 0;
+}
+.svc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.svc-field-wide {
+    flex: 1 1 100%;
+}
+.svc-field-check {
+    flex-direction: row;
+    align-items: center;
+    min-height: 44px;
+}
+.svc-field input,
+.svc-field select,
+.svc-field textarea {
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-size: 12px;
+}
+.svc-field textarea {
+    width: 100%;
+    font-family: var(--mono);
+    resize: vertical;
+}
+.svc-button,
+.svc-action {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    background: var(--color-base-100);
+    cursor: pointer;
+    font-size: 12px;
+}
+.svc-button:hover,
+.svc-action:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.svc-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.svc-list {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    max-height: 220px;
+    overflow: auto;
+}
+.svc-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+    font-family: var(--mono);
+}
+.svc-output {
+    max-height: 220px;
+    overflow: auto;
+    margin: 8px 0;
+    padding: 10px;
+    background: var(--color-base-200, var(--line-soft));
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: pre-wrap;
+}
+.svc-table-view {
+    overflow: auto;
+    max-height: 260px;
+}
+.svc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: var(--mono);
+}
+.svc-table th,
+.svc-table td {
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    text-align: left;
+}
+#workbench-page:is(
+        [data-active-panel="collaboration"],
+        [data-active-panel="agent"],
+        [data-active-panel="data"],
+        [data-active-panel="club"],
+        [data-active-panel="ops"]
+    )
+    :is(
+        .editor-chrome,
+        .editor-location,
+        .editor-surface-wrap,
+        .terminal-dock,
+        .preview-dock,
+        .statusbar
+    ) {
+    display: none;
 }
 
 @media (max-width: 900px) {
