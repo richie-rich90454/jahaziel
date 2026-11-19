@@ -9,6 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -16,10 +22,6 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class AgentStoreTest {
     @TempDir Path temporary;
@@ -35,16 +37,18 @@ class AgentStoreTest {
         assertTrue(Files.isRegularFile(target));
         final boolean[] outside = new boolean[] {false};
         Files.walkFileTree(
-            data,
-            new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                    if (!file.toAbsolutePath().normalize().startsWith(data.toAbsolutePath().normalize())) {
-                        outside[0] = true;
+                data,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                        if (!file.toAbsolutePath()
+                                .normalize()
+                                .startsWith(data.toAbsolutePath().normalize())) {
+                            outside[0] = true;
+                        }
+                        return FileVisitResult.CONTINUE;
                     }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+                });
         assertEquals(false, outside[0]);
     }
 
@@ -54,19 +58,19 @@ class AgentStoreTest {
         final UUID workspace = UUID.randomUUID();
 
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    store.resolveWorkspacePath(workspace, "../outside.txt");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        store.resolveWorkspacePath(workspace, "../outside.txt");
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    store.resolveWorkspacePath(workspace, "src/../../outside.txt");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        store.resolveWorkspacePath(workspace, "src/../../outside.txt");
+                    }
+                });
     }
 
     @Test
@@ -75,19 +79,19 @@ class AgentStoreTest {
         final UUID workspace = UUID.randomUUID();
 
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    store.resolveWorkspacePath(workspace, "/etc/passwd");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        store.resolveWorkspacePath(workspace, "/etc/passwd");
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    store.resolveWorkspacePath(workspace, "C:\\Windows\\win.ini");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        store.resolveWorkspacePath(workspace, "C:\\Windows\\win.ini");
+                    }
+                });
     }
 
     @Test
@@ -100,12 +104,12 @@ class AgentStoreTest {
 
         final Path target = linked;
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    store.write(target, "value");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        store.write(target, "value");
+                    }
+                });
     }
 
     private static boolean canLink(Path target, Path link) {
