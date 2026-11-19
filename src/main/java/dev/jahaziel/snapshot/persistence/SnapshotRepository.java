@@ -4,17 +4,18 @@
  */
 package dev.jahaziel.snapshot.persistence;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Repository for SnapshotEntity persistence. */
 public interface SnapshotRepository extends JpaRepository<SnapshotEntity, UUID> {
-  /**
-   * Finds all snapshots of a workspace.
-   *
-   * @param workspaceId the workspace identifier
-   * @return the snapshots
-   */
-  List<SnapshotEntity> findByWorkspaceId(UUID workspaceId);
+    /**
+     * Finds all snapshots of a workspace.
+     *
+     * @param workspaceId the workspace identifier
+     * @return the snapshots
+     */
+    List<SnapshotEntity> findByWorkspaceId(UUID workspaceId);
 }
