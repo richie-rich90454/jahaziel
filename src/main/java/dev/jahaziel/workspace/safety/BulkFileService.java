@@ -55,7 +55,9 @@ public final class BulkFileService {
             String destination,
             String actor) {
         if (operation == null
-                || (!COPY.equals(operation) && !MOVE.equals(operation) && !DELETE.equals(operation))) {
+                || (!COPY.equals(operation)
+                        && !MOVE.equals(operation)
+                        && !DELETE.equals(operation))) {
             throw new IllegalArgumentException("operation must be copy, move, or delete");
         }
         if (paths == null || paths.isEmpty()) {
@@ -112,11 +114,7 @@ public final class BulkFileService {
                     ensureParent(home, target);
                     WorkspaceFiles.Document source = operations.read(path);
                     operations.save(target, source.content(), null, true);
-                    history.recordCopy(
-                            workspace,
-                            path,
-                            target,
-                            actor);
+                    history.recordCopy(workspace, path, target, actor);
                 }
                 applied++;
             } catch (IllegalArgumentException conflict) {
