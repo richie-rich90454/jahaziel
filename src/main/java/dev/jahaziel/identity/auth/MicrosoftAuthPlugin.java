@@ -12,11 +12,15 @@ import java.util.Collections;
 
 /** Microsoft Entra ID (v2) OIDC provider. Config keys use the "microsoft" prefix. */
 public final class MicrosoftAuthPlugin extends OidcProviderPlugin {
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            "microsoft",
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(AuthCapability.OIDC, AuthCapability.OAUTH2, AuthCapability.MFA_ASSURANCE));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    "microsoft",
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(
+                            AuthCapability.OIDC,
+                            AuthCapability.OAUTH2,
+                            AuthCapability.MFA_ASSURANCE));
 
     public MicrosoftAuthPlugin() {
         super(DESCRIPTOR);
