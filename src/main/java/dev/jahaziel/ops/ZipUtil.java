@@ -59,7 +59,8 @@ public final class ZipUtil {
     }
 
     private static void addTree(
-            Path root, Path dir, ZipOutputStream zip, Map<String, String> hashes) throws IOException {
+            Path root, Path dir, ZipOutputStream zip, Map<String, String> hashes)
+            throws IOException {
         File[] children = dir.toFile().listFiles();
         if (children == null) {
             return;
@@ -136,7 +137,8 @@ public final class ZipUtil {
                 ZipEntry entry = zip.getNextEntry();
                 while (entry != null) {
                     if (!entry.isDirectory()) {
-                        entries.put(normalize(java.nio.file.Paths.get(entry.getName())), readAll(zip));
+                        entries.put(
+                                normalize(java.nio.file.Paths.get(entry.getName())), readAll(zip));
                     }
                     zip.closeEntry();
                     entry = zip.getNextEntry();
