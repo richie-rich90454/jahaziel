@@ -15,8 +15,8 @@ import java.util.UUID;
  * @param occurredAt when the event occurred
  */
 public record RuntimeStoppedEvent(UUID workspaceId, Instant occurredAt) implements DomainEvent {
-  public RuntimeStoppedEvent {
-    Objects.requireNonNull(workspaceId, "workspaceId");
-    Objects.requireNonNull(occurredAt, "occurredAt");
-  }
+    public RuntimeStoppedEvent {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(occurredAt, "occurredAt");
+    }
 }
