@@ -20,11 +20,19 @@ public final class UserIdentityStore {
     private static final String LINK =
             "INSERT INTO user_identity (provider, subject, user_id, email, display_name, linked_at)"
                     + " VALUES (?, ?, ?, ?, ?, ?)";
+    private static final String CREATE =
+            "CREATE TABLE IF NOT EXISTS user_identity ("
+                    + "provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,"
+                    + " email TEXT, display_name TEXT, linked_at TEXT NOT NULL,"
+                    + " PRIMARY KEY (provider, subject))";
 
     private final JdbcTemplate jdbc;
 
     public UserIdentityStore(JdbcTemplate jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        // The Flyway migration owns this table in deployment; tests disable Flyway and use
+        // JPA ddl-auto, which does not know about raw JDBC tables.
+        this.jdbc.execute(CREATE);
     }
 
     /** Returns the linked user id, or null when this identity has never been linked. */
