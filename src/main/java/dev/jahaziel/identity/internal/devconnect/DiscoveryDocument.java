@@ -14,8 +14,8 @@ package dev.jahaziel.identity.internal.devconnect;
  * @param jwksUri where the ID token signing keys are published
  */
 public record DiscoveryDocument(
-    String issuer,
-    String authorizationEndpoint,
-    String tokenEndpoint,
-    String userinfoEndpoint,
-    String jwksUri) {}
+        String issuer,
+        String authorizationEndpoint,
+        String tokenEndpoint,
+        String userinfoEndpoint,
+        String jwksUri) {}
