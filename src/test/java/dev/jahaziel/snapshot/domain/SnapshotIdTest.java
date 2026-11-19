@@ -8,24 +8,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 /** Behavior of {@link SnapshotId}. */
 class SnapshotIdTest {
-  @Test
-  void equalValuesAreEqual() {
-    UUID value = UUID.randomUUID();
-    assertEquals(new SnapshotId(value), new SnapshotId(value));
-  }
+    @Test
+    void equalValuesAreEqual() {
+        UUID value = UUID.randomUUID();
+        assertEquals(new SnapshotId(value), new SnapshotId(value));
+    }
 
-  @Test
-  void differentValuesAreNotEqual() {
-    assertNotEquals(new SnapshotId(UUID.randomUUID()), new SnapshotId(UUID.randomUUID()));
-  }
+    @Test
+    void differentValuesAreNotEqual() {
+        assertNotEquals(new SnapshotId(UUID.randomUUID()), new SnapshotId(UUID.randomUUID()));
+    }
 
-  @Test
-  void nullValueIsRejected() {
-    assertThrows(NullPointerException.class, () -> new SnapshotId(null));
-  }
+    @Test
+    void nullValueIsRejected() {
+        assertThrows(NullPointerException.class, () -> new SnapshotId(null));
+    }
 }
