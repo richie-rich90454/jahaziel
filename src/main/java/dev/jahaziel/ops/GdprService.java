@@ -61,13 +61,13 @@ public final class GdprService {
      * @return the export archive under data/gdpr
      */
     public Path exportUser(
-            String userId,
-            Map<String, String> profile,
-            List<AuditQueryService.AuditEntry> audits) {
+            String userId, Map<String, String> profile, List<AuditQueryService.AuditEntry> audits) {
         String safe = safeId(userId);
         Map<String, byte[]> entries = new LinkedHashMap<String, byte[]>();
         entries.put("user.json", profileJson(safe, profile).getBytes(StandardCharsets.UTF_8));
-        String csv = auditQuery.toCsv(audits == null ? new ArrayList<AuditQueryService.AuditEntry>() : audits);
+        String csv =
+                auditQuery.toCsv(
+                        audits == null ? new ArrayList<AuditQueryService.AuditEntry>() : audits);
         entries.put("audits.csv", OpsFiles.sanitizeText(csv).getBytes(StandardCharsets.UTF_8));
         Map<String, String> hashes = new LinkedHashMap<String, String>();
         List<String> names = new ArrayList<String>(entries.keySet());
@@ -151,9 +151,11 @@ public final class GdprService {
     }
 
     private static String profileJson(String userId, Map<String, String> profile) {
-        Map<String, String> values = profile == null ? new LinkedHashMap<String, String>() : profile;
+        Map<String, String> values =
+                profile == null ? new LinkedHashMap<String, String>() : profile;
         List<String> keys = OpsFiles.sortedKeys(values);
-        StringBuilder out = new StringBuilder("{\"userId\":\"").append(OpsFiles.jsonEscape(userId)).append('"');
+        StringBuilder out =
+                new StringBuilder("{\"userId\":\"").append(OpsFiles.jsonEscape(userId)).append('"');
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
             if (OpsFiles.isSecretKey(key)) {
