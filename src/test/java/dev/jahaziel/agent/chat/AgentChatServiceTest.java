@@ -20,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -68,7 +69,7 @@ class AgentChatServiceTest {
 
     @Test
     void historyAndCancelFlagStayUnderTheDataDirectory() {
-        Path data = temporary.resolve("data");
+        Path data = dataPath();
         AgentChatService service = service();
         service.send(user, workspace, "hi", null, null);
         service.cancel(user, workspace);
@@ -96,7 +97,15 @@ class AgentChatServiceTest {
     }
 
     private AgentChatService service() {
-        return new AgentChatService(new AgentStore(temporary.resolve("data"), new ObjectMapper()));
+        return new AgentChatService(new AgentStore(dataPath(), new ObjectMapper()));
+    }
+
+    private Path dataPath() {
+        try {
+            return temporary.toRealPath().resolve("data");
+        } catch (IOException failure) {
+            throw new AssertionError(failure);
+        }
     }
 
     private static boolean mentionsCredential(String name) {
