@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class LoopbackGitHub implements AutoCloseable {
     private static final String DEFAULT_EMAILS =
             "[{\"email\":\"secondary@example.org\",\"primary\":false,\"verified\":true},"
-            + "{\"email\":\"primary@example.org\",\"primary\":true,\"verified\":true},"
-            + "{\"email\":\"unverified@example.org\",\"primary\":false,\"verified\":false}]";
+                    + "{\"email\":\"primary@example.org\",\"primary\":true,\"verified\":true},"
+                    + "{\"email\":\"unverified@example.org\",\"primary\":false,\"verified\":false}]";
 
     private final HttpServer server;
     private final AtomicInteger tokenHits = new AtomicInteger();
@@ -44,8 +44,8 @@ final class LoopbackGitHub implements AutoCloseable {
     }
 
     static LoopbackGitHub start() throws Exception {
-        HttpServer server = HttpServer.create(
-                new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        HttpServer server =
+                HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         final LoopbackGitHub stub = new LoopbackGitHub(server);
         server.createContext("/login/oauth/access_token", stub.handler("token"));
         server.createContext("/user/emails", stub.handler("emails"));
@@ -140,9 +140,11 @@ final class LoopbackGitHub implements AutoCloseable {
             json(exchange, 200, "{\"error\":\"bad_verification_code\"}");
             return;
         }
-        json(exchange, 200,
+        json(
+                exchange,
+                200,
                 "{\"access_token\":\"test-access-token\",\"token_type\":\"bearer\","
-                + "\"scope\":\"read:user,user:email\"}");
+                        + "\"scope\":\"read:user,user:email\"}");
     }
 
     private void userExchange(HttpExchange exchange) throws IOException {
@@ -154,9 +156,14 @@ final class LoopbackGitHub implements AutoCloseable {
             return;
         }
         StringBuilder response = new StringBuilder();
-        response.append("{\"id\":").append(userId)
-                .append(",\"login\":\"").append(login).append('"')
-                .append(",\"name\":\"").append(name).append('"')
+        response.append("{\"id\":")
+                .append(userId)
+                .append(",\"login\":\"")
+                .append(login)
+                .append('"')
+                .append(",\"name\":\"")
+                .append(name)
+                .append('"')
                 .append(",\"email\":\"public@example.org\"");
         if (twoFactorFlag) {
             response.append(",\"two_factor_authentication\":true");
@@ -194,8 +201,10 @@ final class LoopbackGitHub implements AutoCloseable {
         for (int index = 0; index < pairs.length; index++) {
             int equal = pairs[index].indexOf('=');
             if (equal > 0) {
-                values.put(URLDecoder.decode(pairs[index].substring(0, equal), StandardCharsets.UTF_8),
-                        URLDecoder.decode(pairs[index].substring(equal + 1), StandardCharsets.UTF_8));
+                values.put(
+                        URLDecoder.decode(pairs[index].substring(0, equal), StandardCharsets.UTF_8),
+                        URLDecoder.decode(
+                                pairs[index].substring(equal + 1), StandardCharsets.UTF_8));
             }
         }
         return values;
