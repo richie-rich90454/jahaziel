@@ -6,12 +6,14 @@
 import { errorText } from "../lib/api";
 import {
     activateDocument,
+    bindMarkdownPreview,
     closeTab,
     keepLocalVersion,
     saveActiveDocument,
     useServerVersion,
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, byId, effect, on } from "../lib/dom";
+import { t } from "../lib/i18n";
 import { state, toast } from "../lib/store";
 
 export function editorMarkup(): string {
@@ -20,7 +22,8 @@ export function editorMarkup(): string {
       <div id="editor-tabs" class="editor-tabs"></div>
       <div class="editor-controls">
         <span id="save-state" class="save-state"></span>
-        <button id="save-file" class="button btn button-save" type="button" disabled>Save <kbd>Ctrl S</kbd></button>
+        <button id="markdown-toggle" class="button button-quiet" type="button" hidden>Split preview</button>
+        <button id="save-file" class="button btn button-save" type="button" disabled>${t("common.save")} <kbd>Ctrl S</kbd></button>
       </div>
     </div>
     <div class="editor-location"><span class="location-root">workspace</span><span>/</span><span id="active-file">No file selected</span></div>
@@ -32,11 +35,16 @@ export function editorMarkup(): string {
     <div class="editor-surface-wrap">
       <div id="editor-empty" class="editor-empty"><div class="empty-mark">⌘</div><p>Choose a file to begin.</p><span>Changes save directly to your Linux workspace.</span></div>
       <div id="editor-surface" class="editor-surface"></div>
+      <aside id="markdown-preview" class="markdown-preview" aria-label="${t("markdown.preview")}" hidden>
+        <div class="markdown-preview-heading">${t("markdown.preview")}</div>
+        <article id="markdown-preview-body" class="markdown-body"></article>
+      </aside>
     </div>
   `;
 }
 
 export function bindEditor(): void {
+    bindMarkdownPreview();
     const tabs = byId("editor-tabs");
     effect(() => {
         const openDocuments = state.tabs;
