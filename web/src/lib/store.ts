@@ -6,6 +6,7 @@
 import { createStore } from "solid-js";
 import type { DebugLaunchConfiguration } from "../debug-launch-config";
 import type { LanguageDiagnostic, LanguagePack } from "../language-services";
+import type { GitBlameLine, GitBranch, GitCommit } from "./git-extras";
 
 export type { LanguageDiagnostic, LanguagePack } from "../language-services";
 
@@ -212,6 +213,14 @@ export interface UiState {
     gitDiffHidden: boolean;
     gitFormHidden: boolean;
     gitCommitDisabled: boolean;
+    gitHistory: GitCommit[] | null;
+    gitHistoryLoaded: boolean;
+    gitBranches: GitBranch[] | null;
+    gitBranchesLoaded: boolean;
+    gitBlame: GitBlameLine[] | null;
+    gitBlamePath: string;
+    gitSideBySide: boolean;
+    gitHunkSupported: boolean | null;
 
     languageState: string;
     languagePacks: LanguagePack[];
@@ -236,7 +245,14 @@ export interface UiState {
     debugAttachTarget: string;
     debugBreakpointPath: string;
     debugBreakpointLines: string;
-    debugBreakpoints: Array<{ path: string; lines: number[] }>;
+    debugBreakpointCondition: string;
+    debugBreakpointLogpoint: string;
+    debugBreakpoints: Array<{
+        path: string;
+        lines: number[];
+        condition?: string;
+        logpoint?: string;
+    }>;
     debugFrames: DapFrame[];
     debugVariables: DapVariable[];
     debugWatches: string[];
@@ -349,6 +365,14 @@ const [state, rawSetState] = createStore<UiState>({
     gitDiffHidden: true,
     gitFormHidden: true,
     gitCommitDisabled: true,
+    gitHistory: null,
+    gitHistoryLoaded: false,
+    gitBranches: null,
+    gitBranchesLoaded: false,
+    gitBlame: null,
+    gitBlamePath: "",
+    gitSideBySide: true,
+    gitHunkSupported: null,
 
     languageState: "Optional",
     languagePacks: [],
@@ -373,6 +397,8 @@ const [state, rawSetState] = createStore<UiState>({
     debugAttachTarget: "",
     debugBreakpointPath: "",
     debugBreakpointLines: "",
+    debugBreakpointCondition: "",
+    debugBreakpointLogpoint: "",
     debugBreakpoints: [],
     debugFrames: [],
     debugVariables: [],
