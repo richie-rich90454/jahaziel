@@ -120,7 +120,8 @@ final class BasisAuthRefreshTest {
     void publicClientSendsClientIdAndNoSecret() throws Exception {
         RefreshStub publicStub = RefreshStub.start(CLIENT, "", true);
         try {
-            PluginContext publicContext = new PluginContext(temp.resolve("public"), settings(publicStub, CLIENT, ""));
+            PluginContext publicContext =
+                    new PluginContext(temp.resolve("public"), settings(publicStub, CLIENT, ""));
             BasisAuthPlugin publicPlugin = new BasisAuthPlugin();
             publicPlugin.initialize(publicContext);
             BasisStore publicStore =
