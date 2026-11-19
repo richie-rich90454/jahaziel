@@ -80,6 +80,22 @@ export class HomePage {
     await this.workspaceCard(name).getByRole("button", { name: "Open workspace" }).click();
     await this.page.locator("#workbench-page").waitFor({ state: "visible" });
   }
+
+  localeSelect(): Locator {
+    return this.page.locator("#locale-select");
+  }
+
+  tour(): Locator {
+    return this.page.locator("#onboarding-tour");
+  }
+
+  tourSkip(): Locator {
+    return this.page.locator("#tour-skip");
+  }
+
+  tourProgress(): Locator {
+    return this.page.locator("#tour-progress");
+  }
 }
 
 export class WorkbenchPage {
@@ -207,5 +223,45 @@ export class WorkbenchPage {
 
   async setViewport(width: number, height: number): Promise<void> {
     await this.page.setViewportSize({ width, height });
+  }
+
+  themeSelect(): Locator {
+    return this.page.locator("#theme-select");
+  }
+
+  previewResizer(): Locator {
+    return this.page.locator("#preview-resizer");
+  }
+
+  problemsList(): Locator {
+    return this.page.locator("#problems-list");
+  }
+
+  bulkActions(): Locator {
+    return this.page.locator("#bulk-actions");
+  }
+
+  bulkCount(): Locator {
+    return this.page.locator("#bulk-count");
+  }
+
+  bulkCheckbox(path: string): Locator {
+    return this.page.getByRole("checkbox", { name: `Select ${path}` });
+  }
+
+  markdownToggle(): Locator {
+    return this.page.locator("#markdown-toggle");
+  }
+
+  markdownPreview(): Locator {
+    return this.page.locator("#markdown-preview");
+  }
+
+  markdownPreviewBody(): Locator {
+    return this.page.locator("#markdown-preview-body");
+  }
+
+  quickOpenCommands(): Locator {
+    return this.page.locator("#quick-open-results button").filter({ hasText: "Command:" });
   }
 }
