@@ -8,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 final class CollaborationPresenceTest {
     @Test
@@ -23,9 +24,13 @@ final class CollaborationPresenceTest {
         PresenceService presence = new PresenceService();
         presence.join(CollaborationFixture.WORKSPACE, CollaborationFixture.EDITOR, 1000L);
         presence.activeFile(
-                CollaborationFixture.WORKSPACE, CollaborationFixture.EDITOR, "src/Main.java", 2000L);
+                CollaborationFixture.WORKSPACE,
+                CollaborationFixture.EDITOR,
+                "src/Main.java",
+                2000L);
         PresenceService.Presence cursor =
-                presence.cursor(CollaborationFixture.WORKSPACE, CollaborationFixture.EDITOR, 12, 4, 3000L);
+                presence.cursor(
+                        CollaborationFixture.WORKSPACE, CollaborationFixture.EDITOR, 12, 4, 3000L);
         assertEquals("src/Main.java", cursor.activeFile());
         assertEquals(12, cursor.line());
         assertEquals(4, cursor.column());
@@ -53,12 +58,12 @@ final class CollaborationPresenceTest {
         PresenceService presence = new PresenceService();
         presence.join(CollaborationFixture.WORKSPACE, CollaborationFixture.STRANGER, 1000L);
         assertEquals(1, presence.active(CollaborationFixture.WORKSPACE, 1000L).size());
-        assertNull(
-                fixtureRoleOfStranger());
+        assertNull(fixtureRoleOfStranger());
     }
 
     private static String fixtureRoleOfStranger() {
         CollaborationFixture fixture = new CollaborationFixture(1000L);
-        return fixture.membership.roleOf(CollaborationFixture.WORKSPACE, CollaborationFixture.STRANGER);
+        return fixture.membership.roleOf(
+                CollaborationFixture.WORKSPACE, CollaborationFixture.STRANGER);
     }
 }
