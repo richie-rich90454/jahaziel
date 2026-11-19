@@ -13,16 +13,19 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class AgentChatServiceTest {
     @TempDir Path temporary;
@@ -35,7 +38,7 @@ class AgentChatServiceTest {
         AgentChatService service = service();
 
         List<ChatMessage> history =
-            service.send(user, workspace, "explain this", "src/App.java", "selected line");
+                service.send(user, workspace, "explain this", "src/App.java", "selected line");
         assertEquals(1, history.size());
         assertEquals("USER", history.get(0).getRole());
         assertEquals("src/App.java", history.get(0).getActiveFile());
@@ -55,12 +58,12 @@ class AgentChatServiceTest {
     void activeFileMustStayInsideTheWorkspace() {
         final AgentChatService service = service();
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.send(user, workspace, "read this", "../secrets.txt", null);
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.send(user, workspace, "read this", "../secrets.txt", null);
+                    }
+                });
     }
 
     @Test
@@ -71,9 +74,10 @@ class AgentChatServiceTest {
         service.cancel(user, workspace);
 
         Path scope =
-            data.resolve("agent").resolve("chat")
-                .resolve(user.value().toString())
-                .resolve(workspace.value().toString());
+                data.resolve("agent")
+                        .resolve("chat")
+                        .resolve(user.value().toString())
+                        .resolve(workspace.value().toString());
         assertTrue(Files.isRegularFile(scope.resolve("history.json")));
         assertTrue(Files.isRegularFile(scope.resolve("cancel.flag")));
         assertTrue(scope.toAbsolutePath().startsWith(data.toAbsolutePath()));
@@ -98,10 +102,10 @@ class AgentChatServiceTest {
     private static boolean mentionsCredential(String name) {
         String lower = name.toLowerCase(java.util.Locale.ROOT);
         return lower.contains("key")
-            || lower.contains("token")
-            || lower.contains("secret")
-            || lower.contains("password")
-            || lower.contains("credential");
+                || lower.contains("token")
+                || lower.contains("secret")
+                || lower.contains("password")
+                || lower.contains("credential");
     }
 
     private static void assertThrowsAgent(Executable executable) {
