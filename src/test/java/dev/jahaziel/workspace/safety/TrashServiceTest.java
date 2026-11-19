@@ -28,12 +28,14 @@ final class TrashServiceTest {
         TrashEntry entry = trash.trash(workspace, "notes.txt", "user");
         assertTrue(!Files.exists(file));
         assertEquals(1, trash.list(workspace).size());
-        assertEquals("hello", SafetyFixtures.read(
-                SafetyPaths.trash(data, workspace)
-                        .resolve("items")
-                        .resolve(entry.getId())
-                        .resolve("payload")
-                        .resolve("notes.txt")));
+        assertEquals(
+                "hello",
+                SafetyFixtures.read(
+                        SafetyPaths.trash(data, workspace)
+                                .resolve("items")
+                                .resolve(entry.getId())
+                                .resolve("payload")
+                                .resolve("notes.txt")));
 
         trash.restore(workspace, entry.getId());
         assertEquals("hello", SafetyFixtures.read(file));
