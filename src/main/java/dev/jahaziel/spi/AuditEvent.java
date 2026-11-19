@@ -28,33 +28,33 @@ import java.util.UUID;
  * @param hash hash of this batch
  */
 public record AuditEvent(
-    UUID eventId,
-    Instant timestamp,
-    String actor,
-    ActorType actorType,
-    String action,
-    Optional<String> target,
-    Optional<String> targetType,
-    Outcome outcome,
-    Optional<String> sourceIp,
-    Optional<String> sourceNode,
-    Map<String, String> details,
-    Optional<String> prevHash,
-    String hash) {
-  public AuditEvent {
-    Objects.requireNonNull(eventId, "eventId");
-    Objects.requireNonNull(timestamp, "timestamp");
-    Objects.requireNonNull(actor, "actor");
-    Objects.requireNonNull(actorType, "actorType");
-    Objects.requireNonNull(action, "action");
-    Objects.requireNonNull(target, "target");
-    Objects.requireNonNull(targetType, "targetType");
-    Objects.requireNonNull(outcome, "outcome");
-    Objects.requireNonNull(sourceIp, "sourceIp");
-    Objects.requireNonNull(sourceNode, "sourceNode");
-    Objects.requireNonNull(details, "details");
-    Objects.requireNonNull(prevHash, "prevHash");
-    Objects.requireNonNull(hash, "hash");
-    details = Map.copyOf(details);
-  }
+        UUID eventId,
+        Instant timestamp,
+        String actor,
+        ActorType actorType,
+        String action,
+        Optional<String> target,
+        Optional<String> targetType,
+        Outcome outcome,
+        Optional<String> sourceIp,
+        Optional<String> sourceNode,
+        Map<String, String> details,
+        Optional<String> prevHash,
+        String hash) {
+    public AuditEvent {
+        Objects.requireNonNull(eventId, "eventId");
+        Objects.requireNonNull(timestamp, "timestamp");
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actorType, "actorType");
+        Objects.requireNonNull(action, "action");
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(targetType, "targetType");
+        Objects.requireNonNull(outcome, "outcome");
+        Objects.requireNonNull(sourceIp, "sourceIp");
+        Objects.requireNonNull(sourceNode, "sourceNode");
+        Objects.requireNonNull(details, "details");
+        Objects.requireNonNull(prevHash, "prevHash");
+        Objects.requireNonNull(hash, "hash");
+        details = Map.copyOf(details);
+    }
 }
