@@ -11,16 +11,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.cli.CliTestSupport.Output;
 import dev.jahaziel.ops.GdprService;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.UUID;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.UUID;
 
 /** Offline start flag and the ops subcommands that delegate to existing services. */
 class OfflineOpsTest {
@@ -68,14 +70,14 @@ class OfflineOpsTest {
         assertEquals(2, missing.code());
         assertTrue(missing.err().contains("typed confirmation required: DELETE alice"));
 
-        Output wrong = CliTestSupport.dispatch("ops", "delete-user", "alice", "--confirm", "delete alice");
+        Output wrong =
+                CliTestSupport.dispatch("ops", "delete-user", "alice", "--confirm", "delete alice");
         assertEquals(2, wrong.code());
         assertTrue(wrong.err().contains("typed confirmation required"));
 
         assertTrue(Files.exists(user));
         Output ok =
-                CliTestSupport.dispatch(
-                        "ops", "delete-user", "alice", "--confirm", "DELETE alice");
+                CliTestSupport.dispatch("ops", "delete-user", "alice", "--confirm", "DELETE alice");
         assertEquals(0, ok.code());
         assertTrue(ok.out().contains("deleted alice"));
         assertFalse(Files.exists(user));
@@ -151,8 +153,7 @@ class OfflineOpsTest {
         assertEquals(2, CliTestSupport.dispatch("ops", "unknown").code());
         assertEquals(2, CliTestSupport.dispatch("ops", "audit").code());
         assertEquals(2, CliTestSupport.dispatch("ops", "delete-user").code());
-        Output badFormat =
-                CliTestSupport.dispatch("ops", "audit", "query", "--format=xml");
+        Output badFormat = CliTestSupport.dispatch("ops", "audit", "query", "--format=xml");
         assertEquals(2, badFormat.code());
     }
 
