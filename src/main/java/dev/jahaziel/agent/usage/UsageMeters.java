@@ -8,6 +8,7 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,8 +35,7 @@ public final class UsageMeters {
      * @param tokensIn input tokens, zero or more
      * @param tokensOut output tokens, zero or more
      */
-    public UsageSnapshot record(
-            UserId user, WorkspaceId workspace, long tokensIn, long tokensOut) {
+    public UsageSnapshot record(UserId user, WorkspaceId workspace, long tokensIn, long tokensOut) {
         requireOwner(user, workspace);
         if (tokensIn < 0 || tokensOut < 0) {
             throw new AgentException("token counts must not be negative");
@@ -59,7 +59,8 @@ public final class UsageMeters {
             byWorkspace.put(workspace.value(), workspaceTotals);
         }
         workspaceTotals.add(tokensIn, tokensOut);
-        UsageSnapshot snapshot = scoped.snapshot(user.value().toString(), workspace.value().toString());
+        UsageSnapshot snapshot =
+                scoped.snapshot(user.value().toString(), workspace.value().toString());
         store.write(snapshotPath(user, workspace), snapshot);
         return snapshot;
     }
@@ -69,8 +70,8 @@ public final class UsageMeters {
         requireOwner(user, workspace);
         Totals totals = byScope.get(new Key(user.value(), workspace.value()));
         return totals == null
-            ? new UsageSnapshot(user.value().toString(), workspace.value().toString(), 0, 0, 0)
-            : totals.snapshot(user.value().toString(), workspace.value().toString());
+                ? new UsageSnapshot(user.value().toString(), workspace.value().toString(), 0, 0, 0)
+                : totals.snapshot(user.value().toString(), workspace.value().toString());
     }
 
     /** Returns the totals for one user across all workspaces. */
@@ -78,8 +79,8 @@ public final class UsageMeters {
         Objects.requireNonNull(user, "user");
         Totals totals = byUser.get(user.value());
         return totals == null
-            ? new UsageSnapshot(user.value().toString(), null, 0, 0, 0)
-            : totals.snapshot(user.value().toString(), null);
+                ? new UsageSnapshot(user.value().toString(), null, 0, 0, 0)
+                : totals.snapshot(user.value().toString(), null);
     }
 
     /** Returns the totals for one workspace across all users. */
@@ -87,15 +88,13 @@ public final class UsageMeters {
         Objects.requireNonNull(workspace, "workspace");
         Totals totals = byWorkspace.get(workspace.value());
         return totals == null
-            ? new UsageSnapshot(null, workspace.value().toString(), 0, 0, 0)
-            : totals.snapshot(null, workspace.value().toString());
+                ? new UsageSnapshot(null, workspace.value().toString(), 0, 0, 0)
+                : totals.snapshot(null, workspace.value().toString());
     }
 
     private Path snapshotPath(UserId user, WorkspaceId workspace) {
         return store.containedChild(
-            store.usageRoot(),
-            user.value().toString(),
-            workspace.value().toString() + ".json");
+                store.usageRoot(), user.value().toString(), workspace.value().toString() + ".json");
     }
 
     private static void requireOwner(UserId user, WorkspaceId workspace) {
@@ -112,11 +111,7 @@ public final class UsageMeters {
         private final long messages;
 
         public UsageSnapshot(
-                String userId,
-                String workspaceId,
-                long tokensIn,
-                long tokensOut,
-                long messages) {
+                String userId, String workspaceId, long tokensIn, long tokensOut, long messages) {
             this.userId = userId;
             this.workspaceId = workspaceId;
             this.tokensIn = tokensIn;
