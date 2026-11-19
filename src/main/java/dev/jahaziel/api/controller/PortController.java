@@ -18,13 +18,9 @@ import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.networking.api.PortStatusProbe;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
 import jakarta.validation.Valid;
-import java.security.Principal;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,6 +32,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+
 /**
  * User-facing port endpoints. A registered port becomes reachable at its host-form URL; that URL
  * carries a workspace-scoped session token, which the gateway verifies before routing.
@@ -43,165 +46,168 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1")
 public class PortController {
-  private final PortService ports;
-  private final PortCandidateService portCandidates;
-  private final PortStatusProbe portStatus;
-  private final UserService users;
-  private final AuthorizationService auth;
-  private final GatewayRouteService routes;
-  private final JwtService tokens;
-  private final GatewayEndpoint endpoint;
-  private final long tokenTtlSeconds;
+    private final PortService ports;
+    private final PortCandidateService portCandidates;
+    private final PortStatusProbe portStatus;
+    private final UserService users;
+    private final AuthorizationService auth;
+    private final GatewayRouteService routes;
+    private final JwtService tokens;
+    private final GatewayEndpoint endpoint;
+    private final long tokenTtlSeconds;
 
-  /**
-   * Creates the controller.
-   *
-   * @param ports the port service
-   * @param portCandidates the tracked-process listener discovery
-   * @param portStatus the loopback listener check
-   * @param users the user lookup for URL slugs
-   * @param auth the authorization checks
-   * @param routes the gateway route reconciler
-   * @param tokens the session token issuer
-   * @param endpoint the public gateway address
-   * @param tokenTtlSeconds the gateway token lifetime
-   */
-  public PortController(
-      PortService ports,
-      PortCandidateService portCandidates,
-      PortStatusProbe portStatus,
-      UserService users,
-      AuthorizationService auth,
-      GatewayRouteService routes,
-      JwtService tokens,
-      GatewayEndpoint endpoint,
-      @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
-    this.ports = ports;
-    this.portCandidates = Objects.requireNonNull(portCandidates, "portCandidates");
-    this.portStatus = Objects.requireNonNull(portStatus, "portStatus");
-    this.users = users;
-    this.auth = auth;
-    this.routes = routes;
-    this.tokens = tokens;
-    this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
-    this.tokenTtlSeconds = tokenTtlSeconds;
-  }
-
-  /**
-   * Lists a workspace's registered ports.
-   *
-   * @param id the workspace identifier
-   * @param principal the acting user
-   * @return the port DTOs
-   */
-  @GetMapping("/workspaces/{id}/ports")
-  public List<PortDto> list(@PathVariable UUID id, Principal principal) {
-    UserId user = userId(principal);
-    WorkspaceId workspace = new WorkspaceId(id);
-    require(user, workspace, "read");
-    return describe(user, workspace);
-  }
-
-  /**
-   * Lists candidate preview ports owned by the workspace's live task/terminal process trees. No
-   * ports are registered or published by this read-only discovery.
-   *
-   * @param id the workspace identifier
-   * @param principal the acting user
-   * @return the candidate ports and their process sources
-   */
-  @GetMapping("/workspaces/{id}/ports/candidates")
-  public List<PortCandidateService.Candidate> candidates(
-      @PathVariable UUID id, Principal principal) {
-    UserId user = userId(principal);
-    WorkspaceId workspace = new WorkspaceId(id);
-    require(user, workspace, "read");
-    return portCandidates.candidates(workspace);
-  }
-
-  /**
-   * Registers a workspace port and returns its ready-to-use URL.
-   *
-   * @param id the workspace identifier
-   * @param request the port to register
-   * @param principal the acting user
-   * @return the port DTO with a tokenized URL
-   */
-  @PostMapping("/workspaces/{id}/ports")
-  @ResponseStatus(HttpStatus.CREATED)
-  public PortDto register(
-      @PathVariable UUID id, @Valid @RequestBody RegisterPortRequest request, Principal principal) {
-    UserId user = userId(principal);
-    WorkspaceId workspace = new WorkspaceId(id);
-    require(user, workspace, "write");
-    PortBinding binding = ports.registerPort(user, request.port(), workspace, request.protocol());
-    routes.reconcile();
-    return PortDto.from(
-        binding,
-        users.slug(user),
-        endpoint,
-        token(user, workspace, binding.port()),
-        portStatus.isListening(binding.port()));
-  }
-
-  /**
-   * Removes a workspace port.
-   *
-   * @param id the workspace identifier
-   * @param port the port to remove
-   * @param principal the acting user
-   */
-  @DeleteMapping("/workspaces/{id}/ports/{port}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void unregister(@PathVariable UUID id, @PathVariable int port, Principal principal) {
-    UserId user = userId(principal);
-    WorkspaceId workspace = new WorkspaceId(id);
-    require(user, workspace, "write");
-    ports.unregisterPort(user, port);
-    routes.reconcile();
-  }
-
-  private List<PortDto> describe(UserId user, WorkspaceId workspace) {
-    List<PortBinding> bindings = ports.bindingsByWorkspace(workspace);
-    List<PortDto> result = new ArrayList<>(bindings.size());
-    for (int index = 0; index < bindings.size(); index++) {
-      PortBinding binding = bindings.get(index);
-      // The slug belongs to the port's owner, not to a grantee reading the workspace.
-      UserId portOwner = new UserId(binding.userId());
-      Boolean listening =
-          index < PortService.MAX_PORTS_PER_WORKSPACE
-              ? portStatus.isListening(binding.port())
-              : null;
-      result.add(
-          PortDto.from(
-              binding,
-              users.slug(portOwner),
-              endpoint,
-              token(portOwner, workspace, binding.port()),
-              listening));
+    /**
+     * Creates the controller.
+     *
+     * @param ports the port service
+     * @param portCandidates the tracked-process listener discovery
+     * @param portStatus the loopback listener check
+     * @param users the user lookup for URL slugs
+     * @param auth the authorization checks
+     * @param routes the gateway route reconciler
+     * @param tokens the session token issuer
+     * @param endpoint the public gateway address
+     * @param tokenTtlSeconds the gateway token lifetime
+     */
+    public PortController(
+            PortService ports,
+            PortCandidateService portCandidates,
+            PortStatusProbe portStatus,
+            UserService users,
+            AuthorizationService auth,
+            GatewayRouteService routes,
+            JwtService tokens,
+            GatewayEndpoint endpoint,
+            @Value("${jahaziel.jwt.ttl-seconds:900}") long tokenTtlSeconds) {
+        this.ports = ports;
+        this.portCandidates = Objects.requireNonNull(portCandidates, "portCandidates");
+        this.portStatus = Objects.requireNonNull(portStatus, "portStatus");
+        this.users = users;
+        this.auth = auth;
+        this.routes = routes;
+        this.tokens = tokens;
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        this.tokenTtlSeconds = tokenTtlSeconds;
     }
-    return List.copyOf(result);
-  }
 
-  private String token(UserId user, WorkspaceId workspace, int port) {
-    return tokens.issue(
-        user,
-        workspace.value(),
-        List.of("workspace:port:" + port),
-        Duration.ofSeconds(tokenTtlSeconds));
-  }
-
-  private void require(UserId user, WorkspaceId workspace, String permission) {
-    if (!auth.isAllowed(user, permission, workspace)) {
-      throw new AccessDeniedException(user, permission);
+    /**
+     * Lists a workspace's registered ports.
+     *
+     * @param id the workspace identifier
+     * @param principal the acting user
+     * @return the port DTOs
+     */
+    @GetMapping("/workspaces/{id}/ports")
+    public List<PortDto> list(@PathVariable UUID id, Principal principal) {
+        UserId user = userId(principal);
+        WorkspaceId workspace = new WorkspaceId(id);
+        require(user, workspace, "read");
+        return describe(user, workspace);
     }
-  }
 
-  private static UserId userId(Principal principal) {
-    try {
-      return new UserId(UUID.fromString(principal.getName()));
-    } catch (IllegalArgumentException failure) {
-      throw new IllegalArgumentException("principal is not a user id");
+    /**
+     * Lists candidate preview ports owned by the workspace's live task/terminal process trees. No
+     * ports are registered or published by this read-only discovery.
+     *
+     * @param id the workspace identifier
+     * @param principal the acting user
+     * @return the candidate ports and their process sources
+     */
+    @GetMapping("/workspaces/{id}/ports/candidates")
+    public List<PortCandidateService.Candidate> candidates(
+            @PathVariable UUID id, Principal principal) {
+        UserId user = userId(principal);
+        WorkspaceId workspace = new WorkspaceId(id);
+        require(user, workspace, "read");
+        return portCandidates.candidates(workspace);
     }
-  }
+
+    /**
+     * Registers a workspace port and returns its ready-to-use URL.
+     *
+     * @param id the workspace identifier
+     * @param request the port to register
+     * @param principal the acting user
+     * @return the port DTO with a tokenized URL
+     */
+    @PostMapping("/workspaces/{id}/ports")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PortDto register(
+            @PathVariable UUID id,
+            @Valid @RequestBody RegisterPortRequest request,
+            Principal principal) {
+        UserId user = userId(principal);
+        WorkspaceId workspace = new WorkspaceId(id);
+        require(user, workspace, "write");
+        PortBinding binding =
+                ports.registerPort(user, request.port(), workspace, request.protocol());
+        routes.reconcile();
+        return PortDto.from(
+                binding,
+                users.slug(user),
+                endpoint,
+                token(user, workspace, binding.port()),
+                portStatus.isListening(binding.port()));
+    }
+
+    /**
+     * Removes a workspace port.
+     *
+     * @param id the workspace identifier
+     * @param port the port to remove
+     * @param principal the acting user
+     */
+    @DeleteMapping("/workspaces/{id}/ports/{port}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unregister(@PathVariable UUID id, @PathVariable int port, Principal principal) {
+        UserId user = userId(principal);
+        WorkspaceId workspace = new WorkspaceId(id);
+        require(user, workspace, "write");
+        ports.unregisterPort(user, port);
+        routes.reconcile();
+    }
+
+    private List<PortDto> describe(UserId user, WorkspaceId workspace) {
+        List<PortBinding> bindings = ports.bindingsByWorkspace(workspace);
+        List<PortDto> result = new ArrayList<>(bindings.size());
+        for (int index = 0; index < bindings.size(); index++) {
+            PortBinding binding = bindings.get(index);
+            // The slug belongs to the port's owner, not to a grantee reading the workspace.
+            UserId portOwner = new UserId(binding.userId());
+            Boolean listening =
+                    index < PortService.MAX_PORTS_PER_WORKSPACE
+                            ? portStatus.isListening(binding.port())
+                            : null;
+            result.add(
+                    PortDto.from(
+                            binding,
+                            users.slug(portOwner),
+                            endpoint,
+                            token(portOwner, workspace, binding.port()),
+                            listening));
+        }
+        return List.copyOf(result);
+    }
+
+    private String token(UserId user, WorkspaceId workspace, int port) {
+        return tokens.issue(
+                user,
+                workspace.value(),
+                List.of("workspace:port:" + port),
+                Duration.ofSeconds(tokenTtlSeconds));
+    }
+
+    private void require(UserId user, WorkspaceId workspace, String permission) {
+        if (!auth.isAllowed(user, permission, workspace)) {
+            throw new AccessDeniedException(user, permission);
+        }
+    }
+
+    private static UserId userId(Principal principal) {
+        try {
+            return new UserId(UUID.fromString(principal.getName()));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException("principal is not a user id");
+        }
+    }
 }
