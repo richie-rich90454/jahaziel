@@ -10,6 +10,7 @@ import dev.jahaziel.identity.auth.basis.BasisException;
 import dev.jahaziel.identity.auth.basis.BasisHttp;
 import dev.jahaziel.identity.auth.basis.BasisLoginCancelledException;
 import dev.jahaziel.identity.auth.basis.BasisMetadata;
+import dev.jahaziel.identity.auth.basis.BasisOAuthException;
 import dev.jahaziel.identity.auth.basis.BasisStore;
 import dev.jahaziel.identity.auth.basis.Pkce;
 import dev.jahaziel.identity.auth.basis.TokenVerifier;
@@ -49,6 +50,7 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    private PluginContext context;
     private BasisConfig config;
     private BasisMetadata metadata;
     private BasisStore store;
@@ -62,6 +64,7 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
 
     @Override
     public void initialize(PluginContext context) {
+        this.context = context;
         config = new BasisConfig(context);
         http =
                 new BasisHttp(
@@ -138,6 +141,63 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     @Override
     public AuthIdentity currentIdentity(PluginContext context, String sessionId) {
         return store.getSession(sessionId);
+    }
+
+    @Override
+    public AuthIdentity refresh(PluginContext context, String sessionId) {
+        if (sessionId == null || sessionId.length() == 0) {
+            return null;
+        }
+        String current = store.refreshToken(sessionId);
+        if (current == null || current.length() == 0) {
+            return null;
+        }
+        Map<String, String> form = new LinkedHashMap<String, String>();
+        form.put("grant_type", "refresh_token");
+        form.put("refresh_token", current);
+        form.put("resource", config.resource());
+        if (config.publicClient()) {
+            form.put("client_id", config.clientId());
+        }
+        String endpoint = metadata.discovery().tokenEndpoint();
+        String authorization =
+                config.publicClient() ? null : basic(config.clientId(), config.clientSecret());
+        String body;
+        try {
+            body =
+                    http.postForm(
+                            endpoint, BasisHttp.form(form), authorization, Duration.ofSeconds(60));
+        } catch (BasisOAuthException failure) {
+            if ("invalid_grant".equals(failure.error())) {
+                store.clearRefresh(sessionId);
+                return null;
+            }
+            throw failure;
+        }
+        JsonNode node;
+        try {
+            node = mapper.readTree(body);
+        } catch (Exception failure) {
+            throw new BasisException("basis-auth refresh response is not JSON", failure);
+        }
+        String accessToken = text(node, "access_token");
+        String idToken = text(node, "id_token");
+        String rotated = text(node, "refresh_token");
+        if (accessToken == null || idToken == null || rotated == null || rotated.length() == 0) {
+            throw new BasisException("basis-auth refresh response lacks required tokens");
+        }
+        long expiresIn =
+                node == null || node.get("expires_in") == null
+                        ? 0L
+                        : node.get("expires_in").asLong();
+        store.consumeAndReplace(sessionId, current, rotated);
+        store.putTokenExpiresAt(sessionId, System.currentTimeMillis() + expiresIn * 1000L);
+        return store.getSession(sessionId);
+    }
+
+    /** The context handed to initialize, for callers without direct access to it. */
+    public PluginContext context() {
+        return context;
     }
 
     @Override
