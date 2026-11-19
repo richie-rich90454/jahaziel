@@ -99,7 +99,11 @@ class LanguageServerProcessManagerTest {
                 .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
         LanguageServerProcessManager manager =
                 new LanguageServerProcessManager(
-                        packs, directories, new ObjectMapper(), temporary.toString(), registry);
+                        packs,
+                        directories,
+                        new ObjectMapper(),
+                        temporary.toRealPath().toString(),
+                        registry);
         LanguageServerProcessManager.Session session =
                 manager.open(new WorkspaceId(UUID.randomUUID()), "typescript", ignored -> {});
 
