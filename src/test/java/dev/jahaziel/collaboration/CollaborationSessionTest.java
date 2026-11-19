@@ -34,7 +34,10 @@ final class CollaborationSessionTest {
                 });
         fixture.sessions.joinAsObserver(
                 started.sessionId(), CollaborationFixture.VIEWER, true, 2000L);
-        assertTrue(fixture.sessions.observers(started.sessionId()).contains(CollaborationFixture.VIEWER));
+        assertTrue(
+                fixture.sessions
+                        .observers(started.sessionId())
+                        .contains(CollaborationFixture.VIEWER));
     }
 
     @Test
