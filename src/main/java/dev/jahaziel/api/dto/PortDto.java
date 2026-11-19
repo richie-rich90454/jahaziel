@@ -6,6 +6,7 @@ package dev.jahaziel.api.dto;
 
 import dev.jahaziel.networking.api.GatewayEndpoint;
 import dev.jahaziel.networking.api.PortBinding;
+
 import java.time.Instant;
 import java.util.Objects;
 
@@ -20,32 +21,35 @@ import java.util.Objects;
  *     the port was not probed for this read
  */
 public record PortDto(
-    int port, String protocol, String url, Instant registeredAt, Boolean listening) {
-  /**
-   * Maps a binding to a DTO.
-   *
-   * @param binding the binding
-   * @param userSlug the URL-safe user slug
-   * @param endpoint the public gateway address
-   * @param token the workspace-scoped token, or null to omit the URL
-   * @param listening whether the registered port currently accepts connections
-   * @return the DTO
-   */
-  public static PortDto from(
-      PortBinding binding,
-      String userSlug,
-      GatewayEndpoint endpoint,
-      String token,
-      Boolean listening) {
-    Objects.requireNonNull(userSlug, "userSlug");
-    String url =
-        token == null ? null : endpoint.previewUrl(binding.workspaceId(), binding.port(), token);
-    return new PortDto(binding.port(), binding.protocol(), url, binding.registeredAt(), listening);
-  }
+        int port, String protocol, String url, Instant registeredAt, Boolean listening) {
+    /**
+     * Maps a binding to a DTO.
+     *
+     * @param binding the binding
+     * @param userSlug the URL-safe user slug
+     * @param endpoint the public gateway address
+     * @param token the workspace-scoped token, or null to omit the URL
+     * @param listening whether the registered port currently accepts connections
+     * @return the DTO
+     */
+    public static PortDto from(
+            PortBinding binding,
+            String userSlug,
+            GatewayEndpoint endpoint,
+            String token,
+            Boolean listening) {
+        Objects.requireNonNull(userSlug, "userSlug");
+        String url =
+                token == null
+                        ? null
+                        : endpoint.previewUrl(binding.workspaceId(), binding.port(), token);
+        return new PortDto(
+                binding.port(), binding.protocol(), url, binding.registeredAt(), listening);
+    }
 
-  /** Maps a binding when no local listener check was requested. */
-  public static PortDto from(
-      PortBinding binding, String userSlug, GatewayEndpoint endpoint, String token) {
-    return from(binding, userSlug, endpoint, token, null);
-  }
+    /** Maps a binding when no local listener check was requested. */
+    public static PortDto from(
+            PortBinding binding, String userSlug, GatewayEndpoint endpoint, String token) {
+        return from(binding, userSlug, endpoint, token, null);
+    }
 }
