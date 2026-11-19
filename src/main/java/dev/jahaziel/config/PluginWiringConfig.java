@@ -206,7 +206,7 @@ public class PluginWiringConfig {
     public FilterRegistrationBean<OpsLimitFilter> opsLimitFilter(
             ObjectProvider<QuotaService> quotas,
             ObjectProvider<RateLimiter> limiter,
-            @Value("${jahaziel.ops.rate-limit-per-minute:120}") int rateLimit,
+            @Value("${jahaziel.ops.rate-limit-per-minute:5000}") int rateLimit,
             @Value("${jahaziel.ops.quota-sessions:50}") long sessionLimit) {
         OpsLimitFilter filter =
                 new OpsLimitFilter(
