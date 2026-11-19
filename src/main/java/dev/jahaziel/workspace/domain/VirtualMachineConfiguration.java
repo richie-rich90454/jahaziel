@@ -11,12 +11,12 @@ package dev.jahaziel.workspace.domain;
  * @param memoryMib guest memory in MiB
  */
 public record VirtualMachineConfiguration(int vcpuCount, long memoryMib) {
-  public VirtualMachineConfiguration {
-    if (vcpuCount < 1) {
-      throw new IllegalArgumentException("vcpuCount must be positive");
+    public VirtualMachineConfiguration {
+        if (vcpuCount < 1) {
+            throw new IllegalArgumentException("vcpuCount must be positive");
+        }
+        if (memoryMib < 1) {
+            throw new IllegalArgumentException("memoryMib must be positive");
+        }
     }
-    if (memoryMib < 1) {
-      throw new IllegalArgumentException("memoryMib must be positive");
-    }
-  }
 }
