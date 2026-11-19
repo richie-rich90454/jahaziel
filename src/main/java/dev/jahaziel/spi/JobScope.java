@@ -6,10 +6,10 @@ package dev.jahaziel.spi;
 
 /** Scope a scheduled job runs in. */
 public enum JobScope {
-  /** One instance per cluster. */
-  CLUSTER,
-  /** One instance per node. */
-  NODE,
-  /** One instance per workspace. */
-  WORKSPACE
+    /** One instance per cluster. */
+    CLUSTER,
+    /** One instance per node. */
+    NODE,
+    /** One instance per workspace. */
+    WORKSPACE
 }
