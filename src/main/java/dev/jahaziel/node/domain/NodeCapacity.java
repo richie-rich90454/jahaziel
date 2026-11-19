@@ -12,15 +12,15 @@ package dev.jahaziel.node.domain;
  * @param diskGib disk in GiB
  */
 public record NodeCapacity(int cpuCores, long memoryMib, long diskGib) {
-  public NodeCapacity {
-    if (cpuCores < 1) {
-      throw new IllegalArgumentException("cpuCores must be positive");
+    public NodeCapacity {
+        if (cpuCores < 1) {
+            throw new IllegalArgumentException("cpuCores must be positive");
+        }
+        if (memoryMib < 1) {
+            throw new IllegalArgumentException("memoryMib must be positive");
+        }
+        if (diskGib < 1) {
+            throw new IllegalArgumentException("diskGib must be positive");
+        }
     }
-    if (memoryMib < 1) {
-      throw new IllegalArgumentException("memoryMib must be positive");
-    }
-    if (diskGib < 1) {
-      throw new IllegalArgumentException("diskGib must be positive");
-    }
-  }
 }
