@@ -14,7 +14,10 @@ public final class MacProcessEnvironment extends ProcessEnvironment {
     public MacProcessEnvironment() {
         super(
                 new PluginDescriptor(
-                        "process-env-mac", "1.0", new ArrayList<String>(), new ArrayList<String>()));
+                        "process-env-mac",
+                        "1.0",
+                        new ArrayList<String>(),
+                        new ArrayList<String>()));
     }
 
     @Override
