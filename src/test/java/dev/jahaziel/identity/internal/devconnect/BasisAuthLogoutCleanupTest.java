@@ -136,8 +136,7 @@ final class BasisAuthLogoutCleanupTest {
         AuthProviderDispatcher dispatcher =
                 new AuthProviderDispatcher(
                         registry,
-                        new AuthProviderConfig(
-                                Arrays.asList("basis-auth"), (PluginContext) null));
+                        new AuthProviderConfig(Arrays.asList("basis-auth"), (PluginContext) null));
         DevConnectServiceImpl withDispatcher =
                 new DevConnectServiceImpl(
                         props,
