@@ -49,8 +49,7 @@ jobs:
           pnpm run test:launch-config
           pnpm run build
       - name: Verify, package, and smoke launch the jar
-        # The user-protected gateway filter test class is excluded from this Linux sweep.
-        run: ./mvnw -B verify -Psmoke '-Dtest=!GatewayRelayFilterTest'
+        run: ./mvnw -B verify -Psmoke
       - name: Install the ephemeral CI browser
         shell: bash
         run: |
