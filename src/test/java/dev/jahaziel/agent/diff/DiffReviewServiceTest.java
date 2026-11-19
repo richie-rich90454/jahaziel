@@ -16,15 +16,18 @@ import dev.jahaziel.agent.support.FakeAuditSink;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.spi.AuditEvent;
 import dev.jahaziel.workspace.domain.WorkspaceId;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
+
+import tools.jackson.databind.ObjectMapper;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.api.io.TempDir;
-import tools.jackson.databind.ObjectMapper;
 
 class DiffReviewServiceTest {
     @TempDir Path temporary;
@@ -72,44 +75,44 @@ class DiffReviewServiceTest {
     void parserRejectsPathsThatEscapeTheWorkspace() {
         final DiffReviewService service = service(new FakeAuditSink());
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.stage(user, workspace, patchFor("../../secrets.txt"));
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.stage(user, workspace, patchFor("../../secrets.txt"));
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.stage(user, workspace, patchFor("/etc/passwd"));
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.stage(user, workspace, patchFor("/etc/passwd"));
+                    }
+                });
     }
 
     @Test
     void parserRejectsInconsistentHunkCountsAndUnknownLines() {
         final DiffReviewService service = service(new FakeAuditSink());
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.stage(
-                        user,
-                        workspace,
-                        "--- a/src/App.java\n+++ b/src/App.java\n@@ -1,5 +1,5 @@\n-old\n+new\n");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.stage(
+                                user,
+                                workspace,
+                                "--- a/src/App.java\n+++ b/src/App.java\n@@ -1,5 +1,5 @@\n-old\n+new\n");
+                    }
+                });
         assertThrowsAgent(
-            new Executable() {
-                @Override
-                public void execute() {
-                    service.stage(
-                        user,
-                        workspace,
-                        "--- a/src/App.java\n+++ b/src/App.java\n@@ -1 +1 @@\nSURPRISE\n");
-                }
-            });
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.stage(
+                                user,
+                                workspace,
+                                "--- a/src/App.java\n+++ b/src/App.java\n@@ -1 +1 @@\nSURPRISE\n");
+                    }
+                });
     }
 
     @Test
@@ -119,10 +122,11 @@ class DiffReviewServiceTest {
         UnifiedPatch patch = service.stage(user, workspace, validPatch());
 
         Path stored =
-            data.resolve("agent").resolve("patches")
-                .resolve(user.value().toString())
-                .resolve(workspace.value().toString())
-                .resolve(patch.getId() + ".json");
+                data.resolve("agent")
+                        .resolve("patches")
+                        .resolve(user.value().toString())
+                        .resolve(workspace.value().toString())
+                        .resolve(patch.getId() + ".json");
         assertTrue(Files.isRegularFile(stored));
         assertTrue(stored.toAbsolutePath().startsWith(data.toAbsolutePath()));
         assertEquals(1, service.list(user, workspace).size());
@@ -135,29 +139,24 @@ class DiffReviewServiceTest {
 
     private DiffReviewService service(FakeAuditSink sink) {
         AgentStore store = store();
-        return new DiffReviewService(
-            store, new StrictPatchParser(store), new AgentAudit(sink));
+        return new DiffReviewService(store, new StrictPatchParser(store), new AgentAudit(sink));
     }
 
     private static String validPatch() {
         return "--- a/src/App.java\n"
-            + "+++ b/src/App.java\n"
-            + "@@ -1,2 +1,2 @@\n"
-            + " package app;\n"
-            + "-old\n"
-            + "+new\n"
-            + "@@ -10,2 +10,2 @@\n"
-            + "-a\n"
-            + "+b\n"
-            + " c\n";
+                + "+++ b/src/App.java\n"
+                + "@@ -1,2 +1,2 @@\n"
+                + " package app;\n"
+                + "-old\n"
+                + "+new\n"
+                + "@@ -10,2 +10,2 @@\n"
+                + "-a\n"
+                + "+b\n"
+                + " c\n";
     }
 
     private static String patchFor(String path) {
-        return "--- a/" + path + "\n"
-            + "+++ b/" + path + "\n"
-            + "@@ -1 +1 @@\n"
-            + "-x\n"
-            + "+y\n";
+        return "--- a/" + path + "\n" + "+++ b/" + path + "\n" + "@@ -1 +1 @@\n" + "-x\n" + "+y\n";
     }
 
     private static void assertThrowsAgent(Executable executable) {
