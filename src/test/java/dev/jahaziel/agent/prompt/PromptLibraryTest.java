@@ -13,12 +13,14 @@ import dev.jahaziel.agent.AgentException;
 import dev.jahaziel.agent.AgentStore;
 import dev.jahaziel.identity.domain.UserId;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -29,6 +31,11 @@ class PromptLibraryTest {
 
     private final UserId owner = new UserId(UUID.randomUUID());
     private final UserId other = new UserId(UUID.randomUUID());
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     @Test
     void globalAndUserTemplatesAreCrudManaged() {
