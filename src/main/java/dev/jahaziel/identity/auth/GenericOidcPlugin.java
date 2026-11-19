@@ -12,11 +12,15 @@ import java.util.Collections;
 
 /** Generic OIDC provider for any conforming issuer. Config keys use the "oidc" prefix. */
 public final class GenericOidcPlugin extends OidcProviderPlugin {
-    private static final PluginDescriptor DESCRIPTOR = new PluginDescriptor(
-            "oidc",
-            "1",
-            Collections.<String>emptyList(),
-            Arrays.asList(AuthCapability.OIDC, AuthCapability.OAUTH2, AuthCapability.MFA_ASSURANCE));
+    private static final PluginDescriptor DESCRIPTOR =
+            new PluginDescriptor(
+                    "oidc",
+                    "1",
+                    Collections.<String>emptyList(),
+                    Arrays.asList(
+                            AuthCapability.OIDC,
+                            AuthCapability.OAUTH2,
+                            AuthCapability.MFA_ASSURANCE));
 
     public GenericOidcPlugin() {
         super(DESCRIPTOR);
