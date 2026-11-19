@@ -6,6 +6,10 @@ package dev.jahaziel.networking.internal;
 
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,8 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * macOS discovery from a fixed {@code lsof} invocation. Only the pid and name fields of the
@@ -26,8 +28,12 @@ public class MacPortDiscovery extends PortDiscoveryPlugin {
             new String[] {"lsof", "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpfn"};
 
     public MacPortDiscovery() {
-        super(new PluginDescriptor(
-                "mac-port-discovery", "1.0", new ArrayList<String>(), new ArrayList<String>()));
+        super(
+                new PluginDescriptor(
+                        "mac-port-discovery",
+                        "1.0",
+                        new ArrayList<String>(),
+                        new ArrayList<String>()));
     }
 
     @Override
