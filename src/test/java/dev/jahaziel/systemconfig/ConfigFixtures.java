@@ -9,7 +9,6 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.security.Principal;
-import java.util.UUID;
 
 /** Shared fakes for the system-configuration tests. */
 final class ConfigFixtures {
