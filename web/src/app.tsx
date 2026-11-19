@@ -6,6 +6,8 @@
 import { errorText } from "./lib/api";
 import { backToWorkspaces, setPanel, toggleWorkspace } from "./lib/controller";
 import { byId, effect, on } from "./lib/dom";
+import { getLocale, LOCALE_LABELS, LOCALES, setLocale, subscribeLocale, t } from "./lib/i18n";
+import { getTheme, setTheme, subscribeTheme, THEMES, THEME_LABELS } from "./lib/theme";
 import { state, toast } from "./lib/store";
 import { editorMarkup, bindEditor } from "./components/editor";
 import { bindHome, homeMarkup } from "./components/home";
@@ -13,6 +15,7 @@ import { bindPreview, previewMarkup } from "./components/preview";
 import { bindQuickOpen, quickOpenMarkup } from "./components/quick-open";
 import { bindSidebar, sidebarMarkup } from "./components/sidebar";
 import { bindTerminal, terminalMarkup } from "./components/terminal";
+import { bindTour, tourMarkup } from "./components/tour";
 
 export function App(): HTMLElement {
     const root = document.createElement("div");
@@ -25,6 +28,14 @@ export function App(): HTMLElement {
         <span class="brand-divider"></span>
         <span class="brand-product">Remote source IDE</span>
       </div>
+      <label class="locale-control" for="locale-select">
+        <span class="sr-only">${t("bar.language")}</span>
+        <select id="locale-select" aria-label="${t("bar.language")}">
+          ${LOCALES.map(
+              (locale) => `<option value="${locale}">${LOCALE_LABELS[locale]}</option>`,
+          ).join("")}
+        </select>
+      </label>
       <div id="user-badge" class="user-badge" hidden>
         <span class="user-presence"></span><span id="user-name"></span><span id="user-email" class="user-email"></span>
       </div>
@@ -36,23 +47,31 @@ export function App(): HTMLElement {
     <main id="workbench-page" class="page page-workbench" hidden>
       <div class="toasts" id="workbench-toasts" aria-live="polite"></div>
       <div class="workbench-bar">
-        <button id="back-home" class="icon-button back-button" type="button" aria-label="Back to workspaces">←</button>
-        <div class="breadcrumb"><span>Workspaces</span><b>/</b><strong id="workbench-title">Workspace</strong></div>
+        <button id="back-home" class="icon-button back-button" type="button" aria-label="${t("bar.back")}">←</button>
+        <div class="breadcrumb"><span>${t("bar.workspaces")}</span><b>/</b><strong id="workbench-title">Workspace</strong></div>
         <span id="workbench-state" class="status status-requested">requested</span>
         <div class="bar-spacer"></div>
         <div id="preview-links" class="preview-links"></div>
-        <button id="refresh-preview-ports" class="button btn preview-refresh" type="button" title="Check which preview ports are open">Check ports</button>
-        <button id="runtime-toggle" class="button btn" type="button">Start workspace</button>
+        <label class="theme-control" for="theme-select">
+          <span class="sr-only">${t("bar.theme")}</span>
+          <select id="theme-select" aria-label="${t("bar.theme")}">
+            ${THEMES.map(
+                (theme) => `<option value="${theme}">${THEME_LABELS[theme]}</option>`,
+            ).join("")}
+          </select>
+        </label>
+        <button id="refresh-preview-ports" class="button btn preview-refresh" type="button" title="${t("bar.checkPorts")}">${t("bar.checkPorts")}</button>
+        <button id="runtime-toggle" class="button btn" type="button">${t("bar.startWorkspace")}</button>
       </div>
       <nav class="workbench-panel-nav" aria-label="Workspace panels">
-        <button type="button" data-panel="files" aria-pressed="true">Files</button>
-        <button type="button" data-panel="editor" aria-pressed="false">Editor</button>
-        <button type="button" data-panel="run" aria-pressed="false">Run</button>
-        <button type="button" data-panel="languages" aria-pressed="false">Languages</button>
-        <button type="button" data-panel="debug" aria-pressed="false">Debug</button>
-        <button type="button" data-panel="git" aria-pressed="false">Git</button>
-        <button type="button" data-panel="terminal" aria-pressed="false">Terminal</button>
-        <button type="button" data-panel="preview" aria-pressed="false">Preview</button>
+        <button type="button" data-panel="files" aria-pressed="true">${t("nav.files")}</button>
+        <button type="button" data-panel="editor" aria-pressed="false">${t("nav.editor")}</button>
+        <button type="button" data-panel="run" aria-pressed="false">${t("nav.run")}</button>
+        <button type="button" data-panel="languages" aria-pressed="false">${t("nav.languages")}</button>
+        <button type="button" data-panel="debug" aria-pressed="false">${t("nav.debug")}</button>
+        <button type="button" data-panel="git" aria-pressed="false">${t("nav.git")}</button>
+        <button type="button" data-panel="terminal" aria-pressed="false">${t("nav.terminal")}</button>
+        <button type="button" data-panel="preview" aria-pressed="false">${t("nav.preview")}</button>
       </nav>
       <div class="workbench-layout">
         ${sidebarMarkup()}
@@ -65,9 +84,47 @@ export function App(): HTMLElement {
       </div>
     </main>
 
+    ${tourMarkup()}
     ${quickOpenMarkup()}
   `;
     return root;
+}
+
+function bindAppearanceControls(): void {
+    const themeSelect = byId<HTMLSelectElement>("theme-select");
+    const localeSelect = byId<HTMLSelectElement>("locale-select");
+    themeSelect.value = getTheme();
+    localeSelect.value = getLocale();
+    on(themeSelect, "change", () => setTheme(themeSelect.value as ReturnType<typeof getTheme>));
+    on(localeSelect, "change", () => setLocale(localeSelect.value as ReturnType<typeof getLocale>));
+    subscribeTheme(() => {
+        themeSelect.value = getTheme();
+    });
+    subscribeLocale(() => {
+        localeSelect.value = getLocale();
+        const labels: Record<string, string> = {
+            files: "nav.files",
+            editor: "nav.editor",
+            run: "nav.run",
+            languages: "nav.languages",
+            debug: "nav.debug",
+            git: "nav.git",
+            terminal: "nav.terminal",
+            preview: "nav.preview",
+        };
+        for (const button of Array.from(
+            document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"),
+        )) {
+            const key = labels[button.dataset.panel ?? ""];
+            if (key) button.textContent = t(key);
+        }
+        byId("back-home").setAttribute("aria-label", t("bar.back"));
+        const localeLabel = t("bar.language");
+        localeSelect.setAttribute("aria-label", localeLabel);
+        const themeLabel = t("bar.theme");
+        byId("theme-select").setAttribute("aria-label", themeLabel);
+        byId("refresh-preview-ports").textContent = t("bar.checkPorts");
+    });
 }
 
 export function bindApp(): void {
@@ -77,6 +134,8 @@ export function bindApp(): void {
     bindTerminal();
     bindPreview();
     bindQuickOpen();
+    bindTour();
+    bindAppearanceControls();
 
     for (const button of Array.from(
         document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"),
