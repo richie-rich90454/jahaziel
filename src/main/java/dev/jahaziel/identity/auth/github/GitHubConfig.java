@@ -27,18 +27,24 @@ public final class GitHubConfig {
     private final Path keysDir;
 
     public GitHubConfig(PluginContext context) {
-        this.clientId = required(context, "missing github client id",
-                "github.client-id", "GITHUB_CLIENT_ID");
+        this.clientId =
+                required(
+                        context,
+                        "missing github client id",
+                        "github.client-id",
+                        "GITHUB_CLIENT_ID");
         this.clientSecret = first(context, "github.client-secret", "GITHUB_CLIENT_SECRET");
         this.scopes = orDefault(first(context, "github.scopes", "GITHUB_SCOPES"), DEFAULT_SCOPES);
-        this.authorizeUrl = orDefault(first(context,
-                "github.authorize-url", "GITHUB_AUTHORIZE_URL"), DEFAULT_AUTHORIZE);
-        this.tokenUrl = orDefault(first(context,
-                "github.token-url", "GITHUB_TOKEN_URL"), DEFAULT_TOKEN);
-        this.userUrl = orDefault(first(context,
-                "github.user-url", "GITHUB_USER_URL"), DEFAULT_USER);
-        this.emailsUrl = orDefault(first(context,
-                "github.emails-url", "GITHUB_EMAILS_URL"), DEFAULT_EMAILS);
+        this.authorizeUrl =
+                orDefault(
+                        first(context, "github.authorize-url", "GITHUB_AUTHORIZE_URL"),
+                        DEFAULT_AUTHORIZE);
+        this.tokenUrl =
+                orDefault(first(context, "github.token-url", "GITHUB_TOKEN_URL"), DEFAULT_TOKEN);
+        this.userUrl =
+                orDefault(first(context, "github.user-url", "GITHUB_USER_URL"), DEFAULT_USER);
+        this.emailsUrl =
+                orDefault(first(context, "github.emails-url", "GITHUB_EMAILS_URL"), DEFAULT_EMAILS);
         this.identityDir = context.dataDir().resolve("identity");
         this.keysDir = context.dataDir().resolve("keys");
     }
