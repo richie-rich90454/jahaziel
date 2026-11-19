@@ -9,16 +9,18 @@
 
 Last verified against version 0.1.0-SNAPSHOT.
 
-Jahaziel is a single-jar, browser-based source IDE for trusted users working on
-Linux server workspaces. The Linux x64 and arm64 server targets use one
-application port and keep persistent files beneath the configured data
-directory. Windows and macOS computers are browser clients; development on the
-Windows workstation uses the repository's native PowerShell workflow.
+Jahaziel is a single-jar, browser-based source IDE for trusted users. The same
+jar runs on Linux, macOS, and Windows with one application port and persistent
+files beneath the jar-adjacent data directory. Linux x64 and arm64 are the
+CI-verified targets; real-host acceptance on macOS and Windows is still open.
+iPad is the primary browser client, and development on the Windows workstation
+uses the repository's native PowerShell workflow.
 
-The browser workbench is maintained in `web/src`, built into same-origin
-static assets, and packaged into the jar. CodeMirror 6 provides text editing;
-xterm.js displays explicitly requested workspace terminal sessions. The jar
-does not contain the VS Code fork, an IDE server, or language-tool binaries.
+The browser workbench is maintained in `web/src` with SolidJS and DaisyUI, built
+into same-origin static assets, and packaged into the jar. CodeMirror 6 provides
+text editing; xterm.js displays explicitly requested workspace terminal
+sessions. The jar does not contain the VS Code fork, an IDE server, or
+language-tool binaries. TypeScript is formatted with `oxfmt`.
 
 The flat `src/main/java` tree keeps the `dev.jahaziel.*` modular-monolith
 boundaries:
@@ -48,6 +50,15 @@ boundaries:
 - `dev.jahaziel.dist` composes the single-server runtime; `dev.jahaziel.cli`,
   `dev.jahaziel.administration`, and `dev.jahaziel.monitoring` provide
   operations, diagnostics, and health reporting.
+- `dev.jahaziel.plugin`, `dev.jahaziel.identity.auth`, and
+  `dev.jahaziel.platform.spi` are the plugin seams: extension lifecycle,
+  authentication providers, and per-OS process environments. Port discovery
+  plugins live in `dev.jahaziel.networking.internal`.
+- `dev.jahaziel.collaboration`, `dev.jahaziel.agent`, `dev.jahaziel.agenttools`,
+  `dev.jahaziel.datatools`, and `dev.jahaziel.club` deliver backend domain and
+  service modules; `dev.jahaziel.audit`, `dev.jahaziel.policy`, and
+  `dev.jahaziel.administration` cover compliance. These modules are backend-only
+  at this stage: there is no dedicated workbench panel for them yet.
 
 ArchUnit checks enforce package boundaries. Feature packages use another
 package's public API rather than its internals. The `dev.jahaziel.config`
