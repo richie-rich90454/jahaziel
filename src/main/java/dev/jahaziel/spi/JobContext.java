@@ -13,12 +13,12 @@ import java.util.Objects;
  * @param firedAt when the run fired
  */
 public record JobContext(Instant firedAt) {
-  public JobContext {
-    Objects.requireNonNull(firedAt, "firedAt");
-  }
+    public JobContext {
+        Objects.requireNonNull(firedAt, "firedAt");
+    }
 
-  /** Returns a context for right now. */
-  public static JobContext now() {
-    return new JobContext(Instant.now());
-  }
+    /** Returns a context for right now. */
+    public static JobContext now() {
+        return new JobContext(Instant.now());
+    }
 }
