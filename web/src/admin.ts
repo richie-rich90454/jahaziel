@@ -6,6 +6,22 @@
 // Admin dashboard companion: health, workspaces, users, live logs.
 "use strict";
 
+import { pluginsMarkup, renderPlugins } from "./components/plugins";
+
+function renderCapabilities(): void {
+    const host = document.getElementById("admin-capabilities");
+    if (host) {
+        host.innerHTML = pluginsMarkup();
+        renderPlugins(host);
+        return;
+    }
+    const section = document.createElement("div");
+    section.className = "admin-host";
+    section.innerHTML = pluginsMarkup();
+    document.body.append(section);
+    renderPlugins(section);
+}
+
 async function adminApi<T>(path: string): Promise<T> {
     const response = await fetch(path);
     if (!response.ok) {
@@ -15,6 +31,7 @@ async function adminApi<T>(path: string): Promise<T> {
 }
 
 async function adminMain(): Promise<void> {
+    renderCapabilities();
     const health = await adminApi<{ status: string }>("/admin/v1/health").catch(() => null);
     const banner = document.getElementById("admin-health");
     if (banner !== null) {
