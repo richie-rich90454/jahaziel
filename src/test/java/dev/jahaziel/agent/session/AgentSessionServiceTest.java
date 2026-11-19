@@ -15,12 +15,14 @@ import dev.jahaziel.agent.support.FakeAgentToolService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,6 +33,11 @@ class AgentSessionServiceTest {
 
     private final UserId user = new UserId(UUID.randomUUID());
     private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+
+    @BeforeEach
+    void useCanonicalTempDirectory() throws IOException {
+        temporary = temporary.toRealPath();
+    }
 
     @Test
     void sessionLifecycleIsPersistedPerUserAndWorkspace() {
