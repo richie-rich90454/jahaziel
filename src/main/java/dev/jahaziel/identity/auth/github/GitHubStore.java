@@ -56,9 +56,10 @@ public final class GitHubStore {
         this.encryptionKey = loadKey();
     }
 
-    public synchronized void putPending(String state, String redirectUri) {
+    public synchronized void putPending(String state, String redirectUri, String verifier) {
         ObjectNode node = mapper.createObjectNode();
         node.put("redirectUri", redirectUri);
+        node.put("verifier", verifier);
         node.put("expiresAt", System.currentTimeMillis() + PENDING_LIFETIME_MILLIS);
         pending.set(state, node);
         flush();
@@ -69,7 +70,11 @@ public final class GitHubStore {
         if (node == null) {
             return null;
         }
-        Pending found = new Pending(text(node, "redirectUri"), number(node, "expiresAt"));
+        Pending found =
+                new Pending(
+                        text(node, "redirectUri"),
+                        text(node, "verifier"),
+                        number(node, "expiresAt"));
         pending.remove(state);
         flush();
         if (found.expiresAt() <= System.currentTimeMillis()) {
@@ -246,15 +251,21 @@ public final class GitHubStore {
     /** One pending browser login. */
     public static final class Pending {
         private final String redirectUri;
+        private final String verifier;
         private final long expiresAt;
 
-        private Pending(String redirectUri, long expiresAt) {
+        private Pending(String redirectUri, String verifier, long expiresAt) {
             this.redirectUri = redirectUri;
+            this.verifier = verifier;
             this.expiresAt = expiresAt;
         }
 
         public String redirectUri() {
             return redirectUri;
+        }
+
+        public String verifier() {
+            return verifier;
         }
 
         public long expiresAt() {
