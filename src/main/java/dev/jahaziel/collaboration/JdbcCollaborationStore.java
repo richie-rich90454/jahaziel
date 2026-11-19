@@ -4,17 +4,18 @@
  */
 package dev.jahaziel.collaboration;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Repository;
 
 /** Database-backed collaboration store. All ids and timestamps are stored as plain scalars. */
 @Repository
@@ -190,8 +191,7 @@ public final class JdbcCollaborationStore extends CollaborationStore {
 
     @Override
     public void putInvitation(Invitation invitation) {
-        jdbc.update(
-                "DELETE FROM workspace_invitation WHERE invitation_id = ?", invitation.id());
+        jdbc.update("DELETE FROM workspace_invitation WHERE invitation_id = ?", invitation.id());
         jdbc.update(
                 "INSERT INTO workspace_invitation (invitation_id, workspace_id, invitee, role, invited_by, created_at, expires_at, accepted, accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 invitation.id(),
@@ -379,8 +379,7 @@ public final class JdbcCollaborationStore extends CollaborationStore {
     @Override
     public ShareLink shareLinkByHash(String tokenHash) {
         List<ShareLink> found =
-                jdbc.query(
-                        "SELECT * FROM share_link WHERE token_hash = ?", SHARE_ROW, tokenHash);
+                jdbc.query("SELECT * FROM share_link WHERE token_hash = ?", SHARE_ROW, tokenHash);
         return found.isEmpty() ? null : found.get(0);
     }
 
