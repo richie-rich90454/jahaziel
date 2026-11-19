@@ -60,10 +60,7 @@ final class BasisPrincipalFilterTest {
         BasisResourceFilter.setIdentityStore(identities);
         filter =
                 new BasisResourceFilter(
-                        verifier,
-                        mock(BasisScopeGuard.class),
-                        new String[0],
-                        new String[0]);
+                        verifier, mock(BasisScopeGuard.class), new String[0], new String[0]);
     }
 
     @AfterEach
@@ -80,7 +77,8 @@ final class BasisPrincipalFilterTest {
 
         filter.doFilter(request, new MockHttpServletResponse(), chain);
 
-        assertEquals(userId.toString(), request.getAttribute(BasisResourceFilter.PRINCIPAL_ATTRIBUTE));
+        assertEquals(
+                userId.toString(), request.getAttribute(BasisResourceFilter.PRINCIPAL_ATTRIBUTE));
         assertNotNull(chain.getRequest());
         verify(identities).findUserId("basis-auth", "sub-1");
     }
