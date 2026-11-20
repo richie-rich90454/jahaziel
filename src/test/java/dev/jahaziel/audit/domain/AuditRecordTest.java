@@ -48,7 +48,9 @@ class AuditRecordTest {
     void nullsAreRejectedAndDetailsCopied() {
         assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new AuditRecord(
                                 null,
                                 Instant.now(),
@@ -62,7 +64,9 @@ class AuditRecordTest {
                                 Optional.empty(),
                                 Map.of(),
                                 Optional.empty(),
-                                "h"));
+                                "h");
+                    }
+                });
         Map<String, String> details = new HashMap<>(Map.of("k", "v"));
         AuditRecord record =
                 new AuditRecord(
