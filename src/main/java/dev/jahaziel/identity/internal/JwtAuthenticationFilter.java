@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.internal;
 
 import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.api.JwtSession;
 import dev.jahaziel.identity.domain.UserId;
 
 import jakarta.servlet.FilterChain;
@@ -18,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -49,12 +51,13 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {
-                var session = tokens.verify(header.substring("Bearer ".length()).trim());
-                List<SimpleGrantedAuthority> authorities =
-                        users.roles(session.user()).stream()
-                                .map(SimpleGrantedAuthority::new)
-                                .toList();
-                var authentication =
+                JwtSession session = tokens.verify(header.substring("Bearer ".length()).trim());
+                List<String> roleNames = users.roles(session.user());
+                List<SimpleGrantedAuthority> authorities = new ArrayList<SimpleGrantedAuthority>();
+                for (int index = 0; index < roleNames.size(); index++) {
+                    authorities.add(new SimpleGrantedAuthority(roleNames.get(index)));
+                }
+                UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 session.user().value().toString(), null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -76,14 +79,14 @@ public final class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /** Role lookup for authentication. */
-    public interface UserLookup {
+    public abstract static class UserLookup {
         /**
          * Returns role names.
          *
          * @param user the user identifier
          * @return the role names
          */
-        List<String> roles(UserId user);
+        public abstract List<String> roles(UserId user);
     }
 
     /**
