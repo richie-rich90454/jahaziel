@@ -18,7 +18,8 @@ class TerminalStreamMessageJsonTest {
 
     @Test
     void serializesFrameFields() throws Exception {
-        String frame = json.writeValueAsString(new StreamMessage("history", "hello", null, null, null));
+        String frame =
+                json.writeValueAsString(new StreamMessage("history", "hello", null, null, null));
         assertEquals("history", json.readTree(frame).get("type").asString());
         assertEquals("hello", json.readTree(frame).get("data").asString());
     }
