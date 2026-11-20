@@ -63,8 +63,8 @@ class VmIdleCheckJobCoverageGapTest {
 
     @Test
     void stopsIdleAndSkipsOthers() {
-        var workspaces = mock(WorkspaceService.class);
-        var runtime = mock(RuntimeService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        RuntimeService runtime = mock(RuntimeService.class);
         WorkspaceId idleId = new WorkspaceId(UUID.randomUUID());
         WorkspaceId activeId = new WorkspaceId(UUID.randomUUID());
         when(workspaces.describeAll())
@@ -76,8 +76,8 @@ class VmIdleCheckJobCoverageGapTest {
 
     @Test
     void emptyFleetDoesNothing() {
-        var workspaces = mock(WorkspaceService.class);
-        var runtime = mock(RuntimeService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        RuntimeService runtime = mock(RuntimeService.class);
         when(workspaces.describeAll()).thenReturn(List.of());
         new VmIdleCheckJob(workspaces, runtime).run(new JobContext(Instant.now()));
         verifyNoInteractions(runtime);
@@ -85,7 +85,8 @@ class VmIdleCheckJobCoverageGapTest {
 
     @Test
     void scheduleMetadata() {
-        var job = new VmIdleCheckJob(mock(WorkspaceService.class), mock(RuntimeService.class));
+        VmIdleCheckJob job =
+                new VmIdleCheckJob(mock(WorkspaceService.class), mock(RuntimeService.class));
         assertEquals(Duration.ofMinutes(1), job.period());
         assertEquals(JobScope.CLUSTER, job.scope());
     }
@@ -94,9 +95,19 @@ class VmIdleCheckJobCoverageGapTest {
     void constructorGuards() {
         assertThrows(
                 NullPointerException.class,
-                () -> new VmIdleCheckJob(null, mock(RuntimeService.class)));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VmIdleCheckJob(null, mock(RuntimeService.class));
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new VmIdleCheckJob(mock(WorkspaceService.class), null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VmIdleCheckJob(mock(WorkspaceService.class), null);
+                    }
+                });
     }
 }
