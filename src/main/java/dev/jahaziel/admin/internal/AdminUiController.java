@@ -91,7 +91,7 @@ public class AdminUiController {
                         + "<li><a href=\"/admin/v1/logs/stream\">live logs</a></li>"
                         + "<li><a href=\"/_admin/diagnostics\">diagnostics download</a></li></ul>"
                         + "<pre id=\"logs\"></pre>"
-                        + "<script>var s=new EventSource('/admin/v1/logs/stream');"
+                        + "<script>const s=new EventSource('/admin/v1/logs/stream');"
                         + "s.onmessage=function(e){document.getElementById('logs').textContent+=e.data+'\\n';};</script>"
                         + "</body></html>";
         return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
