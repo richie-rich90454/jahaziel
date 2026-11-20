@@ -24,4 +24,8 @@ public final class UserNotFoundException extends RuntimeException {
     public UserId userId() {
         return userId;
     }
+
+    public UserId getUserId() {
+        return userId;
+    }
 }
