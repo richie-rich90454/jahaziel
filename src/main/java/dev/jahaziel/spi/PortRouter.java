@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /** Maps user ports to workspaces for the gateway. */
 @JahazielSpi(version = 1)
-public interface PortRouter {
+public abstract class PortRouter {
     /**
      * Registers a port binding.
      *
@@ -17,7 +17,7 @@ public interface PortRouter {
      * @param port the bound port
      * @param workspaceId the workspace serving the port
      */
-    void register(UUID userId, int port, UUID workspaceId);
+    public abstract void register(UUID userId, int port, UUID workspaceId);
 
     /**
      * Removes a port binding.
@@ -25,7 +25,7 @@ public interface PortRouter {
      * @param userId the owning user
      * @param port the bound port
      */
-    void unregister(UUID userId, int port);
+    public abstract void unregister(UUID userId, int port);
 
     /**
      * Looks up the workspace serving a user port.
@@ -34,5 +34,5 @@ public interface PortRouter {
      * @param port the bound port
      * @return the workspace, empty when unregistered
      */
-    Optional<UUID> lookup(UUID userId, int port);
+    public abstract Optional<UUID> lookup(UUID userId, int port);
 }
