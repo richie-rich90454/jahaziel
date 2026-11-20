@@ -21,15 +21,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
+import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -85,54 +93,106 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain chain(HttpSecurity http) throws Exception {
-        JwtAuthenticationFilter.UserLookup lookup = user -> users.get(user).roles();
+        JwtAuthenticationFilter.UserLookup lookup =
+                new JwtAuthenticationFilter.UserLookup() {
+                    @Override
+                    public List<String> roles(UserId user) {
+                        return users.get(user).roles();
+                    }
+                };
         JwtAuthenticationFilter bearer = new JwtAuthenticationFilter(tokens, lookup);
         BffAuthenticationFilter cookies =
                 new BffAuthenticationFilter(devconnect, tokens, users, demo);
+        final boolean demoMode = demo;
         return http.authorizeHttpRequests(
-                        exchanges -> {
-                            exchanges
-                                    .requestMatchers("/actuator/health", "/error")
-                                    .permitAll()
-                                    .requestMatchers(
-                                            "/api/login",
-                                            "/api/oauth/callback",
-                                            "/api/oauth2/bcallback",
-                                            "/api/auth/local",
-                                            "/api/auth/passkey",
-                                            "/api/auth/passkey/options",
-                                            "/api/auth/ldap",
-                                            "/api/auth/token")
-                                    .permitAll()
-                                    // Public brand assets: browsers fetch these cookieless
-                                    // (manifest,
-                                    // favicon, PWA icons), so gating them behind auth only produces
-                                    // console 401s. They carry no secrets.
-                                    .requestMatchers(
-                                            "/favicon.ico",
-                                            "/favicon.svg",
-                                            "/icons/**",
-                                            "/assets/**",
-                                            "/site.webmanifest")
-                                    .permitAll();
-                            exchanges.requestMatchers("/", "/index.html").permitAll();
-                            if (demo) {
+                        new Customizer<
+                                AuthorizeHttpRequestsConfigurer<HttpSecurity>
+                                        .AuthorizationManagerRequestMatcherRegistry>() {
+                            @Override
+                            public void customize(
+                                    AuthorizeHttpRequestsConfigurer<HttpSecurity>
+                                                    .AuthorizationManagerRequestMatcherRegistry
+                                            exchanges) {
                                 exchanges
-                                        .requestMatchers("/_admin", "/_admin/diagnostics")
+                                        .requestMatchers("/actuator/health", "/error")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                "/api/login",
+                                                "/api/oauth/callback",
+                                                "/api/oauth2/bcallback",
+                                                "/api/auth/local",
+                                                "/api/auth/passkey",
+                                                "/api/auth/passkey/options",
+                                                "/api/auth/ldap",
+                                                "/api/auth/token")
+                                        .permitAll()
+                                        // Public brand assets: browsers fetch these cookieless
+                                        // (manifest, favicon, PWA icons), so gating them behind
+                                        // auth
+                                        // only produces console 401s. They carry no secrets.
+                                        .requestMatchers(
+                                                "/favicon.ico",
+                                                "/favicon.svg",
+                                                "/icons/**",
+                                                "/assets/**",
+                                                "/site.webmanifest")
                                         .permitAll();
+                                exchanges.requestMatchers("/", "/index.html").permitAll();
+                                if (demoMode) {
+                                    exchanges
+                                            .requestMatchers("/_admin", "/_admin/diagnostics")
+                                            .permitAll();
+                                }
+                                exchanges.anyRequest().authenticated();
                             }
-                            exchanges.anyRequest().authenticated();
                         })
-                .logout(logout -> logout.logoutSuccessUrl("/"))
+                .logout(
+                        new Customizer<LogoutConfigurer<HttpSecurity>>() {
+                            @Override
+                            public void customize(LogoutConfigurer<HttpSecurity> logout) {
+                                logout.logoutSuccessUrl("/");
+                            }
+                        })
                 .sessionManagement(
-                        sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        new Customizer<SessionManagementConfigurer<HttpSecurity>>() {
+                            @Override
+                            public void customize(
+                                    SessionManagementConfigurer<HttpSecurity> sessions) {
+                                sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+                            }
+                        })
                 .csrf(
-                        csrf ->
+                        new Customizer<CsrfConfigurer<HttpSecurity>>() {
+                            @Override
+                            public void customize(CsrfConfigurer<HttpSecurity> csrf) {
                                 csrf.ignoringRequestMatchers(
                                         PathPatternRequestMatcher.withDefaults().matcher("/api/**"),
-                                        request -> authorization(request) != null))
+                                        new RequestMatcher() {
+                                            @Override
+                                            public boolean matches(HttpServletRequest request) {
+                                                return authorization(request) != null;
+                                            }
+                                        });
+                            }
+                        })
                 .exceptionHandling(
-                        handling -> handling.authenticationEntryPoint(this::onUnauthenticated))
+                        new Customizer<ExceptionHandlingConfigurer<HttpSecurity>>() {
+                            @Override
+                            public void customize(
+                                    ExceptionHandlingConfigurer<HttpSecurity> handling) {
+                                handling.authenticationEntryPoint(
+                                        new AuthenticationEntryPoint() {
+                                            @Override
+                                            public void commence(
+                                                    HttpServletRequest request,
+                                                    HttpServletResponse response,
+                                                    AuthenticationException failure)
+                                                    throws IOException, ServletException {
+                                                onUnauthenticated(request, response, failure);
+                                            }
+                                        });
+                            }
+                        })
                 .addFilterBefore(cookies, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(
                         new BasisPrincipalFilter(users), UsernamePasswordAuthenticationFilter.class)
