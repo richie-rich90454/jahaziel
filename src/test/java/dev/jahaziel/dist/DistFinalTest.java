@@ -10,7 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.boot.system.ApplicationHome;
 
@@ -47,16 +50,28 @@ class DistFinalTest {
         Path templates = tmp.resolve("templates");
         Files.createDirectories(templates);
         Files.writeString(templates.resolve("empty"), "not-a-directory");
-        assertThrows(IOException.class, () -> TemplateSeeds.copyIfAbsent(templates));
+        assertThrows(
+                IOException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        TemplateSeeds.copyIfAbsent(templates);
+                    }
+                });
     }
 
     @Test
     void adjacentBaseFallsBackToUserDir() {
-        try (var app =
+        try (MockedConstruction<ApplicationHome> app =
                 Mockito.mockConstruction(
                         ApplicationHome.class,
-                        (mock, context) ->
-                                when(mock.getSource()).thenReturn(new File("classes")))) {
+                        new MockedConstruction.MockInitializer<ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    ApplicationHome mock, MockedConstruction.Context context) {
+                                when(mock.getSource()).thenReturn(new File("classes"));
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Path.of(JarDataDir.adjacentBase()).toAbsolutePath().normalize());
@@ -69,10 +84,16 @@ class DistFinalTest {
         when(jar.getName()).thenReturn("jahaziel.jar");
         when(jar.getAbsoluteFile()).thenReturn(jar);
         when(jar.getParentFile()).thenReturn(null);
-        try (var app =
+        try (MockedConstruction<ApplicationHome> app =
                 Mockito.mockConstruction(
                         ApplicationHome.class,
-                        (mock, context) -> when(mock.getSource()).thenReturn(jar))) {
+                        new MockedConstruction.MockInitializer<ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    ApplicationHome mock, MockedConstruction.Context context) {
+                                when(mock.getSource()).thenReturn(jar);
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Path.of(JarDataDir.adjacentBase()).toAbsolutePath().normalize());
@@ -81,11 +102,16 @@ class DistFinalTest {
 
     @Test
     void adjacentBaseSurvivesSecurityManager() {
-        try (var app =
+        try (MockedConstruction<ApplicationHome> app =
                 Mockito.mockConstruction(
                         ApplicationHome.class,
-                        (mock, context) ->
-                                when(mock.getSource()).thenThrow(new SecurityException("x")))) {
+                        new MockedConstruction.MockInitializer<ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    ApplicationHome mock, MockedConstruction.Context context) {
+                                when(mock.getSource()).thenThrow(new SecurityException("x"));
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Path.of(JarDataDir.adjacentBase()).toAbsolutePath().normalize());
@@ -94,10 +120,16 @@ class DistFinalTest {
 
     @Test
     void adjacentBaseReturnsNullSourceToUserDir() {
-        try (var app =
+        try (MockedConstruction<ApplicationHome> app =
                 Mockito.mockConstruction(
                         ApplicationHome.class,
-                        (mock, context) -> when(mock.getSource()).thenReturn(null))) {
+                        new MockedConstruction.MockInitializer<ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    ApplicationHome mock, MockedConstruction.Context context) {
+                                when(mock.getSource()).thenReturn(null);
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Path.of(JarDataDir.adjacentBase()).toAbsolutePath().normalize());
@@ -111,10 +143,31 @@ class DistFinalTest {
         Path privateKey = keys.resolve("jwt.key");
         Path publicKey = keys.resolve("jwt.pub");
         Path lock = keys.resolve(".lock");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.isRegularFile(privateKey)).thenReturn(false, false, true);
-            files.when(() -> Files.isRegularFile(publicKey)).thenReturn(true);
-            files.when(() -> Files.createFile(lock))
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isRegularFile(privateKey);
+                                }
+                            })
+                    .thenReturn(false, false, true);
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isRegularFile(publicKey);
+                                }
+                            })
+                    .thenReturn(true);
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.createFile(lock);
+                                }
+                            })
                     .thenThrow(new java.nio.file.FileAlreadyExistsException("held"));
             DevKeys.Keys found = DevKeys.ensure(keys);
             assertEquals(privateKey, found.privateKey());
@@ -130,9 +183,24 @@ class DistFinalTest {
         Files.createDirectories(keys);
         Path privateKey = keys.resolve("jwt.key");
         Path publicKey = keys.resolve("jwt.pub");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.isRegularFile(privateKey)).thenReturn(false, true);
-            files.when(() -> Files.isRegularFile(publicKey)).thenReturn(true);
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isRegularFile(privateKey);
+                                }
+                            })
+                    .thenReturn(false, true);
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isRegularFile(publicKey);
+                                }
+                            })
+                    .thenReturn(true);
             DevKeys.Keys found = DevKeys.ensure(keys);
             assertEquals(privateKey, found.privateKey());
         }
