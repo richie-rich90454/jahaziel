@@ -15,7 +15,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /** Resolves per-workspace home paths without following symbolic-link escapes. */
-public final class WorkspaceDirectoryServiceImpl implements WorkspaceDirectoryService {
+public final class WorkspaceDirectoryServiceImpl extends WorkspaceDirectoryService {
     private final Path storageRoot;
 
     public WorkspaceDirectoryServiceImpl(String storageRoot) {
