@@ -29,7 +29,14 @@ class WorkspaceRecordTest {
         assertTrue(kept.grants(user, "write"));
         AccessControlList removed = kept.withoutGrant(user, "write");
         assertFalse(removed.grants(user, "write"));
-        assertThrows(NullPointerException.class, () -> new AccessControlList(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AccessControlList(null);
+                    }
+                });
         AccessControlList copied = new AccessControlList(Map.of(user, Set.of("read")));
         assertEquals(Set.of("read"), copied.grants().get(user));
     }
@@ -39,11 +46,30 @@ class WorkspaceRecordTest {
         Instant at = Instant.now();
         VirtualMachineState.Running running = new VirtualMachineState.Running(at, "vm-1");
         assertEquals("vm-1", running.hostname());
-        assertThrows(NullPointerException.class, () -> new VirtualMachineState.Running(null, "h"));
         assertThrows(
-                IllegalArgumentException.class, () -> new VirtualMachineState.Running(at, null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Running(null, "h");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new VirtualMachineState.Running(at, "  "));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Running(at, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Running(at, "  ");
+                    }
+                });
     }
 
     @Test
@@ -51,11 +77,30 @@ class WorkspaceRecordTest {
         Instant at = Instant.now();
         VirtualMachineState.Crashed crashed = new VirtualMachineState.Crashed(at, "panic");
         assertEquals("panic", crashed.reason());
-        assertThrows(NullPointerException.class, () -> new VirtualMachineState.Crashed(null, "r"));
         assertThrows(
-                IllegalArgumentException.class, () -> new VirtualMachineState.Crashed(at, null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Crashed(null, "r");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new VirtualMachineState.Crashed(at, "  "));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Crashed(at, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineState.Crashed(at, "  ");
+                    }
+                });
     }
 
     @Test
