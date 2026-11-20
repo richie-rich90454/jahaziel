@@ -47,11 +47,17 @@ class LanguageServerProcessManagerTest {
         try {
             assertThrows(
                     IllegalArgumentException.class,
-                    () ->
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
                             manager.open(
                                     new WorkspaceId(UUID.randomUUID()),
                                     "../escape",
-                                    ignored -> {}));
+                                    new java.util.function.Consumer<String>() {
+                                        @Override
+                                        public void accept(String value) {}
+                                    });
+                        }
+                    });
 
             verify(packs).supportsLanguageService("../escape");
             verify(workspaces, never()).home(any(WorkspaceId.class));
@@ -94,7 +100,14 @@ class LanguageServerProcessManagerTest {
         WorkspaceDirectoryService directories = mock(WorkspaceDirectoryService.class);
         when(directories.home(any(WorkspaceId.class))).thenReturn(workspace);
         WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
-        when(registry.dedicatedSessionCommand(any())).thenAnswer(call -> call.getArgument(0));
+        when(registry.dedicatedSessionCommand(any()))
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            @Override
+                            public Object answer(org.mockito.invocation.InvocationOnMock call) {
+                                return call.getArgument(0);
+                            }
+                        });
         when(registry.track(any(WorkspaceId.class), any(), any()))
                 .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
         LanguageServerProcessManager manager =
@@ -105,7 +118,13 @@ class LanguageServerProcessManagerTest {
                         temporary.toRealPath().toString(),
                         registry);
         LanguageServerProcessManager.Session session =
-                manager.open(new WorkspaceId(UUID.randomUUID()), "typescript", ignored -> {});
+                manager.open(
+                        new WorkspaceId(UUID.randomUUID()),
+                        "typescript",
+                        new java.util.function.Consumer<String>() {
+                            @Override
+                            public void accept(String value) {}
+                        });
 
         try {
             session.send(
@@ -116,7 +135,8 @@ class LanguageServerProcessManagerTest {
                 Thread.sleep(20);
             }
             assertTrue(Files.isRegularFile(captured));
-            var message = new ObjectMapper().readTree(Files.readString(captured));
+            tools.jackson.databind.JsonNode message =
+                    new ObjectMapper().readTree(Files.readString(captured));
             assertEquals(
                     workspace.toUri().toString(),
                     message.path("params").path("rootUri").asString());
