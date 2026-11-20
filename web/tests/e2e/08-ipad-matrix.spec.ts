@@ -129,7 +129,6 @@ for (const context of IPAD_CONTEXTS) {
     }) => {
       const nav = (panel: string): Locator =>
         page.locator(`.workbench-panel-nav [data-panel="${panel}"]`);
-      const compact = context.width <= 900;
       const panelRegion: Record<string, string> = {
         terminal: ".terminal-dock",
         debug: ".debug-panel",
@@ -142,23 +141,14 @@ for (const context of IPAD_CONTEXTS) {
       };
 
       for (const panel of ["terminal", "debug", "preview"]) {
-        if (compact) {
-          // The panel strip is the touch affordance at Split View widths.
-          await expect(nav(panel)).toBeVisible();
-          await expectTouchTarget(nav(panel), `${context.label}: ${panel} nav button`);
-          await nav(panel).tap();
-        } else {
-          // The strip is hidden above 900px in this build; quick open is the
-          // only panel switcher there (an app-side touch gap, not a test gap).
-          await expect(nav(panel)).toBeHidden();
-          await workbench.openPanel(panel);
-        }
+        // The panel strip is the touch affordance at every iPad width, including landscape.
+        await expect(nav(panel)).toBeVisible();
+        await expectTouchTarget(nav(panel), `${context.label}: ${panel} nav button`);
+        await nav(panel).tap();
         await workbench.expectPanel(panel);
         // Split View shows one dock at a time, so assert while it is active.
         await expect(page.locator(panelRegion[panel])).toBeVisible();
-        // At 512px the preview status text is flex-squeezed to zero width, so
-        // presence (not visibility) is the reliable assertion for the state span.
-        await expect(page.locator(panelState[panel])).toBeAttached();
+        await expect(page.locator(panelState[panel])).toBeVisible();
       }
       await expectNoHorizontalOverflow(page, context.label);
     });
