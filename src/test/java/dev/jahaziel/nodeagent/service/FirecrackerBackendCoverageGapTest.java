@@ -94,7 +94,13 @@ class FirecrackerBackendCoverageGapTest {
                             2,
                             2048);
             IllegalStateException failure =
-                    assertThrows(IllegalStateException.class, () -> backend.prepare(request));
+                    assertThrows(
+                            IllegalStateException.class,
+                            new org.junit.jupiter.api.function.Executable() {
+                                public void execute() throws Throwable {
+                                    backend.prepare(request);
+                                }
+                            });
             assertEquals("cannot encode firecracker config", failure.getMessage());
         } finally {
             mapperField.set(backend, original);
