@@ -49,7 +49,14 @@ class AccessControlListTest {
 
     @Test
     void nullGrantsAreRejected() {
-        assertThrows(NullPointerException.class, () -> new AccessControlList(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AccessControlList(null);
+                    }
+                });
     }
 
     @Test
