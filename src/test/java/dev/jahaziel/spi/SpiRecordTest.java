@@ -17,6 +17,7 @@ import java.util.UUID;
 
 /** Validation of the small SPI value types. */
 class SpiRecordTest {
+
     @Test
     void auditEventStoresFields() {
         AuditEvent event =
@@ -47,13 +48,17 @@ class SpiRecordTest {
         assertEquals(5, query.limit());
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
                         new AuditQuery(
                                 Optional.empty(),
                                 Optional.empty(),
                                 Optional.empty(),
                                 Optional.empty(),
-                                0));
+                                0);
+                    }
+                });
     }
 
     @Test
@@ -64,23 +69,57 @@ class SpiRecordTest {
         assertEquals("publisher.ext", request.extensionId());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionRequest(null, "1.0", user, workspace));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ExtensionRequest(null, "1.0", user, workspace);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionRequest("  ", "1.0", user, workspace));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ExtensionRequest("  ", "1.0", user, workspace);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionRequest("publisher.ext", null, user, workspace));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ExtensionRequest("publisher.ext", null, user, workspace);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionRequest("publisher.ext", "  ", user, workspace));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ExtensionRequest("publisher.ext", "  ", user, workspace);
+                    }
+                });
     }
 
     @Test
     void imageRefGuardsBlanks() {
         assertEquals("base-image:2026.09", new ImageRef("base-image:2026.09").value());
-        assertThrows(IllegalArgumentException.class, () -> new ImageRef(null));
-        assertThrows(IllegalArgumentException.class, () -> new ImageRef("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ImageRef(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new ImageRef("  ");
+                    }
+                });
     }
 
     @Test
@@ -90,57 +129,193 @@ class SpiRecordTest {
         assertEquals(Map.of("node", "a"), metric.tags());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Metric(null, 1.5, Map.of(), Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Metric(null, 1.5, Map.of(), Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Metric("  ", 1.5, Map.of(), Instant.now()));
-        assertThrows(NullPointerException.class, () -> new Metric("cpu", 1.5, null, Instant.now()));
-        assertThrows(NullPointerException.class, () -> new Metric("cpu", 1.5, Map.of(), null));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Metric("  ", 1.5, Map.of(), Instant.now());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Metric("cpu", 1.5, null, Instant.now());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Metric("cpu", 1.5, Map.of(), null);
+                    }
+                });
     }
 
     @Test
     void notificationGuardsBlanks() {
         Notification notification = new Notification("user", "subject", "body");
         assertEquals("body", notification.body());
-        assertThrows(IllegalArgumentException.class, () -> new Notification(null, "s", "b"));
-        assertThrows(IllegalArgumentException.class, () -> new Notification("  ", "s", "b"));
-        assertThrows(IllegalArgumentException.class, () -> new Notification("r", null, "b"));
-        assertThrows(IllegalArgumentException.class, () -> new Notification("r", "  ", "b"));
-        assertThrows(IllegalArgumentException.class, () -> new Notification("r", "s", null));
-        assertThrows(IllegalArgumentException.class, () -> new Notification("r", "s", "  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification(null, "s", "b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification("  ", "s", "b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification("r", null, "b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification("r", "  ", "b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification("r", "s", null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Notification("r", "s", "  ");
+                    }
+                });
     }
 
     @Test
     void permissionGuardsBlanks() {
         assertEquals("workspace.read", new Permission("workspace.read").name());
-        assertThrows(IllegalArgumentException.class, () -> new Permission(null));
-        assertThrows(IllegalArgumentException.class, () -> new Permission("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Permission(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Permission("  ");
+                    }
+                });
     }
 
     @Test
     void policyStoresAttributes() {
         Policy policy = new Policy("default", Map.of("k", "v"));
         assertEquals(Map.of("k", "v"), policy.attributes());
-        assertThrows(IllegalArgumentException.class, () -> new Policy(null, Map.of()));
-        assertThrows(IllegalArgumentException.class, () -> new Policy("  ", Map.of()));
-        assertThrows(NullPointerException.class, () -> new Policy("default", null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Policy(null, Map.of());
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Policy("  ", Map.of());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Policy("default", null);
+                    }
+                });
     }
 
     @Test
     void quotaBytesRejectsNegatives() {
         assertEquals(0L, new QuotaBytes(0L).value());
         assertEquals(8L, new QuotaBytes(8L).value());
-        assertThrows(IllegalArgumentException.class, () -> new QuotaBytes(-1L));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new QuotaBytes(-1L);
+                    }
+                });
     }
 
     @Test
     void resourceGuardsBlanks() {
         Resource resource = new Resource("workspace", "ws-1");
         assertEquals("ws-1", resource.id());
-        assertThrows(IllegalArgumentException.class, () -> new Resource(null, "ws-1"));
-        assertThrows(IllegalArgumentException.class, () -> new Resource("  ", "ws-1"));
-        assertThrows(IllegalArgumentException.class, () -> new Resource("workspace", null));
-        assertThrows(IllegalArgumentException.class, () -> new Resource("workspace", "  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Resource(null, "ws-1");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Resource("  ", "ws-1");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Resource("workspace", null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new Resource("workspace", "  ");
+                    }
+                });
     }
 
     @Test
@@ -150,18 +325,49 @@ class SpiRecordTest {
         assertEquals(2, request.vcpuCount());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new RuntimeRequest(UUID.randomUUID(), 0, 2048, 0, 0, 0, 0, 0, List.of()));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new RuntimeRequest(UUID.randomUUID(), 0, 2048, 0, 0, 0, 0, 0, List.of());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new RuntimeRequest(UUID.randomUUID(), 2, 0, 0, 0, 0, 0, 0, List.of()));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new RuntimeRequest(UUID.randomUUID(), 2, 0, 0, 0, 0, 0, 0, List.of());
+                    }
+                });
     }
 
     @Test
     void storageUsageRejectsNegatives() {
         StorageUsage usage = new StorageUsage(1, 1, 1, 0);
         assertEquals(1L, usage.logicalBytes());
-        assertThrows(IllegalArgumentException.class, () -> new StorageUsage(-1, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new StorageUsage(0, -1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new StorageUsage(0, 0, -1, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new StorageUsage(-1, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new StorageUsage(0, -1, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new StorageUsage(0, 0, -1, 0);
+                    }
+                });
     }
 }
