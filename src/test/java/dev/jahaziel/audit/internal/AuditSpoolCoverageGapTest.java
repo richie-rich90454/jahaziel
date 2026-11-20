@@ -28,8 +28,20 @@ class AuditSpoolCoverageGapTest {
         AuditSpoolReader reader = new AuditSpoolReader(mock(AuditService.class));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> reader.drain(UUID.randomUUID(), root.resolve("missing.jsonl")));
-        assertThrows(IllegalArgumentException.class, () -> reader.drain(UUID.randomUUID(), root));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        reader.drain(UUID.randomUUID(), root.resolve("missing.jsonl"));
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        reader.drain(UUID.randomUUID(), root);
+                    }
+                });
     }
 
     @Test
@@ -37,20 +49,51 @@ class AuditSpoolCoverageGapTest {
         AuditSpoolReader reader = new AuditSpoolReader(mock(AuditService.class));
         Path spool = root.resolve("ws.jsonl");
         try (MockedStatic<Files> files = mockStatic(Files.class)) {
-            files.when(() -> Files.readAllLines(spool))
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.readAllLines(spool);
+                                }
+                            })
                     .thenReturn(List.of("{\"action\":\"login\"}"));
-            files.when(() -> Files.deleteIfExists(spool)).thenThrow(new IOException("locked"));
-            assertThrows(IllegalStateException.class, () -> reader.drain(UUID.randomUUID(), spool));
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.deleteIfExists(spool);
+                                }
+                            })
+                    .thenThrow(new IOException("locked"));
+            assertThrows(
+                    IllegalStateException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            reader.drain(UUID.randomUUID(), spool);
+                        }
+                    });
         }
     }
 
     @Test
     void spooledUnreadableThrows() {
         assertThrows(
-                IllegalArgumentException.class, () -> AuditSpoolReader.spooled(root.resolve("no")));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        AuditSpoolReader.spooled(root.resolve("no"));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> AuditSpoolReader.spooled(root.resolve("file.txt")));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        AuditSpoolReader.spooled(root.resolve("file.txt"));
+                    }
+                });
     }
 
     @Test
@@ -59,9 +102,22 @@ class AuditSpoolCoverageGapTest {
         Path missing = root.resolve("missing.jsonl");
         Files.writeString(missing, "{}\n");
         assertThrows(
-                IllegalArgumentException.class, () -> reader.drain(UUID.randomUUID(), missing));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        reader.drain(UUID.randomUUID(), missing);
+                    }
+                });
         Path number = root.resolve("number.jsonl");
         Files.writeString(number, "{\"action\":123}\n");
-        assertThrows(IllegalArgumentException.class, () -> reader.drain(UUID.randomUUID(), number));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        reader.drain(UUID.randomUUID(), number);
+                    }
+                });
     }
 }
