@@ -22,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 class CliLogsTest {
     @TempDir private Path jar;
@@ -59,8 +58,9 @@ class CliLogsTest {
     @Test
     void tailsLastHundredLines() throws Exception {
         StringBuilder body = new StringBuilder();
-        IntStream.rangeClosed(1, 150)
-                .forEach(i -> body.append("line-").append(i).append(" INFO m\n"));
+        for (int i = 1; i <= 150; i++) {
+            body.append("line-").append(i).append(" INFO m\n");
+        }
         writeLog(body.toString());
         Output output = CliTestSupport.dispatch("logs");
         assertEquals(0, output.code());
@@ -130,12 +130,16 @@ class CliLogsTest {
         AtomicInteger code = new AtomicInteger(-1);
         Thread worker =
                 new Thread(
-                        () ->
+                        new Runnable() {
+                            @Override
+                            public void run() {
                                 code.set(
                                         Cli.dispatch(
                                                 new String[] {"logs", "-f", "--level=ERROR"},
                                                 out,
-                                                err)));
+                                                err));
+                            }
+                        });
         worker.setDaemon(true);
         worker.start();
         Thread.sleep(900);
@@ -173,7 +177,9 @@ class CliLogsTest {
         AtomicInteger code = new AtomicInteger(-1);
         Thread worker =
                 new Thread(
-                        () ->
+                        new Runnable() {
+                            @Override
+                            public void run() {
                                 code.set(
                                         Cli.dispatch(
                                                 new String[] {"logs", "--follow"},
@@ -181,7 +187,9 @@ class CliLogsTest {
                                                 new PrintStream(
                                                         new ByteArrayOutputStream(),
                                                         true,
-                                                        StandardCharsets.UTF_8))));
+                                                        StandardCharsets.UTF_8)));
+                            }
+                        });
         worker.setDaemon(true);
         worker.start();
         Thread.sleep(900);
