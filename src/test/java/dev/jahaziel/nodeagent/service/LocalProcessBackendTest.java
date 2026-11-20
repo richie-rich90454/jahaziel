@@ -44,7 +44,7 @@ class LocalProcessBackendTest {
 
     @Test
     void prepareStartStopDestroyUseRealFolders() throws Exception {
-        var handle =
+        dev.jahaziel.spi.WorkspaceHandle handle =
                 backend.prepare(
                         new PrepareRequest(
                                 workspaceId,
@@ -79,15 +79,51 @@ class LocalProcessBackendTest {
     void startWithoutPrepareThrows() {
         RuntimeRequest request =
                 new RuntimeRequest(UUID.randomUUID(), 2, 2048, 0, 0, 0, 5000, 4096, List.of());
-        assertThrows(IllegalStateException.class, () -> backend.start(request));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.start(request);
+                    }
+                });
     }
 
     @Test
     void validatesInput() {
-        assertThrows(NullPointerException.class, () -> backend.prepare(null));
-        assertThrows(NullPointerException.class, () -> backend.start(null));
-        assertThrows(NullPointerException.class, () -> backend.stop(null, true));
-        assertThrows(NullPointerException.class, () -> backend.destroy(null));
-        assertThrows(NullPointerException.class, () -> backend.isRunning(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.prepare(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.start(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.stop(null, true);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.destroy(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.isRunning(null);
+                    }
+                });
     }
 }
