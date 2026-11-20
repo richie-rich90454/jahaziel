@@ -10,17 +10,21 @@ import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.persistence.AppUserEntity;
 import dev.jahaziel.identity.persistence.AppUserRepository;
+import dev.jahaziel.identity.persistence.UserGroupEntity;
 import dev.jahaziel.identity.persistence.UserGroupRepository;
+import dev.jahaziel.identity.persistence.UserRoleEntity;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 import dev.jahaziel.spi.UserIdentity;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Database-backed users. */
-public final class UserServiceImpl implements UserService {
+public final class UserServiceImpl extends UserService {
     private final AppUserRepository users;
     private final UserRoleRepository roles;
     private final UserGroupRepository groups;
@@ -53,9 +57,11 @@ public final class UserServiceImpl implements UserService {
 
     @Override
     public boolean isActive(UserId id) {
-        return users.findById(id.value())
-                .map(row -> "active".equals(row.getStatus()))
-                .orElse(false);
+        Optional<AppUserEntity> found = users.findById(id.value());
+        if (!found.isPresent()) {
+            return false;
+        }
+        return "active".equals(found.get().getStatus());
     }
 
     @Override
@@ -78,7 +84,12 @@ public final class UserServiceImpl implements UserService {
 
     @Override
     public List<AppUser> listUsers() {
-        return users.findAll().stream().map(this::toAppUser).toList();
+        List<AppUser> result = new ArrayList<AppUser>();
+        List<AppUserEntity> rows = users.findAll();
+        for (int index = 0; index < rows.size(); index++) {
+            result.add(toAppUser(rows.get(index)));
+        }
+        return result;
     }
 
     @Override
@@ -94,17 +105,25 @@ public final class UserServiceImpl implements UserService {
     }
 
     private AppUserEntity load(UserId id) {
-        return users.findById(id.value()).orElseThrow(() -> new UserNotFoundException(id));
+        Optional<AppUserEntity> found = users.findById(id.value());
+        if (!found.isPresent()) {
+            throw new UserNotFoundException(id);
+        }
+        return found.get();
     }
 
     private AppUser toAppUser(AppUserEntity row) {
         UUID id = row.getUserId();
-        List<String> roleNames =
-                roles.findByIdUserId(id).stream().map(role -> role.getId().getRole()).toList();
-        List<String> groupNames =
-                groups.findByIdUserId(id).stream()
-                        .map(group -> group.getId().getGroupName())
-                        .toList();
+        List<String> roleNames = new ArrayList<String>();
+        List<UserRoleEntity> roleRows = roles.findByIdUserId(id);
+        for (int index = 0; index < roleRows.size(); index++) {
+            roleNames.add(roleRows.get(index).getId().getRole());
+        }
+        List<String> groupNames = new ArrayList<String>();
+        List<UserGroupEntity> groupRows = groups.findByIdUserId(id);
+        for (int index = 0; index < groupRows.size(); index++) {
+            groupNames.add(groupRows.get(index).getId().getGroupName());
+        }
         return new AppUser(
                 new UserId(id),
                 row.getExternalId(),
