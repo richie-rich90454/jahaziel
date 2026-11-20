@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /** POSIX implementation (macOS and Linux) of {@link Platform}. */
-public final class PosixPlatform implements Platform {
+public final class PosixPlatform extends Platform {
     private final Os os;
     private final Arch arch;
     private final Path jarDir;
