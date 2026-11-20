@@ -340,10 +340,7 @@ public final class DebugServiceImpl extends DebugService {
         Socket socket = null;
         try {
             ensurePlainDirectory(sessionHome.resolve("tmp"));
-            int port =
-                    adapter.transport() == DebugAdapterProperties.Transport.TCP
-                            ? availablePort()
-                            : -1;
+            int port = adapter.isTcp() ? availablePort() : -1;
             ProcessBuilder builder =
                     new ProcessBuilder(
                                     processRegistry.dedicatedSessionCommand(
@@ -357,7 +354,7 @@ public final class DebugServiceImpl extends DebugService {
             Process adapterProcess = process;
             InputStream input;
             OutputStream output;
-            if (adapter.transport() == DebugAdapterProperties.Transport.TCP) {
+            if (adapter.isTcp()) {
                 socket = connectAdapter(adapterProcess, port);
                 input = socket.getInputStream();
                 output = socket.getOutputStream();
