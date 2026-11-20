@@ -28,6 +28,12 @@ class TerminalSessionIdTest {
 
     @Test
     void nullValueIsRejected() {
-        assertThrows(NullPointerException.class, () -> new TerminalSessionId(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSessionId(null);
+                    }
+                });
     }
 }
