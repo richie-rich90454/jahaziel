@@ -14,6 +14,7 @@ import dev.jahaziel.identity.domain.UserId;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -57,15 +58,36 @@ class JwtServiceImplTest {
 
     @Test
     void rejectsTamperedAndGarbage() {
-        String token = service.issue(userId, workspaceId, List.of(), Duration.ofMinutes(15));
-        assertThrows(JwtRejectedException.class, () -> service.verify(token + "x"));
-        assertThrows(JwtRejectedException.class, () -> service.verify("not-a-token"));
+        final String token = service.issue(userId, workspaceId, List.of(), Duration.ofMinutes(15));
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.verify(token + "x");
+                    }
+                });
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.verify("not-a-token");
+                    }
+                });
     }
 
     @Test
     void rejectsExpired() {
-        String token = service.issue(userId, null, List.of(), Duration.ofSeconds(-1));
-        assertThrows(JwtRejectedException.class, () -> service.verify(token));
+        final String token = service.issue(userId, null, List.of(), Duration.ofSeconds(-1));
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.verify(token);
+                    }
+                });
     }
 
     @Test
