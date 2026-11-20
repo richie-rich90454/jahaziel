@@ -25,7 +25,7 @@ final class ConfigFixtures {
         };
     }
 
-    static final class AllowAll implements AuthorizationService {
+    static final class AllowAll extends AuthorizationService {
         @Override
         public boolean isAllowed(UserId user, String permission, WorkspaceId workspace) {
             return true;
@@ -37,7 +37,7 @@ final class ConfigFixtures {
         }
     }
 
-    static final class DenyAll implements AuthorizationService {
+    static final class DenyAll extends AuthorizationService {
         @Override
         public boolean isAllowed(UserId user, String permission, WorkspaceId workspace) {
             return false;
