@@ -19,7 +19,7 @@ import java.util.List;
  * Ensures the shared cache directories exist. Population itself runs from the ops cron with the
  * curated package list; this job only guarantees the layout.
  */
-public final class CacheWarmJob implements PlatformJob {
+public final class CacheWarmJob extends PlatformJob {
     private static final List<String> LAYOUT =
             List.of("maven", "npm-ro", "cargo-registry", "go-modules", "pip-wheels");
 
