@@ -29,15 +29,25 @@ class ImageMaintenanceJobTest {
         String hex = HexFormat.of().formatHex(sha.digest(new byte[] {1, 2, 3}));
         Files.writeString(images.resolve("base-image-2026.09.ext4.zst.sha256"), hex + "  file\n");
         ImageMaintenanceJob job = new ImageMaintenanceJob(images, "base-image-2026.09");
-        assertDoesNotThrow(() -> job.run(new JobContext(Instant.now())));
+        assertDoesNotThrow(
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        job.run(new JobContext(Instant.now()));
+                    }
+                });
     }
 
     @Test
     void rejectsMismatchAndMissing() {
         assertThrows(
                 IllegalStateException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new ImageMaintenanceJob(images, "missing")
-                                .run(new JobContext(Instant.now())));
+                                .run(new JobContext(Instant.now()));
+                    }
+                });
     }
 }
