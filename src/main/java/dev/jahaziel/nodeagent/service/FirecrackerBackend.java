@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * and the Firecracker API: prepare storage and shell, boot, stop, destroy. Every VM boots the
  * shared base image read-only; workspace files live in plain host folders.
  */
-public final class FirecrackerBackend implements NodeBackend {
+public final class FirecrackerBackend extends NodeBackend {
     private final FolderStorage storage;
     private final FirecrackerClient firecracker;
     private final Jailer jailer;
