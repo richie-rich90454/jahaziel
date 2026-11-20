@@ -20,11 +20,25 @@ class WorkspaceQuotaTest {
 
     @Test
     void negativeLogicalBytesAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new WorkspaceQuota(-1, 1000000L));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new WorkspaceQuota(-1, 1000000L);
+                    }
+                });
     }
 
     @Test
     void negativeInodeLimitIsRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new WorkspaceQuota(21474836480L, -1));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new WorkspaceQuota(21474836480L, -1);
+                    }
+                });
     }
 }
