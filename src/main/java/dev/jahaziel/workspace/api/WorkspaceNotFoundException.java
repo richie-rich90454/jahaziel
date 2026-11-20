@@ -24,4 +24,8 @@ public final class WorkspaceNotFoundException extends RuntimeException {
     public WorkspaceId workspaceId() {
         return workspaceId;
     }
+
+    public WorkspaceId getWorkspaceId() {
+        return workspaceId;
+    }
 }
