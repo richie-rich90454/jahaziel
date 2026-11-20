@@ -138,8 +138,137 @@ public class ShareController {
     }
 
     /** A created share link. */
-    public record ShareResponse(String url, String token, Instant expiresAt) {}
+    public static final class ShareResponse {
+        private final String url;
+        private final String token;
+        private final Instant expiresAt;
+
+        /** Creates a share response. */
+        public ShareResponse(String url, String token, Instant expiresAt) {
+            this.url = url;
+            this.token = token;
+            this.expiresAt = expiresAt;
+        }
+
+        /** Returns the share URL. */
+        public String url() {
+            return url;
+        }
+
+        /** Returns the share URL for JSON binding. */
+        public String getUrl() {
+            return url;
+        }
+
+        /** Returns the share token. */
+        public String token() {
+            return token;
+        }
+
+        /** Returns the share token for JSON binding. */
+        public String getToken() {
+            return token;
+        }
+
+        /** Returns the expiry instant. */
+        public Instant expiresAt() {
+            return expiresAt;
+        }
+
+        /** Returns the expiry instant for JSON binding. */
+        public Instant getExpiresAt() {
+            return expiresAt;
+        }
+
+        /** Compares by class and all fields. */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ShareResponse that = (ShareResponse) o;
+            return Objects.equals(url, that.url)
+                    && Objects.equals(token, that.token)
+                    && Objects.equals(expiresAt, that.expiresAt);
+        }
+
+        /** Returns the hash code derived from all fields. */
+        @Override
+        public int hashCode() {
+            return Objects.hash(url, token, expiresAt);
+        }
+
+        /** Returns a readable representation. */
+        @Override
+        public String toString() {
+            return "ShareResponse[url="
+                    + url
+                    + ", token="
+                    + token
+                    + ", expiresAt="
+                    + expiresAt
+                    + "]";
+        }
+    }
 
     /** A verified share link. */
-    public record ShareInfo(UUID workspaceId, Instant expiresAt) {}
+    public static final class ShareInfo {
+        private final UUID workspaceId;
+        private final Instant expiresAt;
+
+        /** Creates a share info. */
+        public ShareInfo(UUID workspaceId, Instant expiresAt) {
+            this.workspaceId = workspaceId;
+            this.expiresAt = expiresAt;
+        }
+
+        /** Returns the workspace identifier. */
+        public UUID workspaceId() {
+            return workspaceId;
+        }
+
+        /** Returns the workspace identifier for JSON binding. */
+        public UUID getWorkspaceId() {
+            return workspaceId;
+        }
+
+        /** Returns the expiry instant. */
+        public Instant expiresAt() {
+            return expiresAt;
+        }
+
+        /** Returns the expiry instant for JSON binding. */
+        public Instant getExpiresAt() {
+            return expiresAt;
+        }
+
+        /** Compares by class and all fields. */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ShareInfo that = (ShareInfo) o;
+            return Objects.equals(workspaceId, that.workspaceId)
+                    && Objects.equals(expiresAt, that.expiresAt);
+        }
+
+        /** Returns the hash code derived from all fields. */
+        @Override
+        public int hashCode() {
+            return Objects.hash(workspaceId, expiresAt);
+        }
+
+        /** Returns a readable representation. */
+        @Override
+        public String toString() {
+            return "ShareInfo[workspaceId=" + workspaceId + ", expiresAt=" + expiresAt + "]";
+        }
+    }
 }
