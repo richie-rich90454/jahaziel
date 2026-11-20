@@ -34,23 +34,52 @@ class PortRecordTest {
         Instant at = Instant.now();
         assertThrows(
                 NullPointerException.class,
-                () -> new PortBinding(null, 8080, workspace, "http", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(null, 8080, workspace, "http", at);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(user, 0, workspace, "http", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 0, workspace, "http", at);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(user, 65536, workspace, "http", at));
-        assertThrows(
-                NullPointerException.class, () -> new PortBinding(user, 8080, null, "http", at));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new PortBinding(user, 8080, workspace, null, at));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new PortBinding(user, 8080, workspace, "udp", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 65536, workspace, "http", at);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new PortBinding(user, 8080, workspace, "http", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 8080, null, "http", at);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 8080, workspace, null, at);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 8080, workspace, "udp", at);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 8080, workspace, "http", null);
+                    }
+                });
     }
 }
