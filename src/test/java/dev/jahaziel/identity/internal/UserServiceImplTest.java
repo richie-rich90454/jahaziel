@@ -25,6 +25,7 @@ import dev.jahaziel.spi.UserIdentity;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.List;
 import java.util.Optional;
@@ -66,7 +67,14 @@ class UserServiceImplTest {
     void missingUserThrows() {
         when(users.findById(userId.value())).thenReturn(Optional.empty());
         UserNotFoundException failure =
-                assertThrows(UserNotFoundException.class, () -> service.get(userId));
+                assertThrows(
+                        UserNotFoundException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                service.get(userId);
+                            }
+                        });
         assertEquals(userId, failure.userId());
     }
 
@@ -84,7 +92,14 @@ class UserServiceImplTest {
         when(users.findById(userId.value())).thenReturn(Optional.of(row));
         assertTrue(service.isMfaEnabled(userId));
         when(users.findById(userId.value())).thenReturn(Optional.empty());
-        assertThrows(UserNotFoundException.class, () -> service.isMfaEnabled(userId));
+        assertThrows(
+                UserNotFoundException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.isMfaEnabled(userId);
+                    }
+                });
     }
 
     @Test
@@ -98,10 +113,31 @@ class UserServiceImplTest {
 
     @Test
     void updateStatusRejectsBadInput() {
-        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(userId, "gone"));
-        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(userId, null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.updateStatus(userId, "gone");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.updateStatus(userId, null);
+                    }
+                });
         when(users.findById(userId.value())).thenReturn(Optional.empty());
-        assertThrows(UserNotFoundException.class, () -> service.updateStatus(userId, "suspended"));
+        assertThrows(
+                UserNotFoundException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.updateStatus(userId, "suspended");
+                    }
+                });
         verify(users, never()).save(any());
     }
 
@@ -148,6 +184,13 @@ class UserServiceImplTest {
         AppUserEntity row = mock(AppUserEntity.class);
         when(row.getEmail()).thenReturn("no-at-sign");
         when(users.findById(userId.value())).thenReturn(Optional.of(row));
-        assertThrows(IllegalArgumentException.class, () -> service.slug(userId));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.slug(userId);
+                    }
+                });
     }
 }
