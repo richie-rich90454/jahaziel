@@ -47,7 +47,13 @@ class NioCommandRunnerCoverageGapTest {
         List<AclEntry> victimAcl = deny(victim, AclEntryPermission.DELETE);
         List<AclEntry> targetAcl = deny(target, AclEntryPermission.DELETE_CHILD);
         try {
-            assertThrows(StorageException.class, () -> rmRf(target));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            rmRf(target);
+                        }
+                    });
             assertTrue(Files.exists(victim));
         } finally {
             restoreAcl(victim, victimAcl);
@@ -62,7 +68,13 @@ class NioCommandRunnerCoverageGapTest {
         List<AclEntry> subAcl = deny(target.resolve("empty"), AclEntryPermission.DELETE);
         List<AclEntry> targetAcl = deny(target, AclEntryPermission.DELETE_CHILD);
         try {
-            assertThrows(StorageException.class, () -> rmRf(target));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            rmRf(target);
+                        }
+                    });
             assertTrue(Files.isDirectory(target.resolve("empty")));
         } finally {
             restoreAcl(target.resolve("empty"), subAcl);
@@ -77,7 +89,13 @@ class NioCommandRunnerCoverageGapTest {
         Files.writeString(target.resolve("sub/f.txt"), "hi");
         List<AclEntry> original = deny(target, AclEntryPermission.LIST_DIRECTORY);
         try {
-            assertThrows(StorageException.class, () -> rmRf(target));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            rmRf(target);
+                        }
+                    });
         } finally {
             restoreAcl(target, original);
         }
@@ -138,7 +156,13 @@ class NioCommandRunnerCoverageGapTest {
         Files.writeString(target.resolve("f.txt"), "x");
         List<AclEntry> original = deny(target, AclEntryPermission.LIST_DIRECTORY);
         try {
-            assertThrows(StorageException.class, () -> chmodW(target));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            chmodW(target);
+                        }
+                    });
         } finally {
             restoreAcl(target, original);
         }
@@ -150,7 +174,13 @@ class NioCommandRunnerCoverageGapTest {
         Files.createDirectories(dir);
         List<AclEntry> original = deny(dir, AclEntryPermission.LIST_DIRECTORY);
         try {
-            assertThrows(StorageException.class, () -> NioCommandRunner.sizeOf(dir));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            NioCommandRunner.sizeOf(dir);
+                        }
+                    });
         } finally {
             restoreAcl(dir, original);
         }
