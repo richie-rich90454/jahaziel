@@ -53,15 +53,26 @@ import java.util.UUID;
 
 /** Endpoints of {@link SnapshotController} with stubbed services. Standalone MockMvc. */
 class SnapshotControllerTest {
+
     private MockMvc mvc;
 
     private SnapshotService snapshots;
+
     private WorkspaceService workspaces;
+
     private AuthorizationService auth;
+
     private WorkspaceDtoFactory dtos;
 
     private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
-    private final Principal principal = () -> UUID.randomUUID().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return UUID.randomUUID().toString();
+                }
+            };
 
     @BeforeEach
     void setUp() {
@@ -81,7 +92,7 @@ class SnapshotControllerTest {
                         new BootProgressService(),
                         900);
         when(auth.isAllowed(any(), any(), any())).thenReturn(true);
-        var validator = new LocalValidatorFactoryBean();
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mvc =
                 MockMvcBuilders.standaloneSetup(
