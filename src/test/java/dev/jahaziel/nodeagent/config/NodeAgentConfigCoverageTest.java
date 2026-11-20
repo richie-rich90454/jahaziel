@@ -21,33 +21,72 @@ class NodeAgentConfigCoverageTest {
     void loadFileRejectsNonMapping(@TempDir Path root) throws Exception {
         Path list = root.resolve("list.yml");
         Files.writeString(list, "- a\n- b\n");
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.loadFile(list));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.loadFile(list);
+                    }
+                });
     }
 
     @Test
     void loadFileRejectsMissing(@TempDir Path root) {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> NodeAgentConfig.loadFile(root.resolve("absent.yml")));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.loadFile(root.resolve("absent.yml"));
+                    }
+                });
     }
 
     @Test
     void loadRejectsBadSections() {
         assertThrows(
-                IllegalArgumentException.class, () -> NodeAgentConfig.load(Map.of("node", "nope")));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(Map.of("node", "nope"));
+                    }
+                });
         Map<String, Object> withBadValue = documentWith("node", "id", 42);
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.load(withBadValue));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(withBadValue);
+                    }
+                });
         Map<String, Object> withBlank = documentWith("node", "id", "  ");
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.load(withBlank));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(withBlank);
+                    }
+                });
         Map<String, Object> missingKey = documentWith("node", "id", null);
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.load(missingKey));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(missingKey);
+                    }
+                });
     }
 
     @Test
     void loadFileRejectsScalar(@TempDir Path root) throws Exception {
         Path scalar = root.resolve("scalar.yml");
         Files.writeString(scalar, "just-a-string\n");
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.loadFile(scalar));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.loadFile(scalar);
+                    }
+                });
     }
 
     private static Map<String, Object> documentWith(String section, String key, Object value) {
