@@ -21,6 +21,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,14 @@ public final class GatewayServer {
             this.server = server;
             while (running) {
                 Socket client = server.accept();
-                Thread.ofVirtual().start(() -> handleQuietly(client));
+                Thread.ofVirtual()
+                        .start(
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        handleQuietly(client);
+                                    }
+                                });
             }
         } catch (IOException failure) {
             if (running) {
@@ -172,7 +180,13 @@ public final class GatewayServer {
     private UUID lookup(ParsedHost route) throws HttpFailure {
         return directory
                 .lookup(route.userSlug(), route.port())
-                .orElseThrow(() -> new HttpFailure(404, "no such route"));
+                .orElseThrow(
+                        new java.util.function.Supplier<HttpFailure>() {
+                            @Override
+                            public HttpFailure get() {
+                                return new HttpFailure(404, "no such route");
+                            }
+                        });
     }
 
     private static void checkScope(GatewaySession session, UUID workspaceId) throws HttpFailure {
@@ -272,7 +286,35 @@ public final class GatewayServer {
     }
 
     /** Parsed request head. */
-    record RequestHead(String method, String target, Map<String, String> headers, byte[] raw) {
+    static final class RequestHead {
+        private final String method;
+        private final String target;
+        private final Map<String, String> headers;
+        private final byte[] raw;
+
+        RequestHead(String method, String target, Map<String, String> headers, byte[] raw) {
+            this.method = method;
+            this.target = target;
+            this.headers = headers;
+            this.raw = raw;
+        }
+
+        String method() {
+            return method;
+        }
+
+        String target() {
+            return target;
+        }
+
+        Map<String, String> headers() {
+            return headers;
+        }
+
+        byte[] raw() {
+            return raw;
+        }
+
         /** Returns the declared body length, or zero. */
         long contentLength() throws HttpFailure {
             String value = headers.get("content-length");
@@ -288,6 +330,33 @@ public final class GatewayServer {
             } catch (NumberFormatException failure) {
                 throw new HttpFailure(400, "invalid content length");
             }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof RequestHead)) return false;
+            RequestHead other = (RequestHead) o;
+            return method.equals(other.method)
+                    && target.equals(other.target)
+                    && headers.equals(other.headers)
+                    && Arrays.equals(raw, other.raw);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(method, target, headers, Arrays.hashCode(raw));
+        }
+
+        @Override
+        public String toString() {
+            return "RequestHead[method="
+                    + method
+                    + ", target="
+                    + target
+                    + ", headers="
+                    + headers
+                    + "]";
         }
     }
 
