@@ -20,8 +20,26 @@ import java.util.Objects;
  * @param listening whether a TCP connection currently succeeds on the loopback port, or null when
  *     the port was not probed for this read
  */
-public record PortDto(
-        int port, String protocol, String url, Instant registeredAt, Boolean listening) {
+public final class PortDto {
+
+    private final int port;
+
+    private final String protocol;
+
+    private final String url;
+
+    private final Instant registeredAt;
+
+    private final Boolean listening;
+
+    public PortDto(int port, String protocol, String url, Instant registeredAt, Boolean listening) {
+        this.port = port;
+        this.protocol = protocol;
+        this.url = url;
+        this.registeredAt = registeredAt;
+        this.listening = listening;
+    }
+
     /**
      * Maps a binding to a DTO.
      *
@@ -51,5 +69,83 @@ public record PortDto(
     public static PortDto from(
             PortBinding binding, String userSlug, GatewayEndpoint endpoint, String token) {
         return from(binding, userSlug, endpoint, token, null);
+    }
+
+    public int port() {
+        return this.port;
+    }
+
+    public int getPort() {
+        return this.port;
+    }
+
+    public String protocol() {
+        return this.protocol;
+    }
+
+    public String getProtocol() {
+        return this.protocol;
+    }
+
+    public String url() {
+        return this.url;
+    }
+
+    public String getUrl() {
+        return this.url;
+    }
+
+    public Instant registeredAt() {
+        return this.registeredAt;
+    }
+
+    public Instant getRegisteredAt() {
+        return this.registeredAt;
+    }
+
+    public Boolean listening() {
+        return this.listening;
+    }
+
+    public Boolean getListening() {
+        return this.listening;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PortDto)) return false;
+        PortDto other = (PortDto) o;
+        return (this.port == other.port)
+                && java.util.Objects.equals(this.protocol, other.protocol)
+                && java.util.Objects.equals(this.url, other.url)
+                && java.util.Objects.equals(this.registeredAt, other.registeredAt)
+                && java.util.Objects.equals(this.listening, other.listening);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(
+                this.port, this.protocol, this.url, this.registeredAt, this.listening);
+    }
+
+    @Override
+    public String toString() {
+        return "PortDto["
+                + "port="
+                + this.port
+                + ", "
+                + "protocol="
+                + this.protocol
+                + ", "
+                + "url="
+                + this.url
+                + ", "
+                + "registeredAt="
+                + this.registeredAt
+                + ", "
+                + "listening="
+                + this.listening
+                + "]";
     }
 }
