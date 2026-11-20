@@ -17,7 +17,13 @@ import java.util.UUID;
 class CgroupV2CoverageTest {
     @Test
     void constructorRejectsNull(@TempDir Path root) {
-        assertThrows(NullPointerException.class, () -> new CgroupV2(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new CgroupV2(null);
+                    }
+                });
     }
 
     @Test
@@ -26,6 +32,11 @@ class CgroupV2CoverageTest {
         Files.writeString(file, "x");
         CgroupV2 groups = new CgroupV2(file);
         assertThrows(
-                IllegalStateException.class, () -> groups.apply(UUID.randomUUID(), 1, 128, 100));
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        groups.apply(UUID.randomUUID(), 1, 128, 100);
+                    }
+                });
     }
 }
