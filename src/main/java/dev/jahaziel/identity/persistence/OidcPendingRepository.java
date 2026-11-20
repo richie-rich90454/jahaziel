@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-/** Repository for OidcPendingEntity persistence. */
+/** Spring Data repository for OidcPendingEntity; interface is required by Spring Data. */
 public interface OidcPendingRepository extends JpaRepository<OidcPendingEntity, String> {
     /**
      * Removes half-finished logins that expired before a cutoff.
