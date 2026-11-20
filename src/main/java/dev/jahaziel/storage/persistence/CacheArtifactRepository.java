@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
 
-/** Repository for CacheArtifactEntity persistence. */
+/** Spring Data repository for CacheArtifactEntity; interface is required by Spring Data. */
 public interface CacheArtifactRepository extends JpaRepository<CacheArtifactEntity, UUID> {}
