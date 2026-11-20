@@ -50,78 +50,129 @@ OpenCode is the only coding-agent CLI in the current catalog. Jahaziel provision
 
 ## Deployment options and procedures
 
-Pick the option that matches your environment. All options use the **same single executable jar** and **one application port** (default `11451`); only the process supervisor and edge network differ. Build the jar locally and upload it to the host on every OS.
+All options use the **same single executable jar** and **one application port** (default `11451`). The jar owns everything it needs in a jar-adjacent `data/` directory; only the supervisor definition and the edge proxy live outside it. Pick the path that matches how software reaches your host:
 
-### Option A — Reference production deployment on Linux (recommended)
+| Path | Use it when | Details |
+|---|---|---|
+| 1. Packaged jar upload | Normal installs: build on a dev machine or take a CI artifact and copy one file | [single-server.md](docs/deployment/single-server.md#path-1--packaged-jar-upload) |
+| 2. Jar under an OS supervisor | Every long-running production install | [single-server.md](docs/deployment/single-server.md#path-2--run-under-an-os-supervisor) |
+| 3. Repo clone on the target | Air-gapped hosts, source audit, or local patches | [single-server.md](docs/deployment/single-server.md#path-3--clone-the-repository-on-the-target) |
 
-Ubuntu 26.04 LTS on Linux x64 or arm64, one jar as a `systemd` service under `/var/lib/jahaziel`, with Caddy providing HTTPS on two exact hostnames (one for the IDE, one for previews). This is the documented and CI-verified target. For macOS and Windows, use the launchd and WinSW service templates described in [Deploy Jahaziel on a Linux server](docs/deployment/single-server.md#service-templates-per-os); those hosts have not passed real-host acceptance yet.
+Paths 1 and 3 both end at the same jar directory. Path 2 is how you keep that jar running in production: it supplies restart-on-failure, boot-at-start, and log capture. Use the [local demo](#local-demo-development-only) only for development.
 
-The complete, step-by-step procedure — DNS, service account, `.env`, identity provider, `doctor` preflight, systemd unit, Caddyfile, backup, restore, and upgrade — is in **[Deploy Jahaziel on Linux](docs/deployment/single-server.md)**. In summary:
+### Path 1 — Packaged jar upload
+
+On a dev machine, build with the smoke profile or a plain package:
 
 ~~~bash
-# 1. Install the jar and initialize (as a dedicated service account)
-sudo -u jahaziel -- sh -c 'cd /var/lib/jahaziel && java -jar jahaziel.jar init'
-
-# 2. Edit /var/lib/jahaziel/.env with your BASIS_* identity-provider values (see guide)
-
-# 3. Preflight, then run as a service
-sudo -u jahaziel -- sh -c 'cd /var/lib/jahaziel && java -jar jahaziel.jar doctor'
-sudo systemctl enable --now jahaziel
+./mvnw -B verify -Psmoke
+# or, without the packaged browser smoke checks:
+./mvnw -B package -DskipTests -Dmaven.test.skip=true
 ~~~
 
-The app binds to `127.0.0.1:11451`; Caddy proxies `code.example.com` and `preview.code.example.com` to it and terminates TLS. The proxy must forward WebSockets (terminal, language service, debugger, hot reload). Do not publish port `11451` directly.
-
-### Option B — Direct jar run (single host, no reverse proxy)
-
-Suitable for a private network or evaluation on Linux, macOS, or Windows. Obtain a packaged `jahaziel.jar` from a successful [Linux build](https://github.com/richie-rich90454/jahaziel/actions/workflows/linux.yml) artifact or build it locally (Option D), then:
+On Windows PowerShell use `.\mvnw.cmd` in place of `./mvnw`. The result is `target/jahaziel.jar` (`target\jahaziel.jar` on Windows). Copy that one file to the host:
 
 ~~~bash
-java -version                       # must be 25 or newer
+# Linux / macOS
+scp target/jahaziel.jar jahaziel@example-host:/var/lib/jahaziel/jahaziel.jar
+# or: rsync -av target/jahaziel.jar jahaziel@example-host:/var/lib/jahaziel/
+~~~
+
+~~~powershell
+# Windows PowerShell: OpenSSH scp, or a file share
+scp .\target\jahaziel.jar jahaziel@example-host:C:\jahaziel\jahaziel.jar
+Copy-Item .\target\jahaziel.jar \\example-host\share\jahaziel\jahaziel.jar
+~~~
+
+Create `.env` beside the jar on the host, then run:
+
+~~~bash
 java -jar jahaziel.jar init          # writes .env and ./data beside the jar
-# edit .env: configure at least one authentication provider, PORT, JAHAZIEL_DOMAIN
 java -jar jahaziel.jar doctor        # fix every failed check
-java -jar jahaziel.jar               # serves http://<host>:<PORT> (default 11451)
+java -jar jahaziel.jar               # or: java -jar jahaziel.jar --port=11451 --data-dir=/var/lib/jahaziel/data
 ~~~
 
-The commands are the same on Windows PowerShell. For a supervised install, register the jar with the host's service template; see [service templates per OS](docs/deployment/single-server.md#service-templates-per-os).
+`capabilities` lists the tools available on this host; health is served at `http://127.0.0.1:11451/actuator/health`. Override the port with `--port=N` or `PORT` in `.env`, and the data root with `--data-dir=PATH` (default: `data/` beside the jar). Real environment variables win over `.env`, and configuration is read at startup, so a credential change needs a restart.
 
-Without Caddy you can reach the IDE directly over HTTP, but previews are served on the configured preview hostname at `/{workspaceId}/{port}/`, so you still need DNS/host routing for previews. For HTTPS and correct preview framing, use Option A.
+### Path 2 — Run under an OS supervisor
 
-### Option C — Local demo (loopback only)
+Register the jar with the host's supervisor. The service definition stays where the OS requires it, never inside the jar directory:
 
-Demo mode seeds a sample user and workspace, skips identity-provider setup, and binds to loopback. It is the fastest way to see the UI:
+| OS | Definition | Files to copy |
+|---|---|---|
+| Linux (systemd) | `/etc/systemd/system/jahaziel.service` | `ops/services/jahaziel.service` |
+| macOS (launchd) | `/Library/LaunchDaemons/dev.jahaziel.plist` | `ops/launchd/dev.jahaziel.plist.template` + `ops/launchd/install.sh` |
+| Windows (WinSW) | Windows Services entry `jahaziel` | `ops/windows/jahaziel-service.xml.template` + `ops/windows/install.ps1` |
 
 ~~~bash
-java -jar jahaziel.jar init
+# Linux (systemd)
+sudo install -o root -g root -m 0644 ops/services/jahaziel.service /etc/systemd/system/jahaziel.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now jahaziel
+sudo systemctl status jahaziel --no-pager
+sudo journalctl -u jahaziel -f          # logs
+sudo systemctl restart jahaziel
+sudo systemctl stop jahaziel
+~~~
+
+~~~bash
+# macOS (launchd); install.sh substitutes the jar dir into the plist
+sudo sh ops/launchd/install.sh /var/lib/jahaziel dev.jahaziel
+launchctl print system/dev.jahaziel     # status
+tail -f /var/lib/jahaziel/data/logs/launchd.out.log
+launchctl kickstart -k system/dev.jahaziel   # restart
+launchctl bootout system/dev.jahaziel        # stop
+~~~
+
+~~~powershell
+# Windows (WinSW.exe is the binary you supply)
+.\ops\windows\install.ps1 -JarDir C:\jahaziel -WinSw C:\tools\WinSW.exe
+Get-Service -Name jahaziel                     # status
+Get-Content C:\jahaziel\data\logs\*.log -Wait # logs
+Restart-Service -Name jahaziel
+Stop-Service -Name jahaziel
+~~~
+
+For HTTPS and workspace previews, copy the matching file from `ops/caddy/` (`Caddyfile.linux`, `Caddyfile.macos`, or `Caddyfile.windows`) into the host's Caddy config and replace the example hostnames. See [service templates per OS](docs/deployment/single-server.md#service-templates-per-os) for the full procedure.
+
+### Path 3 — Clone the repository on the target
+
+Prefer this on an air-gapped host, when you must audit or patch the source, or when a binary cannot be moved from a build machine. Prerequisites must already exist on the machine: JDK 25, Node.js 24 or newer, and pnpm 12.14.0. The build uses those existing toolchains and installs nothing globally.
+
+~~~bash
+git clone https://github.com/richie-rich90454/jahaziel.git
+cd jahaziel
+git checkout <release-tag-or-commit>
+pnpm --dir web install --frozen-lockfile && pnpm --dir web build
+./mvnw -B package -DskipTests -Dmaven.test.skip=true
+sudo install --owner=jahaziel --group=jahaziel --mode=0640 target/jahaziel.jar /var/lib/jahaziel/jahaziel.jar
+~~~
+
+On Windows use `.\mvnw.cmd` and `Copy-Item`, or the repository's `dev.ps1` verbs (`bootstrap`, `build`), which keep Maven and pnpm caches in the repo-local, ignored `.cache/` directory. With raw commands, set `PNPM_CONFIG_STORE_DIR`, `PNPM_CONFIG_CACHE_DIR`, and `MAVEN_OPTS=-Dmaven.repo.local=<repo>/.cache/maven-repo` to keep caches repo-local. Then `init`, `doctor`, and register the supervisor as in paths 1 and 2.
+
+### Local demo (development only)
+
+~~~bash
 java -jar jahaziel.jar --demo
 ~~~
 
-Open [http://127.0.0.1:11451](http://127.0.0.1:11451). **Never expose demo mode to a network or use it with sensitive data.**
+Demo mode stubs the identity provider, seeds a sample user and workspace, and binds only to loopback. **Never expose it to a network or use it with real data.** See [demo mode](docs/guide/demo-mode.md).
 
-### Option D — Build from source
+### Updating an existing install
 
-Linux/macOS (bash):
+Use the staged updater instead of overwriting a running jar:
 
 ~~~bash
-git clone https://github.com/richie-rich90454/jahaziel.git
-cd jahaziel
-pnpm --dir web install --frozen-lockfile
-pnpm --dir web run build
-./mvnw -B verify -Psmoke '-Dtest=!GatewayRelayFilterTest'
-# packaged jar: target/jahaziel.jar
+java -jar jahaziel.jar backup                                   # before anything else
+java -jar jahaziel.jar support-bundle                           # redacted diagnostics
+java -jar jahaziel.jar update --to ./jahaziel-NEW.jar --dry-run
+java -jar jahaziel.jar update --to ./jahaziel-NEW.jar --sums ./SHA256SUMS
+# stop the service, restart it, then:
+java -jar jahaziel.jar doctor
+curl --fail http://127.0.0.1:11451/actuator/health
 ~~~
 
-Windows (native PowerShell — no WSL, no global tool installs):
-
-~~~powershell
-git clone https://github.com/richie-rich90454/jahaziel.git
-cd jahaziel
-.\dev.ps1 bootstrap
-.\dev.ps1 build
-# packaged jar: target\jahaziel.jar  (run on this host or upload to any supported host)
-~~~
-
-Requirements (all existing, none installed by the scripts): JDK 25, Node.js 24 or newer, pnpm 12.14.0, and Maven (or the Maven wrapper). `dev.ps1` keeps all Maven and pnpm caches in ignored repository-local directories. Run `.\dev.ps1 cache:report` to see their sizes and `.\dev.ps1 cache:prune --apply` to remove them.
+`update` stages the candidate under `<jar>/data/update/<version>/`, verifies `SHA256SUMS`, and swaps the jar on the **next start**, keeping the previous jar for `update --rollback`. Stop the service first — especially on Windows, where a running process keeps the jar locked. The full procedure, including rollback and preserved state, is in [Updating and rollback](docs/deployment/single-server.md#updating-and-rollback).
 
 ### Host prerequisites
 
@@ -137,42 +188,50 @@ Install on the host only what your projects need. Jahaziel does not install runt
 
 ### Configure sign-in and the first administrator
 
-`basis-auth` is one login plugin among several (see [Authentication providers](#authentication-providers)). To use it, register a confidential client with a compatible DevConnect/Basis OIDC identity provider whose callback is exactly `https://code.example.com/api/oauth/callback`. Set these in `.env`:
+`basis-auth` is one login plugin among several (see [Authentication providers](#authentication-providers)). Register a confidential client with a compatible DevConnect/Basis OIDC identity provider. Register these exact URLs in the provider:
+
+- redirect URI: `https://code.example.com/api/auth/basis/callback`
+- backchannel receiver: `https://code.example.com/api/auth/basis/backchannel`
+
+Set the canonical lean key set in `.env`:
 
 ~~~dotenv
 BASIS_AUTH_ISSUER=https://idp.example.com
-BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback
-BASIS_CLIENT_ID=your-client-id
-BASIS_CLIENT_SECRET=your-client-secret
-BASIS_RESOURCE=your-registered-resource
+BASIS_AUTH_CLIENT_ID=your-client-id
+BASIS_AUTH_CLIENT_SECRET=your-client-secret
+BASIS_AUTH_RESOURCE=urn:basis:api:jahaziel
+BASIS_AUTH_RESOURCE_SECRET=your-resource-secret
+BASIS_AUTH_INTERNAL_URL=http://127.0.0.1:3001
+BASIS_AUTH_COOKIE_SECRET=<at-least-32-random-bytes>
+CURRENT_URL_ORIGIN=https://code.example.com
 PORT=11451
-JAHAZIEL_DOMAIN=code.example.com
 JAHAZIEL_LOG_LEVEL=INFO
 JAHAZIEL_BACKEND=local
-
-# Optional: grant ROLE_ADMIN to one verified email on first verified login.
-# MFA is asserted only when the IdP's amr/acr proves it; no fake MFA is set.
-# BASIS_ADMIN_BOOTSTRAP_EMAIL=admin@example.com
-# BASIS_ADMIN_REQUIRED_ACR=<idp-mfa-acr-value>
 
 # Optional: persist share-link signing across restarts.
 # JAHAZIEL_SHARE_SECRET=<long-random-secret>
 ~~~
 
-Keep `.env` private (`chmod 0600`). Admin endpoints require both `ROLE_ADMIN` and verified MFA assurance. Without an IdP MFA assurance claim, configure an administrator through your identity provider or database — the product will not silently mark MFA as enrolled. The `BASIS_*` credential names in this example are the legacy aliases; the canonical `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`, and `BASIS_AUTH_RESOURCE_SECRET` names are also accepted. For the full downstream IdP contract and secret-rotation procedure, see the [basis-auth integration guide](docs/basis_auth_setup_guide.md). To use Microsoft, Google, GitHub, generic OIDC, local password + TOTP, passkey, API token, or LDAP instead, see [Authentication providers](#authentication-providers).
+`CURRENT_URL_ORIGIN` is the public HTTPS origin with no trailing path; it derives both registered URLs above. `BASIS_AUTH_RESOURCE_SECRET` verifies backchannel webhook proofs, and `BASIS_AUTH_INTERNAL_URL` is the private listener for webhook verification and fail-closed user-state checks. `BASIS_AUTH_COOKIE_SECRET` is at least 32 random bytes; this app keeps sessions server-side and signs tokens with generated keys in `data/keys`, so the value is accepted but not used to encrypt cookies. Login stays off until the issuer, client, resource, and origin are configured. Keep `.env` private (`chmod 0600`). Configuration is read at startup, so a credential change requires a restart.
+
+Legacy `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_CLIENT_SECRET` and `BASIS_RESOURCE` remain accepted as backward-compatible aliases; use one spelling consistently. For optional Microsoft Entra login the keys are `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_WEBHOOK_STATE` / `MICROSOFT_WEBHOOK_ID`; this build reads `MICROSOFT_ISSUER` (tenant in the URL), `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET` from `.env`. Grant administrator rights through your identity provider or database — there is no `.env` admin-bootstrap key in this build. For the full downstream IdP contract and secret-rotation procedure, see the [basis-auth integration guide](docs/basis_auth_setup_guide.md). To use Google, GitHub, generic OIDC, local password + TOTP, passkey, API token, or LDAP instead, see [Authentication providers](#authentication-providers).
 
 ### Operations (CLI verbs)
 
 ~~~bash
 java -jar jahaziel.jar doctor                    # preflight
-java -jar jahaziel.jar backup                     # back up data (--no-secrets to omit secrets)
+java -jar jahaziel.jar capabilities              # tool capabilities (unavailable with --offline)
+java -jar jahaziel.jar backup                     # back up .env + data/ (--no-secrets to omit secrets)
 java -jar jahaziel.jar restore <file>             # restore a backup
-java -jar jahaziel.jar upgrade --to <new-jar>     # offline jar upgrade (--check to inspect)
-java -jar jahaziel.jar logs --follow              # application logs
 java -jar jahaziel.jar support-bundle             # redacted diagnostics bundle
+java -jar jahaziel.jar update --status            # staged/applied update state
+java -jar jahaziel.jar update --to <new-jar>      # stage a verified jar update
+java -jar jahaziel.jar update --rollback          # restore the pre-update jar
+java -jar jahaziel.jar upgrade --to <new-jar>     # immediate offline swap, keeps a .bak
+java -jar jahaziel.jar logs --follow              # application logs
 ~~~
 
-See the [CLI reference](docs/reference/cli.md), [backup and restore](docs/operations/backup.md), and [release acceptance checklist](docs/operations/acceptance.md).
+See the [CLI reference](docs/reference/cli.md), [backup and restore](docs/operations/backup.md), [update and rollback](docs/deployment/single-server.md#updating-and-rollback), and [release acceptance checklist](docs/operations/acceptance.md).
 
 ## Authentication providers
 
@@ -191,7 +250,7 @@ Providers are resolved in this priority order — the first enabled and configur
 | 5 | Passkey | `passkey` | WebAuthn credentials |
 | 6 | Other | `api-token`, `ldap` | Service tokens and directory authentication |
 
-A plugin is enabled only when it is configured; missing required settings do not silently create a login source.
+A plugin is enabled only when it is configured; missing required settings do not silently create a login source. The canonical basis-auth keys are the lean set above; the legacy `BASIS_*` spellings remain backward-compatible aliases.
 
 ### Provider configuration keys
 
@@ -199,7 +258,7 @@ Each provider reads its own keys from jar-adjacent `.env`, real environment vari
 
 | Provider | Required keys | Optional keys |
 |---|---|---|
-| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_RESOURCE` | `BASIS_CLIENT_SECRET` (confidential clients), `BASIS_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`, `BASIS_AUTH_OFFLINE_ACCESS`, `BASIS_ADMIN_BOOTSTRAP_EMAIL`, `BASIS_ADMIN_REQUIRED_ACR` |
+| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`, `CURRENT_URL_ORIGIN` | `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_COOKIE_SECRET`; legacy `BASIS_REDIRECT_URI` / `BASIS_CLIENT_ID` / `BASIS_CLIENT_SECRET` / `BASIS_RESOURCE` aliases |
 | `microsoft`, `google`, `oidc` | `<prefix>.client-id` (`MICROSOFT_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `OIDC_CLIENT_ID`) | `<prefix>.client-secret`, `<prefix>.redirect-uri`, `<prefix>.issuer`, `<prefix>.scopes` |
 | `github` | `github.client-id` / `GITHUB_CLIENT_ID` | `github.client-secret`, `github.scopes`, `github.authorize-url`, `github.token-url`, `github.user-url`, `github.emails-url` |
 | `local` | `local.username`, `local.password` | `local.email` (admin is granted only after TOTP enrollment) |
@@ -213,12 +272,12 @@ Identity linking uses the pair **(provider, subject)**: `AuthIdentity.linkKey()`
 
 ### From Windows
 
-1. Run the server on Linux, macOS, or Windows using Option A, B, or C above.
+1. Run the server on Linux, macOS, or Windows using Path 1, 2, or 3 above (or the local demo for development only).
 2. In Windows, open Edge, Chrome, or Firefox and go to `https://code.example.com` (or `http://<host>:11451` for a private direct run on the same host).
 3. Sign in through your configured provider. The browser is the only thing you need installed to use a remote server.
 4. Use terminal, tasks, and debug panels exactly as on iPad; keyboard/trackpad shortcuts work in desktop browsers.
 
-To develop, rebuild, and host the jar on Windows, use the PowerShell workflow in [Build from source](#option-d--build-from-source), the `dev.ps1` verbs (`build`, `test`, `run`, `dev`, `smoke`, `docs`, `cache:report`, `clean`), and the WinSW service template in [service templates per OS](docs/deployment/single-server.md#service-templates-per-os).
+To develop, rebuild, and host the jar on Windows, use the PowerShell workflow in [Path 3 — Clone the repository on the target](#path-3--clone-the-repository-on-the-target), the `dev.ps1` verbs (`build`, `test`, `run`, `dev`, `smoke`, `docs`, `cache:report`, `clean`), and the WinSW service template in [service templates per OS](docs/deployment/single-server.md#service-templates-per-os).
 
 ### From iPad
 
@@ -262,7 +321,7 @@ These modules are present in the jar alongside the core workbench (files, editor
 
 ## Documentation
 
-- [Deploy Jahaziel on Linux](docs/deployment/single-server.md) — includes launchd and Windows service templates
+- [Deploy Jahaziel on a single server](docs/deployment/single-server.md) — jar upload, systemd/launchd/WinSW, repo clone, updates and rollback
 - [Platforms and per-OS supervisors](docs/guide/platforms.md)
 - [Quick start](docs/guide/quick-start.md)
 - [Use the workbench](docs/guide/using-jahaziel.md)
