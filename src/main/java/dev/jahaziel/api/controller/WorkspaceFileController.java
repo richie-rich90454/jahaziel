@@ -42,7 +42,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/workspaces/{id}/files")
 public class WorkspaceFileController {
+
     private final WorkspaceFiles files;
+
     private final AuthorizationService auth;
 
     public WorkspaceFileController(WorkspaceFiles files, AuthorizationService auth) {
@@ -147,9 +149,122 @@ public class WorkspaceFileController {
         }
     }
 
-    public record SaveRequest(@NotNull @Size(max = 2 * 1024 * 1024) String content) {}
+    public static final class SaveRequest {
 
-    public record PathRequest(String path) {}
+        @NotNull
+        @Size(max = 2 * 1024 * 1024)
+        private final String content;
 
-    public record RenameRequest(String path, String newPath) {}
+        public SaveRequest(@NotNull @Size(max = 2 * 1024 * 1024) String content) {
+            this.content = content;
+        }
+
+        public String content() {
+            return this.content;
+        }
+
+        public String getContent() {
+            return this.content;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof SaveRequest)) return false;
+            SaveRequest other = (SaveRequest) o;
+            return (java.util.Objects.equals(this.content, other.content));
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.content);
+        }
+
+        @Override
+        public String toString() {
+            return "SaveRequest[" + "content=" + this.content + "]";
+        }
+    }
+
+    public static final class PathRequest {
+
+        private final String path;
+
+        public PathRequest(String path) {
+            this.path = path;
+        }
+
+        public String path() {
+            return this.path;
+        }
+
+        public String getPath() {
+            return this.path;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PathRequest)) return false;
+            PathRequest other = (PathRequest) o;
+            return (java.util.Objects.equals(this.path, other.path));
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.path);
+        }
+
+        @Override
+        public String toString() {
+            return "PathRequest[" + "path=" + this.path + "]";
+        }
+    }
+
+    public static final class RenameRequest {
+
+        private final String path;
+
+        private final String newPath;
+
+        public RenameRequest(String path, String newPath) {
+            this.path = path;
+            this.newPath = newPath;
+        }
+
+        public String path() {
+            return this.path;
+        }
+
+        public String getPath() {
+            return this.path;
+        }
+
+        public String newPath() {
+            return this.newPath;
+        }
+
+        public String getNewPath() {
+            return this.newPath;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof RenameRequest)) return false;
+            RenameRequest other = (RenameRequest) o;
+            return (java.util.Objects.equals(this.path, other.path))
+                    && java.util.Objects.equals(this.newPath, other.newPath);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.path, this.newPath);
+        }
+
+        @Override
+        public String toString() {
+            return "RenameRequest[" + "path=" + this.path + ", " + "newPath=" + this.newPath + "]";
+        }
+    }
 }
