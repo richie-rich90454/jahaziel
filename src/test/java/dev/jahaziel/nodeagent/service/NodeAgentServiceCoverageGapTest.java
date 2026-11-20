@@ -64,7 +64,13 @@ class NodeAgentServiceCoverageGapTest {
         try {
             WorkspaceHandle handle = new WorkspaceHandle(workspace, home, root.resolve("jail"));
             UncheckedIOException failure =
-                    assertThrows(UncheckedIOException.class, () -> service.listSnapshots(handle));
+                    assertThrows(
+                            UncheckedIOException.class,
+                            new org.junit.jupiter.api.function.Executable() {
+                                public void execute() throws Throwable {
+                                    service.listSnapshots(handle);
+                                }
+                            });
             assertTrue(failure.getMessage().contains(workspace.toString()));
         } finally {
             try {
