@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-/** Repository for WorkspacePortEntity persistence. */
+/** Spring Data repository for WorkspacePortEntity; interface is required by Spring Data. */
 public interface WorkspacePortRepository
         extends JpaRepository<WorkspacePortEntity, WorkspacePortEntity.Id> {
     /**
