@@ -20,7 +20,53 @@ import java.util.zip.GZIPOutputStream;
 final class CliTestSupport {
     private CliTestSupport() {}
 
-    record Output(int code, String out, String err) {}
+    static final class Output {
+        private final int code;
+        private final String out;
+        private final String err;
+
+        Output(int code, String out, String err) {
+            this.code = code;
+            this.out = out;
+            this.err = err;
+        }
+
+        int code() {
+            return code;
+        }
+
+        String out() {
+            return out;
+        }
+
+        String err() {
+            return err;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Output)) {
+                return false;
+            }
+            Output that = (Output) other;
+            return code == that.code
+                    && java.util.Objects.equals(out, that.out)
+                    && java.util.Objects.equals(err, that.err);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(code, out, err);
+        }
+
+        @Override
+        public String toString() {
+            return "Output[code=" + code + ", out=" + out + ", err=" + err + "]";
+        }
+    }
 
     static Output dispatch(String... args) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -60,14 +106,12 @@ final class CliTestSupport {
     }
 
     static String validEnv() {
-        return """
-        BASIS_AUTH_ISSUER=https://idp.example.com
-        BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback
-        BASIS_CLIENT_ID=jahaziel
-        BASIS_CLIENT_SECRET=s3cret
-        BASIS_RESOURCE=urn:basis:api:jahaziel
-        PORT=11451
-        """;
+        return "BASIS_AUTH_ISSUER=https://idp.example.com\n"
+                + "BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback\n"
+                + "BASIS_CLIENT_ID=jahaziel\n"
+                + "BASIS_CLIENT_SECRET=s3cret\n"
+                + "BASIS_RESOURCE=urn:basis:api:jahaziel\n"
+                + "PORT=11451\n";
     }
 
     static void runTar(List<String> args, Path work) throws Exception {
@@ -81,8 +125,8 @@ final class CliTestSupport {
     }
 
     static String zipEntry(Path zip, String name) throws Exception {
-        try (var file = new java.util.zip.ZipFile(zip.toFile())) {
-            var entry = file.getEntry(name);
+        try (java.util.zip.ZipFile file = new java.util.zip.ZipFile(zip.toFile())) {
+            java.util.zip.ZipEntry entry = file.getEntry(name);
             if (entry == null) {
                 return null;
             }
@@ -91,7 +135,7 @@ final class CliTestSupport {
     }
 
     static boolean zipHas(Path zip, String name) throws Exception {
-        try (var file = new java.util.zip.ZipFile(zip.toFile())) {
+        try (java.util.zip.ZipFile file = new java.util.zip.ZipFile(zip.toFile())) {
             return file.getEntry(name) != null;
         }
     }
@@ -138,22 +182,31 @@ final class CliTestSupport {
     }
 
     static Doctor.Check find(List<Doctor.Check> checks, String name) {
-        return checks.stream().filter(c -> c.name().equals(name)).findFirst().orElseThrow();
+        for (Doctor.Check check : checks) {
+            if (check.name().equals(name)) {
+                return check;
+            }
+        }
+        throw new java.util.NoSuchElementException("no check named " + name);
     }
 
     static void deleteBestEffort(Path root) {
-        try (var walk = Files.walk(root)) {
-            walk.sorted(java.util.Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+        java.util.List<Path> paths = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
         } catch (Exception ignored) {
             // Best-effort test cleanup.
+        }
+        paths.sort(java.util.Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Best-effort test cleanup.
+            }
         }
     }
 }
