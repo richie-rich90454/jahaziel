@@ -35,7 +35,13 @@ class FirecrackerClientTest {
                 400,
                 FirecrackerClient.statusOf(
                         "HTTP/1.1 400 Bad Request\r\n\r\n{}".getBytes(StandardCharsets.US_ASCII)));
-        assertThrows(FirecrackerException.class, () -> FirecrackerClient.statusOf(new byte[0]));
+        assertThrows(
+                FirecrackerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        FirecrackerClient.statusOf(new byte[0]);
+                    }
+                });
     }
 
     @Test
