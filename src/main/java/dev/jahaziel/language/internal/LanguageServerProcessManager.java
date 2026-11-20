@@ -29,6 +29,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** Starts only selected, pinned language servers and proxies bounded JSON-RPC over stdio. */
-public final class LanguageServerProcessManager implements WorkspaceProcessLifecycle {
+public final class LanguageServerProcessManager extends WorkspaceProcessLifecycle {
     private static final Logger log = LoggerFactory.getLogger(LanguageServerProcessManager.class);
     private static final int MAX_SESSIONS = 8;
     private static final int MAX_MESSAGE_BYTES = 1024 * 1024;
@@ -126,9 +128,27 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
                                     registration,
                                     output);
                     sessions.put(id, session);
-                    readers.submit(() -> readOutput(session));
-                    readers.submit(() -> discardStderr(session));
-                    readers.submit(() -> watchExit(session));
+                    readers.submit(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    readOutput(session);
+                                }
+                            });
+                    readers.submit(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    discardStderr(session);
+                                }
+                            });
+                    readers.submit(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    watchExit(session);
+                                }
+                            });
                     return session;
                 } catch (RuntimeException failure) {
                     process.destroyForcibly();
@@ -148,7 +168,9 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
             closed = true;
             closing = List.copyOf(sessions.values());
         }
-        closing.forEach(ProcessSession::close);
+        for (ProcessSession session : closing) {
+            session.close();
+        }
         readers.shutdownNow();
     }
 
@@ -158,12 +180,16 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         List<ProcessSession> closing;
         synchronized (sessions) {
             stoppingWorkspaces.add(workspaceId);
-            closing =
-                    sessions.values().stream()
-                            .filter(session -> session.workspaceId.equals(workspaceId))
-                            .toList();
+            closing = new ArrayList<>();
+            for (ProcessSession session : sessions.values()) {
+                if (session.workspaceId.equals(workspaceId)) {
+                    closing.add(session);
+                }
+            }
         }
-        closing.forEach(session -> session.closeForWorkspaceStop());
+        for (ProcessSession session : closing) {
+            session.closeForWorkspaceStop();
+        }
     }
 
     @Override
@@ -330,14 +356,15 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         }
     }
 
-    public interface Session extends AutoCloseable {
-        void send(String jsonMessage) throws IOException;
+    public abstract static class Session implements AutoCloseable {
+        /** Sends one bounded JSON-RPC message. */
+        public abstract void send(String jsonMessage) throws IOException;
 
         @Override
-        void close();
+        public abstract void close();
     }
 
-    private final class ProcessSession implements Session {
+    private final class ProcessSession extends Session {
         private final UUID id;
         private final WorkspaceId workspaceId;
         private final String languageId;
@@ -400,9 +427,10 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
                 return;
             }
             JsonNode paramsNode = message.get("params");
-            if (!(paramsNode instanceof ObjectNode params)) {
+            if (!(paramsNode instanceof ObjectNode)) {
                 throw new IOException("language-server initialize params are required");
             }
+            ObjectNode params = (ObjectNode) paramsNode;
             String rootUri = workspaceHome.toUri().toString();
             params.put("rootUri", rootUri);
             params.remove("rootPath");
@@ -416,9 +444,10 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         }
 
         private void rewriteClientUris(JsonNode node) throws IOException {
-            if (node instanceof ObjectNode object) {
-                var fields = List.copyOf(object.properties());
-                for (var field : fields) {
+            if (node instanceof ObjectNode) {
+                ObjectNode object = (ObjectNode) node;
+                List<Map.Entry<String, JsonNode>> fields = List.copyOf(object.properties());
+                for (Map.Entry<String, JsonNode> field : fields) {
                     JsonNode value = field.getValue();
                     if (field.getKey().equals("uri") && value.isString()) {
                         Path file =
@@ -429,8 +458,8 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
                         rewriteClientUris(value);
                     }
                 }
-            } else if (node instanceof ArrayNode array) {
-                for (JsonNode value : array) {
+            } else if (node instanceof ArrayNode) {
+                for (JsonNode value : (ArrayNode) node) {
                     rewriteClientUris(value);
                 }
             }
@@ -443,9 +472,10 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
         }
 
         private void rewriteServerUris(JsonNode node) {
-            if (node instanceof ObjectNode object) {
-                var fields = List.copyOf(object.properties());
-                for (var field : fields) {
+            if (node instanceof ObjectNode) {
+                ObjectNode object = (ObjectNode) node;
+                List<Map.Entry<String, JsonNode>> fields = List.copyOf(object.properties());
+                for (Map.Entry<String, JsonNode> field : fields) {
                     JsonNode value = field.getValue();
                     if ((field.getKey().equals("uri") || field.getKey().equals("rootUri"))
                             && value.isString()) {
@@ -460,7 +490,8 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
                         rewriteServerUris(value);
                     }
                 }
-            } else if (node instanceof ArrayNode array) {
+            } else if (node instanceof ArrayNode) {
+                ArrayNode array = (ArrayNode) node;
                 for (int index = 0; index < array.size(); index++) {
                     JsonNode value = array.get(index);
                     if (value.isString()) {
@@ -495,6 +526,18 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
                             "jahaziel://workspace/" + workspaceId.value() + "/");
         }
 
+        private static void destroyAlive(List<ProcessHandle> descendants, boolean forcibly) {
+            for (ProcessHandle descendant : descendants) {
+                if (descendant.isAlive()) {
+                    if (forcibly) {
+                        descendant.destroyForcibly();
+                    } else {
+                        descendant.destroy();
+                    }
+                }
+            }
+        }
+
         @Override
         @SuppressWarnings("null")
         public void close() {
@@ -503,7 +546,11 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
             }
             closed = true;
             sessions.remove(id, this);
-            List<ProcessHandle> descendants = process.descendants().toList();
+            List<ProcessHandle> descendants = new ArrayList<>();
+            Iterator<ProcessHandle> descendantsIterator = process.descendants().iterator();
+            while (descendantsIterator.hasNext()) {
+                descendants.add(descendantsIterator.next());
+            }
             try {
                 synchronized (input) {
                     byte[] exit =
@@ -521,19 +568,15 @@ public final class LanguageServerProcessManager implements WorkspaceProcessLifec
             }
             try {
                 process.waitFor(2, TimeUnit.SECONDS);
-                descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroy);
+                destroyAlive(descendants, false);
                 process.destroy();
                 if (!process.waitFor(2, TimeUnit.SECONDS)) {
-                    descendants.stream()
-                            .filter(ProcessHandle::isAlive)
-                            .forEach(ProcessHandle::destroyForcibly);
+                    destroyAlive(descendants, true);
                     process.destroyForcibly();
                 }
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
-                descendants.stream()
-                        .filter(ProcessHandle::isAlive)
-                        .forEach(ProcessHandle::destroyForcibly);
+                destroyAlive(descendants, true);
                 process.destroyForcibly();
             }
             registration.close();
