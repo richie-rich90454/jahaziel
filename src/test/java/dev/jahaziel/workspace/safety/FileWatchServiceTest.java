@@ -14,7 +14,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** Polling reports added, modified, and deleted files relative to a persisted baseline. */
-final class FileWatchServiceTest {
+public final class FileWatchServiceTest {
     @Test
     void detectsExternalChanges(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
