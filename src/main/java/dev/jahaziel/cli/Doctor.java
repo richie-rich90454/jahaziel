@@ -48,7 +48,68 @@ public final class Doctor {
     private Doctor() {}
 
     /** A single check result. */
-    public record Check(String name, boolean ok, String detail, String fix) {}
+    public static final class Check {
+        private final String name;
+        private final boolean ok;
+        private final String detail;
+        private final String fix;
+
+        public Check(String name, boolean ok, String detail, String fix) {
+            this.name = name;
+            this.ok = ok;
+            this.detail = detail;
+            this.fix = fix;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public boolean ok() {
+            return ok;
+        }
+
+        public String detail() {
+            return detail;
+        }
+
+        public String fix() {
+            return fix;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Check)) {
+                return false;
+            }
+            Check that = (Check) other;
+            return ok == that.ok
+                    && java.util.Objects.equals(name, that.name)
+                    && java.util.Objects.equals(detail, that.detail)
+                    && java.util.Objects.equals(fix, that.fix);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(name, ok, detail, fix);
+        }
+
+        @Override
+        public String toString() {
+            return "Check[name="
+                    + name
+                    + ", ok="
+                    + ok
+                    + ", detail="
+                    + detail
+                    + ", fix="
+                    + fix
+                    + "]";
+        }
+    }
 
     /**
      * Runs all eleven checks.
@@ -402,8 +463,8 @@ public final class Doctor {
             Files.createDirectories(dataDir);
             // ponytail: driver is bundled in the jar; reflective load keeps CLI compilable
             // standalone.
-            try (var connection = DriverManager.getConnection("jdbc:sqlite:" + db);
-                    var statement = connection.createStatement()) {
+            try (java.sql.Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db);
+                    java.sql.Statement statement = connection.createStatement()) {
                 statement.execute(
                         "CREATE TABLE IF NOT EXISTS doctor_probe(id INTEGER PRIMARY KEY)");
                 statement.execute("INSERT INTO doctor_probe DEFAULT VALUES");
@@ -482,7 +543,15 @@ public final class Doctor {
             return Optional.empty();
         }
         String cmd =
-                process.info().commandLine().orElseGet(() -> process.info().command().orElse(""));
+                process.info()
+                        .commandLine()
+                        .orElseGet(
+                                new java.util.function.Supplier<String>() {
+                                    @Override
+                                    public String get() {
+                                        return process.info().command().orElse("");
+                                    }
+                                });
         if (cmd.isEmpty() || !matchesStray(cmd, needle)) {
             return Optional.empty();
         }
@@ -493,8 +562,18 @@ public final class Doctor {
         long self = ProcessHandle.current().pid();
         String needle = jarFile.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
         List<String> signals = new ArrayList<>();
-        ProcessHandle.allProcesses()
-                .forEach(process -> straySignal(process, needle, self).ifPresent(signals::add));
+        Stream<ProcessHandle> processes = ProcessHandle.allProcesses();
+        try {
+            java.util.Iterator<ProcessHandle> iterator = processes.iterator();
+            while (iterator.hasNext()) {
+                Optional<String> signal = straySignal(iterator.next(), needle, self);
+                if (signal.isPresent()) {
+                    signals.add(signal.get());
+                }
+            }
+        } finally {
+            processes.close();
+        }
         if (dataLocked(dataDir)) {
             signals.add("data lock " + dataDir.resolve(".lock"));
         }
@@ -609,8 +688,13 @@ public final class Doctor {
                     "Selected language-pack data cannot be read safely.",
                     "repair data/language-packs/selections or fix its permissions");
         }
-        boolean nodeRequired =
-                selected.stream().anyMatch(LanguageRuntimeRequirements::usesNodeRuntime);
+        boolean nodeRequired = false;
+        for (String packId : selected) {
+            if (LanguageRuntimeRequirements.usesNodeRuntime(packId)) {
+                nodeRequired = true;
+                break;
+            }
+        }
         boolean nodeAvailable = Files.isRegularFile(node) && Files.isExecutable(node);
         if (nodeRequired && !nodeAvailable) {
             return new Check(
@@ -646,8 +730,12 @@ public final class Doctor {
         }
         Set<String> selected = new TreeSet<>();
         try (Stream<Path> files = Files.list(selections)) {
-            for (Path file :
-                    files.filter(path -> path.getFileName().toString().endsWith(".txt")).toList()) {
+            java.util.Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                Path file = iterator.next();
+                if (!file.getFileName().toString().endsWith(".txt")) {
+                    continue;
+                }
                 if (Files.isSymbolicLink(file)
                         || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
                         || Files.size(file) > 4096) {
@@ -747,23 +835,61 @@ public final class Doctor {
             return "per-user agent/profile storage=none";
         }
         List<String> users = new ArrayList<>();
+        List<Path> candidates = new ArrayList<>();
         try (Stream<Path> entries = Files.list(root)) {
-            for (Path entry :
-                    entries.filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
-                            .filter(path -> !Files.isSymbolicLink(path))
-                            .sorted()
-                            .toList()) {
-                String name = entry.getFileName().toString();
-                try {
-                    UUID.fromString(name);
-                } catch (IllegalArgumentException invalidUserDirectory) {
-                    continue;
+            java.util.Iterator<Path> iterator = entries.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
+                        && !Files.isSymbolicLink(path)) {
+                    candidates.add(path);
                 }
-                users.add(name + ":" + directoryBytes(entry) + " bytes");
             }
+        }
+        Collections.sort(candidates);
+        for (Path entry : candidates) {
+            String name = entry.getFileName().toString();
+            try {
+                UUID.fromString(name);
+            } catch (IllegalArgumentException invalidUserDirectory) {
+                continue;
+            }
+            users.add(name + ":" + directoryBytes(entry) + " bytes");
         }
         return "per-user agent/profile storage="
                 + (users.isEmpty() ? "none" : String.join(",", users));
+    }
+
+    private static List<Path> plainDirectories(Path dir) throws IOException {
+        List<Path> found = new ArrayList<>();
+        try (Stream<Path> paths = Files.list(dir)) {
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
+                        && !Files.isSymbolicLink(path)) {
+                    found.add(path);
+                }
+            }
+        }
+        Collections.sort(found);
+        return found;
+    }
+
+    private static List<Path> plainTextFiles(Path dir) throws IOException {
+        List<Path> found = new ArrayList<>();
+        try (Stream<Path> paths = Files.list(dir)) {
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
+                        && !Files.isSymbolicLink(path)
+                        && path.getFileName().toString().endsWith(".txt")) {
+                    found.add(path);
+                }
+            }
+        }
+        return found;
     }
 
     static String managedPackSummary(Path root) throws IOException {
@@ -774,43 +900,18 @@ public final class Doctor {
                 Path packRoot = root.resolve(packId);
                 if (!Files.isDirectory(packRoot, LinkOption.NOFOLLOW_LINKS)
                         || Files.isSymbolicLink(packRoot)) continue;
-                try (Stream<Path> versions = Files.list(packRoot)) {
-                    for (Path version :
-                            versions.filter(
-                                            path ->
-                                                    Files.isDirectory(
-                                                            path, LinkOption.NOFOLLOW_LINKS))
-                                    .filter(path -> !Files.isSymbolicLink(path))
-                                    .sorted()
-                                    .toList()) {
-                        try (Stream<Path> architectures = Files.list(version)) {
-                            for (Path architecture :
-                                    architectures
-                                            .filter(
-                                                    path ->
-                                                            Files.isDirectory(
-                                                                    path,
-                                                                    LinkOption.NOFOLLOW_LINKS))
-                                            .filter(path -> !Files.isSymbolicLink(path))
-                                            .sorted()
-                                            .toList()) {
-                                Path marker = architecture.resolve(".jahaziel-pack");
-                                if (Files.isSymbolicLink(marker)
-                                        || !Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS)
-                                        || Files.size(marker) > 4096) continue;
-                                List<String> lines =
-                                        Files.readAllLines(marker, StandardCharsets.UTF_8);
-                                if (lines.size() >= 2
-                                        && lines.getFirst().equals(packId)
-                                        && lines.get(1).equals(version.getFileName().toString())) {
-                                    installed.add(
-                                            packId
-                                                    + "@"
-                                                    + lines.get(1)
-                                                    + "/"
-                                                    + architecture.getFileName());
-                                }
-                            }
+                for (Path version : plainDirectories(packRoot)) {
+                    for (Path architecture : plainDirectories(version)) {
+                        Path marker = architecture.resolve(".jahaziel-pack");
+                        if (Files.isSymbolicLink(marker)
+                                || !Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS)
+                                || Files.size(marker) > 4096) continue;
+                        List<String> lines = Files.readAllLines(marker, StandardCharsets.UTF_8);
+                        if (lines.size() >= 2
+                                && lines.getFirst().equals(packId)
+                                && lines.get(1).equals(version.getFileName().toString())) {
+                            installed.add(
+                                    packId + "@" + lines.get(1) + "/" + architecture.getFileName());
                         }
                     }
                 }
@@ -818,28 +919,19 @@ public final class Doctor {
             Path selections = root.resolve("selections");
             if (Files.isDirectory(selections, LinkOption.NOFOLLOW_LINKS)
                     && !Files.isSymbolicLink(selections)) {
-                try (Stream<Path> files = Files.list(selections)) {
-                    for (Path file :
-                            files.filter(
-                                            path ->
-                                                    Files.isRegularFile(
-                                                            path, LinkOption.NOFOLLOW_LINKS))
-                                    .filter(path -> !Files.isSymbolicLink(path))
-                                    .filter(path -> path.getFileName().toString().endsWith(".txt"))
-                                    .toList()) {
-                        if (Files.size(file) > 4096) continue;
-                        for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-                            if (LANGUAGE_PACK_IDS.contains(id.strip())
-                                    && !selected.contains(id.strip())) {
-                                selected.add(id.strip());
-                            }
+                for (Path file : plainTextFiles(selections)) {
+                    if (Files.size(file) > 4096) continue;
+                    for (String id : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                        if (LANGUAGE_PACK_IDS.contains(id.strip())
+                                && !selected.contains(id.strip())) {
+                            selected.add(id.strip());
                         }
                     }
                 }
             }
         }
-        installed.sort((String left, String right) -> left.compareTo(right));
-        selected.sort((String left, String right) -> left.compareTo(right));
+        Collections.sort(installed);
+        Collections.sort(selected);
         return "installed managed packs="
                 + (installed.isEmpty() ? "none" : String.join(",", installed))
                 + "; selected packs="
@@ -851,18 +943,21 @@ public final class Doctor {
         if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
             return 0;
         }
+        long total = 0L;
         try (Stream<Path> paths = Files.walk(root)) {
-            return paths.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                    .mapToLong(
-                            path -> {
-                                try {
-                                    return Files.size(path);
-                                } catch (IOException ignored) {
-                                    return 0;
-                                }
-                            })
-                    .sum();
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+                    try {
+                        total += Files.size(path);
+                    } catch (IOException ignored) {
+                        // Unreadable entries contribute zero bytes.
+                    }
+                }
+            }
         }
+        return total;
     }
 
     /**
@@ -876,7 +971,7 @@ public final class Doctor {
         Path root = dataDir.toAbsolutePath().normalize();
         try {
             Files.createDirectories(root);
-            try (var channel =
+            try (FileChannel channel =
                     FileChannel.open(
                             root.resolve(".lock"),
                             StandardOpenOption.CREATE,
