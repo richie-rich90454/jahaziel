@@ -5,6 +5,7 @@
 package dev.jahaziel.workspace.internal;
 
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceState;
 
@@ -35,7 +36,7 @@ public final class WorkspaceStateRecovery implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments arguments) {
-        for (var view : workspaces.describeAll()) {
+        for (WorkspaceView view : workspaces.describeAll()) {
             Workspace workspace = view.workspace();
             WorkspaceState state = workspace.state();
             if (state instanceof WorkspaceState.Preparing
