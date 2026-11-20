@@ -45,30 +45,44 @@ class DebugServiceImplTest {
         assertNull(DebugServiceImpl.readDapMessage(new ByteArrayInputStream(new byte[0])));
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         DebugServiceImpl.readDapMessage(
                                 new ByteArrayInputStream(
                                         "Content-Length: 2\r\n"
-                                                .getBytes(StandardCharsets.US_ASCII))));
+                                                .getBytes(StandardCharsets.US_ASCII)));
+                    }
+                });
     }
 
     @Test
     void rejectsDuplicateAndOversizedContentLengths() {
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         DebugServiceImpl.readDapMessage(
-                                ascii("Content-Length: 1\r\nContent-Length: 1\r\n\r\n{}")));
+                                ascii("Content-Length: 1\r\nContent-Length: 1\r\n\r\n{}"));
+                    }
+                });
         assertThrows(
                 IOException.class,
-                () -> DebugServiceImpl.readDapMessage(ascii("Content-Length: 1048577\r\n\r\n")));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        DebugServiceImpl.readDapMessage(ascii("Content-Length: 1048577\r\n\r\n"));
+                    }
+                });
     }
 
     @Test
     void rejectsIncompleteDapBodies() {
         assertThrows(
                 IOException.class,
-                () -> DebugServiceImpl.readDapMessage(ascii("Content-Length: 5\r\n\r\n{}")));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        DebugServiceImpl.readDapMessage(ascii("Content-Length: 5\r\n\r\n{}"));
+                    }
+                });
     }
 
     @Test
