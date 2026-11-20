@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentMap;
  * serving (ready, active, or idle) and has registered ports; everything else is removed. Without a
  * registry, as in the split topology before route push lands, this is a no-op.
  */
-public final class GatewayRouteServiceImpl implements GatewayRouteService {
+public final class GatewayRouteServiceImpl extends GatewayRouteService {
     private final Optional<RouteRegistry> registry;
     private final WorkspaceService workspaces;
     private final UserService users;
@@ -106,9 +106,35 @@ public final class GatewayRouteServiceImpl implements GatewayRouteService {
                 || state instanceof WorkspaceState.Idle;
     }
 
-    private record RouteKey(String slug, int port) {
-        RouteKey {
+    private static final class RouteKey {
+        private final String slug;
+        private final int port;
+
+        RouteKey(String slug, int port) {
             Objects.requireNonNull(slug, "slug");
+            this.slug = slug;
+            this.port = port;
+        }
+
+        String slug() {
+            return slug;
+        }
+
+        int port() {
+            return port;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof RouteKey)) return false;
+            RouteKey other = (RouteKey) o;
+            return port == other.port && slug.equals(other.slug);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(slug, port);
         }
     }
 }
