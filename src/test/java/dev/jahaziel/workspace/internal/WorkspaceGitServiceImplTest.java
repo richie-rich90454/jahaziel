@@ -89,10 +89,29 @@ class WorkspaceGitServiceImplTest {
         service.unstage(workspaceId, "notes.txt");
         assertEquals("?", service.status(workspaceId).changes().getFirst().indexStatus());
         assertThrows(
-                IllegalArgumentException.class, () -> service.stage(workspaceId, "../outside"));
-        assertThrows(IllegalArgumentException.class, () -> service.diff(workspaceId, "C:/outside"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.stage(workspaceId, "../outside");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> service.commit(workspaceId, "bad\nmessage"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.diff(workspaceId, "C:/outside");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.commit(workspaceId, "bad\nmessage");
+                    }
+                });
     }
 
     @Test
@@ -167,7 +186,14 @@ class WorkspaceGitServiceImplTest {
                 new WorkspaceId(UUID.fromString(nestedHome.getParent().getFileName().toString()));
 
         assertFalse(service.status(nestedId).repository());
-        assertThrows(IllegalArgumentException.class, () -> service.stage(nestedId, "file.txt"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.stage(nestedId, "file.txt");
+                    }
+                });
     }
 
     private void git(String... arguments) throws Exception {
