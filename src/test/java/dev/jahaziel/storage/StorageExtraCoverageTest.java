@@ -37,8 +37,22 @@ class StorageExtraCoverageTest {
         assertEquals(
                 java.time.Duration.ofHours(24 * 7), new CacheWarmJob(root.toString()).period());
         assertEquals(JobScope.NODE, new CacheWarmJob(root.toString()).scope());
-        assertThrows(IllegalArgumentException.class, () -> new CacheWarmJob(null));
-        assertThrows(IllegalArgumentException.class, () -> new CacheWarmJob("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CacheWarmJob(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CacheWarmJob("  ");
+                    }
+                });
     }
 
     @Test
@@ -48,7 +62,12 @@ class StorageExtraCoverageTest {
         Files.writeString(root.resolve("caches"), "file", StandardCharsets.UTF_8);
         assertThrows(
                 RuntimeException.class,
-                () -> new CacheWarmJob(root.toString()).run(JobContext.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CacheWarmJob(root.toString()).run(JobContext.now());
+                    }
+                });
     }
 
     @Test
@@ -66,13 +85,44 @@ class StorageExtraCoverageTest {
         Files.writeString(dir.resolve("base.ext4.zst.sha256"), "00" + hex.substring(2));
         assertThrows(
                 IllegalStateException.class,
-                () -> new ImageMaintenanceJob(dir, "base").run(JobContext.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(dir, "base").run(JobContext.now());
+                    }
+                });
         assertThrows(
                 IllegalStateException.class,
-                () -> new ImageMaintenanceJob(dir, "missing").run(JobContext.now()));
-        assertThrows(NullPointerException.class, () -> new ImageMaintenanceJob(null, "x"));
-        assertThrows(IllegalArgumentException.class, () -> new ImageMaintenanceJob(dir, null));
-        assertThrows(IllegalArgumentException.class, () -> new ImageMaintenanceJob(dir, " "));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(dir, "missing").run(JobContext.now());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(null, "x");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(dir, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(dir, " ");
+                    }
+                });
     }
 
     @Test
@@ -82,6 +132,11 @@ class StorageExtraCoverageTest {
         Files.write(dir.resolve("b.ext4.zst"), new byte[] {1});
         assertThrows(
                 IllegalStateException.class,
-                () -> new ImageMaintenanceJob(dir, "b").run(JobContext.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ImageMaintenanceJob(dir, "b").run(JobContext.now());
+                    }
+                });
     }
 }
