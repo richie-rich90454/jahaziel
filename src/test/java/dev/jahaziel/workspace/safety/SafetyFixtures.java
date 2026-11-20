@@ -17,7 +17,7 @@ import java.security.Principal;
 import java.util.UUID;
 
 /** Shared fakes for the workspace-safety tests. */
-final class SafetyFixtures {
+public final class SafetyFixtures {
     static final String USER = "11111111-1111-1111-1111-111111111111";
     static final String WORKSPACE = "22222222-2222-2222-2222-222222222222";
 
@@ -60,7 +60,7 @@ final class SafetyFixtures {
         }
     }
 
-    static final class AllowAll implements AuthorizationService {
+    public static final class AllowAll extends AuthorizationService {
         @Override
         public boolean isAllowed(UserId user, String permission, WorkspaceId workspace) {
             return true;
@@ -72,7 +72,7 @@ final class SafetyFixtures {
         }
     }
 
-    static final class DenyAll implements AuthorizationService {
+    public static final class DenyAll extends AuthorizationService {
         @Override
         public boolean isAllowed(UserId user, String permission, WorkspaceId workspace) {
             return false;
