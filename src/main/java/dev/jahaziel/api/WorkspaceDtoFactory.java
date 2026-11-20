@@ -10,15 +10,18 @@ import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.networking.api.GatewayEndpoint;
+import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.runtime.internal.BootProgressService;
 import dev.jahaziel.workspace.api.WorkspaceView;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Builds workspace read models with their entry points. A user's own read carries a fresh
@@ -69,16 +72,11 @@ public final class WorkspaceDtoFactory {
         // The route is registered under the workspace owner's slug, so the URL must use it too:
         // the acting user may differ on shared workspaces.
         String slug = users.slug(view.workspace().owner());
-        List<PortDto> entries =
-                ports.bindingsByWorkspace(view.workspace().id()).stream()
-                        .map(
-                                binding ->
-                                        PortDto.from(
-                                                binding,
-                                                slug,
-                                                endpoint,
-                                                token(actingUser, view, binding.port())))
-                        .toList();
+        List<PortDto> entries = new ArrayList<>();
+        for (PortBinding binding : ports.bindingsByWorkspace(view.workspace().id())) {
+            entries.add(
+                    PortDto.from(binding, slug, endpoint, token(actingUser, view, binding.port())));
+        }
         return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
     }
 
@@ -90,22 +88,34 @@ public final class WorkspaceDtoFactory {
      */
     public WorkspaceDto withoutTokens(WorkspaceView view) {
         String slug = users.slug(view.workspace().owner());
-        List<PortDto> entries =
-                ports.bindingsByWorkspace(view.workspace().id()).stream()
-                        .map(binding -> PortDto.from(binding, slug, endpoint, null))
-                        .toList();
+        List<PortDto> entries = new ArrayList<>();
+        for (PortBinding binding : ports.bindingsByWorkspace(view.workspace().id())) {
+            entries.add(PortDto.from(binding, slug, endpoint, null));
+        }
         return WorkspaceDto.from(view, entries, bootPhase(view), bootPhaseAt(view));
     }
 
     private String bootPhase(WorkspaceView view) {
         return progress.snapshot(view.workspace().id())
-                .map(report -> report.phase().name().toLowerCase(Locale.ROOT))
+                .map(
+                        new Function<BootProgressService.Progress, String>() {
+                            @Override
+                            public String apply(BootProgressService.Progress report) {
+                                return report.phase().name().toLowerCase(Locale.ROOT);
+                            }
+                        })
                 .orElse(null);
     }
 
     private Instant bootPhaseAt(WorkspaceView view) {
         return progress.snapshot(view.workspace().id())
-                .map((BootProgressService.Progress report) -> report.updatedAt())
+                .map(
+                        new Function<BootProgressService.Progress, Instant>() {
+                            @Override
+                            public Instant apply(BootProgressService.Progress report) {
+                                return report.updatedAt();
+                            }
+                        })
                 .orElse(null);
     }
 
