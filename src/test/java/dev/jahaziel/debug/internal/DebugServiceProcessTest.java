@@ -105,7 +105,7 @@ class DebugServiceProcessTest {
                                                         .toAbsolutePath()
                                                         .toString(),
                                                 FakeDapAdapter.class.getName()),
-                                        DebugAdapterProperties.Transport.STDIO)));
+                                        "STDIO")));
         DebugServiceImpl service =
                 new DebugServiceImpl(
                         properties,
@@ -235,7 +235,7 @@ class DebugServiceProcessTest {
                                                         .toAbsolutePath()
                                                         .toString(),
                                                 FakeDapAdapter.class.getName()),
-                                        DebugAdapterProperties.Transport.STDIO)));
+                                        "STDIO")));
         DebugServiceImpl service =
                 new DebugServiceImpl(
                         properties,
@@ -359,7 +359,7 @@ class DebugServiceProcessTest {
                                                         .toString(),
                                                 FakeDapAdapter.class.getName(),
                                                 "ignore-disconnect"),
-                                        DebugAdapterProperties.Transport.STDIO)));
+                                        "STDIO")));
         DebugServiceImpl service =
                 new DebugServiceImpl(
                         properties,
@@ -461,7 +461,7 @@ class DebugServiceProcessTest {
                                 "-cp",
                                 Path.of("target", "test-classes").toAbsolutePath().toString(),
                                 FakeDapAdapter.class.getName()),
-                        DebugAdapterProperties.Transport.STDIO);
+                        "STDIO");
         Map<String, DebugAdapterProperties.Adapter> configuredAdapters = new HashMap<>();
         for (String language : languages) {
             configuredAdapters.put(language, fixture);
