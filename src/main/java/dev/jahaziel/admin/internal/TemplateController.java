@@ -12,6 +12,7 @@ import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.workspace.api.WorkspaceFiles;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceTaskService;
+import dev.jahaziel.workspace.domain.Workspace;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -37,8 +38,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -82,12 +89,19 @@ public class TemplateController {
             return List.of();
         }
         try (Stream<Path> entries = Files.list(templatesDir)) {
-            return entries.filter(Files::isDirectory)
-                    .filter(dir -> !Files.isSymbolicLink(dir))
-                    .filter(dir -> Files.isRegularFile(dir.resolve("template.json")))
-                    .map(dir -> dir.getFileName().toString())
-                    .sorted()
-                    .toList();
+            List<String> names = new ArrayList<String>();
+            Iterator<Path> paths = entries.iterator();
+            while (paths.hasNext()) {
+                Path dir = paths.next();
+                if (!Files.isDirectory(dir)
+                        || Files.isSymbolicLink(dir)
+                        || !Files.isRegularFile(dir.resolve("template.json"))) {
+                    continue;
+                }
+                names.add(dir.getFileName().toString());
+            }
+            Collections.sort(names);
+            return names;
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
@@ -132,14 +146,18 @@ public class TemplateController {
         if (vcpu < 1 || vcpu > 64 || memory < 256 || memory > 262144) {
             throw new IllegalArgumentException("template resource limits are invalid");
         }
-        if (template.ports() != null
-                && template.ports().stream()
-                        .anyMatch(port -> port == null || port < 1 || port > 65535)) {
-            throw new IllegalArgumentException("template ports must be between 1 and 65535");
-        }
-        if (template.ports() != null
-                && template.ports().stream().distinct().count() != template.ports().size()) {
-            throw new IllegalArgumentException("template ports must be unique");
+        if (template.ports() != null) {
+            for (int index = 0; index < template.ports().size(); index++) {
+                Integer port = template.ports().get(index);
+                if (port == null || port < 1 || port > 65535) {
+                    throw new IllegalArgumentException(
+                            "template ports must be between 1 and 65535");
+                }
+            }
+            Set<Integer> uniquePorts = new HashSet<Integer>(template.ports());
+            if (uniquePorts.size() != template.ports().size()) {
+                throw new IllegalArgumentException("template ports must be unique");
+            }
         }
         if (template.ports() != null
                 && template.ports().size() > PortService.MAX_PORTS_PER_WORKSPACE) {
@@ -149,32 +167,28 @@ public class TemplateController {
                             + " entries");
         }
         if (template.languagePacks() != null) {
-            if (template.languagePacks().size() > 6
-                    || template.languagePacks().stream()
-                            .anyMatch(
-                                    pack ->
-                                            !List.of(
-                                                            "cpp",
-                                                            "java",
-                                                            "go",
-                                                            "rust",
-                                                            "typescript",
-                                                            "python")
-                                                    .contains(pack))) {
+            List<String> allowed = List.of("cpp", "java", "go", "rust", "typescript", "python");
+            if (template.languagePacks().size() > 6) {
                 throw new IllegalArgumentException(
                         "template contains an unsupported language pack");
             }
-            if (template.languagePacks().stream().distinct().count()
-                    != template.languagePacks().size()) {
+            for (int index = 0; index < template.languagePacks().size(); index++) {
+                if (!allowed.contains(template.languagePacks().get(index))) {
+                    throw new IllegalArgumentException(
+                            "template contains an unsupported language pack");
+                }
+            }
+            Set<String> uniquePacks = new HashSet<String>(template.languagePacks());
+            if (uniquePacks.size() != template.languagePacks().size()) {
                 throw new IllegalArgumentException("template language packs must be unique");
             }
         }
         validateSetupSteps(template.setupSteps());
         validateRunTasks(template.runTasks(), template.ports());
-        java.util.Map<String, String> starterFiles =
-                template.starterFiles() == null ? java.util.Map.of() : template.starterFiles();
+        Map<String, String> starterFiles =
+                template.starterFiles() == null ? Map.of() : template.starterFiles();
         long starterBytes = 0;
-        for (var starter : starterFiles.entrySet()) {
+        for (Map.Entry<String, String> starter : starterFiles.entrySet()) {
             validateStarter(starter.getKey(), starter.getValue());
             starterBytes += starter.getValue().getBytes(StandardCharsets.UTF_8).length;
             if (starterBytes > MAX_STARTER_BYTES) {
@@ -183,19 +197,19 @@ public class TemplateController {
             }
         }
         UserId owner = userId(principal);
-        var workspace =
+        Workspace workspace =
                 workspaces.create(
                         owner, request.workspaceName(), vcpu, memory, new NodeId(defaultNode));
         tasks.initialize(workspace.id(), name);
-        WorkspaceFiles.Operations workspaceFiles = files.forWorkspace(workspace.id());
-        for (var starter : starterFiles.entrySet()) {
+        for (Map.Entry<String, String> starter : starterFiles.entrySet()) {
             String relativePath = starter.getKey();
             String content = starter.getValue();
             int separator = relativePath.lastIndexOf('/');
             if (separator > 0) {
-                workspaceFiles.createDirectories(relativePath.substring(0, separator));
+                files.forWorkspace(workspace.id())
+                        .createDirectories(relativePath.substring(0, separator));
             }
-            workspaceFiles.save(relativePath, content, null, true);
+            files.forWorkspace(workspace.id()).save(relativePath, content, null, true);
         }
         if (template.ports() != null) {
             for (int port : template.ports()) {
@@ -231,7 +245,7 @@ public class TemplateController {
         if (steps == null) return;
         if (steps.size() > 32)
             throw new IllegalArgumentException("template setupSteps must contain at most 32 steps");
-        java.util.HashSet<String> ids = new java.util.HashSet<>();
+        Set<String> ids = new HashSet<String>();
         for (SetupStep step : steps) {
             if (step == null
                     || step.id() == null
@@ -248,7 +262,7 @@ public class TemplateController {
         if (tasks == null) return;
         if (tasks.size() > 32)
             throw new IllegalArgumentException("template runTasks must contain at most 32 tasks");
-        java.util.HashSet<String> ids = new java.util.HashSet<>();
+        Set<String> ids = new HashSet<String>();
         for (RunTask task : tasks) {
             if (task == null
                     || task.id() == null
@@ -278,14 +292,15 @@ public class TemplateController {
             throw new IllegalArgumentException(
                     source + " command must be a non-empty argument list");
         }
-        if (command.stream()
-                .anyMatch(
-                        argument ->
-                                argument == null
-                                        || argument.isBlank()
-                                        || argument.length() > 1024
-                                        || argument.indexOf('\0') >= 0)) {
-            throw new IllegalArgumentException(source + " command contains an invalid argument");
+        for (int index = 0; index < command.size(); index++) {
+            String argument = command.get(index);
+            if (argument == null
+                    || argument.isBlank()
+                    || argument.length() > 1024
+                    || argument.indexOf('\0') >= 0) {
+                throw new IllegalArgumentException(
+                        source + " command contains an invalid argument");
+            }
         }
     }
 
@@ -321,20 +336,227 @@ public class TemplateController {
         return dir;
     }
 
-    private record TemplateManifest(
-            String name,
-            String description,
-            Integer vcpuCount,
-            Long memoryMib,
-            List<Integer> ports,
-            List<String> languagePacks,
-            java.util.Map<String, String> starterFiles,
-            List<SetupStep> setupSteps,
-            List<RunTask> runTasks) {}
+    /** The parsed template.json shape. */
+    private static final class TemplateManifest {
+        private String name;
+        private String description;
+        private Integer vcpuCount;
+        private Long memoryMib;
+        private List<Integer> ports;
+        private List<String> languagePacks;
+        private Map<String, String> starterFiles;
+        private List<SetupStep> setupSteps;
+        private List<RunTask> runTasks;
 
-    private record SetupStep(String id, List<String> command) {}
+        /** Creates an empty manifest for JSON binding. */
+        public TemplateManifest() {}
 
-    private record RunTask(String id, String label, List<String> command, Integer port) {}
+        /** Creates a manifest with all fields set. */
+        public TemplateManifest(
+                String name,
+                String description,
+                Integer vcpuCount,
+                Long memoryMib,
+                List<Integer> ports,
+                List<String> languagePacks,
+                Map<String, String> starterFiles,
+                List<SetupStep> setupSteps,
+                List<RunTask> runTasks) {
+            this.name = name;
+            this.description = description;
+            this.vcpuCount = vcpuCount;
+            this.memoryMib = memoryMib;
+            this.ports = ports;
+            this.languagePacks = languagePacks;
+            this.starterFiles = starterFiles;
+            this.setupSteps = setupSteps;
+            this.runTasks = runTasks;
+        }
+
+        /** Returns the template name. */
+        public String name() {
+            return name;
+        }
+
+        /** Returns the description. */
+        public String description() {
+            return description;
+        }
+
+        /** Returns the vCPU count. */
+        public Integer vcpuCount() {
+            return vcpuCount;
+        }
+
+        /** Returns the memory size in MiB. */
+        public Long memoryMib() {
+            return memoryMib;
+        }
+
+        /** Returns the port list. */
+        public List<Integer> ports() {
+            return ports;
+        }
+
+        /** Returns the language pack list. */
+        public List<String> languagePacks() {
+            return languagePacks;
+        }
+
+        /** Returns the starter files. */
+        public Map<String, String> starterFiles() {
+            return starterFiles;
+        }
+
+        /** Returns the setup steps. */
+        public List<SetupStep> setupSteps() {
+            return setupSteps;
+        }
+
+        /** Returns the run tasks. */
+        public List<RunTask> runTasks() {
+            return runTasks;
+        }
+
+        /** Sets the template name. */
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        /** Sets the description. */
+        public void setDescription(String description) {
+            this.description = description;
+        }
+
+        /** Sets the vCPU count. */
+        public void setVcpuCount(Integer vcpuCount) {
+            this.vcpuCount = vcpuCount;
+        }
+
+        /** Sets the memory size in MiB. */
+        public void setMemoryMib(Long memoryMib) {
+            this.memoryMib = memoryMib;
+        }
+
+        /** Sets the port list. */
+        public void setPorts(List<Integer> ports) {
+            this.ports = ports;
+        }
+
+        /** Sets the language pack list. */
+        public void setLanguagePacks(List<String> languagePacks) {
+            this.languagePacks = languagePacks;
+        }
+
+        /** Sets the starter files. */
+        public void setStarterFiles(Map<String, String> starterFiles) {
+            this.starterFiles = starterFiles;
+        }
+
+        /** Sets the setup steps. */
+        public void setSetupSteps(List<SetupStep> setupSteps) {
+            this.setupSteps = setupSteps;
+        }
+
+        /** Sets the run tasks. */
+        public void setRunTasks(List<RunTask> runTasks) {
+            this.runTasks = runTasks;
+        }
+    }
+
+    /** A setup step in a template. */
+    private static final class SetupStep {
+        private String id;
+        private List<String> command;
+
+        /** Creates an empty step for JSON binding. */
+        public SetupStep() {}
+
+        /** Creates a step. */
+        public SetupStep(String id, List<String> command) {
+            this.id = id;
+            this.command = command;
+        }
+
+        /** Returns the step id. */
+        public String id() {
+            return id;
+        }
+
+        /** Returns the command. */
+        public List<String> command() {
+            return command;
+        }
+
+        /** Sets the step id. */
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        /** Sets the command. */
+        public void setCommand(List<String> command) {
+            this.command = command;
+        }
+    }
+
+    /** A run task in a template. */
+    private static final class RunTask {
+        private String id;
+        private String label;
+        private List<String> command;
+        private Integer port;
+
+        /** Creates an empty task for JSON binding. */
+        public RunTask() {}
+
+        /** Creates a task. */
+        public RunTask(String id, String label, List<String> command, Integer port) {
+            this.id = id;
+            this.label = label;
+            this.command = command;
+            this.port = port;
+        }
+
+        /** Returns the task id. */
+        public String id() {
+            return id;
+        }
+
+        /** Returns the label. */
+        public String label() {
+            return label;
+        }
+
+        /** Returns the command. */
+        public List<String> command() {
+            return command;
+        }
+
+        /** Returns the port. */
+        public Integer port() {
+            return port;
+        }
+
+        /** Sets the task id. */
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        /** Sets the label. */
+        public void setLabel(String label) {
+            this.label = label;
+        }
+
+        /** Sets the command. */
+        public void setCommand(List<String> command) {
+            this.command = command;
+        }
+
+        /** Sets the port. */
+        public void setPort(Integer port) {
+            this.port = port;
+        }
+    }
 
     private static UserId userId(Principal principal) {
         try {
@@ -345,5 +567,27 @@ public class TemplateController {
     }
 
     /** Apply request. */
-    public record ApplyRequest(@NotBlank @Size(max = 64) String workspaceName) {}
+    public static final class ApplyRequest {
+        @NotBlank
+        @Size(max = 64)
+        private String workspaceName;
+
+        /** Creates an empty request for JSON binding. */
+        public ApplyRequest() {}
+
+        /** Creates a request. */
+        public ApplyRequest(String workspaceName) {
+            this.workspaceName = workspaceName;
+        }
+
+        /** Returns the workspace name. */
+        public String workspaceName() {
+            return workspaceName;
+        }
+
+        /** Sets the workspace name. */
+        public void setWorkspaceName(String workspaceName) {
+            this.workspaceName = workspaceName;
+        }
+    }
 }
