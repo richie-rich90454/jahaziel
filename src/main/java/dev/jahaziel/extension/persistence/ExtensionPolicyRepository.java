@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
 
-/** Repository for ExtensionPolicyEntity persistence. */
+/** Spring Data repository for ExtensionPolicyEntity; interface is required by Spring Data. */
 public interface ExtensionPolicyRepository extends JpaRepository<ExtensionPolicyEntity, UUID> {}
