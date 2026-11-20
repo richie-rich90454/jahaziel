@@ -14,6 +14,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
 /** Streams JSON-RPC messages to a fixed server-managed language process. */
 public final class LanguageStreamHandler extends TextWebSocketHandler {
@@ -34,7 +35,15 @@ public final class LanguageStreamHandler extends TextWebSocketHandler {
         String languageId = languageId(session);
         try {
             LanguageServerProcessManager.Session process =
-                    processes.open(workspace, languageId, message -> send(session, message));
+                    processes.open(
+                            workspace,
+                            languageId,
+                            new Consumer<String>() {
+                                @Override
+                                public void accept(String message) {
+                                    send(session, message);
+                                }
+                            });
             sessions.put(session.getId(), process);
         } catch (LanguageSessionLimitException limit) {
             session.close(new CloseStatus(1013, "language-service limit reached"));
@@ -91,8 +100,8 @@ public final class LanguageStreamHandler extends TextWebSocketHandler {
 
     private static WorkspaceId workspaceId(WebSocketSession session) {
         Object value = session.getAttributes().get(LanguageStreamHandshakeInterceptor.WORKSPACE_ID);
-        if (value instanceof WorkspaceId id) {
-            return id;
+        if (value instanceof WorkspaceId) {
+            return (WorkspaceId) value;
         }
         throw new IllegalStateException(
                 "language-service workspace was not authorized at handshake");
@@ -100,8 +109,8 @@ public final class LanguageStreamHandler extends TextWebSocketHandler {
 
     private static String languageId(WebSocketSession session) {
         Object value = session.getAttributes().get(LanguageStreamHandshakeInterceptor.LANGUAGE_ID);
-        if (value instanceof String id && !id.isBlank()) {
-            return id;
+        if (value instanceof String && !((String) value).isBlank()) {
+            return (String) value;
         }
         throw new IllegalStateException("language id was not authorized at handshake");
     }
