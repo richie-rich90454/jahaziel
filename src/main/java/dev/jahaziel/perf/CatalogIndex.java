@@ -36,7 +36,15 @@ public final class CatalogIndex {
             return os;
         }
 
+        public String getOs() {
+            return os;
+        }
+
         public String arch() {
+            return arch;
+        }
+
+        public String getArch() {
             return arch;
         }
 
@@ -44,7 +52,15 @@ public final class CatalogIndex {
             return id;
         }
 
+        public String getId() {
+            return id;
+        }
+
         public String version() {
+            return version;
+        }
+
+        public String getVersion() {
             return version;
         }
 
@@ -52,7 +68,15 @@ public final class CatalogIndex {
             return url;
         }
 
+        public String getUrl() {
+            return url;
+        }
+
         public String sha256() {
+            return sha256;
+        }
+
+        public String getSha256() {
             return sha256;
         }
 
