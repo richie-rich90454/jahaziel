@@ -14,19 +14,23 @@ import dev.jahaziel.api.dto.NodeDto;
 import dev.jahaziel.api.dto.UserDto;
 import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.audit.api.AuditService;
+import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.AppUser;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.monitoring.api.HourlyRollup;
 import dev.jahaziel.monitoring.api.MetricsService;
 import dev.jahaziel.node.api.NodeService;
+import dev.jahaziel.node.domain.Node;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.policy.api.PolicyDoc;
 import dev.jahaziel.policy.api.PolicyService;
 import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import jakarta.validation.Valid;
@@ -44,6 +48,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -122,16 +127,17 @@ public class AdminController {
     @GetMapping("/users")
     public List<UserDto> users(Principal principal) {
         requireAdmin(principal);
-        return admin.listUsers().stream()
-                .map(
-                        user ->
-                                new UserDto(
-                                        user.id().value(),
-                                        user.email(),
-                                        user.displayName(),
-                                        user.roles(),
-                                        user.mfaEnabled()))
-                .toList();
+        List<UserDto> result = new ArrayList<>();
+        for (AppUser user : admin.listUsers()) {
+            result.add(
+                    new UserDto(
+                            user.id().value(),
+                            user.email(),
+                            user.displayName(),
+                            user.roles(),
+                            user.mfaEnabled()));
+        }
+        return result;
     }
 
     /**
@@ -177,7 +183,11 @@ public class AdminController {
     @GetMapping("/workspaces")
     public List<WorkspaceDto> workspaces(Principal principal) {
         requireAdmin(principal);
-        return admin.listWorkspaces().stream().map(dtos::withoutTokens).toList();
+        List<WorkspaceDto> result = new ArrayList<>();
+        for (WorkspaceView view : admin.listWorkspaces()) {
+            result.add(dtos.withoutTokens(view));
+        }
+        return result;
     }
 
     /**
@@ -194,7 +204,7 @@ public class AdminController {
             try {
                 runtime.destroy(new WorkspaceId(id));
             } catch (NodeAgentUnreachableException unreachable) {
-                // The remote backend cannot be reached; local session and record cleanup still
+                // The remote backend cannot be reached; local session and data cleanup still
                 // proceeds.
             }
         }
@@ -210,7 +220,11 @@ public class AdminController {
     @GetMapping("/nodes")
     public List<NodeDto> nodes(Principal principal) {
         requireAdmin(principal);
-        return nodes.list().stream().map(NodeDto::from).toList();
+        List<NodeDto> result = new ArrayList<>();
+        for (Node node : nodes.list()) {
+            result.add(NodeDto.from(node));
+        }
+        return result;
     }
 
     /**
@@ -240,7 +254,11 @@ public class AdminController {
         if (limit <= 0) {
             throw new IllegalArgumentException("limit must be positive");
         }
-        return audit.latest(Math.min(limit, 1000)).stream().map(AuditRecordDto::from).toList();
+        List<AuditRecordDto> result = new ArrayList<>();
+        for (AuditRecord record : audit.latest(Math.min(limit, 1000))) {
+            result.add(AuditRecordDto.from(record));
+        }
+        return result;
     }
 
     /**
@@ -298,7 +316,8 @@ public class AdminController {
     @GetMapping("/metrics")
     public List<HourlyRollup> metrics(@RequestParam UUID workspaceId, Principal principal) {
         requireAdmin(principal);
-        return metrics.latest(new WorkspaceId(workspaceId)).stream().toList();
+        HourlyRollup rollup = metrics.latest(new WorkspaceId(workspaceId)).orElse(null);
+        return rollup == null ? List.of() : List.of(rollup);
     }
 
     /**
