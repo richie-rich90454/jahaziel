@@ -14,6 +14,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotId;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
+import dev.jahaziel.snapshot.domain.SnapshotMetadata;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,7 +73,11 @@ public class SnapshotController {
     @GetMapping("/workspaces/{id}/snapshots")
     public List<SnapshotDto> list(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = require(principal, id, "read");
-        return snapshots.list(workspace).stream().map(SnapshotDto::from).toList();
+        List<SnapshotDto> result = new ArrayList<>();
+        for (SnapshotMetadata snapshot : snapshots.list(workspace)) {
+            result.add(SnapshotDto.from(snapshot));
+        }
+        return result;
     }
 
     /**
