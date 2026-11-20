@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -61,8 +62,16 @@ public final class AuditSpool {
         if (!Files.isDirectory(stagingDir)) {
             return List.of();
         }
+        List<Path> found = new java.util.ArrayList<>();
         try (Stream<Path> files = Files.list(stagingDir)) {
-            return files.filter(path -> path.toString().endsWith(".jsonl")).toList();
+            Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (path.toString().endsWith(".jsonl")) {
+                    found.add(path);
+                }
+            }
+            return found;
         } catch (IOException failure) {
             throw new UncheckedIOException("audit spool unreadable at " + stagingDir, failure);
         }
