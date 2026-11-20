@@ -47,12 +47,26 @@ class VirtualMachineTest {
     @Test
     void bootRequiresStopped() {
         machine.boot("vm-1");
-        assertThrows(IllegalStateException.class, () -> machine.boot("vm-1"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.boot("vm-1");
+                    }
+                });
     }
 
     @Test
     void crashRequiresRunning() {
-        assertThrows(IllegalStateException.class, () -> machine.crash("panic"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.crash("panic");
+                    }
+                });
         machine.boot("vm-1");
         machine.crash("panic");
         VirtualMachineState.Crashed crashed =
@@ -62,14 +76,35 @@ class VirtualMachineTest {
 
     @Test
     void stopRequiresRunning() {
-        assertThrows(IllegalStateException.class, machine::stop);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.stop();
+                    }
+                });
     }
 
     @Test
     void blankHostnamesAndReasonsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> machine.boot("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.boot("  ");
+                    }
+                });
         machine.boot("vm-1");
-        assertThrows(IllegalArgumentException.class, () -> machine.crash("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.crash("  ");
+                    }
+                });
     }
 
     @Test
@@ -77,6 +112,13 @@ class VirtualMachineTest {
         RuntimeMetrics sample = new RuntimeMetrics(42, 1024, 2048, 512);
         machine.updateMetrics(sample);
         assertEquals(sample, machine.metrics());
-        assertThrows(NullPointerException.class, () -> machine.updateMetrics(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        machine.updateMetrics(null);
+                    }
+                });
     }
 }
