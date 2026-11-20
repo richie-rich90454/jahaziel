@@ -13,6 +13,7 @@ import java.util.UUID;
 
 /** Validation of {@link PrepareRequest}. */
 class PrepareRequestTest {
+
     @Test
     void storesFields() {
         PrepareRequest request =
@@ -31,23 +32,31 @@ class PrepareRequestTest {
     void rejectsBadSizing() {
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
                         new PrepareRequest(
                                 UUID.randomUUID(),
                                 UUID.randomUUID(),
                                 new ImageRef("x"),
                                 new QuotaBytes(1),
                                 0,
-                                2048));
+                                2048);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
                         new PrepareRequest(
                                 UUID.randomUUID(),
                                 UUID.randomUUID(),
                                 new ImageRef("x"),
                                 new QuotaBytes(1),
                                 2,
-                                0));
+                                0);
+                    }
+                });
     }
 }
