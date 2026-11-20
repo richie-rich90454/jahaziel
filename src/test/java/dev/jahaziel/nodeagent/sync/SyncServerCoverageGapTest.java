@@ -149,7 +149,11 @@ class SyncServerCoverageGapTest {
         SyncServer server = new SyncServer(0, block);
         assertThrows(
                 SyncException.class,
-                () -> server.register(UUID.randomUUID(), root.resolve("home"), 1024));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.register(UUID.randomUUID(), root.resolve("home"), 1024);
+                    }
+                });
     }
 
     @Test
@@ -163,7 +167,13 @@ class SyncServerCoverageGapTest {
         assertTrue(Files.isRegularFile(registry));
         List<AclEntry> original = deny(registry, AclEntryPermission.READ_DATA);
         try {
-            assertThrows(SyncException.class, () -> new SyncServer(0, state));
+            assertThrows(
+                    SyncException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            new SyncServer(0, state);
+                        }
+                    });
         } finally {
             restoreAcl(registry, original);
         }
