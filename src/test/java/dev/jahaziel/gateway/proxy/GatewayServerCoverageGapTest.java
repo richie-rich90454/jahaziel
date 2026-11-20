@@ -57,11 +57,13 @@ class GatewayServerCoverageGapTest {
         }
         Thread.ofVirtual()
                 .start(
-                        () -> {
-                            try {
-                                target.serve(port);
-                            } catch (RuntimeException ignored) {
-                                // Server stopped.
+                        new Runnable() {
+                            public void run() {
+                                try {
+                                    target.serve(port);
+                                } catch (RuntimeException ignored) {
+                                    // Server stopped.
+                                }
                             }
                         });
         for (int i = 0; i < 50; i++) {
@@ -258,7 +260,13 @@ class GatewayServerCoverageGapTest {
                         new ByteArrayInputStream(
                                 "POST / HTTP/1.1\r\nHost: h\r\nContent-Length: -1\r\n\r\n"
                                         .getBytes(StandardCharsets.US_ASCII)));
-        assertThrows(GatewayServer.HttpFailure.class, negative::contentLength);
+        assertThrows(
+                GatewayServer.HttpFailure.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        negative.contentLength();
+                    }
+                });
         GatewayServer.RequestHead absent =
                 GatewayServer.readHead(
                         new ByteArrayInputStream(
@@ -294,11 +302,13 @@ class GatewayServerCoverageGapTest {
         Thread worker =
                 Thread.ofVirtual()
                         .start(
-                                () -> {
-                                    try {
-                                        target.serve(port);
-                                    } catch (RuntimeException ignored) {
-                                        // Server stopped.
+                                new Runnable() {
+                                    public void run() {
+                                        try {
+                                            target.serve(port);
+                                        } catch (RuntimeException ignored) {
+                                            // Server stopped.
+                                        }
                                     }
                                 });
         Field serverField = GatewayServer.class.getDeclaredField("server");
@@ -327,7 +337,13 @@ class GatewayServerCoverageGapTest {
         try (ServerSocket occupied = new ServerSocket(0)) {
             int port = occupied.getLocalPort();
             IllegalStateException failure =
-                    assertThrows(IllegalStateException.class, () -> target.serve(port));
+                    assertThrows(
+                            IllegalStateException.class,
+                            new org.junit.jupiter.api.function.Executable() {
+                                public void execute() throws Throwable {
+                                    target.serve(port);
+                                }
+                            });
             assertTrue(failure.getMessage().contains("gateway failed"));
         } finally {
             target.stop();
