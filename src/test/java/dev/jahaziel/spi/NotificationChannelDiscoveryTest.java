@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.ThrowingSupplier;
 
 import java.util.ServiceLoader;
 
@@ -17,10 +18,17 @@ class NotificationChannelDiscoveryTest {
     void loadsWithoutProviders() {
         int count =
                 assertDoesNotThrow(
-                        () ->
-                                ServiceLoader.load(NotificationChannel.class).stream()
-                                        .mapToInt(p -> 1)
-                                        .sum());
+                        new ThrowingSupplier<Integer>() {
+                            @Override
+                            public Integer get() {
+                                int n = 0;
+                                for (NotificationChannel provider :
+                                        ServiceLoader.load(NotificationChannel.class)) {
+                                    n++;
+                                }
+                                return n;
+                            }
+                        });
         assertEquals(0, count);
     }
 }
