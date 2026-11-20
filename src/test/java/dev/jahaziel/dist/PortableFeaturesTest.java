@@ -106,16 +106,20 @@ class PortableFeaturesTest {
             System.clearProperty(key);
         }
         touchedProperties.clear();
+        List<Path> paths = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(TMP)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
+        }
+        paths.sort(Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Best-effort test cleanup.
+            }
         }
     }
 
@@ -296,5 +300,43 @@ class PortableFeaturesTest {
         }
     }
 
-    private record Response(int status, String body) {}
+    private static final class Response {
+        private final int status;
+        private final String body;
+
+        private Response(int status, String body) {
+            this.status = status;
+            this.body = body;
+        }
+
+        private int status() {
+            return status;
+        }
+
+        private String body() {
+            return body;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Response)) {
+                return false;
+            }
+            Response that = (Response) other;
+            return status == that.status && java.util.Objects.equals(body, that.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(status, body);
+        }
+
+        @Override
+        public String toString() {
+            return "Response[status=" + status + ", body=" + body + "]";
+        }
+    }
 }
