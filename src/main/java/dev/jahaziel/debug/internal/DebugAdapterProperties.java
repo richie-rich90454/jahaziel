@@ -60,7 +60,7 @@ public final class DebugAdapterProperties {
     public static final class Adapter {
         private final String version;
         private final List<String> command;
-        private final Transport transport;
+        private final String transport;
 
         /**
          * Creates an adapter definition.
@@ -69,7 +69,7 @@ public final class DebugAdapterProperties {
          * @param command the fixed command and arguments
          * @param transport the DAP transport
          */
-        public Adapter(String version, List<String> command, Transport transport) {
+        public Adapter(String version, List<String> command, String transport) {
             if (version == null || version.isBlank() || version.length() > 128) {
                 throw new IllegalArgumentException("debug adapter version must be specified");
             }
@@ -84,7 +84,13 @@ public final class DebugAdapterProperties {
                             "debug adapter command must use a fixed absolute executable");
                 }
             }
-            transport = transport == null ? Transport.STDIO : transport;
+            transport =
+                    transport == null || transport.trim().isEmpty()
+                            ? "STDIO"
+                            : transport.trim().toUpperCase(java.util.Locale.ROOT);
+            if (!"STDIO".equals(transport) && !"TCP".equals(transport)) {
+                throw new IllegalArgumentException("debug transport must be STDIO or TCP");
+            }
             boolean hasPort = false;
             for (String argument : command) {
                 if (argument.contains("{port}")) {
@@ -92,7 +98,7 @@ public final class DebugAdapterProperties {
                     break;
                 }
             }
-            if (transport == Transport.TCP && !hasPort || transport == Transport.STDIO && hasPort) {
+            if ("TCP".equals(transport) && !hasPort || "STDIO".equals(transport) && hasPort) {
                 throw new IllegalArgumentException(
                         "debug adapter command does not match its transport");
             }
@@ -111,9 +117,14 @@ public final class DebugAdapterProperties {
             return command;
         }
 
-        /** Returns the DAP transport. */
-        public Transport transport() {
+        /** Returns the DAP transport name. */
+        public String transport() {
             return transport;
+        }
+
+        /** True when the adapter uses a loopback TCP listener. */
+        public boolean isTcp() {
+            return "TCP".equals(transport);
         }
 
         @Override
@@ -127,7 +138,7 @@ public final class DebugAdapterProperties {
             Adapter that = (Adapter) other;
             return version.equals(that.version)
                     && command.equals(that.command)
-                    && transport == that.transport;
+                    && transport.equals(that.transport);
         }
 
         @Override
