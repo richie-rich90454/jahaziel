@@ -66,11 +66,13 @@ public final class PreviewPathAdapter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (!(request instanceof HttpServletRequest httpRequest
-                && response instanceof HttpServletResponse httpResponse)) {
+        if (!(request instanceof HttpServletRequest)
+                || !(response instanceof HttpServletResponse)) {
             chain.doFilter(request, response);
             return;
         }
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
         if (!previewHost.equals(normalizeHost(httpRequest.getServerName()))) {
             chain.doFilter(request, response);
             return;
@@ -130,8 +132,8 @@ public final class PreviewPathAdapter implements Filter {
     }
 
     private static Map<String, String> headers(HttpServletRequest request) {
-        var headers = new java.util.LinkedHashMap<String, String>();
-        var names = request.getHeaderNames();
+        Map<String, String> headers = new java.util.LinkedHashMap<String, String>();
+        java.util.Enumeration<String> names = request.getHeaderNames();
         if (names == null) return Map.of();
         while (names.hasMoreElements()) {
             String name = names.nextElement();
@@ -172,7 +174,55 @@ public final class PreviewPathAdapter implements Filter {
         return normalized;
     }
 
-    private record PreviewRoute(UUID workspaceId, int port, String upstreamPath) {}
+    private static final class PreviewRoute {
+        private final UUID workspaceId;
+        private final int port;
+        private final String upstreamPath;
+
+        PreviewRoute(UUID workspaceId, int port, String upstreamPath) {
+            this.workspaceId = workspaceId;
+            this.port = port;
+            this.upstreamPath = upstreamPath;
+        }
+
+        UUID workspaceId() {
+            return workspaceId;
+        }
+
+        int port() {
+            return port;
+        }
+
+        String upstreamPath() {
+            return upstreamPath;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PreviewRoute)) return false;
+            PreviewRoute other = (PreviewRoute) o;
+            return port == other.port
+                    && workspaceId.equals(other.workspaceId)
+                    && upstreamPath.equals(other.upstreamPath);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(workspaceId, port, upstreamPath);
+        }
+
+        @Override
+        public String toString() {
+            return "PreviewRoute[workspaceId="
+                    + workspaceId
+                    + ", port="
+                    + port
+                    + ", upstreamPath="
+                    + upstreamPath
+                    + "]";
+        }
+    }
 
     private static final class PreviewRequest extends HttpServletRequestWrapper {
         private final String relayHost;
@@ -206,7 +256,14 @@ public final class PreviewPathAdapter implements Filter {
         @Override
         public java.util.Enumeration<String> getHeaderNames() {
             List<String> names = new ArrayList<>(Collections.list(super.getHeaderNames()));
-            if (names.stream().noneMatch(name -> name.equalsIgnoreCase("X-Forwarded-Prefix"))) {
+            boolean hasPrefixHeader = false;
+            for (String name : names) {
+                if (name.equalsIgnoreCase("X-Forwarded-Prefix")) {
+                    hasPrefixHeader = true;
+                    break;
+                }
+            }
+            if (!hasPrefixHeader) {
                 names.add("X-Forwarded-Prefix");
             }
             return Collections.enumeration(names);
