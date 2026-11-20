@@ -31,13 +31,30 @@ import java.util.regex.Pattern;
 public final class ServiceUnit {
 
     /** Restart policy. */
-    public enum Restart {
+    public static final class Restart {
         /** Never restart. */
-        NO,
+        public static final Restart NO = new Restart("NO");
+
         /** Restart only on abnormal exit. */
-        ON_FAILURE,
+        public static final Restart ON_FAILURE = new Restart("ON_FAILURE");
+
         /** Restart on every exit. */
-        ALWAYS
+        public static final Restart ALWAYS = new Restart("ALWAYS");
+
+        private final String name;
+
+        private Restart(String name) {
+            this.name = name;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 
     private static final Pattern NAMED_SECONDS = Pattern.compile("(\\d+)\\s*([smhd]?)");
@@ -371,11 +388,16 @@ public final class ServiceUnit {
         if (value == null) {
             return Restart.NO;
         }
-        return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
-            case "always" -> Restart.ALWAYS;
-            case "on-failure", "on-abnormal" -> Restart.ON_FAILURE;
-            default -> Restart.NO;
-        };
+        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
+        switch (normalized) {
+            case "always":
+                return Restart.ALWAYS;
+            case "on-failure":
+            case "on-abnormal":
+                return Restart.ON_FAILURE;
+            default:
+                return Restart.NO;
+        }
     }
 
     private static long parseLong(String value) {
