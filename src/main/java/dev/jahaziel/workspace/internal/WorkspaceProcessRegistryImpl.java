@@ -49,8 +49,8 @@ import java.util.concurrent.locks.LockSupport;
  * identity.
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
-public final class WorkspaceProcessRegistryImpl
-        implements WorkspaceProcessRegistry, ApplicationRunner {
+public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
+        implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(WorkspaceProcessRegistryImpl.class);
     private static final Duration GRACEFUL_STOP = Duration.ofMillis(750);
     private static final Duration FORCE_STOP = Duration.ofMillis(750);
@@ -106,9 +106,13 @@ public final class WorkspaceProcessRegistryImpl
     @Override
     public List<String> dedicatedSessionCommand(List<String> command) {
         Objects.requireNonNull(command, "command");
-        if (command.isEmpty()
-                || command.stream().anyMatch(value -> value == null || value.isBlank())) {
+        if (command.isEmpty()) {
             throw new IllegalArgumentException("managed process command must not be empty");
+        }
+        for (String value : command) {
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("managed process command must not be empty");
+            }
         }
         return ProcessEnvironments.forOs(Platforms.detect(null).os()).sessionWrapper(command);
     }
@@ -133,33 +137,51 @@ public final class WorkspaceProcessRegistryImpl
             if (isLinux()
                     && registration.identity.sessionId() == registration.identity.pid()
                     && ownLinuxSession(root.pid()) == registration.identity.sessionId()) {
-                processesInSession(registration.identity.sessionId()).stream()
-                        .limit(MAX_DISCOVERY_PROCESSES)
-                        .forEach(process -> members.putIfAbsent(process.pid(), process));
+                int discovered = 0;
+                for (ProcessHandle process :
+                        processesInSession(registration.identity.sessionId())) {
+                    if (discovered >= MAX_DISCOVERY_PROCESSES) break;
+                    discovered++;
+                    members.putIfAbsent(process.pid(), process);
+                }
             } else {
                 try {
-                    root.descendants()
-                            .limit(MAX_DISCOVERY_PROCESSES)
-                            .forEach(process -> members.putIfAbsent(process.pid(), process));
+                    int discovered = 0;
+                    java.util.Iterator<ProcessHandle> descendants = root.descendants().iterator();
+                    while (descendants.hasNext() && discovered < MAX_DISCOVERY_PROCESSES) {
+                        ProcessHandle process = descendants.next();
+                        discovered++;
+                        members.putIfAbsent(process.pid(), process);
+                    }
                 } catch (RuntimeException inaccessibleTree) {
                     // The verified root remains useful when the host cannot enumerate its
                     // descendants.
                 }
             }
 
-            members.values().stream()
-                    .filter(ProcessHandle::isAlive)
-                    .limit(MAX_DISCOVERY_PROCESSES)
-                    .map(process -> new TrackedProcess(registration.kind, process.pid()))
-                    .forEach(process -> result.putIfAbsent(process, process));
+            int tracked = 0;
+            for (ProcessHandle process : members.values()) {
+                if (tracked >= MAX_DISCOVERY_PROCESSES) break;
+                if (!process.isAlive()) continue;
+                tracked++;
+                TrackedProcess item = new TrackedProcess(registration.kind, process.pid());
+                result.putIfAbsent(item, item);
+            }
             if (result.size() >= MAX_DISCOVERY_PROCESSES) break;
         }
-        return result.keySet().stream()
-                .sorted(
-                        java.util.Comparator.comparing(
-                                        (TrackedProcess process) -> process.kind().ordinal())
-                                .thenComparingLong(TrackedProcess::processId))
-                .toList();
+        List<TrackedProcess> ordered = new ArrayList<>(result.keySet());
+        java.util.Collections.sort(
+                ordered,
+                new java.util.Comparator<TrackedProcess>() {
+                    @Override
+                    public int compare(TrackedProcess left, TrackedProcess right) {
+                        int byKind = Integer.compare(left.kind().ordinal(), right.kind().ordinal());
+                        return byKind != 0
+                                ? byKind
+                                : Long.compare(left.processId(), right.processId());
+                    }
+                });
+        return ordered;
     }
 
     @Override
@@ -171,11 +193,15 @@ public final class WorkspaceProcessRegistryImpl
             throw new UncheckedIOException("cannot read workspace process registry", failure);
         }
         if (root == null) return;
-        try (var paths = Files.list(root)) {
-            List<Path> markers =
-                    paths.filter(path -> path.getFileName().toString().endsWith(".process"))
-                            .limit(MAX_MARKERS + 1L)
-                            .toList();
+        try (java.util.stream.Stream<Path> paths = Files.list(root)) {
+            List<Path> markers = new ArrayList<>();
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext() && markers.size() <= MAX_MARKERS) {
+                Path path = iterator.next();
+                if (path.getFileName().toString().endsWith(".process")) {
+                    markers.add(path);
+                }
+            }
             if (markers.size() > MAX_MARKERS) {
                 throw new IllegalStateException(
                         "workspace process registry exceeds its safety limit");
@@ -236,18 +262,18 @@ public final class WorkspaceProcessRegistryImpl
 
     private ProcessIdentity identity(ProcessHandle handle) {
         ProcessHandle.Info info = handle.info();
-        Instant started =
-                info.startInstant()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "host does not expose process start times; refusing to track an unverifiable process"));
-        String command =
-                info.command()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "host does not expose process executable paths; refusing to track an unverifiable process"));
+        java.util.Optional<Instant> startInstant = info.startInstant();
+        if (!startInstant.isPresent()) {
+            throw new IllegalStateException(
+                    "host does not expose process start times; refusing to track an unverifiable process");
+        }
+        Instant started = startInstant.get();
+        java.util.Optional<String> commandValue = info.command();
+        if (!commandValue.isPresent()) {
+            throw new IllegalStateException(
+                    "host does not expose process executable paths; refusing to track an unverifiable process");
+        }
+        String command = commandValue.get();
         if (!handle.isAlive()) {
             throw new IllegalStateException("workspace process has already exited");
         }
@@ -442,30 +468,50 @@ public final class WorkspaceProcessRegistryImpl
     @SuppressWarnings("null")
     private static boolean terminate(ProcessHandle handle, long sessionId) {
         Map<Long, ProcessHandle> processes = new LinkedHashMap<>();
-        handle.descendants().forEach(process -> processes.put(process.pid(), process));
+        java.util.Iterator<ProcessHandle> descendants = handle.descendants().iterator();
+        while (descendants.hasNext()) {
+            ProcessHandle process = descendants.next();
+            processes.put(process.pid(), process);
+        }
         if (sessionId > 0
                 && sessionId == handle.pid()
                 && ownLinuxSession(handle.pid()) == sessionId) {
-            processesInSession(sessionId).forEach(process -> processes.put(process.pid(), process));
+            for (ProcessHandle process : processesInSession(sessionId)) {
+                processes.put(process.pid(), process);
+            }
         }
         processes.remove(handle.pid());
         List<ProcessHandle> members = List.copyOf(processes.values());
-        members.forEach(ProcessHandle::destroy);
+        for (ProcessHandle member : members) {
+            member.destroy();
+        }
         handle.destroy();
         List<ProcessHandle> all = new ArrayList<>(members);
         all.add(handle);
         awaitExit(all, GRACEFUL_STOP);
-        members.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
+        for (ProcessHandle member : members) {
+            if (member.isAlive()) member.destroyForcibly();
+        }
         if (handle.isAlive()) handle.destroyForcibly();
         awaitExit(all, FORCE_STOP);
-        return all.stream().noneMatch(ProcessHandle::isAlive);
+        for (ProcessHandle process : all) {
+            if (process.isAlive()) return false;
+        }
+        return true;
     }
 
     @SuppressWarnings("null")
     private static void awaitExit(List<ProcessHandle> processes, Duration duration) {
         long deadline = System.nanoTime() + duration.toNanos();
-        while (processes.stream().anyMatch(ProcessHandle::isAlive)
-                && System.nanoTime() < deadline) {
+        while (System.nanoTime() < deadline) {
+            boolean anyAlive = false;
+            for (ProcessHandle process : processes) {
+                if (process.isAlive()) {
+                    anyAlive = true;
+                    break;
+                }
+            }
+            if (!anyAlive) break;
             LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
         }
     }
@@ -498,10 +544,17 @@ public final class WorkspaceProcessRegistryImpl
         Path proc = procRoot();
         if (proc == null || !Files.isDirectory(proc)) return List.of();
         List<ProcessHandle> result = new ArrayList<>();
-        try (var entries = Files.list(proc)) {
+        try (java.util.stream.Stream<Path> entries = Files.list(proc)) {
             for (Path entry : entries.toList()) {
                 String name = entry.getFileName().toString();
-                if (!name.chars().allMatch(Character::isDigit)) continue;
+                boolean digits = true;
+                for (int index = 0; index < name.length(); index++) {
+                    if (!Character.isDigit(name.charAt(index))) {
+                        digits = false;
+                        break;
+                    }
+                }
+                if (!digits) continue;
                 long pid;
                 try {
                     pid = Long.parseLong(name);
@@ -510,7 +563,10 @@ public final class WorkspaceProcessRegistryImpl
                 }
                 LinuxProcessIdentity identity = linuxProcessIdentity(pid);
                 if (identity != null && identity.sessionId() == sessionId) {
-                    ProcessHandle.of(pid).filter(ProcessHandle::isAlive).ifPresent(result::add);
+                    java.util.Optional<ProcessHandle> found = ProcessHandle.of(pid);
+                    if (found.isPresent() && found.get().isAlive()) {
+                        result.add(found.get());
+                    }
                 }
             }
         } catch (IOException failure) {
@@ -523,11 +579,18 @@ public final class WorkspaceProcessRegistryImpl
     private static boolean terminateSession(long sessionId) {
         if (!isLinux() || sessionId <= 0) return true;
         List<ProcessHandle> session = processesInSession(sessionId);
-        session.forEach(ProcessHandle::destroy);
+        for (ProcessHandle process : session) {
+            process.destroy();
+        }
         awaitExit(session, GRACEFUL_STOP);
-        session.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
+        for (ProcessHandle process : session) {
+            if (process.isAlive()) process.destroyForcibly();
+        }
         awaitExit(session, FORCE_STOP);
-        return session.stream().noneMatch(ProcessHandle::isAlive);
+        for (ProcessHandle process : session) {
+            if (process.isAlive()) return false;
+        }
+        return true;
     }
 
     private static LinuxProcessIdentity linuxProcessIdentity(long pid) {
@@ -557,14 +620,109 @@ public final class WorkspaceProcessRegistryImpl
     @PreDestroy
     @SuppressWarnings("null")
     public void closeAll() {
-        live.values().forEach(LiveRegistration::stop);
+        for (LiveRegistration registration : live.values()) {
+            registration.stop();
+        }
     }
 
-    private record ProcessIdentity(long pid, Instant startedAt, String command, long sessionId) {}
+    private static final class ProcessIdentity {
+        private final long pid;
+        private final Instant startedAt;
+        private final String command;
+        private final long sessionId;
 
-    private record LinuxProcessIdentity(long sessionId) {}
+        public ProcessIdentity(long pid, Instant startedAt, String command, long sessionId) {
+            this.pid = pid;
+            this.startedAt = startedAt;
+            this.command = command;
+            this.sessionId = sessionId;
+        }
 
-    private static final class CompletedRegistration implements Registration {
+        public long pid() {
+            return pid;
+        }
+
+        public Instant startedAt() {
+            return startedAt;
+        }
+
+        public String command() {
+            return command;
+        }
+
+        public long sessionId() {
+            return sessionId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ProcessIdentity other = (ProcessIdentity) o;
+            return pid == other.pid
+                    && Objects.equals(startedAt, other.startedAt)
+                    && Objects.equals(command, other.command)
+                    && sessionId == other.sessionId;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + (int) (pid ^ (pid >>> 32));
+            result = 31 * result + Objects.hashCode(startedAt);
+            result = 31 * result + Objects.hashCode(command);
+            result = 31 * result + (int) (sessionId ^ (sessionId >>> 32));
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ProcessIdentity{"
+                    + "pid="
+                    + pid
+                    + ", startedAt="
+                    + startedAt
+                    + ", command="
+                    + command
+                    + ", sessionId="
+                    + sessionId
+                    + '}';
+        }
+    }
+
+    private static final class LinuxProcessIdentity {
+        private final long sessionId;
+
+        public LinuxProcessIdentity(long sessionId) {
+            this.sessionId = sessionId;
+        }
+
+        public long sessionId() {
+            return sessionId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LinuxProcessIdentity other = (LinuxProcessIdentity) o;
+            return sessionId == other.sessionId;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + (int) (sessionId ^ (sessionId >>> 32));
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "LinuxProcessIdentity{" + "sessionId=" + sessionId + '}';
+        }
+    }
+
+    private static final class CompletedRegistration extends Registration {
         private final UUID id = UUID.randomUUID();
 
         @Override
@@ -576,9 +734,72 @@ public final class WorkspaceProcessRegistryImpl
         public void close() {}
     }
 
-    private record Marker(UUID id, UUID workspaceId, Kind kind, ProcessIdentity identity) {}
+    private static final class Marker {
+        private final UUID id;
+        private final UUID workspaceId;
+        private final Kind kind;
+        private final ProcessIdentity identity;
 
-    private final class LiveRegistration implements Registration {
+        public Marker(UUID id, UUID workspaceId, Kind kind, ProcessIdentity identity) {
+            this.id = id;
+            this.workspaceId = workspaceId;
+            this.kind = kind;
+            this.identity = identity;
+        }
+
+        public UUID id() {
+            return id;
+        }
+
+        public UUID workspaceId() {
+            return workspaceId;
+        }
+
+        public Kind kind() {
+            return kind;
+        }
+
+        public ProcessIdentity identity() {
+            return identity;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Marker other = (Marker) o;
+            return Objects.equals(id, other.id)
+                    && Objects.equals(workspaceId, other.workspaceId)
+                    && Objects.equals(kind, other.kind)
+                    && Objects.equals(identity, other.identity);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(id);
+            result = 31 * result + Objects.hashCode(workspaceId);
+            result = 31 * result + Objects.hashCode(kind);
+            result = 31 * result + Objects.hashCode(identity);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Marker{"
+                    + "id="
+                    + id
+                    + ", workspaceId="
+                    + workspaceId
+                    + ", kind="
+                    + kind
+                    + ", identity="
+                    + identity
+                    + '}';
+        }
+    }
+
+    private final class LiveRegistration extends Registration {
         private final UUID id;
         private final Path marker;
         private final ProcessIdentity identity;
