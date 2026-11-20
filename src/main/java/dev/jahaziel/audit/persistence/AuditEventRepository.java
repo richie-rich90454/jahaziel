@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
-/** Repository for AuditEventEntity persistence. */
+/** Spring Data repository for AuditEventEntity; interface is required by Spring Data. */
 public interface AuditEventRepository extends JpaRepository<AuditEventEntity, AuditEventEntity.Id> {
     /**
      * Returns event rows newest first. The timestamp lives on the embedded id, so the ordering is
