@@ -52,7 +52,11 @@ class GatewayServerTest {
         GatewayServer.HttpFailure failure =
                 assertThrows(
                         GatewayServer.HttpFailure.class,
-                        () -> GatewayServer.readHead(new ByteArrayInputStream(bytes)));
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                GatewayServer.readHead(new ByteArrayInputStream(bytes));
+                            }
+                        });
         assertEquals(431, failure.status());
     }
 
@@ -64,7 +68,13 @@ class GatewayServerTest {
                                 "POST /app HTTP/1.1\r\nHost: x\r\nContent-Length: abc\r\n\r\n"
                                         .getBytes(StandardCharsets.US_ASCII)));
         GatewayServer.HttpFailure failure =
-                assertThrows(GatewayServer.HttpFailure.class, head::contentLength);
+                assertThrows(
+                        GatewayServer.HttpFailure.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                head.contentLength();
+                            }
+                        });
         assertEquals(400, failure.status());
     }
 
@@ -80,7 +90,13 @@ class GatewayServerTest {
                         mock(JwtVerifier.class),
                         mock(WorkspaceDirectory.class),
                         mock(TargetResolver.class));
-        Thread.ofVirtual().start(() -> server.serve(port));
+        Thread.ofVirtual()
+                .start(
+                        new Runnable() {
+                            public void run() {
+                                server.serve(port);
+                            }
+                        });
         int connected = 0;
         for (int attempt = 0; attempt < 50 && connected == 0; attempt++) {
             try (Socket probe = new Socket("127.0.0.1", port)) {
@@ -107,13 +123,20 @@ class GatewayServerTest {
     void rejectsEmptyAndMalformed() {
         assertThrows(
                 Exception.class,
-                () -> GatewayServer.readHead(new ByteArrayInputStream(new byte[0])));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        GatewayServer.readHead(new ByteArrayInputStream(new byte[0]));
+                    }
+                });
         assertThrows(
                 Exception.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         GatewayServer.readHead(
                                 new ByteArrayInputStream(
-                                        "BOGUS\r\n\r\n".getBytes(StandardCharsets.US_ASCII))));
+                                        "BOGUS\r\n\r\n".getBytes(StandardCharsets.US_ASCII)));
+                    }
+                });
     }
 
     @Test
@@ -123,13 +146,16 @@ class GatewayServerTest {
         try (ServerSocket backend = new ServerSocket(0)) {
             Thread.ofVirtual()
                     .start(
-                            () -> {
-                                try (Socket peer = backend.accept()) {
-                                    seen[0] = GatewayServer.readHead(peer.getInputStream()).raw();
-                                    peer.getOutputStream().write(REPLY);
-                                    served.countDown();
-                                } catch (Exception failure) {
-                                    throw new IllegalStateException(failure);
+                            new Runnable() {
+                                public void run() {
+                                    try (Socket peer = backend.accept()) {
+                                        seen[0] =
+                                                GatewayServer.readHead(peer.getInputStream()).raw();
+                                        peer.getOutputStream().write(REPLY);
+                                        served.countDown();
+                                    } catch (Exception failure) {
+                                        throw new IllegalStateException(failure);
+                                    }
                                 }
                             });
             try (Socket client = new Socket("127.0.0.1", backend.getLocalPort())) {
