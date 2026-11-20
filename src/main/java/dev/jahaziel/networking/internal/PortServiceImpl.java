@@ -11,9 +11,12 @@ import dev.jahaziel.networking.api.PortService;
 import dev.jahaziel.networking.persistence.WorkspacePortEntity;
 import dev.jahaziel.networking.persistence.WorkspacePortRepository;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
+import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,7 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /** Database-backed port bindings. User lookups scan the owner's workspaces. */
-public final class PortServiceImpl implements PortService {
+public final class PortServiceImpl extends PortService {
     private static final Set<Integer> RESERVED = Set.of(22, 25);
     private static final Set<String> PROTOCOLS = Set.of("http", "https", "tcp");
 
@@ -47,7 +50,7 @@ public final class PortServiceImpl implements PortService {
     public PortBinding registerPort(
             UserId userId, int port, WorkspaceId workspaceId, String protocol) {
         users.get(userId);
-        var workspace = workspaces.get(workspaceId);
+        Workspace workspace = workspaces.get(workspaceId);
         if (!workspace.isOwnedBy(userId)) {
             throw new IllegalArgumentException("workspace is not owned by the user");
         }
@@ -85,37 +88,53 @@ public final class PortServiceImpl implements PortService {
         WorkspacePortEntity row =
                 findUserPort(userId, port)
                         .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "port " + port + " not registered"));
+                                new java.util.function.Supplier<IllegalArgumentException>() {
+                                    @Override
+                                    public IllegalArgumentException get() {
+                                        return new IllegalArgumentException(
+                                                "port " + port + " not registered");
+                                    }
+                                });
         ports.delete(row);
     }
 
     @Override
     public void unregisterWorkspacePorts(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        ports.findByIdWorkspaceId(workspaceId.value()).forEach(ports::delete);
+        for (WorkspacePortEntity row : ports.findByIdWorkspaceId(workspaceId.value())) {
+            ports.delete(row);
+        }
     }
 
     @Override
     public List<PortBinding> bindingsByWorkspace(WorkspaceId workspaceId) {
-        var workspace = workspaces.get(workspaceId);
+        Workspace workspace = workspaces.get(workspaceId);
         UUID owner = workspace.owner().value();
-        return ports.findByIdWorkspaceId(workspaceId.value()).stream()
-                .map(row -> PortMapper.toDomain(row, owner))
-                .toList();
+        List<PortBinding> result = new ArrayList<PortBinding>();
+        for (WorkspacePortEntity row : ports.findByIdWorkspaceId(workspaceId.value())) {
+            result.add(PortMapper.toDomain(row, owner));
+        }
+        return result;
     }
 
     @Override
     public Optional<WorkspaceId> lookup(UUID userId, int port) {
-        return findUserPort(new UserId(userId), port)
-                .map(row -> new WorkspaceId(row.getId().getWorkspaceId()));
+        Optional<WorkspacePortEntity> found = findUserPort(new UserId(userId), port);
+        if (!found.isPresent()) {
+            return Optional.empty();
+        }
+        return Optional.of(new WorkspaceId(found.get().getId().getWorkspaceId()));
     }
 
     private Optional<WorkspacePortEntity> findUserPort(UserId userId, int port) {
-        return workspaces.describeByOwner(userId).stream()
-                .flatMap(view -> ports.findByIdWorkspaceId(view.workspace().id().value()).stream())
-                .filter(row -> row.getId().getPort() == port)
-                .findFirst();
+        for (WorkspaceView view : workspaces.describeByOwner(userId)) {
+            for (WorkspacePortEntity row :
+                    ports.findByIdWorkspaceId(view.workspace().id().value())) {
+                if (row.getId().getPort() == port) {
+                    return Optional.of(row);
+                }
+            }
+        }
+        return Optional.empty();
     }
 }
