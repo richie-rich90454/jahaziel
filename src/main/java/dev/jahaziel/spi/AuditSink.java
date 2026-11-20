@@ -5,17 +5,17 @@
 package dev.jahaziel.spi;
 
 import java.time.Instant;
-import java.util.stream.Stream;
+import java.util.Iterator;
 
 /** Append-only audit store. Only retention deletes, never row deletes. */
 @JahazielSpi(version = 1)
-public interface AuditSink {
+public abstract class AuditSink {
     /**
      * Writes one audit event.
      *
      * @param event the event to append
      */
-    void write(AuditEvent event);
+    public abstract void write(AuditEvent event);
 
     /**
      * Queries stored audit events.
@@ -23,7 +23,7 @@ public interface AuditSink {
      * @param query the query criteria
      * @return the matching events
      */
-    Stream<AuditEvent> query(AuditQuery query);
+    public abstract Iterator<AuditEvent> query(AuditQuery query);
 
     /**
      * Deletes events before a cutoff. Retention only.
@@ -31,5 +31,5 @@ public interface AuditSink {
      * @param cutoff events before this instant are deleted
      * @return the number of deleted events
      */
-    int deleteBefore(Instant cutoff);
+    public abstract int deleteBefore(Instant cutoff);
 }
