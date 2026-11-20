@@ -6,7 +6,6 @@ package dev.jahaziel.debug.internal;
 
 import dev.jahaziel.debug.api.DebugService;
 import dev.jahaziel.workspace.api.WorkspaceDirectoryService;
-import dev.jahaziel.workspace.api.WorkspaceProcessLifecycle;
 import dev.jahaziel.workspace.api.WorkspaceProcessRegistry;
 import dev.jahaziel.workspace.api.WorkspaceService;
 import dev.jahaziel.workspace.api.WorkspaceTaskService;
@@ -60,10 +59,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.IntUnaryOperator;
 
 /** Proxies bounded DAP messages to fixed, server-configured adapters. */
 @Service
-public final class DebugServiceImpl implements DebugService, WorkspaceProcessLifecycle {
+public final class DebugServiceImpl extends DebugService {
     private static final Logger log = LoggerFactory.getLogger(DebugServiceImpl.class);
     private static final int MAX_SESSIONS = 12;
     private static final int MAX_SESSIONS_PER_WORKSPACE = 3;
@@ -141,10 +141,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 throw new IllegalStateException("workspace is stopping");
             }
             if (active.size() >= MAX_SESSIONS
-                    || active.values().stream()
-                                    .filter(value -> value.workspaceId.equals(workspaceId))
-                                    .count()
-                            >= MAX_SESSIONS_PER_WORKSPACE) {
+                    || activeCount(workspaceId) >= MAX_SESSIONS_PER_WORKSPACE) {
                 throw new IllegalStateException("debug session limit reached");
             }
             return launch(workspaceId, request.languageId(), request, null, adapter);
@@ -178,10 +175,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 throw new IllegalStateException("workspace is stopping");
             }
             if (active.size() >= MAX_SESSIONS
-                    || active.values().stream()
-                                    .filter(value -> value.workspaceId.equals(workspaceId))
-                                    .count()
-                            >= MAX_SESSIONS_PER_WORKSPACE) {
+                    || activeCount(workspaceId) >= MAX_SESSIONS_PER_WORKSPACE) {
                 throw new IllegalStateException("debug session limit reached");
             }
             return launch(workspaceId, target.languageId(), null, target, adapter);
@@ -202,13 +196,20 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     @Override
     public List<Session> list(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        return active.values().stream()
-                .filter(session -> session.workspaceId.equals(workspaceId))
-                .map((AdapterSession session) -> session.view())
-                .sorted(
-                        java.util.Comparator.comparing((Session session) -> session.startedAt())
-                                .reversed())
-                .toList();
+        List<Session> result = new ArrayList<>();
+        for (AdapterSession session : active.values()) {
+            if (session.workspaceId.equals(workspaceId)) {
+                result.add(session.view());
+            }
+        }
+        result.sort(
+                new java.util.Comparator<Session>() {
+                    @Override
+                    public int compare(Session left, Session right) {
+                        return right.startedAt().compareTo(left.startedAt());
+                    }
+                });
+        return result;
     }
 
     @Override
@@ -224,7 +225,12 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         AdapterSession session = requireSession(workspaceId, sessionId);
         if (session == null) throw new IllegalStateException("debug session is no longer running");
         session.attach(output);
-        return () -> session.detach(output);
+        return new AutoCloseable() {
+            @Override
+            public void close() {
+                session.detach(output);
+            }
+        };
     }
 
     @Override
@@ -237,9 +243,10 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         }
         try {
             JsonNode parsed = json.readTree(message);
-            if (!(parsed instanceof ObjectNode object)) {
+            if (!(parsed instanceof ObjectNode)) {
                 throw new IllegalArgumentException("DAP message must be a JSON object");
             }
+            ObjectNode object = (ObjectNode) parsed;
             JsonNode prepared = prepareClientMessage(session, object);
             writeDapMessage(session.output, json.writeValueAsBytes(prepared));
         } catch (JacksonException | IOException failure) {
@@ -252,15 +259,17 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         Objects.requireNonNull(workspaceId, "workspaceId");
         stoppingWorkspaces.add(workspaceId);
         synchronized (active) {
-            active.values().stream()
-                    .filter(session -> session.workspaceId.equals(workspaceId))
-                    .toList()
-                    .forEach(
-                            session -> {
-                                session.close("STOPPED", "workspace stopped");
-                                session.closeAdapterAfterFailedDetach(
-                                        "workspace stopped before debugger disconnect was confirmed");
-                            });
+            List<AdapterSession> closing = new ArrayList<>();
+            for (AdapterSession session : active.values()) {
+                if (session.workspaceId.equals(workspaceId)) {
+                    closing.add(session);
+                }
+            }
+            for (AdapterSession session : closing) {
+                session.close("STOPPED", "workspace stopped");
+                session.closeAdapterAfterFailedDetach(
+                        "workspace stopped before debugger disconnect was confirmed");
+            }
         }
     }
 
@@ -278,14 +287,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     public void closeAll() {
         closed = true;
         synchronized (active) {
-            active.values().stream()
-                    .toList()
-                    .forEach(
-                            session -> {
-                                session.close("STOPPED", "server stopped");
-                                session.closeAdapterAfterFailedDetach(
-                                        "server stopped before debugger disconnect was confirmed");
-                            });
+            for (AdapterSession session : new ArrayList<>(active.values())) {
+                session.close("STOPPED", "server stopped");
+                session.closeAdapterAfterFailedDetach(
+                        "server stopped before debugger disconnect was confirmed");
+            }
         }
         readers.shutdownNow();
     }
@@ -355,12 +361,30 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 socket = connectAdapter(adapterProcess, port);
                 input = socket.getInputStream();
                 output = socket.getOutputStream();
-                readers.submit(() -> discard(adapterProcess.getInputStream()));
-                readers.submit(() -> discard(adapterProcess.getErrorStream()));
+                readers.submit(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                discard(adapterProcess.getInputStream());
+                            }
+                        });
+                readers.submit(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                discard(adapterProcess.getErrorStream());
+                            }
+                        });
             } else {
                 input = adapterProcess.getInputStream();
                 output = adapterProcess.getOutputStream();
-                readers.submit(() -> discard(adapterProcess.getErrorStream()));
+                readers.submit(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                discard(adapterProcess.getErrorStream());
+                            }
+                        });
             }
             AdapterSession session =
                     new AdapterSession(
@@ -381,15 +405,31 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                             output);
             active.put(id, session);
             remember(session.view());
-            readers.submit(() -> readOutput(session));
-            adapterProcess.onExit().thenRun(() -> processExited(session));
+            readers.submit(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            readOutput(session);
+                        }
+                    });
+            adapterProcess
+                    .onExit()
+                    .thenRun(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    processExited(session);
+                                }
+                            });
             return session.view();
         } catch (IOException | RuntimeException failure) {
             if (socket != null) closeQuietly(socket);
             if (process != null) stopProcess(process);
             if (registration != null) registration.close();
             deleteSessionDirectory(sessionHome);
-            if (failure instanceof IllegalStateException state) throw state;
+            if (failure instanceof IllegalStateException) {
+                throw (IllegalStateException) failure;
+            }
             throw new IllegalStateException("debug adapter could not be started", failure);
         }
     }
@@ -401,6 +441,16 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 || state instanceof WorkspaceState.Idle)) {
             throw new IllegalStateException("workspace must be running before debugging");
         }
+    }
+
+    private int activeCount(WorkspaceId workspaceId) {
+        int count = 0;
+        for (AdapterSession value : active.values()) {
+            if (value.workspaceId.equals(workspaceId)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private AdapterSession requireSession(WorkspaceId workspaceId, UUID sessionId) {
@@ -476,7 +526,9 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         }
         args.put("cwd", session.cwd.toString());
         ArrayNode values = args.putArray("args");
-        session.request.arguments().forEach(values::add);
+        for (String argument : session.request.arguments()) {
+            values.add(argument);
+        }
         args.put("stopOnEntry", session.request.stopOnEntry());
         if (session.languageId.equals("go")) args.put("mode", "debug");
         if (session.languageId.equals("node") || session.languageId.equals("python")) {
@@ -493,32 +545,34 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         args.put("name", "Jahaziel workspace task attach");
         args.put("stopOnEntry", false);
         switch (session.languageId) {
-            case "node" -> {
+            case "node":
                 args.put("processId", target.processId());
                 args.put("cwd", session.home.toString());
                 args.put("localRoot", session.home.toString());
                 args.put("remoteRoot", session.home.toString());
-            }
-            case "python" -> {
+                break;
+            case "python":
                 ObjectNode connect = args.putObject("connect");
                 connect.put("host", "127.0.0.1");
                 connect.put("port", target.debugPort());
                 args.put("justMyCode", false);
-            }
-            case "java" -> {
+                break;
+            case "java":
                 args.put("hostName", "127.0.0.1");
                 args.put("port", target.debugPort());
-            }
-            case "cpp", "rust" -> {
+                break;
+            case "cpp":
+            case "rust":
                 args.put("pid", target.processId());
                 args.put("program", session.program.toString());
-            }
-            case "go" -> {
+                break;
+            case "go":
                 args.put("mode", "local");
                 args.put("processId", target.processId());
                 args.put("cwd", session.home.toString());
-            }
-            default -> throw new IllegalStateException("unsupported debug attach language");
+                break;
+            default:
+                throw new IllegalStateException("unsupported debug attach language");
         }
         return args;
     }
@@ -526,13 +580,15 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     private void constrainSourcePath(AdapterSession session, ObjectNode message)
             throws IOException {
         JsonNode arguments = message.get("arguments");
-        if (!(arguments instanceof ObjectNode argumentObject)) {
+        if (!(arguments instanceof ObjectNode)) {
             throw new IllegalArgumentException("DAP source request arguments are invalid");
         }
+        ObjectNode argumentObject = (ObjectNode) arguments;
         JsonNode source = argumentObject.get("source");
-        if (!(source instanceof ObjectNode sourceObject)) {
+        if (!(source instanceof ObjectNode)) {
             throw new IllegalArgumentException("DAP source path is required");
         }
+        ObjectNode sourceObject = (ObjectNode) source;
         JsonNode sourcePath = source.get("path");
         if (sourcePath == null || !sourcePath.isString()) return;
         Path confined = resolveWorkspacePath(session.home, sourcePath.asString(), true, false);
@@ -561,9 +617,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     }
 
     private static List<String> adapterCommand(DebugAdapterProperties.Adapter adapter, int port) {
-        return adapter.command().stream()
-                .map(value -> value.replace("{port}", Integer.toString(port)))
-                .toList();
+        List<String> result = new ArrayList<>();
+        for (String value : adapter.command()) {
+            result.add(value.replace("{port}", Integer.toString(port)));
+        }
+        return result;
     }
 
     private static int availablePort() throws IOException {
@@ -637,9 +695,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
     }
 
     private void normalizeSourcePaths(Path home, JsonNode current) throws IOException {
-        if (current instanceof ObjectNode object) {
+        if (current instanceof ObjectNode) {
+            ObjectNode object = (ObjectNode) current;
             JsonNode source = object.get("source");
-            if (source instanceof ObjectNode sourceObject) {
+            if (source instanceof ObjectNode) {
+                ObjectNode sourceObject = (ObjectNode) source;
                 JsonNode path = sourceObject.get("path");
                 if (path != null && path.isString()) {
                     String relative = workspaceRelativeSourcePath(home, path.asString());
@@ -648,8 +708,8 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 }
             }
             for (JsonNode value : object.values()) normalizeSourcePaths(home, value);
-        } else if (current instanceof ArrayNode values) {
-            for (JsonNode value : values) normalizeSourcePaths(home, value);
+        } else if (current instanceof ArrayNode) {
+            for (JsonNode value : (ArrayNode) current) normalizeSourcePaths(home, value);
         }
     }
 
@@ -808,7 +868,7 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
         try {
             Files.walkFileTree(
                     absolute,
-                    new SimpleFileVisitor<>() {
+                    new SimpleFileVisitor<Path>() {
                         @Override
                         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                                 throws IOException {
@@ -947,14 +1007,13 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
                 }
                 targets = List.copyOf(listeners);
             }
-            targets.forEach(
-                    listener -> {
-                        try {
-                            listener.accept(payload);
-                        } catch (RuntimeException disconnect) {
-                            listeners.remove(listener);
-                        }
-                    });
+            for (Consumer<String> listener : targets) {
+                try {
+                    listener.accept(payload);
+                } catch (RuntimeException disconnect) {
+                    listeners.remove(listener);
+                }
+            }
         }
 
         private synchronized void close(String finalState, String safeError) {
@@ -1039,6 +1098,11 @@ public final class DebugServiceImpl implements DebugService, WorkspaceProcessLif
 
     private static int nextServerDapSequence() {
         return SERVER_DAP_SEQUENCE.updateAndGet(
-                current -> current >= Integer.MAX_VALUE - 1 ? 1_000_000_000 : current + 1);
+                new IntUnaryOperator() {
+                    @Override
+                    public int applyAsInt(int current) {
+                        return current >= Integer.MAX_VALUE - 1 ? 1_000_000_000 : current + 1;
+                    }
+                });
     }
 }
