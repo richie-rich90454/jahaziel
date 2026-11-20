@@ -41,7 +41,13 @@ class WorkspaceDomainCoverageGapTest {
                         id,
                         new VirtualMachineConfiguration(1, 512));
         assertThrows(
-                IllegalArgumentException.class, () -> new Workspace(id, owner, null, quota, vm));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new Workspace(id, owner, null, quota, vm);
+                    }
+                });
     }
 
     @Test
@@ -85,7 +91,14 @@ class WorkspaceDomainCoverageGapTest {
     @Test
     void failNullReasonRejected() {
         Workspace workspace = fresh("club");
-        assertThrows(IllegalArgumentException.class, () -> workspace.fail(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.fail(null);
+                    }
+                });
     }
 
     @Test
