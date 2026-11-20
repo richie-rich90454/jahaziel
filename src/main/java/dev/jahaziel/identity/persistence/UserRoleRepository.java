@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-/** Repository for UserRoleEntity persistence. */
+/** Spring Data repository for UserRoleEntity; interface is required by Spring Data. */
 public interface UserRoleRepository extends JpaRepository<UserRoleEntity, UserRoleEntity.Id> {
     /**
      * Finds all role grants of a user.
