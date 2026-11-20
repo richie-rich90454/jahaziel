@@ -76,7 +76,13 @@ class DebugServiceProcessTest {
         when(workspaces.get(workspaceId)).thenReturn(workspace);
         WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
         when(registry.dedicatedSessionCommand(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                return invocation.getArgument(0);
+                            }
+                        });
         when(registry.track(any(), any(), any()))
                 .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
         Path java =
@@ -118,7 +124,14 @@ class DebugServiceProcessTest {
                                     "node", "main.js", null, List.of(), ".", false));
             assertEquals("RUNNING", session.state());
             assertEquals("pwa-node", session.adapterId());
-            service.attach(workspaceId, session.id(), messages::add);
+            service.attach(
+                    workspaceId,
+                    session.id(),
+                    new java.util.function.Consumer<String>() {
+                        public void accept(String value) {
+                            messages.add(value);
+                        }
+                    });
             service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
             service.send(
                     workspaceId,
@@ -153,11 +166,14 @@ class DebugServiceProcessTest {
                             "terminate")) {
                 assertThrows(
                         IllegalArgumentException.class,
-                        () ->
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
                                 service.send(
                                         workspaceId,
                                         session.id(),
-                                        request(4, unsupported, Map.of())));
+                                        request(4, unsupported, Map.of()));
+                            }
+                        });
             }
         } finally {
             service.closeAll();
@@ -177,7 +193,13 @@ class DebugServiceProcessTest {
         when(workspaces.get(workspaceId)).thenReturn(workspace);
         WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
         when(registry.dedicatedSessionCommand(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                return invocation.getArgument(0);
+                            }
+                        });
         when(registry.track(any(), any(), any()))
                 .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
         UUID targetId = UUID.randomUUID();
@@ -227,7 +249,14 @@ class DebugServiceProcessTest {
         try {
             DebugService.Session session =
                     service.attachToTarget(workspaceId, new DebugService.AttachRequest(targetId));
-            service.attach(workspaceId, session.id(), messages::add);
+            service.attach(
+                    workspaceId,
+                    session.id(),
+                    new java.util.function.Consumer<String>() {
+                        public void accept(String value) {
+                            messages.add(value);
+                        }
+                    });
             service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
             awaitResponse(messages, 1);
             service.send(
@@ -279,13 +308,22 @@ class DebugServiceProcessTest {
         when(workspaces.get(workspaceId)).thenReturn(workspace);
         WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
         when(registry.dedicatedSessionCommand(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                return invocation.getArgument(0);
+                            }
+                        });
         AtomicReference<Process> adapterProcess = new AtomicReference<>();
         when(registry.track(any(), any(), any()))
                 .thenAnswer(
-                        invocation -> {
-                            adapterProcess.set(invocation.getArgument(2));
-                            return mock(WorkspaceProcessRegistry.Registration.class);
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                adapterProcess.set(invocation.getArgument(2));
+                                return mock(WorkspaceProcessRegistry.Registration.class);
+                            }
                         });
         UUID targetId = UUID.randomUUID();
         WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
@@ -335,7 +373,14 @@ class DebugServiceProcessTest {
         try {
             DebugService.Session session =
                     service.attachToTarget(workspaceId, new DebugService.AttachRequest(targetId));
-            service.attach(workspaceId, session.id(), messages::add);
+            service.attach(
+                    workspaceId,
+                    session.id(),
+                    new java.util.function.Consumer<String>() {
+                        public void accept(String value) {
+                            messages.add(value);
+                        }
+                    });
             service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
             awaitResponse(messages, 1);
             service.send(workspaceId, session.id(), request(2, "attach", Map.of()));
@@ -368,7 +413,13 @@ class DebugServiceProcessTest {
         when(workspaces.get(workspaceId)).thenReturn(workspace);
         WorkspaceProcessRegistry registry = mock(WorkspaceProcessRegistry.class);
         when(registry.dedicatedSessionCommand(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                return invocation.getArgument(0);
+                            }
+                        });
         when(registry.track(any(), any(), any()))
                 .thenReturn(mock(WorkspaceProcessRegistry.Registration.class));
         WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
@@ -412,7 +463,9 @@ class DebugServiceProcessTest {
                                 FakeDapAdapter.class.getName()),
                         DebugAdapterProperties.Transport.STDIO);
         Map<String, DebugAdapterProperties.Adapter> configuredAdapters = new HashMap<>();
-        languages.forEach(language -> configuredAdapters.put(language, fixture));
+        for (String language : languages) {
+            configuredAdapters.put(language, fixture);
+        }
         DebugServiceImpl service =
                 new DebugServiceImpl(
                         new DebugAdapterProperties(configuredAdapters),
@@ -429,7 +482,14 @@ class DebugServiceProcessTest {
                 DebugService.Session session =
                         service.attachToTarget(
                                 workspaceId, new DebugService.AttachRequest(target.id()));
-                service.attach(workspaceId, session.id(), messages::add);
+                service.attach(
+                        workspaceId,
+                        session.id(),
+                        new java.util.function.Consumer<String>() {
+                            public void accept(String value) {
+                                messages.add(value);
+                            }
+                        });
                 service.send(workspaceId, session.id(), request(1, "initialize", Map.of()));
                 awaitResponse(messages, 1);
                 service.send(
