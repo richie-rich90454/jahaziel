@@ -53,6 +53,7 @@ import java.util.UUID;
  * Boot context, so no database is needed.
  */
 class WorkspaceControllerTest {
+
     private MockMvc mvc;
 
     private WorkspaceService workspaces;
@@ -68,7 +69,14 @@ class WorkspaceControllerTest {
     private JwtService tokens;
 
     private final UserId userId = new UserId(UUID.randomUUID());
-    private final Principal principal = () -> userId.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return userId.value().toString();
+                }
+            };
 
     /** Builds standalone MockMvc around the controller and the exception handler. */
     @BeforeEach
@@ -82,7 +90,7 @@ class WorkspaceControllerTest {
         when(auth.isAllowed(any(), any(), any())).thenReturn(true);
         when(ports.bindingsByWorkspace(any())).thenReturn(List.of());
         when(tokens.issue(any(), any(), any(), any())).thenReturn("token");
-        var validator = new LocalValidatorFactoryBean();
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mvc =
                 MockMvcBuilders.standaloneSetup(
