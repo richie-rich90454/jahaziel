@@ -30,13 +30,25 @@ public final class IllegalWorkspaceStateException extends IllegalStateException 
         return workspaceId;
     }
 
+    public WorkspaceId getWorkspaceId() {
+        return workspaceId;
+    }
+
     /** Returns the state the workspace was in. */
     public WorkspaceState state() {
         return state;
     }
 
+    public WorkspaceState getState() {
+        return state;
+    }
+
     /** Returns the attempted action. */
     public String action() {
+        return action;
+    }
+
+    public String getAction() {
         return action;
     }
 }
