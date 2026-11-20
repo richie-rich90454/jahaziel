@@ -62,14 +62,32 @@ class JwtVerifierTest {
     void rejectsExpiredWrongIssuerAndGarbage() throws Exception {
         assertThrows(
                 JwtRejectedException.class,
-                () -> verifier.verify(token(minutes(-10), "https://code.example.com")));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        verifier.verify(token(minutes(-10), "https://code.example.com"));
+                    }
+                });
         assertThrows(
                 JwtRejectedException.class,
-                () -> verifier.verify(token(minutes(10), "https://evil.dev")));
-        assertThrows(JwtRejectedException.class, () -> verifier.verify("not-a-token"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        verifier.verify(token(minutes(10), "https://evil.dev"));
+                    }
+                });
         assertThrows(
                 JwtRejectedException.class,
-                () -> verifier.verify(token(minutes(10), "https://code.example.com") + "x"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        verifier.verify("not-a-token");
+                    }
+                });
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        verifier.verify(token(minutes(10), "https://code.example.com") + "x");
+                    }
+                });
     }
 
     @Test
@@ -86,7 +104,13 @@ class JwtVerifierTest {
                         .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
         jwt.sign(new RSASSASigner(privateKey));
-        assertThrows(JwtRejectedException.class, () -> verifier.verify(jwt.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        verifier.verify(jwt.serialize());
+                    }
+                });
     }
 
     private String token(Date expiry, String issuer) throws Exception {
