@@ -5,6 +5,7 @@
 package dev.jahaziel.terminal.internal;
 
 import dev.jahaziel.terminal.api.TerminalService;
+import dev.jahaziel.terminal.api.TerminalService.StreamEvent;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 
 import org.springframework.web.socket.CloseStatus;
@@ -16,6 +17,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -37,7 +39,9 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
         AutoCloseable subscription =
                 terminals.attach(
                         id,
-                        event ->
+                        new java.util.function.Consumer<StreamEvent>() {
+                            @Override
+                            public void accept(StreamEvent event) {
                                 send(
                                         session,
                                         new StreamMessage(
@@ -45,7 +49,9 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
                                                 event.data(),
                                                 null,
                                                 null,
-                                                event.exitCode())));
+                                                event.exitCode()));
+                            }
+                        });
         subscriptions.put(session.getId(), subscription);
     }
 
@@ -60,9 +66,15 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
         try {
             StreamMessage input = json.readValue(message.getPayload(), StreamMessage.class);
             switch (input.type()) {
-                case "input" -> terminals.write(id, input.data() == null ? "" : input.data());
-                case "resize" -> terminals.resize(id, integer(input.rows()), integer(input.cols()));
-                default -> session.close(CloseStatus.BAD_DATA);
+                case "input":
+                    terminals.write(id, input.data() == null ? "" : input.data());
+                    break;
+                case "resize":
+                    terminals.resize(id, integer(input.rows()), integer(input.cols()));
+                    break;
+                default:
+                    session.close(CloseStatus.BAD_DATA);
+                    break;
             }
             terminals.activity(id);
         } catch (JacksonException | IllegalArgumentException invalid) {
@@ -108,12 +120,80 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
 
     private static TerminalSessionId terminalId(WebSocketSession session) {
         Object value = session.getAttributes().get(TerminalStreamHandshakeInterceptor.SESSION_ID);
-        if (!(value instanceof UUID id)) {
+        if (!(value instanceof UUID)) {
             throw new IllegalStateException("terminal session was not authorized at handshake");
         }
+        UUID id = (UUID) value;
         return new TerminalSessionId(id);
     }
 
-    public record StreamMessage(
-            String type, String data, Integer rows, Integer cols, Integer exitCode) {}
+    /** One JSON frame exchanged with the browser. */
+    public static final class StreamMessage {
+        private final String type;
+        private final String data;
+        private final Integer rows;
+        private final Integer cols;
+        private final Integer exitCode;
+
+        public StreamMessage(
+                String type, String data, Integer rows, Integer cols, Integer exitCode) {
+            this.type = type;
+            this.data = data;
+            this.rows = rows;
+            this.cols = cols;
+            this.exitCode = exitCode;
+        }
+
+        public String type() {
+            return type;
+        }
+
+        public String data() {
+            return data;
+        }
+
+        public Integer rows() {
+            return rows;
+        }
+
+        public Integer cols() {
+            return cols;
+        }
+
+        public Integer exitCode() {
+            return exitCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof StreamMessage)) return false;
+            StreamMessage other = (StreamMessage) o;
+            return Objects.equals(type, other.type)
+                    && Objects.equals(data, other.data)
+                    && Objects.equals(rows, other.rows)
+                    && Objects.equals(cols, other.cols)
+                    && Objects.equals(exitCode, other.exitCode);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(type, data, rows, cols, exitCode);
+        }
+
+        @Override
+        public String toString() {
+            return "StreamMessage[type="
+                    + type
+                    + ", data="
+                    + data
+                    + ", rows="
+                    + rows
+                    + ", cols="
+                    + cols
+                    + ", exitCode="
+                    + exitCode
+                    + "]";
+        }
+    }
 }
