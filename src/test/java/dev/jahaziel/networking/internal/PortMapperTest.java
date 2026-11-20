@@ -45,13 +45,25 @@ class PortMapperTest {
     void badPortsAndProtocolsAreRejected() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(user, 0, workspace, "http", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 0, workspace, "http", at);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(user, 8080, workspace, "ftp", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 8080, workspace, "ftp", at);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(user, 70000, workspace, "http", at));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(user, 70000, workspace, "http", at);
+                    }
+                });
     }
 
     private WorkspacePortEntity mockRow() {
