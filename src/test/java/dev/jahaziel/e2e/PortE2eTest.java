@@ -174,11 +174,15 @@ class PortE2eTest extends E2eBase {
                 HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext(
                 "/",
-                exchange -> {
-                    byte[] body = marker.getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(200, body.length);
-                    exchange.getResponseBody().write(body);
-                    exchange.close();
+                new com.sun.net.httpserver.HttpHandler() {
+                    @Override
+                    public void handle(com.sun.net.httpserver.HttpExchange exchange)
+                            throws java.io.IOException {
+                        byte[] body = marker.getBytes(StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(200, body.length);
+                        exchange.getResponseBody().write(body);
+                        exchange.close();
+                    }
                 });
         server.start();
         return server;
