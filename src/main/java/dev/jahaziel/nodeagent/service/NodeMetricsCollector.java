@@ -73,7 +73,9 @@ public final class NodeMetricsCollector {
             return new long[] {Math.max(0, total - available), total};
         }
         OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
-        if (os instanceof com.sun.management.OperatingSystemMXBean host) {
+        if (os instanceof com.sun.management.OperatingSystemMXBean) {
+            com.sun.management.OperatingSystemMXBean host =
+                    (com.sun.management.OperatingSystemMXBean) os;
             long total = host.getTotalMemorySize();
             return new long[] {Math.max(0, total - host.getFreeMemorySize()), total};
         }
