@@ -21,6 +21,7 @@ import java.util.Map;
 
 /** Closes the JaCoCo gaps in {@link Platforms}, {@link PosixPlatform} and {@link DotEnv}. */
 class PlatformsCoverageGapTest {
+
     @TempDir private Path tmp;
 
     @Test
@@ -28,13 +29,23 @@ class PlatformsCoverageGapTest {
         assertTrue(
                 assertThrows(
                                 IllegalStateException.class,
-                                () -> Platforms.detect("Linux", "sparc", tmp, null))
+                                new org.junit.jupiter.api.function.Executable() {
+
+                                    public void execute() {
+                                        Platforms.detect("Linux", "sparc", tmp, null);
+                                    }
+                                })
                         .getMessage()
                         .contains("os.arch=sparc"));
         assertTrue(
                 assertThrows(
                                 IllegalStateException.class,
-                                () -> Platforms.detect("Haiku", "amd64", tmp, null))
+                                new org.junit.jupiter.api.function.Executable() {
+
+                                    public void execute() {
+                                        Platforms.detect("Haiku", "amd64", tmp, null);
+                                    }
+                                })
                         .getMessage()
                         .contains("Haiku"));
     }
@@ -71,7 +82,16 @@ class PlatformsCoverageGapTest {
         try (MockedConstruction<org.springframework.boot.system.ApplicationHome> ignored =
                 Mockito.mockConstruction(
                         org.springframework.boot.system.ApplicationHome.class,
-                        (mock, ctx) -> Mockito.when(mock.getSource()).thenReturn(mockFile))) {
+                        new MockedConstruction.MockInitializer<
+                                org.springframework.boot.system.ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    org.springframework.boot.system.ApplicationHome mock,
+                                    MockedConstruction.Context context)
+                                    throws Throwable {
+                                Mockito.when(mock.getSource()).thenReturn(mockFile);
+                            }
+                        })) {
             Path resolved = Platforms.resolveJarDir();
             assertEquals(dir.toAbsolutePath().normalize(), resolved);
         }
@@ -102,10 +122,24 @@ class PlatformsCoverageGapTest {
     void dotEnvIoFailure() throws Exception {
         Path file = tmp.resolve("unreadable.env");
         Files.writeString(file, "A=1\n", StandardCharsets.UTF_8);
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.readString(file, StandardCharsets.UTF_8))
+        try (org.mockito.MockedStatic<java.nio.file.Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.readString(file, StandardCharsets.UTF_8);
+                                }
+                            })
                     .thenThrow(new java.io.IOException("mock"));
-            assertThrows(java.io.UncheckedIOException.class, () -> DotEnv.parse(file));
+            assertThrows(
+                    java.io.UncheckedIOException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+
+                        public void execute() {
+                            DotEnv.parse(file);
+                        }
+                    });
         }
     }
 
@@ -146,11 +180,11 @@ class PlatformsCoverageGapTest {
 
     @Test
     void admissionRequestedBelowFloor() {
-        var refused =
+        dev.jahaziel.platform.api.AdmissionDecision refused =
                 dev.jahaziel.platform.internal.AdmissionControl.evaluate(
                         2000, 1900, 200, 0, 0, 0, 500, 0.9);
         assertTrue(refused instanceof dev.jahaziel.platform.api.AdmissionDecision.Refuse);
-        var admit =
+        dev.jahaziel.platform.api.AdmissionDecision admit =
                 dev.jahaziel.platform.internal.AdmissionControl.evaluate(
                         8000, 0, 100, 0, 0, 0, 512, 0.9);
         assertTrue(admit instanceof dev.jahaziel.platform.api.AdmissionDecision.Admit);
