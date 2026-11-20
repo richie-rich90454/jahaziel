@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Provisions monthly audit partitions a few months ahead. Idempotent by IF NOT EXISTS. */
-public final class PartitionProvisionJob implements PlatformJob {
+public final class PartitionProvisionJob extends PlatformJob {
     private final EntityManager entities;
     private final int monthsAhead;
     private final Clock clock;
