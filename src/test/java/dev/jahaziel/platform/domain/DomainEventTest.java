@@ -18,7 +18,9 @@ import java.util.UUID;
 
 /** Every domain event carries its instant and dispatches exhaustively. */
 class DomainEventTest {
+
     private final UUID workspace = UUID.randomUUID();
+
     private final Instant at = Instant.now();
 
     @Test
@@ -45,12 +47,38 @@ class DomainEventTest {
 
     @Test
     void nullsAreRejected() {
-        assertThrows(NullPointerException.class, () -> new WorkspaceDeletedEvent(null, at));
-        assertThrows(IllegalArgumentException.class, () -> new PolicyChangedEvent("  ", "", at));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new WorkspaceDeletedEvent(null, at);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SecurityViolationEvent(workspace, "  ", Map.of(), at));
-        assertThrows(IllegalArgumentException.class, () -> new NodeLostEvent("n", "  ", at));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new PolicyChangedEvent("  ", "", at);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SecurityViolationEvent(workspace, "  ", Map.of(), at);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new NodeLostEvent("n", "  ", at);
+                    }
+                });
     }
 
     @Test
@@ -62,17 +90,43 @@ class DomainEventTest {
     }
 
     private static String describe(DomainEvent event) {
-        return switch (event) {
-            case WorkspaceCreatedEvent e -> "created " + e.workspaceId();
-            case WorkspaceDeletedEvent e -> "deleted " + e.workspaceId();
-            case RuntimeStartedEvent e -> "started " + e.workspaceId();
-            case RuntimeStoppedEvent e -> "stopped " + e.workspaceId();
-            case SnapshotCreatedEvent e -> "snapshot " + e.snapshotId();
-            case PolicyChangedEvent e -> "policy " + e.scope();
-            case TerminalSessionStartedEvent e -> "terminal " + e.sessionId();
-            case SecurityViolationEvent e -> "violation " + e.violationType();
-            case NodeRegisteredEvent e -> "registered " + e.nodeId();
-            case NodeLostEvent e -> "lost " + e.nodeId();
-        };
+        if (event instanceof WorkspaceCreatedEvent) {
+            WorkspaceCreatedEvent e = (WorkspaceCreatedEvent) event;
+            return "created " + e.workspaceId();
+        }
+        if (event instanceof WorkspaceDeletedEvent) {
+            WorkspaceDeletedEvent e = (WorkspaceDeletedEvent) event;
+            return "deleted " + e.workspaceId();
+        }
+        if (event instanceof RuntimeStartedEvent) {
+            RuntimeStartedEvent e = (RuntimeStartedEvent) event;
+            return "started " + e.workspaceId();
+        }
+        if (event instanceof RuntimeStoppedEvent) {
+            RuntimeStoppedEvent e = (RuntimeStoppedEvent) event;
+            return "stopped " + e.workspaceId();
+        }
+        if (event instanceof SnapshotCreatedEvent) {
+            SnapshotCreatedEvent e = (SnapshotCreatedEvent) event;
+            return "snapshot " + e.snapshotId();
+        }
+        if (event instanceof PolicyChangedEvent) {
+            PolicyChangedEvent e = (PolicyChangedEvent) event;
+            return "policy " + e.scope();
+        }
+        if (event instanceof TerminalSessionStartedEvent) {
+            TerminalSessionStartedEvent e = (TerminalSessionStartedEvent) event;
+            return "terminal " + e.sessionId();
+        }
+        if (event instanceof SecurityViolationEvent) {
+            SecurityViolationEvent e = (SecurityViolationEvent) event;
+            return "violation " + e.violationType();
+        }
+        if (event instanceof NodeRegisteredEvent) {
+            NodeRegisteredEvent e = (NodeRegisteredEvent) event;
+            return "registered " + e.nodeId();
+        }
+        NodeLostEvent e = (NodeLostEvent) event;
+        return "lost " + e.nodeId();
     }
 }
