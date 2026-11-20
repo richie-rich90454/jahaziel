@@ -8,12 +8,13 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.util.Objects;
 
 /** Role, ownership, and grant checks. */
-public final class AuthorizationServiceImpl implements AuthorizationService {
+public final class AuthorizationServiceImpl extends AuthorizationService {
     private static final String ADMIN_ROLE = "ROLE_ADMIN";
 
     private final UserService users;
@@ -40,7 +41,7 @@ public final class AuthorizationServiceImpl implements AuthorizationService {
         if (isAdmin(user)) {
             return true;
         }
-        var found = workspaces.get(workspace);
+        Workspace found = workspaces.get(workspace);
         if (found.isOwnedBy(user)) {
             return true;
         }
