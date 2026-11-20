@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
 /** Uploads reject oversized, wrongly typed, and stale writes. */
-final class UploadServiceTest {
+public final class UploadServiceTest {
     @Test
     void uploadsWithEtag(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
