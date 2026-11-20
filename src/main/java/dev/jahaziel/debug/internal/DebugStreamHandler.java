@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
 /** Streams bounded DAP JSON messages to one previously authorized debugger session. */
 public final class DebugStreamHandler extends TextWebSocketHandler {
@@ -36,7 +37,12 @@ public final class DebugStreamHandler extends TextWebSocketHandler {
                     debug.attach(
                             workspaceId(session),
                             sessionId(session),
-                            message -> send(session, message));
+                            new Consumer<String>() {
+                                @Override
+                                public void accept(String message) {
+                                    send(session, message);
+                                }
+                            });
             attachments.put(session.getId(), attachment);
         } catch (IllegalStateException unavailable) {
             session.close(new CloseStatus(1013, "debug session is no longer running"));
@@ -95,13 +101,17 @@ public final class DebugStreamHandler extends TextWebSocketHandler {
 
     private static WorkspaceId workspaceId(WebSocketSession session) {
         Object value = session.getAttributes().get(DebugStreamHandshakeInterceptor.WORKSPACE_ID);
-        if (value instanceof WorkspaceId id) return id;
+        if (value instanceof WorkspaceId) {
+            return (WorkspaceId) value;
+        }
         throw new IllegalStateException("debug workspace was not authorized at handshake");
     }
 
     private static UUID sessionId(WebSocketSession session) {
         Object value = session.getAttributes().get(DebugStreamHandshakeInterceptor.SESSION_ID);
-        if (value instanceof UUID id) return id;
+        if (value instanceof UUID) {
+            return (UUID) value;
+        }
         throw new IllegalStateException("debug session was not authorized at handshake");
     }
 }
