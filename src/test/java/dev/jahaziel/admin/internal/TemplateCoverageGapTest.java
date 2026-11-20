@@ -34,10 +34,13 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -47,13 +50,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 class TemplateCoverageGapTest {
     @TempDir private Path tmp;
 
-    private Principal principal(UUID id) {
-        return () -> id.toString();
+    private Principal principal(final UUID id) {
+        return new Principal() {
+            @Override
+            public String getName() {
+                return id.toString();
+            }
+        };
+    }
+
+    private Principal badPrincipal() {
+        return new Principal() {
+            @Override
+            public String getName() {
+                return "nope";
+            }
+        };
     }
 
     private TemplateController controller(Path dir) {
@@ -75,6 +94,42 @@ class TemplateCoverageGapTest {
                 "node-a");
     }
 
+    private static MockedStatic.Verification isDirectory() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() {
+                Files.isDirectory(any(Path.class));
+            }
+        };
+    }
+
+    private static MockedStatic.Verification listFiles() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() throws IOException {
+                Files.list(any(Path.class));
+            }
+        };
+    }
+
+    private static MockedStatic.Verification isRegularFile() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() {
+                Files.isRegularFile(any(Path.class));
+            }
+        };
+    }
+
+    private static MockedStatic.Verification readAllBytes() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() throws IOException {
+                Files.readAllBytes(any(Path.class));
+            }
+        };
+    }
+
     @Test
     void listEmptyWhenMissing() {
         assertTrue(controller(tmp.resolve("missing")).list().isEmpty());
@@ -94,10 +149,17 @@ class TemplateCoverageGapTest {
 
     @Test
     void listFailureWraps() {
-        try (var files = Mockito.mockStatic(Files.class)) {
-            files.when(() -> Files.isDirectory(any(Path.class))).thenReturn(true);
-            files.when(() -> Files.list(any(Path.class))).thenThrow(new IOException("boom"));
-            assertThrows(UncheckedIOException.class, () -> controller(tmp).list());
+        try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+            files.when(isDirectory()).thenReturn(true);
+            files.when(listFiles()).thenThrow(new IOException("boom"));
+            assertThrows(
+                    UncheckedIOException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() {
+                            controller(tmp).list();
+                        }
+                    });
         }
     }
 
@@ -106,7 +168,7 @@ class TemplateCoverageGapTest {
         Path dir = tmp.resolve("t");
         Files.createDirectories(dir.resolve("foo"));
         Files.writeString(dir.resolve("foo").resolve("template.json"), "{\"v\":1}");
-        var response = controller(dir).get("foo");
+        ResponseEntity<byte[]> response = controller(dir).get("foo");
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
         assertEquals("{\"v\":1}", new String(response.getBody()));
@@ -121,20 +183,47 @@ class TemplateCoverageGapTest {
 
     @Test
     void getRejectsTraversal() throws Exception {
-        Path dir = tmp.resolve("trav");
+        final Path dir = tmp.resolve("trav");
         Files.createDirectories(dir);
-        assertThrows(IllegalArgumentException.class, () -> controller(dir).get(".."));
-        assertThrows(IllegalArgumentException.class, () -> controller(dir).get("../x"));
-        assertThrows(IllegalArgumentException.class, () -> controller(dir).get("/abs"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller(dir).get("..");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller(dir).get("../x");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller(dir).get("/abs");
+                    }
+                });
     }
 
     @Test
     void getReadFailureWraps() {
-        try (var files = Mockito.mockStatic(Files.class)) {
-            files.when(() -> Files.isRegularFile(any(Path.class))).thenReturn(true);
-            files.when(() -> Files.readAllBytes(any(Path.class)))
-                    .thenThrow(new IOException("boom"));
-            assertThrows(UncheckedIOException.class, () -> controller(tmp).get("foo"));
+        try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+            files.when(isRegularFile()).thenReturn(true);
+            files.when(readAllBytes()).thenThrow(new IOException("boom"));
+            assertThrows(
+                    UncheckedIOException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() {
+                            controller(tmp).get("foo");
+                        }
+                    });
         }
     }
 
@@ -142,20 +231,34 @@ class TemplateCoverageGapTest {
     void applyValidatesRequest() throws Exception {
         Path dir = tmp.resolve("apply-bad");
         Files.createDirectories(dir);
-        var controller = controller(dir);
+        final TemplateController controller = controller(dir);
         UUID user = UUID.randomUUID();
         assertThrows(
-                IllegalArgumentException.class, () -> controller.apply("t", null, principal(user)));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.apply("t", null, principal(user));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         controller.apply(
-                                "t", new TemplateController.ApplyRequest("  "), principal(user)));
+                                "t", new TemplateController.ApplyRequest("  "), principal(user));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         controller.apply(
-                                "t", new TemplateController.ApplyRequest(null), principal(user)));
+                                "t", new TemplateController.ApplyRequest(null), principal(user));
+                    }
+                });
     }
 
     @Test
@@ -174,38 +277,44 @@ class TemplateCoverageGapTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         controller(dir)
                                 .apply(
                                         "large",
                                         new TemplateController.ApplyRequest("Large workspace"),
-                                        principal(UUID.randomUUID())));
+                                        principal(UUID.randomUUID()));
+                    }
+                });
     }
 
     @Test
     void applyRejectsMoreThanTheWorkspacePortLimitBeforeWorkspaceCreation() throws Exception {
         Path dir = tmp.resolve("apply-too-many-ports");
         Files.createDirectories(dir.resolve("many"));
+        List<Integer> tooManyPorts = new ArrayList<Integer>();
+        for (int port = 1; port <= PortService.MAX_PORTS_PER_WORKSPACE + 1; port++) {
+            tooManyPorts.add(port);
+        }
         Files.writeString(
                 dir.resolve("many").resolve("template.json"),
-                new ObjectMapper()
-                        .writeValueAsString(
-                                java.util.Map.of(
-                                        "ports",
-                                        java.util.stream.IntStream.rangeClosed(
-                                                        1, PortService.MAX_PORTS_PER_WORKSPACE + 1)
-                                                .boxed()
-                                                .toList())));
-        var workspaces = mock(WorkspaceService.class);
-        var controller = controller(workspaces, mock(WorkspaceDtoFactory.class), dir);
+                new ObjectMapper().writeValueAsString(java.util.Map.of("ports", tooManyPorts)));
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        final TemplateController controller =
+                controller(workspaces, mock(WorkspaceDtoFactory.class), dir);
 
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         controller.apply(
                                 "many",
                                 new TemplateController.ApplyRequest("Too many ports"),
-                                principal(UUID.randomUUID())));
+                                principal(UUID.randomUUID()));
+                    }
+                });
         Mockito.verify(workspaces, Mockito.never())
                 .create(any(UserId.class), anyString(), anyInt(), anyLong(), any(NodeId.class));
     }
@@ -217,9 +326,9 @@ class TemplateCoverageGapTest {
         Files.writeString(
                 dir.resolve("full").resolve("template.json"),
                 "{\"vcpuCount\":4,\"memoryMib\":1024}");
-        var workspaces = mock(WorkspaceService.class);
-        var dtos = mock(WorkspaceDtoFactory.class);
-        var controller = controller(workspaces, dtos, dir);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceDtoFactory dtos = mock(WorkspaceDtoFactory.class);
+        TemplateController controller = controller(workspaces, dtos, dir);
         UserId owner = new UserId(UUID.randomUUID());
         WorkspaceId id = new WorkspaceId(UUID.randomUUID());
         Workspace workspace =
@@ -232,7 +341,7 @@ class TemplateCoverageGapTest {
                                 new VirtualMachineId(UUID.randomUUID()),
                                 id,
                                 new VirtualMachineConfiguration(2, 2048)));
-        var view =
+        WorkspaceView view =
                 new WorkspaceView(
                         workspace, Instant.now(), Instant.now(), new StorageUsage(0, 0, 0, 0));
         WorkspaceDto dto = mock(WorkspaceDto.class);
@@ -254,9 +363,9 @@ class TemplateCoverageGapTest {
         Path dir = tmp.resolve("apply-defaults");
         Files.createDirectories(dir.resolve("mini"));
         Files.writeString(dir.resolve("mini").resolve("template.json"), "{}");
-        var workspaces = mock(WorkspaceService.class);
-        var dtos = mock(WorkspaceDtoFactory.class);
-        var controller = controller(workspaces, dtos, dir);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceDtoFactory dtos = mock(WorkspaceDtoFactory.class);
+        final TemplateController controller = controller(workspaces, dtos, dir);
         UserId owner = new UserId(UUID.randomUUID());
         WorkspaceId id = new WorkspaceId(UUID.randomUUID());
         Workspace workspace =
@@ -269,7 +378,7 @@ class TemplateCoverageGapTest {
                                 new VirtualMachineId(UUID.randomUUID()),
                                 id,
                                 new VirtualMachineConfiguration(2, 2048)));
-        var view =
+        WorkspaceView view =
                 new WorkspaceView(
                         workspace, Instant.now(), Instant.now(), new StorageUsage(0, 0, 0, 0));
         when(workspaces.create(any(), any(), any(int.class), any(long.class), any()))
@@ -281,24 +390,32 @@ class TemplateCoverageGapTest {
         verify(workspaces).create(owner, "ws", 2, 2048L, new NodeId("node-a"));
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         controller.apply(
-                                "mini", new TemplateController.ApplyRequest("ws"), () -> "nope"));
+                                "mini", new TemplateController.ApplyRequest("ws"), badPrincipal());
+                    }
+                });
     }
 
     @Test
     void applyMissingTemplateIsNotFound() throws Exception {
         Path dir = tmp.resolve("apply-missing");
         Files.createDirectories(dir);
-        var controller = controller(dir);
+        final TemplateController controller = controller(dir);
         org.springframework.web.server.ResponseStatusException missing =
                 assertThrows(
                         org.springframework.web.server.ResponseStatusException.class,
-                        () ->
+                        new Executable() {
+                            @Override
+                            public void execute() {
                                 controller.apply(
                                         "nope",
                                         new TemplateController.ApplyRequest("ws"),
-                                        principal(UUID.randomUUID())));
+                                        principal(UUID.randomUUID()));
+                            }
+                        });
         assertEquals(HttpStatus.NOT_FOUND, missing.getStatusCode());
     }
 }
