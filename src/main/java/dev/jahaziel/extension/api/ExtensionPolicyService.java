@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Extension policies, stored per scope. */
-public interface ExtensionPolicyService {
+public abstract class ExtensionPolicyService {
     /**
      * Creates an extension policy.
      *
@@ -20,7 +20,7 @@ public interface ExtensionPolicyService {
      * @return the created document with a fresh id and the current timestamp
      * @throws IllegalArgumentException when scope, extensionId, or action is blank
      */
-    ExtensionPolicyDoc create(
+    public abstract ExtensionPolicyDoc create(
             String scope,
             String scopeId,
             String extensionId,
@@ -34,7 +34,7 @@ public interface ExtensionPolicyService {
      * @return the extension policy document
      * @throws ExtensionPolicyNotFoundException when the policy does not exist
      */
-    ExtensionPolicyDoc get(UUID id);
+    public abstract ExtensionPolicyDoc get(UUID id);
 
     /**
      * Lists extension policies for a scope. A null scope id lists global policies.
@@ -44,7 +44,7 @@ public interface ExtensionPolicyService {
      * @return the matching documents
      * @throws IllegalArgumentException when scope is blank
      */
-    List<ExtensionPolicyDoc> listByScope(String scope, String scopeId);
+    public abstract List<ExtensionPolicyDoc> listByScope(String scope, String scopeId);
 
     /**
      * Deletes an extension policy.
@@ -52,5 +52,5 @@ public interface ExtensionPolicyService {
      * @param id the policy identifier
      * @throws ExtensionPolicyNotFoundException when the policy does not exist
      */
-    void delete(UUID id);
+    public abstract void delete(UUID id);
 }
