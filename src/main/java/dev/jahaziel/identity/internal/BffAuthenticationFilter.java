@@ -25,8 +25,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Cookie authentication for DevConnect sessions. The {@code token} cookie is a bearer token, but
@@ -92,7 +94,7 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
                 List.of(
                         new SimpleGrantedAuthority("ROLE_USER"),
                         new SimpleGrantedAuthority("ROLE_ADMIN"));
-        var authentication =
+        UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                         DemoIdentity.USER_ID.value().toString(), null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -116,7 +118,7 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
         if (sessionId == null) {
             return;
         }
-        var user = devconnect.activeUser(sessionId);
+        Optional<UserId> user = devconnect.activeUser(sessionId);
         if (user.isEmpty()) {
             expire(response, DevConnectService.SESSION_COOKIE);
             return;
@@ -125,9 +127,12 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void publish(UserId user) {
-        List<SimpleGrantedAuthority> authorities =
-                users.get(user).roles().stream().map(SimpleGrantedAuthority::new).toList();
-        var authentication =
+        List<String> roleNames = users.get(user).roles();
+        List<SimpleGrantedAuthority> authorities = new ArrayList<SimpleGrantedAuthority>();
+        for (int index = 0; index < roleNames.size(); index++) {
+            authorities.add(new SimpleGrantedAuthority(roleNames.get(index)));
+        }
+        UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(user.value().toString(), null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
