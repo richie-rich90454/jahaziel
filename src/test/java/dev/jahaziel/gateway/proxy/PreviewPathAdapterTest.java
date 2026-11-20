@@ -65,17 +65,23 @@ class PreviewPathAdapterTest {
         adapter.doFilter(
                 request,
                 response,
-                (adapted, wrapped) -> {
-                    var relayRequest = (jakarta.servlet.http.HttpServletRequest) adapted;
-                    var relayResponse = (jakarta.servlet.http.HttpServletResponse) wrapped;
-                    assertEquals("richard-8080.code.test", relayRequest.getServerName());
-                    assertEquals("/docs/page", relayRequest.getRequestURI());
-                    assertEquals(
-                            "/" + workspace + "/8080",
-                            relayRequest.getHeader("X-Forwarded-Prefix"));
-                    relayResponse.addHeader(
-                            "Set-Cookie", "project=one; Path=/; HttpOnly; SameSite=Lax");
-                    relayResponse.addHeader("Location", "../../login?next=%2F");
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest adapted,
+                            jakarta.servlet.ServletResponse wrapped) {
+                        jakarta.servlet.http.HttpServletRequest relayRequest =
+                                (jakarta.servlet.http.HttpServletRequest) adapted;
+                        jakarta.servlet.http.HttpServletResponse relayResponse =
+                                (jakarta.servlet.http.HttpServletResponse) wrapped;
+                        assertEquals("richard-8080.code.test", relayRequest.getServerName());
+                        assertEquals("/docs/page", relayRequest.getRequestURI());
+                        assertEquals(
+                                "/" + workspace + "/8080",
+                                relayRequest.getHeader("X-Forwarded-Prefix"));
+                        relayResponse.addHeader(
+                                "Set-Cookie", "project=one; Path=/; HttpOnly; SameSite=Lax");
+                        relayResponse.addHeader("Location", "../../login?next=%2F");
+                    }
                 });
 
         assertEquals(
@@ -91,13 +97,31 @@ class PreviewPathAdapterTest {
         MockHttpServletResponse wrongWorkspace = new MockHttpServletResponse();
         MockHttpServletRequest first = request("/" + workspace + "/8080/");
         first.setQueryString("token=" + token(UUID.randomUUID(), 8080));
-        adapter.doFilter(first, wrongWorkspace, (request, response) -> fail("must reject token"));
+        adapter.doFilter(
+                first,
+                wrongWorkspace,
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest request,
+                            jakarta.servlet.ServletResponse response) {
+                        fail("must reject token");
+                    }
+                });
         assertEquals(403, wrongWorkspace.getStatus());
 
         MockHttpServletResponse wrongPort = new MockHttpServletResponse();
         MockHttpServletRequest second = request("/" + workspace + "/8080/");
         second.setQueryString("token=" + token(workspace, 9090));
-        adapter.doFilter(second, wrongPort, (request, response) -> fail("must reject token"));
+        adapter.doFilter(
+                second,
+                wrongPort,
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest request,
+                            jakarta.servlet.ServletResponse response) {
+                        fail("must reject token");
+                    }
+                });
         assertEquals(403, wrongPort.getStatus());
     }
 
@@ -108,21 +132,39 @@ class PreviewPathAdapterTest {
         adapter.doFilter(
                 request("/" + workspace + "/0/"),
                 invalid,
-                (request, response) -> fail("must reject route"));
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest request,
+                            jakarta.servlet.ServletResponse response) {
+                        fail("must reject route");
+                    }
+                });
         assertEquals(404, invalid.getStatus());
 
         MockHttpServletResponse nonCanonical = new MockHttpServletResponse();
         adapter.doFilter(
                 request("/" + workspace.toString().toUpperCase(Locale.ROOT) + "/8080/"),
                 nonCanonical,
-                (request, response) -> fail("must reject route"));
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest request,
+                            jakarta.servlet.ServletResponse response) {
+                        fail("must reject route");
+                    }
+                });
         assertEquals(404, nonCanonical.getStatus());
 
         MockHttpServletResponse unknown = new MockHttpServletResponse();
         adapter.doFilter(
                 request("/" + workspace + "/8080/"),
                 unknown,
-                (request, response) -> fail("must reject route"));
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest request,
+                            jakarta.servlet.ServletResponse response) {
+                        fail("must reject route");
+                    }
+                });
         assertEquals(404, unknown.getStatus());
     }
 
@@ -133,7 +175,16 @@ class PreviewPathAdapterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         boolean[] reached = {false};
 
-        adapter.doFilter(request, response, (adapted, wrapped) -> reached[0] = true);
+        adapter.doFilter(
+                request,
+                response,
+                new jakarta.servlet.FilterChain() {
+                    public void doFilter(
+                            jakarta.servlet.ServletRequest adapted,
+                            jakarta.servlet.ServletResponse wrapped) {
+                        reached[0] = true;
+                    }
+                });
 
         assertTrue(reached[0]);
         assertFalse(response.isCommitted());
