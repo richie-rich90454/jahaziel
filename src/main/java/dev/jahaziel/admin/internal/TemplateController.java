@@ -4,6 +4,9 @@
  */
 package dev.jahaziel.admin.internal;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import dev.jahaziel.api.WorkspaceDtoFactory;
 import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.identity.domain.UserId;
@@ -47,7 +50,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /** Workspace templates from {@code data/templates/<name>/template.json}. */
 @RestController
@@ -88,7 +90,7 @@ public class TemplateController {
         if (!Files.isDirectory(templatesDir)) {
             return List.of();
         }
-        try (Stream<Path> entries = Files.list(templatesDir)) {
+        try (java.util.stream.Stream<Path> entries = Files.list(templatesDir)) {
             List<String> names = new ArrayList<String>();
             Iterator<Path> paths = entries.iterator();
             while (paths.hasNext()) {
@@ -140,6 +142,10 @@ public class TemplateController {
         }
         if (template.name() != null && !template.name().equals(name)) {
             throw new IllegalArgumentException("template name does not match its directory");
+        }
+        if (template.description() != null && template.description().length() > 2048) {
+            throw new IllegalArgumentException(
+                    "template description must contain at most 2048 characters");
         }
         int vcpu = template.vcpuCount() == null ? 2 : template.vcpuCount();
         long memory = template.memoryMib() == null ? 2048 : template.memoryMib();
@@ -338,30 +344,28 @@ public class TemplateController {
 
     /** The parsed template.json shape. */
     private static final class TemplateManifest {
-        private String name;
-        private String description;
-        private Integer vcpuCount;
-        private Long memoryMib;
-        private List<Integer> ports;
-        private List<String> languagePacks;
-        private Map<String, String> starterFiles;
-        private List<SetupStep> setupSteps;
-        private List<RunTask> runTasks;
+        private final String name;
+        private final String description;
+        private final Integer vcpuCount;
+        private final Long memoryMib;
+        private final List<Integer> ports;
+        private final List<String> languagePacks;
+        private final Map<String, String> starterFiles;
+        private final List<SetupStep> setupSteps;
+        private final List<RunTask> runTasks;
 
-        /** Creates an empty manifest for JSON binding. */
-        public TemplateManifest() {}
-
-        /** Creates a manifest with all fields set. */
-        public TemplateManifest(
-                String name,
-                String description,
-                Integer vcpuCount,
-                Long memoryMib,
-                List<Integer> ports,
-                List<String> languagePacks,
-                Map<String, String> starterFiles,
-                List<SetupStep> setupSteps,
-                List<RunTask> runTasks) {
+        /** Creates a manifest from its JSON representation. */
+        @JsonCreator
+        TemplateManifest(
+                @JsonProperty("name") String name,
+                @JsonProperty("description") String description,
+                @JsonProperty("vcpuCount") Integer vcpuCount,
+                @JsonProperty("memoryMib") Long memoryMib,
+                @JsonProperty("ports") List<Integer> ports,
+                @JsonProperty("languagePacks") List<String> languagePacks,
+                @JsonProperty("starterFiles") Map<String, String> starterFiles,
+                @JsonProperty("setupSteps") List<SetupStep> setupSteps,
+                @JsonProperty("runTasks") List<RunTask> runTasks) {
             this.name = name;
             this.description = description;
             this.vcpuCount = vcpuCount;
@@ -417,63 +421,16 @@ public class TemplateController {
         public List<RunTask> runTasks() {
             return runTasks;
         }
-
-        /** Sets the template name. */
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        /** Sets the description. */
-        public void setDescription(String description) {
-            this.description = description;
-        }
-
-        /** Sets the vCPU count. */
-        public void setVcpuCount(Integer vcpuCount) {
-            this.vcpuCount = vcpuCount;
-        }
-
-        /** Sets the memory size in MiB. */
-        public void setMemoryMib(Long memoryMib) {
-            this.memoryMib = memoryMib;
-        }
-
-        /** Sets the port list. */
-        public void setPorts(List<Integer> ports) {
-            this.ports = ports;
-        }
-
-        /** Sets the language pack list. */
-        public void setLanguagePacks(List<String> languagePacks) {
-            this.languagePacks = languagePacks;
-        }
-
-        /** Sets the starter files. */
-        public void setStarterFiles(Map<String, String> starterFiles) {
-            this.starterFiles = starterFiles;
-        }
-
-        /** Sets the setup steps. */
-        public void setSetupSteps(List<SetupStep> setupSteps) {
-            this.setupSteps = setupSteps;
-        }
-
-        /** Sets the run tasks. */
-        public void setRunTasks(List<RunTask> runTasks) {
-            this.runTasks = runTasks;
-        }
     }
 
     /** A setup step in a template. */
     private static final class SetupStep {
-        private String id;
-        private List<String> command;
+        private final String id;
+        private final List<String> command;
 
-        /** Creates an empty step for JSON binding. */
-        public SetupStep() {}
-
-        /** Creates a step. */
-        public SetupStep(String id, List<String> command) {
+        /** Creates a step from its JSON representation. */
+        @JsonCreator
+        SetupStep(@JsonProperty("id") String id, @JsonProperty("command") List<String> command) {
             this.id = id;
             this.command = command;
         }
@@ -487,30 +444,22 @@ public class TemplateController {
         public List<String> command() {
             return command;
         }
-
-        /** Sets the step id. */
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        /** Sets the command. */
-        public void setCommand(List<String> command) {
-            this.command = command;
-        }
     }
 
     /** A run task in a template. */
     private static final class RunTask {
-        private String id;
-        private String label;
-        private List<String> command;
-        private Integer port;
+        private final String id;
+        private final String label;
+        private final List<String> command;
+        private final Integer port;
 
-        /** Creates an empty task for JSON binding. */
-        public RunTask() {}
-
-        /** Creates a task. */
-        public RunTask(String id, String label, List<String> command, Integer port) {
+        /** Creates a task from its JSON representation. */
+        @JsonCreator
+        RunTask(
+                @JsonProperty("id") String id,
+                @JsonProperty("label") String label,
+                @JsonProperty("command") List<String> command,
+                @JsonProperty("port") Integer port) {
             this.id = id;
             this.label = label;
             this.command = command;
@@ -535,26 +484,6 @@ public class TemplateController {
         /** Returns the port. */
         public Integer port() {
             return port;
-        }
-
-        /** Sets the task id. */
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        /** Sets the label. */
-        public void setLabel(String label) {
-            this.label = label;
-        }
-
-        /** Sets the command. */
-        public void setCommand(List<String> command) {
-            this.command = command;
-        }
-
-        /** Sets the port. */
-        public void setPort(Integer port) {
-            this.port = port;
         }
     }
 
