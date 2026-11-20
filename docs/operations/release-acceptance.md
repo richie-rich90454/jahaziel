@@ -32,24 +32,32 @@ and `aarch64`); emulation does not satisfy the arm64 target.
 
 Recorded counts for the current green run:
 
-- Maven: **1940 tests**, all passing (`./mvnw -B verify -Psmoke`).
-- E2E: **38 passed / 1 skipped** (`pnpm --dir web test:e2e`, Playwright against the stub).
+- Maven: **1942 tests**, all passing (`./mvnw -B verify -Psmoke`).
+- E2E: **60 passed / 1 skipped** (`pnpm --dir web test:e2e`, Playwright against the stub, including the iPad viewport/touch matrix).
 - License and format checks: **clean** (Maven license/format goals and `pnpm --dir web run format:check`).
 
-### Gate 2 — Automated deployment walkthrough: Automated-pending
+### Gate 2 — Automated deployment walkthrough: Passing
 
 The scripted walkthrough in
 [`tools/deployment-acceptance.cjs`](../../tools/deployment-acceptance.cjs)
-must run green on every host target. This gate stays open until that workflow
-is green on all five hosts.
+runs on all five host targets via
+[deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml).
+It verifies 19 checks: demo sign-in, identity, templates, workspace setup,
+files and ETag, snapshots, tasks, preview candidates, admin diagnostics,
+logout, backup, restore, and a fresh-boot readback. It cleans up all child
+processes and scratch directories.
 
 | Host | Status |
 |---|---|
-| Ubuntu x64 | Automated-pending |
-| Ubuntu arm64 | Automated-pending |
-| macOS x64 | Automated-pending |
-| macOS arm64 | Automated-pending |
-| Windows x64 | Automated-pending |
+| Ubuntu x64 | Passing |
+| Ubuntu arm64 | Passing |
+| macOS x64 | Passing |
+| macOS arm64 | Passing |
+| Windows x64 | Passing |
+
+Note: the restore drill restores into a fresh scratch data directory because
+read-only snapshots make in-place `tar` extraction fail on Windows; a real-host
+in-place restore with snapshots is therefore still exercised only by Gate 4.
 
 ### Gate 3 — Physical iPad matrix: Not verified
 
@@ -68,14 +76,14 @@ project task, and a working path-based preview. No real-host results are recorde
 
 | Gate | Evidence | Status | Owner | Date |
 |---|---|---|---|---|
-| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 1940 tests, E2E 38 passed / 1 skipped, license/format clean | Passing | CI | — |
-| Automated deployment walkthrough on Ubuntu x64/arm64, macOS x64/arm64, Windows x64 | `tools/deployment-acceptance.cjs` workflow run | Automated-pending | — | — |
+| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 1942 tests, E2E 60 passed / 1 skipped, license/format clean | Passing | CI | — |
+| Automated deployment walkthrough on Ubuntu x64/arm64, macOS x64/arm64, Windows x64 | [deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml), 19 checks per host | Passing | CI | — |
 | Physical iPad browser matrix | Real-device results (none recorded) | Open | — | — |
 | Live host deployment with IdP MFA | Real-host results (none recorded) | Open | — | — |
 
 ## Release statement
 
-The repository is deployable and CI-verified across the targets above. It is
-**not release-accepted** until the automated deployment walkthrough is green
-and the physical iPad and live real-host gates are signed off. Treat the open
-gates as blockers, not follow-up work.
+The repository is deployable and CI-verified across the targets above, and the
+automated per-host deployment walkthrough is green. It is **not
+release-accepted** until the physical iPad and live real-host gates are signed
+off. Treat the open gates as blockers, not follow-up work.
