@@ -29,7 +29,7 @@ import java.util.TreeMap;
  * must be explicitly registered and preview URLs remain workspace-authorized.
  */
 @Service
-public final class PortCandidateServiceImpl implements PortCandidateService {
+public final class PortCandidateServiceImpl extends PortCandidateService {
     private static final int MAX_CANDIDATES = 64;
 
     private final WorkspaceProcessRegistry registry;
