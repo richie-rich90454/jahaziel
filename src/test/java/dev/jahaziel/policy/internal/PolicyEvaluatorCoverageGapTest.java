@@ -32,7 +32,7 @@ class PolicyEvaluatorCoverageGapTest {
 
     @Test
     void nullDocumentJsonMergesAsEmpty() {
-        var svc = mock(PolicyService.class);
+        PolicyService svc = mock(PolicyService.class);
         when(svc.listByScope("global", null)).thenReturn(List.of(doc("global", null, "null")));
         assertEquals(
                 "{}", new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty()));
@@ -40,7 +40,7 @@ class PolicyEvaluatorCoverageGapTest {
 
     @Test
     void mixedNestingOverwritesBothWays() {
-        var svc = mock(PolicyService.class);
+        PolicyService svc = mock(PolicyService.class);
         when(svc.listByScope("global", null))
                 .thenReturn(List.of(doc("global", null, "{\"n\":{\"x\":1},\"m\":1}")));
         when(svc.listByScope("user", "u1")).thenReturn(List.of(doc("user", "u1", "{\"n\":5}")));
@@ -54,7 +54,7 @@ class PolicyEvaluatorCoverageGapTest {
 
     @Test
     void encodeFailureSurfacesAsIllegalState() throws Exception {
-        var svc = mock(PolicyService.class);
+        PolicyService svc = mock(PolicyService.class);
         when(svc.listByScope(any(), any())).thenReturn(List.of());
         PolicyEvaluator evaluator = new PolicyEvaluator(svc);
         ObjectMapper broken = mock(ObjectMapper.class);
@@ -64,6 +64,10 @@ class PolicyEvaluatorCoverageGapTest {
         mapper.set(evaluator, broken);
         assertThrows(
                 IllegalStateException.class,
-                () -> evaluator.effectiveJson(Optional.empty(), Optional.empty()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        evaluator.effectiveJson(Optional.empty(), Optional.empty());
+                    }
+                });
     }
 }
