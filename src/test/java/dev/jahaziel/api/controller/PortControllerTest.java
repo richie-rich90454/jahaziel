@@ -20,6 +20,7 @@ import dev.jahaziel.networking.api.GatewayRouteService;
 import dev.jahaziel.networking.api.PortBinding;
 import dev.jahaziel.networking.api.PortCandidateService;
 import dev.jahaziel.networking.api.PortService;
+import dev.jahaziel.networking.api.PortStatusProbe;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,7 @@ import java.util.UUID;
 
 /** Endpoints of {@link PortController} with stubbed services. Standalone MockMvc. */
 class PortControllerTest {
+
     private MockMvc mvc;
 
     private PortService ports;
@@ -47,7 +49,13 @@ class PortControllerTest {
 
     private JwtService tokens;
 
-    private final Principal principal = () -> UUID.randomUUID().toString();
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return UUID.randomUUID().toString();
+                }
+            };
 
     @BeforeEach
     void setUp() {
@@ -62,7 +70,12 @@ class PortControllerTest {
                                 new PortController(
                                         ports,
                                         mock(PortCandidateService.class),
-                                        port -> true,
+                                        new PortStatusProbe() {
+                                            @Override
+                                            public boolean isListening(int port) {
+                                                return true;
+                                            }
+                                        },
                                         users,
                                         auth,
                                         routes,
@@ -80,7 +93,13 @@ class PortControllerTest {
         when(auth.isAllowed(any(), any(), any())).thenReturn(true);
         mvc.perform(
                         get("/api/v1/workspaces/" + workspace + "/ports/candidates")
-                                .principal(() -> user.toString()))
+                                .principal(
+                                        new Principal() {
+                                            @Override
+                                            public String getName() {
+                                                return user.toString();
+                                            }
+                                        }))
                 .andExpect(status().isOk());
     }
 
