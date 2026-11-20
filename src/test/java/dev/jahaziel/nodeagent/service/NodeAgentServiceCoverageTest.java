@@ -27,8 +27,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Remaining branches of {@link NodeAgentService}. */
 class NodeAgentServiceCoverageTest {
@@ -41,15 +43,33 @@ class NodeAgentServiceCoverageTest {
         AuditSpool spool = new AuditSpool(root);
         SyncServer sync = mock(SyncServer.class);
         assertThrows(
-                NullPointerException.class, () -> new NodeAgentService(null, storage, spool, sync));
-        assertThrows(
-                NullPointerException.class, () -> new NodeAgentService(backend, null, spool, sync));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeAgentService(null, storage, spool, sync);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new NodeAgentService(backend, storage, null, sync));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeAgentService(backend, null, spool, sync);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new NodeAgentService(backend, storage, spool, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeAgentService(backend, storage, null, sync);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeAgentService(backend, storage, spool, null);
+                    }
+                });
     }
 
     @Test
@@ -66,14 +86,29 @@ class NodeAgentServiceCoverageTest {
         service.stopRuntime(handle, true, 5);
         verify(backend).stop(any(), org.mockito.ArgumentMatchers.eq(true));
         service.stopRuntime(handle, false, 5);
-        assertThrows(NullPointerException.class, () -> service.stopRuntime(null, true, 1));
-        assertThrows(NullPointerException.class, () -> service.startRuntime(handle, null));
         assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.stopRuntime(null, true, 1);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.startRuntime(handle, null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         service.startRuntime(
                                 null,
-                                new RuntimeRequest(workspace, 1, 1, 0, 0, 0, 1, 1, List.of())));
+                                new RuntimeRequest(workspace, 1, 1, 0, 0, 0, 1, 1, List.of()));
+                    }
+                });
         Path snaps = home.getParent().resolve("snaps");
         Files.createDirectories(snaps.resolve("a"));
         Files.createDirectories(snaps.resolve("b"));
@@ -103,12 +138,30 @@ class NodeAgentServiceCoverageTest {
         SyncServer sync = mock(SyncServer.class);
         NodeAgentService service =
                 new NodeAgentService(backend, storage, new AuditSpool(root), sync);
-        assertThrows(NullPointerException.class, () -> service.listSnapshots(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.listSnapshots(null);
+                    }
+                });
         WorkspaceHandle handle =
                 new WorkspaceHandle(UUID.randomUUID(), root.resolve("h"), root.resolve("j"));
         assertTrue(service.listSnapshots(handle).isEmpty());
-        assertThrows(NullPointerException.class, () -> service.attachPort(null, 80, "http"));
-        assertThrows(NullPointerException.class, () -> service.detachPort(null, 80));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.attachPort(null, 80, "http");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.detachPort(null, 80);
+                    }
+                });
     }
 
     @Test
@@ -138,10 +191,15 @@ class NodeAgentServiceCoverageTest {
     }
 
     private String spoolText() throws Exception {
-        return Files.readString(
-                Files.list(root)
-                        .filter(path -> path.toString().endsWith(".jsonl"))
-                        .findFirst()
-                        .orElseThrow());
+        try (Stream<Path> files = Files.list(root)) {
+            Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (path.toString().endsWith(".jsonl")) {
+                    return Files.readString(path);
+                }
+            }
+        }
+        throw new java.util.NoSuchElementException("No value present");
     }
 }
