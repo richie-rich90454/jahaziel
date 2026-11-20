@@ -13,7 +13,10 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -25,7 +28,7 @@ import java.util.stream.Stream;
  * storage tests and local development independent of host utility processes. Release servers target
  * Linux x64 and arm64. Anything outside those shapes fails fast instead of half-running.
  */
-public final class NioCommandRunner implements CommandRunner {
+public final class NioCommandRunner extends CommandRunner {
     @Override
     public String run(List<String> command) {
         Objects.requireNonNull(command, "command");
@@ -150,7 +153,13 @@ public final class NioCommandRunner implements CommandRunner {
                 return;
             }
             try (Stream<Path> walk = Files.walk(root)) {
-                for (Path path : walk.sorted().toList()) {
+                List<Path> ordered = new ArrayList<>();
+                Iterator<Path> iterator = walk.iterator();
+                while (iterator.hasNext()) {
+                    ordered.add(iterator.next());
+                }
+                Collections.sort(ordered);
+                for (Path path : ordered) {
                     Path relative = root.relativize(path);
                     if (relative.toString().isEmpty()) {
                         continue;
@@ -239,17 +248,18 @@ public final class NioCommandRunner implements CommandRunner {
         }
         LongAdder total = new LongAdder();
         try (Stream<Path> walk = Files.walk(dir)) {
-            walk.filter(Files::isRegularFile)
-                    .filter(path -> !Files.isSymbolicLink(path))
-                    .forEach(
-                            path -> {
-                                try {
-                                    total.add(Files.size(path));
-                                } catch (IOException unreadable) {
-                                    // Unreadable file contributes nothing; the quota check stays
-                                    // conservative.
-                                }
-                            });
+            Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (!Files.isRegularFile(path) || Files.isSymbolicLink(path)) {
+                    continue;
+                }
+                try {
+                    total.add(Files.size(path));
+                } catch (IOException unreadable) {
+                    // Unreadable file contributes nothing; the quota check stays conservative.
+                }
+            }
         } catch (IOException failure) {
             throw new StorageException("du -sb " + dir, failure);
         }
