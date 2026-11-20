@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** Diff uses the existing snapshot paths and reports added, removed, and modified files. */
-final class WorkspaceDiffServiceTest {
+public final class WorkspaceDiffServiceTest {
     @Test
     void comparesSnapshotWithCurrentTree(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
@@ -66,7 +66,7 @@ final class WorkspaceDiffServiceTest {
         assertTrue(!diff.getAdded().contains("same.txt"));
     }
 
-    private static final class FakeSnapshots implements SnapshotService {
+    private static final class FakeSnapshots extends SnapshotService {
         private final SnapshotMetadata metadata;
 
         private FakeSnapshots(SnapshotMetadata metadata) {
