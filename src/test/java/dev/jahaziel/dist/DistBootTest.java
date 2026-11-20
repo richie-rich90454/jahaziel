@@ -75,16 +75,20 @@ class DistBootTest {
             System.clearProperty(key);
         }
         touchedProperties.clear();
+        List<Path> paths = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(tmp)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
+        }
+        paths.sort(Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Best-effort test cleanup.
+            }
         }
     }
 
