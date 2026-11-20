@@ -30,13 +30,15 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Lifecycle orchestration over a node backend. Runtime handles equal workspace ids by convention,
  * so a control-plane restart loses no addressing. Zero bandwidth means unset; the agent applies
  * node defaults.
  */
-public final class RuntimeServiceImpl implements RuntimeService {
+public final class RuntimeServiceImpl extends RuntimeService {
     private static final Logger log = LoggerFactory.getLogger(RuntimeServiceImpl.class);
     private static final int DISK_IOPS_LIMIT = 0;
     private static final long UNSET_BANDWIDTH = 0;
@@ -142,8 +144,20 @@ public final class RuntimeServiceImpl implements RuntimeService {
     private void abortToFailed(WorkspaceId id, RuntimeException failure) {
         UUID correlationId =
                 progress.snapshot(id)
-                        .map((BootProgressService.Progress report) -> report.correlationId())
-                        .orElseGet(UUID::randomUUID);
+                        .map(
+                                new Function<BootProgressService.Progress, UUID>() {
+                                    @Override
+                                    public UUID apply(BootProgressService.Progress report) {
+                                        return report.correlationId();
+                                    }
+                                })
+                        .orElseGet(
+                                new Supplier<UUID>() {
+                                    @Override
+                                    public UUID get() {
+                                        return UUID.randomUUID();
+                                    }
+                                });
         progress.clear(id);
         Workspace current;
         try {
