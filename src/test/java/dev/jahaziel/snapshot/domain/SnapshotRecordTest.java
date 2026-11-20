@@ -49,7 +49,8 @@ class SnapshotRecordTest {
         SnapshotMetadata probe = valid();
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -61,10 +62,13 @@ class SnapshotRecordTest {
                                 0,
                                 0,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -76,10 +80,13 @@ class SnapshotRecordTest {
                                 0,
                                 0,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -91,10 +98,13 @@ class SnapshotRecordTest {
                                 0,
                                 0,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -106,7 +116,9 @@ class SnapshotRecordTest {
                                 0,
                                 0,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
     }
 
     @Test
@@ -114,7 +126,8 @@ class SnapshotRecordTest {
         SnapshotMetadata probe = valid();
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -126,10 +139,13 @@ class SnapshotRecordTest {
                                 -1,
                                 0,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new SnapshotMetadata(
                                 probe.id(),
                                 probe.workspaceId(),
@@ -141,7 +157,9 @@ class SnapshotRecordTest {
                                 0,
                                 -1,
                                 probe.parentId(),
-                                probe.manifestSha256()));
+                                probe.manifestSha256());
+                    }
+                });
     }
 
     @Test
@@ -164,6 +182,12 @@ class SnapshotRecordTest {
         assertEquals(SnapshotKind.AUTO, SnapshotKinds.fromString("auto"));
         assertEquals(SnapshotKind.MANUAL, SnapshotKinds.fromString("manual"));
         assertEquals(SnapshotKind.PRE_DELETE, SnapshotKinds.fromString("pre-delete"));
-        assertThrows(IllegalStateException.class, () -> SnapshotKinds.fromString("bogus"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotKinds.fromString("bogus");
+                    }
+                });
     }
 }
