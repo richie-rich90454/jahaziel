@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -36,10 +37,19 @@ class PlatformFinalTest {
         Mockito.when(jar.getName()).thenReturn("jahaziel.jar");
         Mockito.when(jar.getAbsoluteFile()).thenReturn(jar);
         Mockito.when(jar.getParentFile()).thenReturn(null);
-        try (var app =
+        try (org.mockito.MockedConstruction<org.springframework.boot.system.ApplicationHome> app =
                 Mockito.mockConstruction(
                         org.springframework.boot.system.ApplicationHome.class,
-                        (mock, context) -> Mockito.when(mock.getSource()).thenReturn(jar))) {
+                        new MockedConstruction.MockInitializer<
+                                org.springframework.boot.system.ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    org.springframework.boot.system.ApplicationHome mock,
+                                    MockedConstruction.Context context)
+                                    throws Throwable {
+                                Mockito.when(mock.getSource()).thenReturn(jar);
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Platforms.resolveJarDir());
@@ -48,12 +58,19 @@ class PlatformFinalTest {
 
     @Test
     void resolveJarDirSurvivesSecurityManager() {
-        try (var app =
+        try (org.mockito.MockedConstruction<org.springframework.boot.system.ApplicationHome> app =
                 Mockito.mockConstruction(
                         org.springframework.boot.system.ApplicationHome.class,
-                        (mock, context) ->
-                                Mockito.when(mock.getSource())
-                                        .thenThrow(new SecurityException()))) {
+                        new MockedConstruction.MockInitializer<
+                                org.springframework.boot.system.ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    org.springframework.boot.system.ApplicationHome mock,
+                                    MockedConstruction.Context context)
+                                    throws Throwable {
+                                Mockito.when(mock.getSource()).thenThrow(new SecurityException());
+                            }
+                        })) {
             assertEquals(
                     Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     Platforms.resolveJarDir());
