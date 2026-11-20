@@ -16,7 +16,7 @@ import java.util.HexFormat;
 import java.util.Objects;
 
 /** Verifies the base image checksum against its sidecar on a schedule. Fail loud on mismatch. */
-public final class ImageMaintenanceJob implements PlatformJob {
+public final class ImageMaintenanceJob extends PlatformJob {
     private final Path imagesDir;
     private final String imageRef;
 
