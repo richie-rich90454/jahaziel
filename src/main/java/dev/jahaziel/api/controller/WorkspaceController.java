@@ -16,6 +16,7 @@ import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -81,7 +83,7 @@ public class WorkspaceController {
     @GetMapping("/me")
     public UserDto me(Principal principal) {
         UserId id = userId(principal);
-        var identity = users.get(id);
+        dev.jahaziel.spi.UserIdentity identity = users.get(id);
         return new UserDto(
                 id.value(),
                 identity.email(),
@@ -99,9 +101,11 @@ public class WorkspaceController {
     @GetMapping("/me/workspaces")
     public List<WorkspaceDto> listMine(Principal principal) {
         UserId owner = userId(principal);
-        return workspaces.describeByOwner(owner).stream()
-                .map(view -> dtos.forUser(owner, view))
-                .toList();
+        List<WorkspaceDto> result = new ArrayList<>();
+        for (WorkspaceView view : workspaces.describeByOwner(owner)) {
+            result.add(dtos.forUser(owner, view));
+        }
+        return result;
     }
 
     /**
@@ -117,7 +121,7 @@ public class WorkspaceController {
             Principal principal, @Valid @RequestBody CreateWorkspaceRequest request) {
         int vcpu = request.vcpuCount() == null ? 2 : request.vcpuCount();
         long memory = request.memoryMib() == null ? 2048 : request.memoryMib();
-        var workspace =
+        dev.jahaziel.workspace.domain.Workspace workspace =
                 workspaces.create(
                         userId(principal), request.name(), vcpu, memory, new NodeId(defaultNode));
         return dtos.forUser(userId(principal), workspaces.describe(workspace.id()));
