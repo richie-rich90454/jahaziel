@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 class ControllerCoverageGapTest {
+
     @Test
     void snapshotBadPrincipal() {
         SnapshotService snapshots = mock(SnapshotService.class);
@@ -44,13 +45,53 @@ class ControllerCoverageGapTest {
                         900);
         SnapshotController controller = new SnapshotController(snapshots, workspaces, auth, dtos);
         UUID id = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> controller.list(id, () -> "nope"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> controller.create(id, new CreateSnapshotRequest("t"), () -> "bad"));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.list(
+                                id,
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "nope";
+                                    }
+                                });
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> controller.restore(id, UUID.randomUUID(), () -> "nope"));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.create(
+                                id,
+                                new CreateSnapshotRequest("t"),
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "bad";
+                                    }
+                                });
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.restore(
+                                id,
+                                UUID.randomUUID(),
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "nope";
+                                    }
+                                });
+                    }
+                });
     }
 
     @Test
@@ -60,14 +101,57 @@ class ControllerCoverageGapTest {
         TerminalController controller = new TerminalController(terminals, auth);
         UUID id = UUID.randomUUID();
         assertThrows(
-                IllegalArgumentException.class, () -> controller.open(id, 24, 80, () -> "nope"));
-        assertThrows(IllegalArgumentException.class, () -> controller.list(id, () -> "bad"));
-        var session = mock(dev.jahaziel.terminal.domain.TerminalSession.class);
-        var workspaceId = new dev.jahaziel.workspace.domain.WorkspaceId(UUID.randomUUID());
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.open(
+                                id,
+                                24,
+                                80,
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "nope";
+                                    }
+                                });
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.list(
+                                id,
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "bad";
+                                    }
+                                });
+                    }
+                });
+        dev.jahaziel.terminal.domain.TerminalSession session =
+                mock(dev.jahaziel.terminal.domain.TerminalSession.class);
+        dev.jahaziel.workspace.domain.WorkspaceId workspaceId =
+                new dev.jahaziel.workspace.domain.WorkspaceId(UUID.randomUUID());
         when(session.workspaceId()).thenReturn(workspaceId);
         when(terminals.get(any())).thenReturn(session);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> controller.close(UUID.randomUUID(), () -> "nope"));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.close(
+                                UUID.randomUUID(),
+                                new java.security.Principal() {
+
+                                    public String getName() {
+                                        return "nope";
+                                    }
+                                });
+                    }
+                });
     }
 }
