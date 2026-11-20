@@ -6,6 +6,6 @@ package dev.jahaziel.audit.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/** Repository for AuditTerminalEntity persistence. */
+/** Spring Data repository for AuditTerminalEntity; interface is required by Spring Data. */
 public interface AuditTerminalRepository
         extends JpaRepository<AuditTerminalEntity, AuditTerminalEntity.Id> {}
