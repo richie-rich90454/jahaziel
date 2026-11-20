@@ -34,6 +34,12 @@ class AuditSpoolTest {
     @Test
     void blankLinesAreRejected() {
         AuditSpool spool = new AuditSpool(root);
-        assertThrows(IllegalArgumentException.class, () -> spool.append(UUID.randomUUID(), "  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        spool.append(UUID.randomUUID(), "  ");
+                    }
+                });
     }
 }
