@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 class JahazielPluginCoverageGapTest {
-    static final class TrivialPlugin implements JahazielPlugin {}
+    static final class TrivialPlugin extends JahazielPlugin {}
 
     @Test
     void defaultsDoNothing() {
