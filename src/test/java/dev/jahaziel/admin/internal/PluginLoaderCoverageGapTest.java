@@ -11,7 +11,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -52,6 +54,24 @@ class PluginLoaderCoverageGapTest {
         assertTrue(loader.plugins().isEmpty());
     }
 
+    private static MockedStatic.Verification isDirectory() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() {
+                Files.isDirectory(any(Path.class));
+            }
+        };
+    }
+
+    private static MockedStatic.Verification listFiles() {
+        return new MockedStatic.Verification() {
+            @Override
+            public void apply() throws IOException {
+                Files.list(any(Path.class));
+            }
+        };
+    }
+
     @Test
     void ghostJarLoadsEmpty() {
         Path jar = mock(Path.class);
@@ -59,9 +79,9 @@ class PluginLoaderCoverageGapTest {
         when(jar.toUri()).thenReturn(tmp.resolve("ghost.jar").toUri());
         Path txt = mock(Path.class);
         when(txt.toString()).thenReturn("note.txt");
-        try (var files = Mockito.mockStatic(Files.class)) {
-            files.when(() -> Files.isDirectory(any(Path.class))).thenReturn(true);
-            files.when(() -> Files.list(any(Path.class))).thenReturn(Stream.of(jar, txt));
+        try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+            files.when(isDirectory()).thenReturn(true);
+            files.when(listFiles()).thenReturn(Stream.of(jar, txt));
             PluginLoader loader = new PluginLoader("whatever");
             assertTrue(loader.plugins().isEmpty());
             loader.start();
@@ -71,10 +91,17 @@ class PluginLoaderCoverageGapTest {
 
     @Test
     void listFailureWraps() {
-        try (var files = Mockito.mockStatic(Files.class)) {
-            files.when(() -> Files.isDirectory(any(Path.class))).thenReturn(true);
-            files.when(() -> Files.list(any(Path.class))).thenThrow(new IOException("boom"));
-            assertThrows(UncheckedIOException.class, () -> new PluginLoader("whatever"));
+        try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+            files.when(isDirectory()).thenReturn(true);
+            files.when(listFiles()).thenThrow(new IOException("boom"));
+            assertThrows(
+                    UncheckedIOException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() {
+                            new PluginLoader("whatever");
+                        }
+                    });
         }
     }
 
@@ -85,10 +112,17 @@ class PluginLoaderCoverageGapTest {
         URI uri = mock(URI.class);
         when(bad.toUri()).thenReturn(uri);
         when(uri.toURL()).thenThrow(new MalformedURLException("boom"));
-        try (var files = Mockito.mockStatic(Files.class)) {
-            files.when(() -> Files.isDirectory(any(Path.class))).thenReturn(true);
-            files.when(() -> Files.list(any(Path.class))).thenReturn(Stream.of(bad));
-            assertThrows(UncheckedIOException.class, () -> new PluginLoader("whatever"));
+        try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+            files.when(isDirectory()).thenReturn(true);
+            files.when(listFiles()).thenReturn(Stream.of(bad));
+            assertThrows(
+                    UncheckedIOException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() {
+                            new PluginLoader("whatever");
+                        }
+                    });
         }
     }
 }
