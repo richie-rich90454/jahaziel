@@ -26,10 +26,13 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -81,10 +85,94 @@ public final class SyncServer {
     private volatile ServerSocket serverSocket;
 
     /** A registered workspace home. */
-    record Entry(Path home, long quotaBytes, String secret) {}
+    static final class Entry {
+        private final Path home;
+        private final long quotaBytes;
+        private final String secret;
+
+        Entry(Path home, long quotaBytes, String secret) {
+            this.home = home;
+            this.quotaBytes = quotaBytes;
+            this.secret = secret;
+        }
+
+        Path home() {
+            return home;
+        }
+
+        long quotaBytes() {
+            return quotaBytes;
+        }
+
+        String secret() {
+            return secret;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (other == null || getClass() != other.getClass()) {
+                return false;
+            }
+            Entry that = (Entry) other;
+            return quotaBytes == that.quotaBytes
+                    && home.equals(that.home)
+                    && secret.equals(that.secret);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(home, quotaBytes, secret);
+        }
+
+        @Override
+        public String toString() {
+            return "Entry[home=" + home + ", quotaBytes=" + quotaBytes + ", secret=" + secret + "]";
+        }
+    }
 
     /** An authenticated session: the workspace id plus the entry it presented. */
-    private record Auth(UUID id, Entry entry) {}
+    private static final class Auth {
+        private final UUID id;
+        private final Entry entry;
+
+        Auth(UUID id, Entry entry) {
+            this.id = id;
+            this.entry = entry;
+        }
+
+        UUID id() {
+            return id;
+        }
+
+        Entry entry() {
+            return entry;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (other == null || getClass() != other.getClass()) {
+                return false;
+            }
+            Auth that = (Auth) other;
+            return id.equals(that.id) && entry.equals(that.entry);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, entry);
+        }
+
+        @Override
+        public String toString() {
+            return "Auth[id=" + id + ", entry=" + entry + "]";
+        }
+    }
 
     /**
      * Creates the server, loading the persisted registry when present.
@@ -164,7 +252,17 @@ public final class SyncServer {
         ServerSocket socket = new ServerSocket();
         socket.bind(new InetSocketAddress("127.0.0.1", port));
         serverSocket = socket;
-        Thread.ofPlatform().daemon().name("sync-accept").start(this::acceptLoop);
+        Thread acceptor =
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                acceptLoop();
+                            }
+                        },
+                        "sync-accept");
+        acceptor.setDaemon(true);
+        acceptor.start();
     }
 
     /**
@@ -196,14 +294,16 @@ public final class SyncServer {
     private void sweepStaging() throws IOException {
         Files.createDirectories(stagingDir);
         try (Stream<Path> orphans = Files.list(stagingDir)) {
-            for (Path orphan :
-                    orphans.filter(path -> !Files.isDirectory(path))
-                            .filter(
-                                    path -> {
-                                        String name = path.getFileName().toString();
-                                        return name.startsWith("push-") || name.startsWith("pull-");
-                                    })
-                            .toList()) {
+            Iterator<Path> iterator = orphans.iterator();
+            while (iterator.hasNext()) {
+                Path orphan = iterator.next();
+                if (Files.isDirectory(orphan)) {
+                    continue;
+                }
+                String name = orphan.getFileName().toString();
+                if (!name.startsWith("push-") && !name.startsWith("pull-")) {
+                    continue;
+                }
                 Files.deleteIfExists(orphan);
             }
         }
@@ -216,8 +316,18 @@ public final class SyncServer {
                 return;
             }
             try {
-                Socket client = socket.accept();
-                Thread.ofPlatform().daemon().name("sync-conn").start(() -> handleQuietly(client));
+                final Socket client = socket.accept();
+                Thread connection =
+                        new Thread(
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        handleQuietly(client);
+                                    }
+                                },
+                                "sync-conn");
+                connection.setDaemon(true);
+                connection.start();
             } catch (IOException closed) {
                 return;
             }
@@ -255,19 +365,18 @@ public final class SyncServer {
             }
             String op = Objects.toString(command.get("op"), "");
             try {
-                switch (op) {
-                    case "pull" -> pull(auth, in, out);
-                    case "push" -> push(auth, in, out);
-                    case "bye" -> {
-                        writeFrame(out, Map.of("ok", true));
-                        out.flush();
-                        return;
-                    }
-                    default -> {
-                        writeFrame(out, Map.of("ok", false, "error", "unknown op"));
-                        out.flush();
-                        return;
-                    }
+                if ("pull".equals(op)) {
+                    pull(auth, in, out);
+                } else if ("push".equals(op)) {
+                    push(auth, in, out);
+                } else if ("bye".equals(op)) {
+                    writeFrame(out, Map.of("ok", true));
+                    out.flush();
+                    return;
+                } else {
+                    writeFrame(out, Map.of("ok", false, "error", "unknown op"));
+                    out.flush();
+                    return;
                 }
             } catch (SyncException denied) {
                 writeFrame(out, Map.of("ok", false, "error", denied.getMessage()));
@@ -298,7 +407,10 @@ public final class SyncServer {
     }
 
     private static Integer number(Object value) {
-        return value instanceof Number number ? number.intValue() : null;
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return null;
     }
 
     private void pull(Auth auth, DataInputStream in, DataOutputStream out) throws IOException {
@@ -336,7 +448,14 @@ public final class SyncServer {
     }
 
     private Object lockFor(UUID workspaceId) {
-        return locks.computeIfAbsent(workspaceId, id -> new Object());
+        return locks.computeIfAbsent(
+                workspaceId,
+                new Function<UUID, Object>() {
+                    @Override
+                    public Object apply(UUID id) {
+                        return new Object();
+                    }
+                });
     }
 
     @SuppressWarnings("unchecked")
@@ -507,23 +626,36 @@ public final class SyncServer {
             }
         }
         try (Stream<Path> walk = Files.walk(home)) {
-            for (Path path :
-                    walk.filter(Files::isSymbolicLink).sorted(Comparator.reverseOrder()).toList()) {
+            List<Path> links = new ArrayList<>();
+            Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isSymbolicLink(path)) {
+                    links.add(path);
+                }
+            }
+            Collections.sort(links, Comparator.reverseOrder());
+            for (Path path : links) {
                 Files.deleteIfExists(path);
             }
         }
         try (Stream<Path> dirs = Files.walk(home)) {
-            dirs.filter(Files::isDirectory)
-                    .filter(dir -> !dir.equals(home))
-                    .sorted(Comparator.reverseOrder())
-                    .forEach(
-                            dir -> {
-                                try {
-                                    Files.deleteIfExists(dir);
-                                } catch (IOException notEmpty) {
-                                    // Still has kept files; nothing to do.
-                                }
-                            });
+            List<Path> folders = new ArrayList<>();
+            Iterator<Path> iterator = dirs.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isDirectory(path) && !path.equals(home)) {
+                    folders.add(path);
+                }
+            }
+            Collections.sort(folders, Comparator.reverseOrder());
+            for (Path path : folders) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException notEmpty) {
+                    // Still has kept files; nothing to do.
+                }
+            }
         }
     }
 
@@ -532,10 +664,16 @@ public final class SyncServer {
             return List.of();
         }
         try (Stream<Path> walk = Files.walk(home)) {
-            return walk.filter(Files::isRegularFile)
-                    .filter(path -> !Files.isSymbolicLink(path))
-                    .sorted()
-                    .toList();
+            List<Path> found = new ArrayList<>();
+            Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isRegularFile(path) && !Files.isSymbolicLink(path)) {
+                    found.add(path);
+                }
+            }
+            Collections.sort(found);
+            return found;
         }
     }
 
@@ -558,15 +696,12 @@ public final class SyncServer {
         try {
             Files.createDirectories(stateDir);
             Properties properties = new Properties();
-            entries.forEach(
-                    (id, entry) ->
-                            properties.setProperty(
-                                    id.toString(),
-                                    entry.home().toString()
-                                            + "|"
-                                            + entry.quotaBytes()
-                                            + "|"
-                                            + entry.secret()));
+            for (Map.Entry<UUID, Entry> item : entries.entrySet()) {
+                Entry entry = item.getValue();
+                properties.setProperty(
+                        item.getKey().toString(),
+                        entry.home().toString() + "|" + entry.quotaBytes() + "|" + entry.secret());
+            }
             Path staged = stateDir.resolve("registry.properties.new");
             try (OutputStream file =
                     Files.newOutputStream(
@@ -615,19 +750,17 @@ public final class SyncServer {
         } catch (IOException failure) {
             throw new SyncException("cannot load registry", failure);
         }
-        properties.forEach(
-                (key, value) -> {
-                    String[] parts = value.toString().split("\\|", 3);
-                    if (parts.length == 3) {
-                        try {
-                            entries.put(
-                                    UUID.fromString(key.toString()),
-                                    new Entry(
-                                            Path.of(parts[0]), Long.parseLong(parts[1]), parts[2]));
-                        } catch (IllegalArgumentException bad) {
-                            // Corrupt row; a fresh prepare rewrites it.
-                        }
-                    }
-                });
+        for (String key : properties.stringPropertyNames()) {
+            String[] parts = properties.getProperty(key).split("\\|", 3);
+            if (parts.length == 3) {
+                try {
+                    entries.put(
+                            UUID.fromString(key),
+                            new Entry(Path.of(parts[0]), Long.parseLong(parts[1]), parts[2]));
+                } catch (IllegalArgumentException bad) {
+                    // Corrupt row; a fresh prepare rewrites it.
+                }
+            }
+        }
     }
 }
