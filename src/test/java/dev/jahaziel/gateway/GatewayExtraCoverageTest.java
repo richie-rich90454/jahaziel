@@ -103,10 +103,17 @@ class GatewayExtraCoverageTest {
                                 "aud",
                                 "https://code.example.com"));
         assertEquals(sub, s.userId());
-        assertThrows(JwtRejectedException.class, () -> v.verify("garbage"));
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify("garbage");
+                    }
+                });
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         priv,
@@ -117,10 +124,13 @@ class GatewayExtraCoverageTest {
                                         new Date(),
                                         "a",
                                         "aud",
-                                        "https://evil")));
+                                        "https://evil"));
+                    }
+                });
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         priv,
@@ -131,7 +141,9 @@ class GatewayExtraCoverageTest {
                                         new Date(),
                                         "a",
                                         "other",
-                                        "https://code.example.com")));
+                                        "https://code.example.com"));
+                    }
+                });
         JWTClaimsSet noAud =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -141,10 +153,17 @@ class GatewayExtraCoverageTest {
                         .build();
         SignedJWT j0 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), noAud);
         j0.sign(new RSASSASigner(priv));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j0.serialize()));
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j0.serialize());
+                    }
+                });
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         priv,
@@ -155,7 +174,9 @@ class GatewayExtraCoverageTest {
                                         new Date(0),
                                         "a",
                                         "aud",
-                                        "https://code.example.com")));
+                                        "https://code.example.com"));
+                    }
+                });
         JWTClaimsSet noExp =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -165,10 +186,17 @@ class GatewayExtraCoverageTest {
                         .build();
         SignedJWT j1 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), noExp);
         j1.sign(new RSASSASigner(priv));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j1.serialize()));
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j1.serialize());
+                    }
+                });
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         priv,
@@ -179,7 +207,9 @@ class GatewayExtraCoverageTest {
                                         new Date(),
                                         "a",
                                         "aud",
-                                        "https://code.example.com")));
+                                        "https://code.example.com"));
+                    }
+                });
         JWTClaimsSet noIat =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -194,7 +224,8 @@ class GatewayExtraCoverageTest {
         assertTrue(v.verify(j2.serialize()).scopes().contains("a"));
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         (RSAPrivateKey) other.getPrivate(),
@@ -205,10 +236,13 @@ class GatewayExtraCoverageTest {
                                         new Date(),
                                         "a",
                                         "aud",
-                                        "https://code.example.com")));
+                                        "https://code.example.com"));
+                    }
+                });
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                         priv,
@@ -219,10 +253,13 @@ class GatewayExtraCoverageTest {
                                         new Date(),
                                         "a",
                                         "aud",
-                                        "https://code.example.com")));
+                                        "https://code.example.com"));
+                    }
+                });
         assertThrows(
                 JwtRejectedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         v.verify(
                                 sign(
                                                 priv,
@@ -234,7 +271,9 @@ class GatewayExtraCoverageTest {
                                                 "a",
                                                 "aud",
                                                 "https://code.example.com")
-                                        .replaceFirst("\\.[^.]+$", ".AAAA")));
+                                        .replaceFirst("\\.[^.]+$", ".AAAA"));
+                    }
+                });
         SignedJWT badAlg =
                 new SignedJWT(
                         new JWSHeader(JWSAlgorithm.HS256),
@@ -246,17 +285,41 @@ class GatewayExtraCoverageTest {
                                 .claim("wid", wid.toString())
                                 .build());
         badAlg.sign(new MACSigner(new byte[32]));
-        assertThrows(JwtRejectedException.class, () -> v.verify(badAlg.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(badAlg.serialize());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new JwtVerifier(pub, "", "aud", Duration.ofMinutes(1)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(pub, "", "aud", Duration.ofMinutes(1));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new JwtVerifier(pub, "i", "", Duration.ofMinutes(1)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(pub, "i", "", Duration.ofMinutes(1));
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new JwtVerifier(null, "i", "a", Duration.ofMinutes(1)));
-        assertThrows(NullPointerException.class, () -> new JwtVerifier(pub, "i", "a", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(null, "i", "a", Duration.ofMinutes(1));
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(pub, "i", "a", null);
+                    }
+                });
     }
 
     @Test
@@ -308,7 +371,13 @@ class GatewayExtraCoverageTest {
                         .build();
         SignedJWT j = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), badWid);
         j.sign(new RSASSASigner(priv));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j.serialize());
+                    }
+                });
         JWTClaimsSet badSub =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -319,7 +388,13 @@ class GatewayExtraCoverageTest {
                         .build();
         SignedJWT j2 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), badSub);
         j2.sign(new RSASSASigner(priv));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j2.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j2.serialize());
+                    }
+                });
         JWTClaimsSet scopeList =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -331,7 +406,13 @@ class GatewayExtraCoverageTest {
                         .build();
         SignedJWT j3 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), scopeList);
         j3.sign(new RSASSASigner(priv));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j3.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j3.serialize());
+                    }
+                });
     }
 
     @Test
@@ -350,44 +431,150 @@ class GatewayExtraCoverageTest {
         assertEquals(pub, JwtKeys.loadPublicKey(f));
         Path bad64 = tmp.resolve("bad.pem");
         Files.writeString(bad64, "-----BEGIN PUBLIC KEY-----\n!!!\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtKeys.loadPublicKey(bad64));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        JwtKeys.loadPublicKey(bad64);
+                    }
+                });
         Path notKey = tmp.resolve("notkey.pem");
         Files.writeString(
                 notKey,
                 "-----BEGIN PUBLIC KEY-----\n"
                         + Base64.getMimeEncoder().encodeToString(new byte[] {1, 2, 3})
                         + "\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtKeys.loadPublicKey(notKey));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JwtKeys.loadPublicKey(tmp.resolve("missing.pem")));
-        assertThrows(IllegalArgumentException.class, () -> JwtKeys.loadPublicKey(tmp));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        JwtKeys.loadPublicKey(notKey);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        JwtKeys.loadPublicKey(tmp.resolve("missing.pem"));
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        JwtKeys.loadPublicKey(tmp);
+                    }
+                });
     }
 
     @Test
     void hostParserBranches() {
-        assertThrows(IllegalArgumentException.class, () -> new HostParser(null));
-        assertThrows(IllegalArgumentException.class, () -> new HostParser(" "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostParser(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostParser(" ");
+                    }
+                });
         HostParser p = new HostParser("code.example.com");
-        assertThrows(NullPointerException.class, () -> p.parse(null));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("other.com"));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("code.example.com"));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("nodash.code.example.com"));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("-8080.code.example.com"));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("user-.code.example.com"));
-        assertThrows(IllegalArgumentException.class, () -> p.parse("user-abc.code.example.com"));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("other.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("nodash.code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("-8080.code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("user-.code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("user-abc.code.example.com");
+                    }
+                });
         ParsedHost ok = p.parse("RICHARD-8080.code.example.com.");
         assertEquals("richard", ok.userSlug());
         assertEquals(8080, ok.port());
-        assertThrows(IllegalArgumentException.class, () -> p.parse("u-0.code.example.com"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        p.parse("u-0.code.example.com");
+                    }
+                });
     }
 
     @Test
     void parsedHostAndDirectoryBranches() {
-        assertThrows(IllegalArgumentException.class, () -> new ParsedHost(null, 1));
-        assertThrows(IllegalArgumentException.class, () -> new ParsedHost(" ", 1));
-        assertThrows(IllegalArgumentException.class, () -> new ParsedHost("u", 0));
-        assertThrows(IllegalArgumentException.class, () -> new ParsedHost("u", 70000));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ParsedHost(null, 1);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ParsedHost(" ", 1);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ParsedHost("u", 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ParsedHost("u", 70000);
+                    }
+                });
         WorkspaceDirectory d = new WorkspaceDirectory();
         assertTrue(d.lookup("u", 8080).isEmpty());
         UUID wid = UUID.randomUUID();
@@ -395,11 +582,34 @@ class GatewayExtraCoverageTest {
         assertEquals(Optional.of(wid), d.lookup("u", 8080));
         d.unregister("u", 8080);
         assertTrue(d.lookup("u", 8080).isEmpty());
-        assertThrows(IllegalArgumentException.class, () -> d.register(" ", 1, wid));
-        assertThrows(IllegalArgumentException.class, () -> d.register(null, 1, wid));
-        assertThrows(NullPointerException.class, () -> d.register("u", 1, null));
         assertThrows(
-                NullPointerException.class, () -> new LoopbackTargetResolver().resolve(null, 1));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        d.register(" ", 1, wid);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        d.register(null, 1, wid);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        d.register("u", 1, null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new LoopbackTargetResolver().resolve(null, 1);
+                    }
+                });
         InetSocketAddress addr = new LoopbackTargetResolver().resolve(UUID.randomUUID(), 8080);
         assertEquals(8080, addr.getPort());
     }
@@ -414,7 +624,13 @@ class GatewayExtraCoverageTest {
         try (ServerSocket probe = new ServerSocket(0)) {
             port = probe.getLocalPort();
         }
-        Thread.ofVirtual().start(() -> server.serve(port));
+        Thread.ofVirtual()
+                .start(
+                        new Runnable() {
+                            public void run() {
+                                server.serve(port);
+                            }
+                        });
         Thread.sleep(300);
         UUID wid = UUID.randomUUID();
         UUID sub = UUID.randomUUID();
@@ -464,7 +680,13 @@ class GatewayExtraCoverageTest {
                         .contains("backend unreachable"));
         server.stop();
         Object h = readHead("POST /x HTTP/1.1\r\nHost: h\r\nContent-Length: -1\r\n\r\n");
-        assertThrows(Exception.class, () -> contentLength(h));
+        assertThrows(
+                Exception.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        contentLength(h);
+                    }
+                });
         Object h2 =
                 readHead(
                         "GET /x?a=1&token=abc&b=2 HTTP/1.1\r\nHost: h\r\nAuthorization: Bearer good\r\n\r\n");
@@ -474,13 +696,14 @@ class GatewayExtraCoverageTest {
 
     @SuppressWarnings("unchecked")
     private static java.util.Map<String, String> headers(Object head) throws Exception {
-        var m = head.getClass().getDeclaredMethod("headers");
+        java.lang.reflect.Method m = head.getClass().getDeclaredMethod("headers");
         m.setAccessible(true);
         return (java.util.Map<String, String>) m.invoke(head);
     }
 
     private static Object readHead(String raw) throws Exception {
-        var m = GatewayServer.class.getDeclaredMethod("readHead", java.io.InputStream.class);
+        java.lang.reflect.Method m =
+                GatewayServer.class.getDeclaredMethod("readHead", java.io.InputStream.class);
         m.setAccessible(true);
         return m.invoke(
                 null, new java.io.ByteArrayInputStream(raw.getBytes(StandardCharsets.US_ASCII)));
@@ -488,7 +711,7 @@ class GatewayExtraCoverageTest {
 
     private static long contentLength(Object head) throws Exception {
         try {
-            var m = head.getClass().getDeclaredMethod("contentLength");
+            java.lang.reflect.Method m = head.getClass().getDeclaredMethod("contentLength");
             m.setAccessible(true);
             return (long) m.invoke(head);
         } catch (java.lang.reflect.InvocationTargetException e) {
