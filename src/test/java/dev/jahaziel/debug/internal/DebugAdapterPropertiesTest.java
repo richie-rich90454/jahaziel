@@ -16,14 +16,15 @@ import java.util.Map;
 class DebugAdapterPropertiesTest {
     @Test
     void acceptsFixedAbsoluteStdioAdapterCommand() {
-        var adapter = new DebugAdapterProperties.Adapter("1.0", List.of(executable()), null);
+        DebugAdapterProperties.Adapter adapter =
+                new DebugAdapterProperties.Adapter("1.0", List.of(executable()), null);
 
         assertEquals(DebugAdapterProperties.Transport.STDIO, adapter.transport());
     }
 
     @Test
     void acceptsTcpAdapterWithServerOwnedPortArgument() {
-        var adapter =
+        DebugAdapterProperties.Adapter adapter =
                 new DebugAdapterProperties.Adapter(
                         "1.2.3",
                         List.of(executable(), "dap", "--listen=127.0.0.1:{port}"),
@@ -36,23 +37,33 @@ class DebugAdapterPropertiesTest {
     void rejectsRelativeExecutablesAndMismatchedTransports() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DebugAdapterProperties.Adapter("1.0", List.of("debugpy"), null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DebugAdapterProperties.Adapter("1.0", List.of("debugpy"), null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugAdapterProperties.Adapter(
-                                "1.0",
-                                List.of(executable()),
-                                DebugAdapterProperties.Transport.TCP));
+                                "1.0", List.of(executable()), DebugAdapterProperties.Transport.TCP);
+                    }
+                });
     }
 
     @Test
     void rejectsLanguageOutsideTheFixedCatalog() {
-        var adapter = new DebugAdapterProperties.Adapter("1.0", List.of(executable()), null);
+        DebugAdapterProperties.Adapter adapter =
+                new DebugAdapterProperties.Adapter("1.0", List.of(executable()), null);
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DebugAdapterProperties(Map.of("shell", adapter)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DebugAdapterProperties(Map.of("shell", adapter));
+                    }
+                });
     }
 
     private static String executable() {
