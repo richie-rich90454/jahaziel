@@ -19,6 +19,7 @@ import dev.jahaziel.identity.api.JwtRejectedException;
 import dev.jahaziel.identity.domain.UserId;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.lang.reflect.Method;
 import java.security.KeyPair;
@@ -36,7 +37,23 @@ class IdentityJwtFinalTest {
     private static final String ISSUER = "https://id.test";
     private static final String AUDIENCE = "jahaziel-test";
 
-    private record Keys(RSAPrivateKey priv, RSAPublicKey pub) {}
+    private static final class Keys {
+        private final RSAPrivateKey priv;
+        private final RSAPublicKey pub;
+
+        private Keys(RSAPrivateKey priv, RSAPublicKey pub) {
+            this.priv = priv;
+            this.pub = pub;
+        }
+
+        private RSAPrivateKey priv() {
+            return priv;
+        }
+
+        private RSAPublicKey pub() {
+            return pub;
+        }
+    }
 
     private static Keys keys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -53,7 +70,7 @@ class IdentityJwtFinalTest {
 
     @Test
     void rejectsMissingAudience() throws Exception {
-        Keys keys = keys();
+        final Keys keys = keys();
         Instant now = Instant.now();
         JWTClaimsSet claims =
                 new JWTClaimsSet.Builder()
@@ -64,13 +81,20 @@ class IdentityJwtFinalTest {
                         .build();
         JwtServiceImpl svc = new JwtServiceImpl(keys.priv(), keys.pub(), ISSUER, AUDIENCE);
         JwtRejectedException rejected =
-                assertThrows(JwtRejectedException.class, () -> svc.verify(sign(keys, claims)));
+                assertThrows(
+                        JwtRejectedException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                svc.verify(sign(keys, claims));
+                            }
+                        });
         assertEquals("wrong audience", rejected.getMessage());
     }
 
     @Test
     void rejectsWrongAudience() throws Exception {
-        Keys keys = keys();
+        final Keys keys = keys();
         Instant now = Instant.now();
         JWTClaimsSet claims =
                 new JWTClaimsSet.Builder()
@@ -82,7 +106,14 @@ class IdentityJwtFinalTest {
                         .build();
         JwtServiceImpl svc = new JwtServiceImpl(keys.priv(), keys.pub(), ISSUER, AUDIENCE);
         JwtRejectedException rejected =
-                assertThrows(JwtRejectedException.class, () -> svc.verify(sign(keys, claims)));
+                assertThrows(
+                        JwtRejectedException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                svc.verify(sign(keys, claims));
+                            }
+                        });
         assertEquals("wrong audience", rejected.getMessage());
     }
 
