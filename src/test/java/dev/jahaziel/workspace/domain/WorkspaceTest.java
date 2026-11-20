@@ -58,10 +58,20 @@ class WorkspaceTest {
                         new VirtualMachineConfiguration(2, 2048));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Workspace(workspaceId, owner, "  ", quota, vm));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new Workspace(workspaceId, owner, "  ", quota, vm);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Workspace(workspaceId, owner, "x".repeat(65), quota, vm));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new Workspace(workspaceId, owner, "x".repeat(65), quota, vm);
+                    }
+                });
     }
 
     @Test
@@ -70,7 +80,14 @@ class WorkspaceTest {
         workspace.boot();
         workspace.abortBoot();
         assertInstanceOf(WorkspaceState.Suspended.class, workspace.state());
-        assertThrows(IllegalWorkspaceStateException.class, workspace::abortBoot);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.abortBoot();
+                    }
+                });
     }
 
     @Test
@@ -82,17 +99,45 @@ class WorkspaceTest {
         workspace.suspend();
         workspace.reboot();
         assertInstanceOf(WorkspaceState.Requested.class, workspace.state());
-        assertThrows(IllegalWorkspaceStateException.class, workspace::reboot);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.reboot();
+                    }
+                });
         workspace.prepare();
-        assertThrows(IllegalWorkspaceStateException.class, workspace::reboot);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.reboot();
+                    }
+                });
     }
 
     @Test
     void prepareRejectsNonRequested() {
         workspace.prepare();
-        assertThrows(IllegalWorkspaceStateException.class, workspace::prepare);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.prepare();
+                    }
+                });
         workspace.boot();
-        assertThrows(IllegalWorkspaceStateException.class, workspace::prepare);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.prepare();
+                    }
+                });
     }
 
     @Test
@@ -111,7 +156,14 @@ class WorkspaceTest {
     @Test
     void startRequiresReadyOrIdle() {
         IllegalWorkspaceStateException failure =
-                assertThrows(IllegalWorkspaceStateException.class, workspace::start);
+                assertThrows(
+                        IllegalWorkspaceStateException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                workspace.start();
+                            }
+                        });
         assertEquals(workspaceId, failure.workspaceId());
         assertEquals("start", failure.action());
     }
@@ -137,22 +189,71 @@ class WorkspaceTest {
         workspace.prepare();
         workspace.boot();
         workspace.markReady();
-        assertThrows(IllegalWorkspaceStateException.class, workspace::suspend);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.suspend();
+                    }
+                });
     }
 
     @Test
     void resumeRequiresSuspended() {
-        assertThrows(IllegalWorkspaceStateException.class, workspace::resume);
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.resume();
+                    }
+                });
     }
 
     @Test
     void illegalTransitionsThrow() {
-        assertThrows(IllegalWorkspaceStateException.class, workspace::boot);
-        assertThrows(IllegalWorkspaceStateException.class, workspace::markReady);
-        assertThrows(IllegalWorkspaceStateException.class, () -> workspace.markIdle(Instant.now()));
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.boot();
+                    }
+                });
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.markReady();
+                    }
+                });
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.markIdle(Instant.now());
+                    }
+                });
         workspace.destroy();
-        assertThrows(IllegalWorkspaceStateException.class, workspace::destroy);
-        assertThrows(IllegalWorkspaceStateException.class, () -> workspace.fail("boom"));
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.destroy();
+                    }
+                });
+        assertThrows(
+                IllegalWorkspaceStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.fail("boom");
+                    }
+                });
     }
 
     @Test
@@ -161,7 +262,14 @@ class WorkspaceTest {
         WorkspaceState.Failed failed =
                 assertInstanceOf(WorkspaceState.Failed.class, workspace.state());
         assertEquals("disk lost", failed.reason());
-        assertThrows(IllegalArgumentException.class, () -> workspace.fail("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        workspace.fail("  ");
+                    }
+                });
     }
 
     @Test
