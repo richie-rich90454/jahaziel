@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
@@ -196,7 +197,14 @@ class CliParsingTest {
         assertEquals(
                 "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
                 Cli.sha256(file));
-        assertThrows(java.io.IOException.class, () -> Cli.sha256(tmp.resolve("absent")));
+        assertThrows(
+                java.io.IOException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        Cli.sha256(tmp.resolve("absent"));
+                    }
+                });
     }
 
     @Test
