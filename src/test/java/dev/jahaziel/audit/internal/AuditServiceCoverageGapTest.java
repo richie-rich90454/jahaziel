@@ -33,9 +33,22 @@ class AuditServiceCoverageGapTest {
         when(events.findLatest(anyPageable())).thenReturn(List.of());
         AuditServiceImpl service = new AuditServiceImpl(events);
         try (MockedStatic<MessageDigest> digest = mockStatic(MessageDigest.class)) {
-            digest.when(() -> MessageDigest.getInstance("SHA-256"))
+            digest.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    MessageDigest.getInstance("SHA-256");
+                                }
+                            })
                     .thenThrow(new NoSuchAlgorithmException("gone"));
-            assertThrows(IllegalStateException.class, () -> service.append(input()));
+            assertThrows(
+                    IllegalStateException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            service.append(input());
+                        }
+                    });
         }
     }
 
