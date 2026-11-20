@@ -27,6 +27,13 @@ class WorkspaceIdTest {
 
     @Test
     void nullValueIsRejected() {
-        assertThrows(NullPointerException.class, () -> new WorkspaceId(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new WorkspaceId(null);
+                    }
+                });
     }
 }
