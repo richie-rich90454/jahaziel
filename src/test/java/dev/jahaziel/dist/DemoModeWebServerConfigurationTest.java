@@ -30,19 +30,46 @@ class DemoModeWebServerConfigurationTest {
 
     @Test
     void doesNotAddTheDemoCustomizerWhenDemoIsDisabled() {
-        runner.run(context -> assertFalse(context.containsBean("demoModeLoopbackCustomizer")));
+        runner.run(
+                new org.springframework.boot.test.context.runner.ContextConsumer<
+                        org.springframework.boot.test.context.assertj
+                                .AssertableApplicationContext>() {
+                    @Override
+                    public void accept(
+                            org.springframework.boot.test.context.assertj
+                                            .AssertableApplicationContext
+                                    context) {
+                        assertFalse(context.containsBean("demoModeLoopbackCustomizer"));
+                    }
+                });
     }
 
     @Test
     void jvmDemoPropertyOverridesAnAllInterfacesServerAddress() throws Exception {
         runner.withSystemProperties("jahaziel.demo=true", "server.address=0.0.0.0")
-                .run(this::assertLoopbackCustomizer);
+                .run(
+                        new org.springframework.boot.test.context.runner.ContextConsumer<
+                                org.springframework.boot.test.context.assertj
+                                        .AssertableApplicationContext>() {
+                            @Override
+                            public void accept(
+                                    org.springframework.boot.test.context.assertj
+                                                    .AssertableApplicationContext
+                                            context) {
+                                assertLoopbackCustomizer(context);
+                            }
+                        });
     }
 
     @Test
     void environmentAliasActivatesTheLoopbackCustomizer() throws Exception {
         runner.withInitializer(
-                        context ->
+                        new org.springframework.context.ApplicationContextInitializer<
+                                org.springframework.context.ConfigurableApplicationContext>() {
+                            @Override
+                            public void initialize(
+                                    org.springframework.context.ConfigurableApplicationContext
+                                            context) {
                                 ((ConfigurableEnvironment) context.getEnvironment())
                                         .getPropertySources()
                                         .addFirst(
@@ -52,14 +79,38 @@ class DemoModeWebServerConfigurationTest {
                                                                 "JAHAZIEL_DEMO",
                                                                 "true",
                                                                 "SERVER_ADDRESS",
-                                                                "0.0.0.0"))))
-                .run(this::assertLoopbackCustomizer);
+                                                                "0.0.0.0")));
+                            }
+                        })
+                .run(
+                        new org.springframework.boot.test.context.runner.ContextConsumer<
+                                org.springframework.boot.test.context.assertj
+                                        .AssertableApplicationContext>() {
+                            @Override
+                            public void accept(
+                                    org.springframework.boot.test.context.assertj
+                                                    .AssertableApplicationContext
+                                            context) {
+                                assertLoopbackCustomizer(context);
+                            }
+                        });
     }
 
     @Test
     void springConfigDemoPropertyAlsoUsesLoopback() throws Exception {
         runner.withPropertyValues("jahaziel.demo=true", "server.address=0.0.0.0")
-                .run(this::assertLoopbackCustomizer);
+                .run(
+                        new org.springframework.boot.test.context.runner.ContextConsumer<
+                                org.springframework.boot.test.context.assertj
+                                        .AssertableApplicationContext>() {
+                            @Override
+                            public void accept(
+                                    org.springframework.boot.test.context.assertj
+                                                    .AssertableApplicationContext
+                                            context) {
+                                assertLoopbackCustomizer(context);
+                            }
+                        });
     }
 
     @Test
@@ -67,15 +118,23 @@ class DemoModeWebServerConfigurationTest {
         for (String value : new String[] {"true", "on", "yes", "1"}) {
             runner.withPropertyValues("jahaziel.demo=" + value)
                     .run(
-                            context -> {
-                                boolean injectedDemoMode =
-                                        context.getBean("demoModeEnabled", Boolean.class);
-                                assertTrue(
-                                        injectedDemoMode,
-                                        "Spring should parse demo mode value: " + value);
-                                assertTrue(
-                                        context.containsBean("demoModeLoopbackCustomizer"),
-                                        "demo mode " + value + " must force loopback");
+                            new org.springframework.boot.test.context.runner.ContextConsumer<
+                                    org.springframework.boot.test.context.assertj
+                                            .AssertableApplicationContext>() {
+                                @Override
+                                public void accept(
+                                        org.springframework.boot.test.context.assertj
+                                                        .AssertableApplicationContext
+                                                context) {
+                                    boolean injectedDemoMode =
+                                            context.getBean("demoModeEnabled", Boolean.class);
+                                    assertTrue(
+                                            injectedDemoMode,
+                                            "Spring should parse demo mode value: " + value);
+                                    assertTrue(
+                                            context.containsBean("demoModeLoopbackCustomizer"),
+                                            "demo mode " + value + " must force loopback");
+                                }
                             });
         }
     }
