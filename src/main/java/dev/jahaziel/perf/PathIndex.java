@@ -39,7 +39,15 @@ public final class PathIndex {
             return path;
         }
 
+        public String getPath() {
+            return path;
+        }
+
         public String name() {
+            return name;
+        }
+
+        public String getName() {
             return name;
         }
 
@@ -47,7 +55,19 @@ public final class PathIndex {
             return directory;
         }
 
+        public boolean getDirectory() {
+            return directory;
+        }
+
+        public boolean isDirectory() {
+            return directory;
+        }
+
         public long size() {
+            return size;
+        }
+
+        public long getSize() {
             return size;
         }
     }
