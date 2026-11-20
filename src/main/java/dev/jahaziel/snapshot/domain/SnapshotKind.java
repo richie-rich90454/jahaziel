@@ -5,11 +5,24 @@
 package dev.jahaziel.snapshot.domain;
 
 /** How a snapshot was triggered. */
-public enum SnapshotKind {
+public final class SnapshotKind {
     /** Platform-managed daily snapshot. Does not count against quota. */
-    AUTO,
+    public static final SnapshotKind AUTO = new SnapshotKind("AUTO");
+
     /** User-triggered snapshot. Counts against quota. */
-    MANUAL,
+    public static final SnapshotKind MANUAL = new SnapshotKind("MANUAL");
+
     /** Taken before administrative deletion. Kept 90 days. */
-    PRE_DELETE
+    public static final SnapshotKind PRE_DELETE = new SnapshotKind("PRE_DELETE");
+
+    private final String name;
+
+    private SnapshotKind(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }
