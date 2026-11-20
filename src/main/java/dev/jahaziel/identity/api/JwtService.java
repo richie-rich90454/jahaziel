@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Issues and verifies short-lived session tokens. RS256 with platform keys. */
-public interface JwtService {
+public abstract class JwtService {
     /**
      * Issues a token.
      *
@@ -21,7 +21,7 @@ public interface JwtService {
      * @param ttl the time to live
      * @return the compact token
      */
-    String issue(UserId user, UUID workspaceId, List<String> scopes, Duration ttl);
+    public abstract String issue(UserId user, UUID workspaceId, List<String> scopes, Duration ttl);
 
     /**
      * Verifies a token.
@@ -30,5 +30,5 @@ public interface JwtService {
      * @return the verified session
      * @throws JwtRejectedException when the token is invalid, expired, or misissued
      */
-    JwtSession verify(String token);
+    public abstract JwtSession verify(String token);
 }
