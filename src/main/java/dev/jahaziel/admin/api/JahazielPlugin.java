@@ -15,28 +15,28 @@ import java.util.UUID;
  * Plugin hooks: lifecycle, authentication, gateway routing, administration. Discovered from {@code
  * data/plugins/*.jar} via {@code ServiceLoader}. Every hook defaults to no opinion.
  */
-public interface JahazielPlugin {
+public abstract class JahazielPlugin {
     /** Returns the plugin name. */
-    default String name() {
+    public String name() {
         return getClass().getSimpleName();
     }
 
     /** Runs after the plugin loads. */
-    default void onStartup() {}
+    public void onStartup() {}
 
     /** Runs before the context closes. */
-    default void onShutdown() {}
+    public void onShutdown() {}
 
     /** Authenticates a token, empty when this plugin has no opinion. */
-    default Optional<UserIdentity> authenticate(String token) {
+    public Optional<UserIdentity> authenticate(String token) {
         return Optional.empty();
     }
 
     /** Overrides the gateway target for a workspace port, empty to keep the default. */
-    default Optional<URI> gatewayTarget(UUID workspaceId, int port) {
+    public Optional<URI> gatewayTarget(UUID workspaceId, int port) {
         return Optional.empty();
     }
 
     /** Observes an administration action. */
-    default void adminAction(String action, Map<String, String> context) {}
+    public void adminAction(String action, Map<String, String> context) {}
 }
