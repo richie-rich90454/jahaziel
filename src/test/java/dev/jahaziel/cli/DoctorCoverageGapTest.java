@@ -64,7 +64,14 @@ class DoctorCoverageGapTest {
         Runtime.Version old = Runtime.Version.parse("17");
         try (MockedStatic<Runtime> mocked =
                 Mockito.mockStatic(Runtime.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(Runtime::version).thenReturn(old);
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Runtime.version();
+                                }
+                            })
+                    .thenReturn(old);
             Doctor.Check check =
                     CliTestSupport.find(
                             Doctor.run(
@@ -118,9 +125,10 @@ class DoctorCoverageGapTest {
             assertTrue(true);
             return;
         }
-        try (var loader = new java.net.URLClassLoader(urls.toArray(new java.net.URL[0]), null)) {
+        try (java.net.URLClassLoader loader =
+                new java.net.URLClassLoader(urls.toArray(new java.net.URL[0]), null)) {
             Class<?> doctor = Class.forName("dev.jahaziel.cli.Doctor", true, loader);
-            var run =
+            java.lang.reflect.Method run =
                     doctor.getMethod(
                             "run", Path.class, Path.class, int.class, Map.class, Path.class);
             List<?> checks =
@@ -134,7 +142,7 @@ class DoctorCoverageGapTest {
                                     jarDir.resolve("jahaziel.jar"));
             boolean found = false;
             for (Object c : checks) {
-                var name = (String) c.getClass().getMethod("name").invoke(c);
+                String name = (String) c.getClass().getMethod("name").invoke(c);
                 if (name.equals("sqlite")) {
                     found = true;
                     boolean ok = (boolean) c.getClass().getMethod("ok").invoke(c);
@@ -174,13 +182,90 @@ class DoctorCoverageGapTest {
         Path slugDir = env.dataDir().resolve("ide").resolve("linux-x64");
         Files.createDirectories(slugDir);
         Files.writeString(slugDir.resolve("stale.txt"), "x", StandardCharsets.UTF_8);
-        var checks =
+        List<Doctor.Check> checks =
                 Doctor.run(env.jarDir(), env.dataDir(), env.port(), env.fileEnv(), env.jarFile());
-        assertTrue(checks.stream().noneMatch(check -> check.name().equals("reh")));
+        boolean hasReh = false;
+        for (Doctor.Check check : checks) {
+            if (check.name().equals("reh")) {
+                hasReh = true;
+                break;
+            }
+        }
+        assertTrue(!hasReh);
         assertTrue(Files.isRegularFile(slugDir.resolve("stale.txt")));
         assertTrue(!Doctor.dataLocked(dir.resolve("nope-probe")));
     }
 
-    private record Env(
-            Path jarDir, Path dataDir, int port, Map<String, String> fileEnv, Path jarFile) {}
+    private static final class Env {
+        private final Path jarDir;
+        private final Path dataDir;
+        private final int port;
+        private final Map<String, String> fileEnv;
+        private final Path jarFile;
+
+        private Env(
+                Path jarDir, Path dataDir, int port, Map<String, String> fileEnv, Path jarFile) {
+            this.jarDir = jarDir;
+            this.dataDir = dataDir;
+            this.port = port;
+            this.fileEnv = fileEnv;
+            this.jarFile = jarFile;
+        }
+
+        private Path jarDir() {
+            return jarDir;
+        }
+
+        private Path dataDir() {
+            return dataDir;
+        }
+
+        private int port() {
+            return port;
+        }
+
+        private Map<String, String> fileEnv() {
+            return fileEnv;
+        }
+
+        private Path jarFile() {
+            return jarFile;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Env)) {
+                return false;
+            }
+            Env that = (Env) other;
+            return port == that.port
+                    && java.util.Objects.equals(jarDir, that.jarDir)
+                    && java.util.Objects.equals(dataDir, that.dataDir)
+                    && java.util.Objects.equals(fileEnv, that.fileEnv)
+                    && java.util.Objects.equals(jarFile, that.jarFile);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(jarDir, dataDir, port, fileEnv, jarFile);
+        }
+
+        @Override
+        public String toString() {
+            return "Env[jarDir="
+                    + jarDir
+                    + ", dataDir="
+                    + dataDir
+                    + ", port="
+                    + port
+                    + ", fileEnv="
+                    + fileEnv
+                    + ", jarFile="
+                    + jarFile
+                    + "]";
+        }
+    }
 }
