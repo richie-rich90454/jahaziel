@@ -75,7 +75,11 @@ class PortServiceImplTest {
         IllegalArgumentException failure =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> service.registerPort(userId, 8080, workspaceId, "http"));
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                service.registerPort(userId, 8080, workspaceId, "http");
+                            }
+                        });
 
         assertTrue(failure.getMessage().contains("at most 32 ports"));
     }
@@ -86,19 +90,31 @@ class PortServiceImplTest {
         when(workspaces.get(workspaceId)).thenReturn(workspace());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.registerPort(userId, 22, workspaceId, "tcp"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.registerPort(userId, 22, workspaceId, "tcp");
+                    }
+                });
         WorkspacePortEntity.Id key = new WorkspacePortEntity.Id();
         key.setWorkspaceId(workspaceId.value());
         key.setPort(8080);
         when(ports.existsById(key)).thenReturn(true);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.registerPort(userId, 8080, workspaceId, "http"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.registerPort(userId, 8080, workspaceId, "http");
+                    }
+                });
         UserId stranger = new UserId(UUID.randomUUID());
         when(users.get(stranger)).thenReturn(identity());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.registerPort(stranger, 8080, workspaceId, "http"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.registerPort(stranger, 8080, workspaceId, "http");
+                    }
+                });
     }
 
     @Test
@@ -112,7 +128,13 @@ class PortServiceImplTest {
         when(ports.findByIdWorkspaceId(workspaceId.value())).thenReturn(List.of(row));
         service.unregisterPort(userId, 8080);
         verify(ports).delete(row);
-        assertThrows(IllegalArgumentException.class, () -> service.unregisterPort(userId, 9090));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.unregisterPort(userId, 9090);
+                    }
+                });
     }
 
     @Test
