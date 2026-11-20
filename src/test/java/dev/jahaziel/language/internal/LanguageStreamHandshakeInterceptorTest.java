@@ -135,7 +135,14 @@ class LanguageStreamHandshakeInterceptorTest {
                                 "http://localhost:8080/api/v1/workspaces/"
                                         + workspaceId.value()
                                         + "/language-services/rust"));
-        when(request.getPrincipal()).thenReturn(() -> owner.value().toString());
+        when(request.getPrincipal())
+                .thenReturn(
+                        new java.security.Principal() {
+                            @Override
+                            public String getName() {
+                                return owner.value().toString();
+                            }
+                        });
         return request;
     }
 
