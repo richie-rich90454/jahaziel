@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Runs host commands with ProcessBuilder. */
-public final class ProcessCommandRunner implements CommandRunner {
+public final class ProcessCommandRunner extends CommandRunner {
     @Override
     public String run(List<String> command) {
         Objects.requireNonNull(command, "command");
