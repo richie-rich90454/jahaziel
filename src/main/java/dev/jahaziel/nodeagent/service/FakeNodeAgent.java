@@ -14,22 +14,20 @@ import dev.jahaziel.spi.SnapshotHandle;
 import dev.jahaziel.spi.SnapshotTag;
 import dev.jahaziel.spi.StorageUsage;
 import dev.jahaziel.spi.WorkspaceHandle;
-import dev.jahaziel.spi.WorkspaceStorage;
 
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
-/**
- * In-memory node agent for development and tests. Implements the operations facade and both plugin
- * contracts with no host calls and instant transitions.
- */
-public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, WorkspaceStorage {
+/** In-memory node agent for development and tests, with no host calls and instant transitions. */
+public final class FakeNodeAgent extends NodeBackend {
     private final ConcurrentMap<UUID, WorkspaceHandle> prepared = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, List<SnapshotSummary>> snapshots = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> ports = new ConcurrentHashMap<>();
@@ -51,7 +49,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
                 request.quota());
     }
 
-    @Override
     public WorkspaceHandle prepare(
             UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota) {
         return prepareWorkspace(workspaceId, ownerId, image.value(), 0, 0, quota);
@@ -84,36 +81,31 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
         }
     }
 
-    @Override
     public SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag) {
         return createSnapshot(handle, tag, "fake");
     }
 
-    @Override
     public void deleteSnapshot(SnapshotHandle snapshot) {
         Objects.requireNonNull(snapshot, "snapshot");
-        snapshots
-                .values()
-                .forEach(
-                        list ->
-                                list.removeIf(
-                                        summary ->
-                                                summary.snapshotId()
-                                                        .equals(snapshot.snapshotId())));
+        for (List<SnapshotSummary> list : snapshots.values()) {
+            Iterator<SnapshotSummary> iterator = list.iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().snapshotId().equals(snapshot.snapshotId())) {
+                    iterator.remove();
+                }
+            }
+        }
     }
 
-    @Override
     public void restore(WorkspaceHandle handle, SnapshotHandle snapshot) {
         restoreSnapshot(handle, snapshot);
     }
 
-    @Override
     public StorageUsage usage(WorkspaceHandle handle) {
         requirePrepared(handle);
         return new StorageUsage(0, 0, 0, 0);
     }
 
-    @Override
     public WorkspaceHandle prepareWorkspace(
             UUID workspaceId,
             UUID ownerId,
@@ -131,17 +123,14 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
         return handle;
     }
 
-    @Override
     public void startRuntime(WorkspaceHandle handle, RuntimeRequest config) {
         requirePrepared(handle);
     }
 
-    @Override
     public void stopRuntime(WorkspaceHandle handle, boolean graceful, int timeoutSeconds) {
         requirePrepared(handle);
     }
 
-    @Override
     public void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots) {
         requirePrepared(handle);
         prepared.remove(handle.workspaceId());
@@ -150,7 +139,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
         }
     }
 
-    @Override
     public SnapshotHandle createSnapshot(
             WorkspaceHandle handle, SnapshotTag tag, String createdBy) {
         requirePrepared(handle);
@@ -160,23 +148,27 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
                         Path.of("/workspaces/" + handle.workspaceId() + "/snaps/" + tag.value()),
                         Instant.now());
         snapshots
-                .computeIfAbsent(handle.workspaceId(), key -> new ArrayList<>())
+                .computeIfAbsent(
+                        handle.workspaceId(),
+                        new Function<UUID, List<SnapshotSummary>>() {
+                            @Override
+                            public List<SnapshotSummary> apply(UUID key) {
+                                return new ArrayList<>();
+                            }
+                        })
                 .add(new SnapshotSummary(snapshot, tag.value(), snapshot.createdAt()));
         return snapshot;
     }
 
-    @Override
     public void restoreSnapshot(WorkspaceHandle handle, SnapshotHandle snapshot) {
         requirePrepared(handle);
     }
 
-    @Override
     public List<SnapshotSummary> listSnapshots(WorkspaceHandle handle) {
         requirePrepared(handle);
         return List.copyOf(snapshots.getOrDefault(handle.workspaceId(), List.of()));
     }
 
-    @Override
     public String attachPort(WorkspaceHandle handle, int port, String protocol) {
         requirePrepared(handle);
         String vsock = "vsock:" + handle.workspaceId() + ":" + port;
@@ -184,7 +176,6 @@ public final class FakeNodeAgent implements NodeAgentOperations, NodeBackend, Wo
         return vsock;
     }
 
-    @Override
     public void detachPort(WorkspaceHandle handle, int port) {
         requirePrepared(handle);
         ports.remove(handle.workspaceId() + ":" + port);
