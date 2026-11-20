@@ -90,7 +90,14 @@ class AuditMapperTest {
         when(row.getAction()).thenReturn("act");
         when(row.getOutcome()).thenReturn("SUCCESS");
         when(row.getDetails()).thenReturn("not-json");
-        assertThrows(IllegalArgumentException.class, () -> AuditMapper.toDomain(row, mapper));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        AuditMapper.toDomain(row, mapper);
+                    }
+                });
     }
 
     private AuditRecord record() {
