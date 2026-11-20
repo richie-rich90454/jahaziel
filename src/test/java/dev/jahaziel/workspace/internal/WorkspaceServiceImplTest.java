@@ -97,7 +97,12 @@ class WorkspaceServiceImplTest {
         when(workspaces.findByOwnerUserId(owner.value())).thenReturn(List.of(existing));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(owner, "site", 2, 2048, nodeId));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "site", 2, 2048, nodeId);
+                    }
+                });
         verify(workspaces, never()).save(any());
     }
 
@@ -105,7 +110,13 @@ class WorkspaceServiceImplTest {
     void createRequiresKnownOwner() {
         when(users.get(owner)).thenThrow(new UserNotFoundException(owner));
         assertThrows(
-                UserNotFoundException.class, () -> service.create(owner, "site", 2, 2048, nodeId));
+                UserNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "site", 2, 2048, nodeId);
+                    }
+                });
         verify(workspaces, never()).save(any());
     }
 
@@ -114,12 +125,29 @@ class WorkspaceServiceImplTest {
         UserIdentity identity = new UserIdentity("sub", "a@b.c", "A", List.of(), List.of());
         when(users.get(owner)).thenReturn(identity);
         assertThrows(
-                IllegalArgumentException.class, () -> service.create(owner, "  ", 2, 2048, nodeId));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "  ", 2, 2048, nodeId);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(owner, "site", 0, 2048, nodeId));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "site", 0, 2048, nodeId);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> service.create(owner, "site", 2, 0, nodeId));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "site", 2, 0, nodeId);
+                    }
+                });
     }
 
     @Test
@@ -127,7 +155,14 @@ class WorkspaceServiceImplTest {
         WorkspaceId id = new WorkspaceId(UUID.randomUUID());
         when(workspaces.findById(id.value())).thenReturn(Optional.empty());
         WorkspaceNotFoundException failure =
-                assertThrows(WorkspaceNotFoundException.class, () -> service.get(id));
+                assertThrows(
+                        WorkspaceNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                service.get(id);
+                            }
+                        });
         assertEquals(id, failure.workspaceId());
     }
 
@@ -152,7 +187,14 @@ class WorkspaceServiceImplTest {
     void deleteMissingThrows() {
         WorkspaceId id = new WorkspaceId(UUID.randomUUID());
         when(workspaces.findById(id.value())).thenReturn(Optional.empty());
-        assertThrows(WorkspaceNotFoundException.class, () -> service.delete(id));
+        assertThrows(
+                WorkspaceNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.delete(id);
+                    }
+                });
     }
 
     @Test
@@ -212,7 +254,14 @@ class WorkspaceServiceImplTest {
                                 new VirtualMachineId(UUID.randomUUID()),
                                 id,
                                 new VirtualMachineConfiguration(1, 1)));
-        assertThrows(WorkspaceNotFoundException.class, () -> service.save(workspace));
+        assertThrows(
+                WorkspaceNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.save(workspace);
+                    }
+                });
     }
 
     private WorkspaceEntity stubRows(WorkspaceId id, String state) {
