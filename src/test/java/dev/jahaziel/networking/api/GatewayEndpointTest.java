@@ -15,7 +15,7 @@ import java.util.UUID;
 class GatewayEndpointTest {
     @Test
     void localUrlCarriesNonDefaultPort() {
-        var endpoint = new GatewayEndpoint("http", "localhost", 8081);
+        GatewayEndpoint endpoint = new GatewayEndpoint("http", "localhost", 8081);
         assertEquals(
                 "http://richard-9000.localhost:8081/?token=tok",
                 endpoint.url("richard", 9000, "tok"));
@@ -49,24 +49,76 @@ class GatewayEndpointTest {
     @Test
     void rejectsBadInputs() {
         assertThrows(
-                IllegalArgumentException.class, () -> new GatewayEndpoint("ftp", "x.test", 8081));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint("ftp", "x.test", 8081);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new GatewayEndpoint(null, "x.test", 8081));
-        assertThrows(NullPointerException.class, () -> new GatewayEndpoint("http", null, 8081));
-        assertThrows(IllegalArgumentException.class, () -> new GatewayEndpoint("http", "  ", 8081));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint(null, "x.test", 8081);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new GatewayEndpoint("http", "x.test", -1));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint("http", null, 8081);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new GatewayEndpoint("http", "x.test", 65536));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint("http", "  ", 8081);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint("http", "x.test", -1);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayEndpoint("http", "x.test", 65536);
+                    }
+                });
         assertEquals(0, new GatewayEndpoint("http", "x.test", 0).port());
-        var endpoint = new GatewayEndpoint("http", "x.test", 8081);
-        assertThrows(NullPointerException.class, () -> endpoint.url(null, 8081, "tok"));
-        assertThrows(NullPointerException.class, () -> endpoint.url("slug", 8081, null));
+        GatewayEndpoint endpoint = new GatewayEndpoint("http", "x.test", 8081);
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        endpoint.url(null, 8081, "tok");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        endpoint.url("slug", 8081, null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> endpoint.previewUrl(UUID.randomUUID(), 0, "tok"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        endpoint.previewUrl(UUID.randomUUID(), 0, "tok");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> endpoint.previewUrl(UUID.randomUUID(), 8081, "unsafe&token"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        endpoint.previewUrl(UUID.randomUUID(), 8081, "unsafe&token");
+                    }
+                });
     }
 }
