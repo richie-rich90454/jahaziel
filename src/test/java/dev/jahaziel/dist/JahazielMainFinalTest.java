@@ -20,8 +20,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -126,18 +128,22 @@ class JahazielMainFinalTest {
                     System.clearProperty(key);
                 }
             }
-            try (var walk = Files.walk(dataRoot)) {
-                walk.sorted(java.util.Comparator.reverseOrder())
-                        .forEach(
-                                path -> {
-                                    try {
-                                        Files.deleteIfExists(path);
-                                    } catch (Exception ignored) {
-                                        // Best-effort test cleanup.
-                                    }
-                                });
+            List<Path> paths = new ArrayList<>();
+            try (java.util.stream.Stream<Path> walk = Files.walk(dataRoot)) {
+                java.util.Iterator<Path> iterator = walk.iterator();
+                while (iterator.hasNext()) {
+                    paths.add(iterator.next());
+                }
             } catch (Exception ignored) {
                 // Best-effort test cleanup.
+            }
+            paths.sort(java.util.Comparator.reverseOrder());
+            for (Path path : paths) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (Exception ignored) {
+                    // Best-effort test cleanup.
+                }
             }
         }
     }
