@@ -36,7 +36,7 @@ public final class Fakes {
     private Fakes() {}
 
     /** In-memory workspace service that records forked workspaces and template initialization. */
-    public static final class Workspace implements WorkspaceService {
+    public static final class Workspace extends WorkspaceService {
         private final java.util.Map<WorkspaceId, dev.jahaziel.workspace.domain.Workspace> rows =
                 new java.util.HashMap<WorkspaceId, dev.jahaziel.workspace.domain.Workspace>();
         public final List<String> initializedTemplates = new ArrayList<String>();
@@ -111,7 +111,7 @@ public final class Fakes {
     }
 
     /** In-memory task service with a configurable uniform outcome. */
-    public static final class Tasks implements WorkspaceTaskService {
+    public static final class Tasks extends WorkspaceTaskService {
         private String status = "SUCCEEDED";
         private int exitCode = 0;
         private String output = "ok";
@@ -204,7 +204,7 @@ public final class Fakes {
     }
 
     /** In-memory snapshot service that records created tags. */
-    public static final class Snapshots implements SnapshotService {
+    public static final class Snapshots extends SnapshotService {
         public final List<String> tags = new ArrayList<String>();
 
         @Override
@@ -238,7 +238,7 @@ public final class Fakes {
     }
 
     /** In-memory authorization service with an explicit admin set. */
-    public static final class Authorization implements AuthorizationService {
+    public static final class Authorization extends AuthorizationService {
         private final Set<UserId> admins = new HashSet<UserId>();
 
         /** Grants the administrator role. */
