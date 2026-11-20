@@ -210,11 +210,11 @@ class WorkspaceProcessRegistryImplTest {
             assertTrue(
                     parent.waitFor(5, TimeUnit.SECONDS),
                     "session leader should exit for this check");
-            assertTrue(ProcessHandle.of(orphanPid).filter(ProcessHandle::isAlive).isPresent());
+            assertTrue(isAlive(orphanPid));
 
             new WorkspaceProcessRegistryImpl(temp.toString()).run((ApplicationArguments) null);
 
-            assertFalse(ProcessHandle.of(orphanPid).filter(ProcessHandle::isAlive).isPresent());
+            assertFalse(isAlive(orphanPid));
             assertFalse(Files.exists(marker));
         } finally {
             if (registration != null) registration.close();
@@ -282,5 +282,10 @@ class WorkspaceProcessRegistryImplTest {
             }
             Thread.sleep(TimeUnit.MINUTES.toMillis(2));
         }
+    }
+
+    private static boolean isAlive(long pid) {
+        java.util.Optional<ProcessHandle> handle = ProcessHandle.of(pid);
+        return handle.isPresent() && handle.get().isAlive();
     }
 }
