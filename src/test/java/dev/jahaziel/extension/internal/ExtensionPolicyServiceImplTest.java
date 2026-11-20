@@ -58,13 +58,28 @@ class ExtensionPolicyServiceImplTest {
     void createRejectsBlanks() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(" ", null, "ext-1", "allow", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(" ", null, "ext-1", "allow", null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create("workspace", null, " ", "allow", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create("workspace", null, " ", "allow", null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create("workspace", null, "ext-1", " ", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create("workspace", null, "ext-1", " ", null);
+                    }
+                });
     }
 
     @Test
@@ -88,7 +103,14 @@ class ExtensionPolicyServiceImplTest {
     void getMissingThrowsWithId() {
         when(policies.findById(policyId)).thenReturn(Optional.empty());
         ExtensionPolicyNotFoundException failure =
-                assertThrows(ExtensionPolicyNotFoundException.class, () -> service.get(policyId));
+                assertThrows(
+                        ExtensionPolicyNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                service.get(policyId);
+                            }
+                        });
         assertEquals(policyId, failure.policyId());
     }
 
@@ -117,7 +139,14 @@ class ExtensionPolicyServiceImplTest {
         List<ExtensionPolicyDoc> docs = service.listByScope("workspace", null);
         assertEquals(1, docs.size());
         assertEquals(global.getPolicyId(), docs.get(0).id());
-        assertTrue(docs.stream().allMatch(doc -> "workspace".equals(doc.scope())));
+        boolean allWorkspace = true;
+        for (ExtensionPolicyDoc doc : docs) {
+            if (!"workspace".equals(doc.scope())) {
+                allWorkspace = false;
+                break;
+            }
+        }
+        assertTrue(allWorkspace);
     }
 
     @Test
@@ -133,7 +162,13 @@ class ExtensionPolicyServiceImplTest {
         when(policies.findById(policyId)).thenReturn(Optional.empty());
         ExtensionPolicyNotFoundException failure =
                 assertThrows(
-                        ExtensionPolicyNotFoundException.class, () -> service.delete(policyId));
+                        ExtensionPolicyNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                service.delete(policyId);
+                            }
+                        });
         assertEquals(policyId, failure.policyId());
         verify(policies, never()).delete(any());
     }
