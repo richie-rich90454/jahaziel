@@ -5,6 +5,7 @@
 package dev.jahaziel.node.internal;
 
 import dev.jahaziel.node.api.NodeService;
+import dev.jahaziel.node.domain.Node;
 import dev.jahaziel.node.domain.NodeState;
 import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
@@ -19,7 +20,7 @@ import java.util.Objects;
  * Marks nodes unhealthy when their heartbeat goes stale. Heartbeats arrive from the agent poller;
  * without a fresh heartbeat for the stale window the node stops receiving placements.
  */
-public final class HealthCheckJob implements PlatformJob {
+public final class HealthCheckJob extends PlatformJob {
     private final NodeService nodes;
     private final Duration staleAfter;
     private final Clock clock;
@@ -40,11 +41,12 @@ public final class HealthCheckJob implements PlatformJob {
     @Override
     public void run(JobContext context) {
         Instant cutoff = Instant.now(clock).minus(staleAfter);
-        for (var node : nodes.list()) {
+        for (Node node : nodes.list()) {
             if (node.state() instanceof NodeState.Draining) {
                 continue;
             }
-            boolean stale = node.lastHeartbeat().map(seen -> seen.isBefore(cutoff)).orElse(true);
+            Instant seen = node.lastHeartbeat().orElse(null);
+            boolean stale = seen == null || seen.isBefore(cutoff);
             if (stale) {
                 try {
                     nodes.markUnhealthy(
