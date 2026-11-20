@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Windows implementation of {@link Platform}. */
-public final class WindowsPlatform implements Platform {
+public final class WindowsPlatform extends Platform {
     private final Path jarDir;
     private final Path dataDir;
     private final Arch arch;
