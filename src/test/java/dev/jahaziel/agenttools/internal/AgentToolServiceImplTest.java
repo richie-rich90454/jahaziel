@@ -25,6 +25,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
 
 class AgentToolServiceImplTest {
@@ -52,9 +53,13 @@ class AgentToolServiceImplTest {
 
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         AgentToolServiceImpl.extractExecutable(
-                                archive, temporary.resolve("opencode")));
+                                archive, temporary.resolve("opencode"));
+                    }
+                });
     }
 
     @Test
@@ -64,9 +69,13 @@ class AgentToolServiceImplTest {
 
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         AgentToolServiceImpl.extractExecutable(
-                                archive, temporary.resolve("opencode")));
+                                archive, temporary.resolve("opencode"));
+                    }
+                });
     }
 
     @Test
@@ -156,5 +165,55 @@ class AgentToolServiceImplTest {
         header[offset + length - 1] = 0;
     }
 
-    private record TarEntry(String name, byte type, byte[] data) {}
+    private static final class TarEntry {
+        private final String name;
+        private final byte type;
+        private final byte[] data;
+
+        TarEntry(String name, byte type, byte[] data) {
+            this.name = name;
+            this.type = type;
+            this.data = data;
+        }
+
+        String name() {
+            return name;
+        }
+
+        byte type() {
+            return type;
+        }
+
+        byte[] data() {
+            return data;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TarEntry other = (TarEntry) o;
+            return type == other.type && name.equals(other.name) && Arrays.equals(data, other.data);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * name.hashCode() + type) + Arrays.hashCode(data);
+        }
+
+        @Override
+        public String toString() {
+            return "TarEntry[name="
+                    + name
+                    + ", type="
+                    + type
+                    + ", data="
+                    + Arrays.toString(data)
+                    + "]";
+        }
+    }
 }
