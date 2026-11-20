@@ -148,7 +148,15 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
             return type;
         }
 
+        public String getType() {
+            return type;
+        }
+
         public String data() {
+            return data;
+        }
+
+        public String getData() {
             return data;
         }
 
@@ -156,11 +164,23 @@ public final class TerminalStreamHandler extends TextWebSocketHandler {
             return rows;
         }
 
+        public Integer getRows() {
+            return rows;
+        }
+
         public Integer cols() {
             return cols;
         }
 
+        public Integer getCols() {
+            return cols;
+        }
+
         public Integer exitCode() {
+            return exitCode;
+        }
+
+        public Integer getExitCode() {
             return exitCode;
         }
 
