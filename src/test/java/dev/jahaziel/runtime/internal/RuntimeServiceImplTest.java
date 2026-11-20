@@ -166,7 +166,14 @@ class RuntimeServiceImplTest {
         backend.startFailure = new IllegalStateException("storage unavailable");
         when(workspaces.get(workspaceId)).thenReturn(workspace);
 
-        assertThrows(IllegalStateException.class, () -> service.start(workspaceId));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.start(workspaceId);
+                    }
+                });
 
         WorkspaceState.Failed failed =
                 assertInstanceOf(WorkspaceState.Failed.class, workspace.state());
@@ -255,7 +262,12 @@ class RuntimeServiceImplTest {
 
         assertThrows(
                 dev.jahaziel.workspace.domain.IllegalWorkspaceStateException.class,
-                () -> service.start(workspaceId));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.start(workspaceId);
+                    }
+                });
         assertInstanceOf(WorkspaceState.Destroyed.class, workspace.state());
         verify(workspaces, never()).save(any());
     }
@@ -300,7 +312,7 @@ class RuntimeServiceImplTest {
         return workspace;
     }
 
-    private static final class FakeBackend implements NodeBackend {
+    private static final class FakeBackend extends NodeBackend {
         int prepares;
         int starts;
         int stops;
