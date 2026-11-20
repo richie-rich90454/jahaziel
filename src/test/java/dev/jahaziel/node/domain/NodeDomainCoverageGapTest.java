@@ -29,43 +29,91 @@ class NodeDomainCoverageGapTest {
         NodeCapacity capacity = new NodeCapacity(4, 8192, 100);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), null, "default", capacity, "fp"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), null, "default", capacity, "fp");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), "n", null, capacity, "fp"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), "n", null, capacity, "fp");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), "n", "default", capacity, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), "n", "default", capacity, null);
+                    }
+                });
     }
 
     @Test
     void assignRefusesUnhealthy() {
         Node node = fresh();
         node.markUnhealthy("gone");
-        assertThrows(IllegalStateException.class, () -> node.assign(UUID.randomUUID()));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.assign(UUID.randomUUID());
+                    }
+                });
     }
 
     @Test
     void degradeGuards() {
         Node draining = fresh();
         draining.drain();
-        assertThrows(IllegalStateException.class, () -> draining.degrade("slow"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        draining.degrade("slow");
+                    }
+                });
         Node unhealthy = fresh();
         unhealthy.markUnhealthy("gone");
-        assertThrows(IllegalStateException.class, () -> unhealthy.degrade("slow"));
-        assertThrows(IllegalArgumentException.class, () -> fresh().degrade(null));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        unhealthy.degrade("slow");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        fresh().degrade(null);
+                    }
+                });
     }
 
     @Test
     void doubleDrainThrows() {
         Node node = fresh();
         node.drain();
-        assertThrows(IllegalStateException.class, node::drain);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.drain();
+                    }
+                });
     }
 
     @Test
     void markUnhealthyNullRejected() {
-        assertThrows(IllegalArgumentException.class, () -> fresh().markUnhealthy(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        fresh().markUnhealthy(null);
+                    }
+                });
     }
 
     @Test
