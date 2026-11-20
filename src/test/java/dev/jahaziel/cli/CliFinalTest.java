@@ -50,13 +50,13 @@ class CliFinalTest {
     void restoreRejectsShortAndBadMagic() throws Exception {
         Path one = tmp.resolve("one.bin");
         Files.write(one, new byte[] {0x1f});
-        var out = CliTestSupport.dispatch("restore", one.toString());
+        CliTestSupport.Output out = CliTestSupport.dispatch("restore", one.toString());
         assertEquals(1, out.code());
         assertTrue(out.err().contains("not a gzip archive"));
 
         Path bad = tmp.resolve("bad.bin");
         Files.write(bad, new byte[] {0x1f, 0x00});
-        var out2 = CliTestSupport.dispatch("restore", bad.toString());
+        CliTestSupport.Output out2 = CliTestSupport.dispatch("restore", bad.toString());
         assertEquals(1, out2.code());
         assertTrue(out2.err().contains("not a gzip archive"));
     }
@@ -65,7 +65,7 @@ class CliFinalTest {
     void restoreRefusesWhenTarListingFails() throws Exception {
         Path fake = tmp.resolve("fake.tar.gz");
         CliTestSupport.writeGzip(fake, "not a tar at all".getBytes(StandardCharsets.UTF_8));
-        var out = CliTestSupport.dispatch("restore", fake.toString());
+        CliTestSupport.Output out = CliTestSupport.dispatch("restore", fake.toString());
         assertEquals(1, out.code());
     }
 
