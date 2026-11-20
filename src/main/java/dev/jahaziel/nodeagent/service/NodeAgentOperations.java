@@ -17,7 +17,7 @@ import java.util.UUID;
  * Node agent operations. Implemented once against real subsystems and once in memory for
  * development and tests.
  */
-public interface NodeAgentOperations {
+public abstract class NodeAgentOperations {
     /**
      * Prepares storage and runtime shell for a workspace.
      *
@@ -29,7 +29,7 @@ public interface NodeAgentOperations {
      * @param quota the home quota
      * @return the storage handle
      */
-    WorkspaceHandle prepareWorkspace(
+    public abstract WorkspaceHandle prepareWorkspace(
             UUID workspaceId,
             UUID ownerId,
             String imageRef,
@@ -43,7 +43,7 @@ public interface NodeAgentOperations {
      * @param handle the storage handle
      * @param config the runtime configuration
      */
-    void startRuntime(WorkspaceHandle handle, RuntimeRequest config);
+    public abstract void startRuntime(WorkspaceHandle handle, RuntimeRequest config);
 
     /**
      * Stops a workspace runtime.
@@ -52,7 +52,7 @@ public interface NodeAgentOperations {
      * @param graceful true for guest shutdown, false for kill
      * @param timeoutSeconds the graceful timeout
      */
-    void stopRuntime(WorkspaceHandle handle, boolean graceful, int timeoutSeconds);
+    public abstract void stopRuntime(WorkspaceHandle handle, boolean graceful, int timeoutSeconds);
 
     /**
      * Destroys a workspace shell.
@@ -60,7 +60,7 @@ public interface NodeAgentOperations {
      * @param handle the storage handle
      * @param keepSnapshots whether snapshot folders survive
      */
-    void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots);
+    public abstract void destroyWorkspace(WorkspaceHandle handle, boolean keepSnapshots);
 
     /**
      * Snapshots a workspace home.
@@ -70,7 +70,8 @@ public interface NodeAgentOperations {
      * @param createdBy who triggered it
      * @return the snapshot handle
      */
-    SnapshotHandle createSnapshot(WorkspaceHandle handle, SnapshotTag tag, String createdBy);
+    public abstract SnapshotHandle createSnapshot(
+            WorkspaceHandle handle, SnapshotTag tag, String createdBy);
 
     /**
      * Restores a workspace home from a snapshot, keeping the current home as a snapshot.
@@ -78,14 +79,14 @@ public interface NodeAgentOperations {
      * @param handle the storage handle
      * @param snapshot the snapshot handle
      */
-    void restoreSnapshot(WorkspaceHandle handle, SnapshotHandle snapshot);
+    public abstract void restoreSnapshot(WorkspaceHandle handle, SnapshotHandle snapshot);
 
     /**
      * Deletes a snapshot folder.
      *
      * @param snapshot the snapshot handle
      */
-    void deleteSnapshot(SnapshotHandle snapshot);
+    public abstract void deleteSnapshot(SnapshotHandle snapshot);
 
     /**
      * Lists a workspace's snapshots.
@@ -93,7 +94,7 @@ public interface NodeAgentOperations {
      * @param handle the storage handle
      * @return the summaries
      */
-    List<SnapshotSummary> listSnapshots(WorkspaceHandle handle);
+    public abstract List<SnapshotSummary> listSnapshots(WorkspaceHandle handle);
 
     /**
      * Registers a port for gateway routing.
@@ -103,7 +104,7 @@ public interface NodeAgentOperations {
      * @param protocol the transport protocol
      * @return the opaque vsock handle
      */
-    String attachPort(WorkspaceHandle handle, int port, String protocol);
+    public abstract String attachPort(WorkspaceHandle handle, int port, String protocol);
 
     /**
      * Unregisters a port.
@@ -111,5 +112,5 @@ public interface NodeAgentOperations {
      * @param handle the storage handle
      * @param port the bound port
      */
-    void detachPort(WorkspaceHandle handle, int port);
+    public abstract void detachPort(WorkspaceHandle handle, int port);
 }
