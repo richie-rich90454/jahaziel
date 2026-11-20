@@ -16,12 +16,46 @@ import java.util.UUID;
  *
  * @param grants grantee user identifiers to permission names
  */
-public record AccessControlList(Map<UUID, Set<String>> grants) {
-    public AccessControlList {
+public final class AccessControlList {
+    private final Map<UUID, Set<String>> grants;
+
+    public AccessControlList(Map<UUID, Set<String>> grants) {
         Objects.requireNonNull(grants, "grants");
         Map<UUID, Set<String>> copy = new HashMap<>();
-        grants.forEach((user, permissions) -> copy.put(user, Set.copyOf(permissions)));
+        for (Map.Entry<UUID, Set<String>> entry : grants.entrySet()) {
+            copy.put(entry.getKey(), Set.copyOf(entry.getValue()));
+        }
         grants = Map.copyOf(copy);
+
+        this.grants = grants;
+    }
+
+    public Map<UUID, Set<String>> grants() {
+        return grants;
+    }
+
+    public Map<UUID, Set<String>> getGrants() {
+        return grants;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AccessControlList other = (AccessControlList) o;
+        return Objects.equals(grants, other.grants);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        result = 31 * result + Objects.hashCode(grants);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "AccessControlList{" + "grants=" + grants + '}';
     }
 
     /** Returns an empty access control list. */
