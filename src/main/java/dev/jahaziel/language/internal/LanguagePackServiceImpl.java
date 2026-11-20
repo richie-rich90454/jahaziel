@@ -36,6 +36,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -44,12 +45,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /** Installs verified pinned archives only after an explicit workspace selection. */
-public final class LanguagePackServiceImpl implements LanguagePackService {
+public final class LanguagePackServiceImpl extends LanguagePackService {
     private static final String UNAVAILABLE_ON_THIS_HOST = "UNAVAILABLE_ON_THIS_HOST";
     private static final String ANY_OS = "*";
     private static final long MAX_ARCHIVE_BYTES = 256L * 1024 * 1024;
@@ -201,7 +203,17 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
 
     LanguagePackServiceImpl(
             Path cacheRoot, HttpClient http, List<Definition> catalog, Path nodeExecutable) {
-        this(cacheRoot, http, catalog, nodeExecutable, LanguagePackServiceImpl::buildGoPack);
+        this(
+                cacheRoot,
+                http,
+                catalog,
+                nodeExecutable,
+                new GoPackBuilder() {
+                    @Override
+                    public void build(Path executable, Path stagingDirectory) throws IOException {
+                        buildGoPack(executable, stagingDirectory);
+                    }
+                });
     }
 
     LanguagePackServiceImpl(
@@ -223,23 +235,22 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
 
     @Override
     public List<Pack> catalog() {
-        return catalog.stream()
-                .map(definition -> view(definition, installed(definition), false))
-                .toList();
+        List<Pack> result = new ArrayList<>();
+        for (Definition definition : catalog) {
+            result.add(view(definition, installed(definition), false));
+        }
+        return result;
     }
 
     @Override
     public List<Pack> forWorkspace(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
         Set<String> selected = readSelections(workspaceId);
-        return catalog.stream()
-                .map(
-                        definition ->
-                                view(
-                                        definition,
-                                        installed(definition),
-                                        selected.contains(definition.id())))
-                .toList();
+        List<Pack> result = new ArrayList<>();
+        for (Definition definition : catalog) {
+            result.add(view(definition, installed(definition), selected.contains(definition.id())));
+        }
+        return result;
     }
 
     @Override
@@ -514,18 +525,13 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     public CacheReport report() {
         try {
             ensureCacheRoot();
-            long bytes;
-            try (var paths = Files.walk(cacheRoot)) {
-                bytes =
-                        paths.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                                .mapToLong(LanguagePackServiceImpl::sizeOrZero)
-                                .sum();
+            long bytes = treeBytes(cacheRoot);
+            List<Pack> installed = new ArrayList<>();
+            for (Definition definition : catalog) {
+                if (installed(definition)) {
+                    installed.add(view(definition, true, false));
+                }
             }
-            List<Pack> installed =
-                    catalog.stream()
-                            .filter(this::installed)
-                            .map(definition -> view(definition, true, false))
-                            .toList();
             return new CacheReport(bytes, installed);
         } catch (IOException failure) {
             throw new UncheckedIOException("cannot inspect language-pack cache", failure);
@@ -546,16 +552,16 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 if (!safeDirectoryChain(packRoot)) {
                     throw new IOException("language-pack cache contains an unsafe path");
                 }
-                try (var versions = Files.list(packRoot)) {
-                    for (Path versionRoot : versions.toList()) {
+                try (Stream<Path> versions = Files.list(packRoot)) {
+                    for (Path versionRoot : asIterable(versions)) {
                         if (!Files.isDirectory(versionRoot, LinkOption.NOFOLLOW_LINKS)) {
                             continue;
                         }
                         if (!safeDirectoryChain(versionRoot)) {
                             throw new IOException("language-pack cache contains an unsafe path");
                         }
-                        try (var architectures = Files.list(versionRoot)) {
-                            for (Path architectureRoot : architectures.toList()) {
+                        try (Stream<Path> architectures = Files.list(versionRoot)) {
+                            for (Path architectureRoot : asIterable(architectures)) {
                                 if (!Files.isDirectory(
                                         architectureRoot, LinkOption.NOFOLLOW_LINKS)) {
                                     continue;
@@ -614,32 +620,32 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 || !Files.isDirectory(packRoot, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        try (var versions = Files.list(packRoot)) {
-            for (Path versionRoot : versions.toList()) {
+        try (Stream<Path> versions = Files.list(packRoot)) {
+            for (Path versionRoot : asIterable(versions)) {
                 if (Files.isSymbolicLink(versionRoot)
                         || !Files.isDirectory(versionRoot, LinkOption.NOFOLLOW_LINKS)) {
                     continue;
                 }
-                try (var architectures = Files.list(versionRoot)) {
-                    for (Path architectureRoot : architectures.toList()) {
+                try (Stream<Path> architectures = Files.list(versionRoot)) {
+                    for (Path architectureRoot : asIterable(architectures)) {
                         if (Files.isSymbolicLink(architectureRoot)
                                 || !Files.isDirectory(
                                         architectureRoot, LinkOption.NOFOLLOW_LINKS)) {
                             continue;
                         }
-                        try (var contents = Files.list(architectureRoot)) {
-                            if (contents.findAny().isEmpty())
+                        try (Stream<Path> contents = Files.list(architectureRoot)) {
+                            if (!contents.findAny().isPresent())
                                 Files.deleteIfExists(architectureRoot);
                         }
                     }
                 }
-                try (var contents = Files.list(versionRoot)) {
-                    if (contents.findAny().isEmpty()) Files.deleteIfExists(versionRoot);
+                try (Stream<Path> contents = Files.list(versionRoot)) {
+                    if (!contents.findAny().isPresent()) Files.deleteIfExists(versionRoot);
                 }
             }
         }
-        try (var contents = Files.list(packRoot)) {
-            if (contents.findAny().isEmpty()) Files.deleteIfExists(packRoot);
+        try (Stream<Path> contents = Files.list(packRoot)) {
+            if (!contents.findAny().isPresent()) Files.deleteIfExists(packRoot);
         }
     }
 
@@ -667,11 +673,20 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 Path installRoot = safeInstallRoot(staging, asset.installRoot());
                 ensurePlainDirectory(installRoot);
                 switch (asset.format()) {
-                    case "gzip" -> extractGzip(archive, staging.resolve("rust-analyzer"));
-                    case "zip" -> extractZip(archive, installRoot);
-                    case "tar.gz" -> extractTarGzip(archive, installRoot);
-                    case "npm.tar.gz" -> extractNpmTarGzip(archive, installRoot);
-                    default -> throw new IOException("language-pack archive format is unsupported");
+                    case "gzip":
+                        extractGzip(archive, staging.resolve("rust-analyzer"));
+                        break;
+                    case "zip":
+                        extractZip(archive, installRoot);
+                        break;
+                    case "tar.gz":
+                        extractTarGzip(archive, installRoot);
+                        break;
+                    case "npm.tar.gz":
+                        extractNpmTarGzip(archive, installRoot);
+                        break;
+                    default:
+                        throw new IOException("language-pack archive format is unsupported");
                 }
             }
             if (definition.id().equals("go")) {
@@ -1123,27 +1138,30 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
             return root.resolve("rust-analyzer");
         }
         if (definition.id().equals("java")) {
-            try (var files = Files.walk(root, 8)) {
-                return files.filter(Files::isRegularFile)
-                        .filter(
-                                path ->
-                                        path.getFileName()
-                                                .toString()
-                                                .startsWith("org.eclipse.equinox.launcher_"))
-                        .filter(path -> path.getFileName().toString().endsWith(".jar"))
-                        .findFirst()
-                        .orElseThrow(
-                                () ->
-                                        new IOException(
-                                                "JDT language server launcher is missing from the archive"));
+            try (Stream<Path> files = Files.walk(root, 8)) {
+                java.util.Iterator<Path> iterator = files.iterator();
+                while (iterator.hasNext()) {
+                    Path path = iterator.next();
+                    if (!Files.isRegularFile(path)) {
+                        continue;
+                    }
+                    String name = path.getFileName().toString();
+                    if (name.startsWith("org.eclipse.equinox.launcher_") && name.endsWith(".jar")) {
+                        return path;
+                    }
+                }
+                throw new IOException("JDT language server launcher is missing from the archive");
             }
         }
-        try (var files = Files.walk(root, 8)) {
-            return files.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().equals("clangd"))
-                    .findFirst()
-                    .orElseThrow(
-                            () -> new IOException("clangd executable is missing from the archive"));
+        try (Stream<Path> files = Files.walk(root, 8)) {
+            java.util.Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isRegularFile(path) && path.getFileName().toString().equals("clangd")) {
+                    return path;
+                }
+            }
+            throw new IOException("clangd executable is missing from the archive");
         }
     }
 
@@ -1221,9 +1239,13 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
 
     @SuppressWarnings("null")
     private static void stopBuildProcess(Process process) {
-        process.descendants()
-                .filter(ProcessHandle::isAlive)
-                .forEach(ProcessHandle::destroyForcibly);
+        java.util.Iterator<ProcessHandle> descendants = process.descendants().iterator();
+        while (descendants.hasNext()) {
+            ProcessHandle descendant = descendants.next();
+            if (descendant.isAlive()) {
+                descendant.destroyForcibly();
+            }
+        }
         process.destroyForcibly();
         try {
             process.waitFor(5, TimeUnit.SECONDS);
@@ -1262,11 +1284,24 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                     || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("workspace language selection is not a regular file");
             }
-            Set<String> selections =
-                    new java.util.HashSet<>(
-                            Files.readAllLines(file).stream().map(String::strip).toList());
-            selections.removeIf(
-                    id -> catalog.stream().noneMatch(definition -> definition.id().equals(id)));
+            Set<String> selections = new java.util.HashSet<>();
+            for (String line : Files.readAllLines(file)) {
+                selections.add(line.strip());
+            }
+            java.util.Iterator<String> it = selections.iterator();
+            while (it.hasNext()) {
+                String id = it.next();
+                boolean known = false;
+                for (Definition definition : catalog) {
+                    if (definition.id().equals(id)) {
+                        known = true;
+                        break;
+                    }
+                }
+                if (!known) {
+                    it.remove();
+                }
+            }
             return selections;
         } catch (IOException failure) {
             throw new UncheckedIOException("cannot read workspace language selections", failure);
@@ -1282,11 +1317,10 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 throw new IOException("workspace language selection path is unsafe");
             }
             Files.deleteIfExists(temporary);
+            List<String> ordered = new ArrayList<>(selections);
+            Collections.sort(ordered);
             Files.write(
-                    temporary,
-                    selections.stream().sorted().toList(),
-                    StandardOpenOption.CREATE_NEW,
-                    StandardOpenOption.WRITE);
+                    temporary, ordered, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
             try {
                 Files.move(
                         temporary,
@@ -1317,16 +1351,19 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
             throw new IOException("language-pack selection directory is unsafe");
         }
         Set<String> selected = new java.util.HashSet<>();
-        try (var files = Files.list(selectionRoot)) {
-            for (Path file : files.toList()) {
+        try (Stream<Path> files = Files.list(selectionRoot)) {
+            for (Path file : asIterable(files)) {
                 if (Files.isSymbolicLink(file)
                         || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
                     continue;
                 }
                 for (String id : Files.readAllLines(file)) {
-                    if (catalog.stream()
-                            .anyMatch(definition -> definition.id().equals(id.strip()))) {
-                        selected.add(id.strip());
+                    String stripped = id.strip();
+                    for (Definition definition : catalog) {
+                        if (definition.id().equals(stripped)) {
+                            selected.add(stripped);
+                            break;
+                        }
                     }
                 }
             }
@@ -1359,14 +1396,22 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 availability = unavailable.getMessage();
             }
         }
+        long totalBytes = 0;
+        List<String> checksums = new ArrayList<>();
+        for (Asset item : assets) {
+            totalBytes += item.downloadBytes();
+            checksums.add(item.checksumDisplay());
+        }
+        List<String> architectures = new ArrayList<>(definition.assets().keySet());
+        Collections.sort(architectures);
         return new Pack(
                 definition.id(),
                 definition.name(),
                 definition.version(),
-                assets.stream().mapToLong(Asset::downloadBytes).sum(),
+                totalBytes,
                 asset == null ? "" : asset.sha256(),
-                assets.stream().map(Asset::checksumDisplay).toList(),
-                definition.assets().keySet().stream().sorted().toList(),
+                checksums,
+                architectures,
                 installed,
                 selected,
                 availability,
@@ -1519,10 +1564,12 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
         if (id == null) {
             throw new IllegalArgumentException("language id is required");
         }
-        return catalog.stream()
-                .filter(definition -> definition.id().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("unknown language id"));
+        for (Definition definition : catalog) {
+            if (definition.id().equals(id)) {
+                return definition;
+            }
+        }
+        throw new IllegalArgumentException("unknown language id");
     }
 
     private Path versionDirectory(Definition definition) {
@@ -1588,11 +1635,26 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
         return Path.of(storageRoot).toAbsolutePath().normalize().resolve("language-packs");
     }
 
+    private static Iterable<Path> asIterable(Stream<Path> stream) {
+        return new Iterable<Path>() {
+            @Override
+            public java.util.Iterator<Path> iterator() {
+                return stream.iterator();
+            }
+        };
+    }
+
     private static long treeBytes(Path root) throws IOException {
-        try (var paths = Files.walk(root)) {
-            return paths.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                    .mapToLong(LanguagePackServiceImpl::sizeOrZero)
-                    .sum();
+        try (Stream<Path> paths = Files.walk(root)) {
+            long bytes = 0;
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+                    bytes += sizeOrZero(path);
+                }
+            }
+            return bytes;
         }
     }
 
@@ -1609,8 +1671,14 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
             Files.delete(root);
             return;
         }
-        try (var paths = Files.walk(root)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+        try (Stream<Path> paths = Files.walk(root)) {
+            List<Path> ordered = new ArrayList<>();
+            java.util.Iterator<Path> iterator = paths.iterator();
+            while (iterator.hasNext()) {
+                ordered.add(iterator.next());
+            }
+            Collections.sort(ordered, Comparator.reverseOrder());
+            for (Path path : ordered) {
                 if (Files.isSymbolicLink(path)) {
                     Files.delete(path);
                 } else {
@@ -1672,19 +1740,39 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
     }
 
     private static String architecture() {
-        return switch (Platforms.detect(null).arch()) {
-            case X64 -> "x86_64";
-            case ARM64 -> "aarch64";
-        };
+        Platform.Arch arch = Platforms.detect(null).arch();
+        if (arch == Platform.Arch.X64) {
+            return "x86_64";
+        }
+        if (arch == Platform.Arch.ARM64) {
+            return "aarch64";
+        }
+        throw new IllegalStateException("unsupported host architecture");
     }
 
-    record Definition(
-            String id,
-            String name,
-            String version,
-            String os,
-            Map<String, Asset> assets,
-            List<Asset> supplementalAssets) {
+    static final class Definition {
+        private final String id;
+        private final String name;
+        private final String version;
+        private final String os;
+        private final Map<String, Asset> assets;
+        private final List<Asset> supplementalAssets;
+
+        Definition(
+                String id,
+                String name,
+                String version,
+                String os,
+                Map<String, Asset> assets,
+                List<Asset> supplementalAssets) {
+            this.id = id;
+            this.name = name;
+            this.version = version;
+            this.os = os;
+            this.assets = Map.copyOf(assets);
+            this.supplementalAssets = List.copyOf(supplementalAssets);
+        }
+
         Definition(String id, String name, String version, Map<String, Asset> assets) {
             this(id, name, version, ANY_OS, assets, List.of());
         }
@@ -1702,25 +1790,87 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
             this(id, name, version, ANY_OS, assets, supplementalAssets);
         }
 
-        Definition {
-            assets = Map.copyOf(assets);
-            supplementalAssets = List.copyOf(supplementalAssets);
+        String id() {
+            return id;
+        }
+
+        String name() {
+            return name;
+        }
+
+        String version() {
+            return version;
+        }
+
+        String os() {
+            return os;
+        }
+
+        Map<String, Asset> assets() {
+            return assets;
+        }
+
+        List<Asset> supplementalAssets() {
+            return supplementalAssets;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Definition)) {
+                return false;
+            }
+            Definition that = (Definition) other;
+            return id.equals(that.id)
+                    && name.equals(that.name)
+                    && version.equals(that.version)
+                    && os.equals(that.os)
+                    && assets.equals(that.assets)
+                    && supplementalAssets.equals(that.supplementalAssets);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, name, version, os, assets, supplementalAssets);
+        }
+
+        @Override
+        public String toString() {
+            return "Definition[id="
+                    + id
+                    + ", name="
+                    + name
+                    + ", version="
+                    + version
+                    + ", os="
+                    + os
+                    + ", assets="
+                    + assets
+                    + ", supplementalAssets="
+                    + supplementalAssets
+                    + "]";
         }
     }
 
-    record Asset(
-            String archive,
-            String url,
-            String sha256,
-            long downloadBytes,
-            String format,
-            String sha512,
-            String installRoot) {
-        Asset(String archive, String url, String sha256, long downloadBytes, String format) {
-            this(archive, url, sha256, downloadBytes, format, "", "");
-        }
+    static final class Asset {
+        private final String archive;
+        private final String url;
+        private final String sha256;
+        private final long downloadBytes;
+        private final String format;
+        private final String sha512;
+        private final String installRoot;
 
-        Asset {
+        Asset(
+                String archive,
+                String url,
+                String sha256,
+                long downloadBytes,
+                String format,
+                String sha512,
+                String installRoot) {
             Objects.requireNonNull(archive, "archive");
             Objects.requireNonNull(url, "url");
             Objects.requireNonNull(sha256, "sha256");
@@ -1731,6 +1881,45 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
                 throw new IllegalArgumentException(
                         "asset must provide exactly one pinned checksum");
             }
+            this.archive = archive;
+            this.url = url;
+            this.sha256 = sha256;
+            this.downloadBytes = downloadBytes;
+            this.format = format;
+            this.sha512 = sha512;
+            this.installRoot = installRoot;
+        }
+
+        Asset(String archive, String url, String sha256, long downloadBytes, String format) {
+            this(archive, url, sha256, downloadBytes, format, "", "");
+        }
+
+        String archive() {
+            return archive;
+        }
+
+        String url() {
+            return url;
+        }
+
+        String sha256() {
+            return sha256;
+        }
+
+        long downloadBytes() {
+            return downloadBytes;
+        }
+
+        String format() {
+            return format;
+        }
+
+        String sha512() {
+            return sha512;
+        }
+
+        String installRoot() {
+            return installRoot;
         }
 
         String checksumDescription() {
@@ -1739,6 +1928,48 @@ public final class LanguagePackServiceImpl implements LanguagePackService {
 
         String checksumDisplay() {
             return sha256.isBlank() ? "SHA-512: " + sha512 : "SHA-256: " + sha256;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Asset)) {
+                return false;
+            }
+            Asset that = (Asset) other;
+            return downloadBytes == that.downloadBytes
+                    && archive.equals(that.archive)
+                    && url.equals(that.url)
+                    && sha256.equals(that.sha256)
+                    && format.equals(that.format)
+                    && sha512.equals(that.sha512)
+                    && installRoot.equals(that.installRoot);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(archive, url, sha256, downloadBytes, format, sha512, installRoot);
+        }
+
+        @Override
+        public String toString() {
+            return "Asset[archive="
+                    + archive
+                    + ", url="
+                    + url
+                    + ", sha256="
+                    + sha256
+                    + ", downloadBytes="
+                    + downloadBytes
+                    + ", format="
+                    + format
+                    + ", sha512="
+                    + sha512
+                    + ", installRoot="
+                    + installRoot
+                    + "]";
         }
     }
 }
