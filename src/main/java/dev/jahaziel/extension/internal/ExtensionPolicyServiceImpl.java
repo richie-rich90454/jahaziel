@@ -11,13 +11,15 @@ import dev.jahaziel.extension.persistence.ExtensionPolicyEntity;
 import dev.jahaziel.extension.persistence.ExtensionPolicyRepository;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Database-backed extension policies. */
-public final class ExtensionPolicyServiceImpl implements ExtensionPolicyService {
+public final class ExtensionPolicyServiceImpl extends ExtensionPolicyService {
     private static final Set<String> SCOPES = Set.of("global", "user", "workspace");
     private static final Set<String> ACTIONS = Set.of("allow", "block", "require_approval");
 
@@ -68,7 +70,14 @@ public final class ExtensionPolicyServiceImpl implements ExtensionPolicyService 
     public ExtensionPolicyDoc get(UUID id) {
         Objects.requireNonNull(id, "id");
         ExtensionPolicyEntity row =
-                policies.findById(id).orElseThrow(() -> new ExtensionPolicyNotFoundException(id));
+                policies.findById(id)
+                        .orElseThrow(
+                                new Supplier<ExtensionPolicyNotFoundException>() {
+                                    @Override
+                                    public ExtensionPolicyNotFoundException get() {
+                                        return new ExtensionPolicyNotFoundException(id);
+                                    }
+                                });
         return ExtensionPolicyMapper.toDomain(row);
     }
 
@@ -77,17 +86,27 @@ public final class ExtensionPolicyServiceImpl implements ExtensionPolicyService 
         if (scope == null || scope.isBlank()) {
             throw new IllegalArgumentException("scope must not be blank");
         }
-        return policies.findAll().stream()
-                .filter(row -> scopeMatch(row, scope, scopeId))
-                .map(ExtensionPolicyMapper::toDomain)
-                .toList();
+        List<ExtensionPolicyDoc> result = new ArrayList<>();
+        for (ExtensionPolicyEntity row : policies.findAll()) {
+            if (scopeMatch(row, scope, scopeId)) {
+                result.add(ExtensionPolicyMapper.toDomain(row));
+            }
+        }
+        return result;
     }
 
     @Override
     public void delete(UUID id) {
         Objects.requireNonNull(id, "id");
         ExtensionPolicyEntity row =
-                policies.findById(id).orElseThrow(() -> new ExtensionPolicyNotFoundException(id));
+                policies.findById(id)
+                        .orElseThrow(
+                                new Supplier<ExtensionPolicyNotFoundException>() {
+                                    @Override
+                                    public ExtensionPolicyNotFoundException get() {
+                                        return new ExtensionPolicyNotFoundException(id);
+                                    }
+                                });
         policies.delete(row);
     }
 
