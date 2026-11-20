@@ -55,7 +55,14 @@ class InProcessSchedulerTest {
         InProcessScheduler scheduler = new InProcessScheduler();
         scheduler.start();
         try {
-            assertThrows(IllegalStateException.class, scheduler::start);
+            assertThrows(
+                    IllegalStateException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() {
+                            scheduler.start();
+                        }
+                    });
         } finally {
             scheduler.stop();
         }
