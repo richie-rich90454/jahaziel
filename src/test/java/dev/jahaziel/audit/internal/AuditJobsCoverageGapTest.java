@@ -54,9 +54,21 @@ class AuditJobsCoverageGapTest {
     void retentionCtorRejectsNonPositive() {
         EntityManager entities = mock(EntityManager.class);
         assertThrows(
-                IllegalArgumentException.class, () -> new AuditRetentionJob(entities, 0, clock));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AuditRetentionJob(entities, 0, clock);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> new AuditRetentionJob(entities, -2, clock));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AuditRetentionJob(entities, -2, clock);
+                    }
+                });
     }
 
     @Test
@@ -64,10 +76,20 @@ class AuditJobsCoverageGapTest {
         EntityManager entities = mock(EntityManager.class);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PartitionProvisionJob(entities, 0, clock));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new PartitionProvisionJob(entities, 0, clock);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PartitionProvisionJob(entities, -1, clock));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new PartitionProvisionJob(entities, -1, clock);
+                    }
+                });
     }
 
     @Test
