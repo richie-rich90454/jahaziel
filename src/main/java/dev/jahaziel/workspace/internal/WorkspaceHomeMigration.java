@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.workspace.internal;
 
+import dev.jahaziel.workspace.persistence.VirtualMachineEntity;
 import dev.jahaziel.workspace.persistence.VirtualMachineRepository;
 import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
@@ -19,10 +20,12 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Preserves legacy shared-home data in each workspace home before serving file or runtime requests.
@@ -45,98 +48,81 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
     @Override
     @SuppressWarnings("null")
     public void run(ApplicationArguments arguments) {
-        Map<UUID, WorkspaceEntity> byId =
-                workspaces.findAll().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        WorkspaceEntity::getWorkspaceId, Function.identity()));
-        machines.findAll()
-                .forEach(
-                        machine -> {
-                            WorkspaceEntity workspace = byId.get(machine.getWorkspaceId());
-                            if (workspace == null) {
-                                return;
-                            }
-                            Path legacy =
-                                    Path.of(
-                                                    WorkspacePaths.legacyHomePath(
-                                                            storageRoot,
-                                                            new dev.jahaziel.identity.domain.UserId(
-                                                                    workspace.getOwnerUserId())))
-                                            .toAbsolutePath()
-                                            .normalize();
-                            Path destination =
-                                    Path.of(
-                                                    WorkspacePaths.homePath(
-                                                            storageRoot,
-                                                            new dev.jahaziel.workspace.domain
-                                                                    .WorkspaceId(
-                                                                    workspace.getWorkspaceId())))
-                                            .toAbsolutePath()
-                                            .normalize();
-                            Path recorded =
-                                    Path.of(machine.getHomePath()).toAbsolutePath().normalize();
-                            if (!recorded.equals(legacy) || legacy.equals(destination)) {
-                                return;
-                            }
-                            try {
-                                Path data = Path.of(storageRoot).toAbsolutePath().normalize();
-                                Files.createDirectories(data);
-                                data = data.toRealPath();
-                                Path workspaceRoot = data.resolve("workspaces");
-                                ensurePlainDirectory(workspaceRoot);
-                                Path workspaceDirectory =
-                                        workspaceRoot.resolve(
-                                                workspace.getWorkspaceId().toString());
-                                ensurePlainDirectory(workspaceDirectory);
-                                Path workspaceHome = workspaceDirectory.resolve("home");
-                                if (Files.isSymbolicLink(legacy)) {
-                                    throw new IOException(
-                                            "legacy workspace home is a symbolic link: " + legacy);
-                                }
-                                boolean destinationMissing =
-                                        !Files.exists(workspaceHome, LinkOption.NOFOLLOW_LINKS);
-                                boolean destinationEmpty =
-                                        !destinationMissing && isEmptyDirectory(workspaceHome);
-                                if (Files.isDirectory(legacy, LinkOption.NOFOLLOW_LINKS)) {
-                                    if (destinationMissing || destinationEmpty) {
-                                        Path staged =
-                                                workspaceHome.resolveSibling(
-                                                        workspaceHome.getFileName()
-                                                                + ".migration-tmp");
-                                        if (Files.exists(staged, LinkOption.NOFOLLOW_LINKS)) {
-                                            deleteTree(staged);
-                                        }
-                                        copyTree(legacy, staged);
-                                        if (destinationEmpty) {
-                                            Files.delete(workspaceHome);
-                                        }
-                                        try {
-                                            Files.move(
-                                                    staged,
-                                                    workspaceHome,
-                                                    StandardCopyOption.ATOMIC_MOVE);
-                                        } catch (
-                                                java.nio.file.AtomicMoveNotSupportedException
-                                                        unsupported) {
-                                            Files.move(staged, workspaceHome);
-                                        }
-                                    } else {
-                                        ensurePlainDirectory(workspaceHome);
-                                        mergeLegacyTree(legacy, workspaceHome);
-                                    }
-                                }
-                                ensurePlainDirectory(workspaceHome);
-                                machine.setHomePath(
-                                        workspaceHome.toAbsolutePath().normalize().toString());
-                                machines.save(machine);
-                            } catch (IOException failure) {
-                                throw new UncheckedIOException(
-                                        "cannot migrate workspace home "
-                                                + workspace.getWorkspaceId(),
-                                        failure);
-                            }
-                        });
+        Map<UUID, WorkspaceEntity> byId = new HashMap<>();
+        for (WorkspaceEntity workspace : workspaces.findAll()) {
+            byId.put(workspace.getWorkspaceId(), workspace);
+        }
+        for (VirtualMachineEntity machine : machines.findAll()) {
+            WorkspaceEntity workspace = byId.get(machine.getWorkspaceId());
+            if (workspace == null) {
+                continue;
+            }
+            Path legacy =
+                    Path.of(
+                                    WorkspacePaths.legacyHomePath(
+                                            storageRoot,
+                                            new dev.jahaziel.identity.domain.UserId(
+                                                    workspace.getOwnerUserId())))
+                            .toAbsolutePath()
+                            .normalize();
+            Path destination =
+                    Path.of(
+                                    WorkspacePaths.homePath(
+                                            storageRoot,
+                                            new dev.jahaziel.workspace.domain.WorkspaceId(
+                                                    workspace.getWorkspaceId())))
+                            .toAbsolutePath()
+                            .normalize();
+            Path recorded = Path.of(machine.getHomePath()).toAbsolutePath().normalize();
+            if (!recorded.equals(legacy) || legacy.equals(destination)) {
+                continue;
+            }
+            try {
+                Path data = Path.of(storageRoot).toAbsolutePath().normalize();
+                Files.createDirectories(data);
+                data = data.toRealPath();
+                Path workspaceRoot = data.resolve("workspaces");
+                ensurePlainDirectory(workspaceRoot);
+                Path workspaceDirectory =
+                        workspaceRoot.resolve(workspace.getWorkspaceId().toString());
+                ensurePlainDirectory(workspaceDirectory);
+                Path workspaceHome = workspaceDirectory.resolve("home");
+                if (Files.isSymbolicLink(legacy)) {
+                    throw new IOException("legacy workspace home is a symbolic link: " + legacy);
+                }
+                boolean destinationMissing =
+                        !Files.exists(workspaceHome, LinkOption.NOFOLLOW_LINKS);
+                boolean destinationEmpty = !destinationMissing && isEmptyDirectory(workspaceHome);
+                if (Files.isDirectory(legacy, LinkOption.NOFOLLOW_LINKS)) {
+                    if (destinationMissing || destinationEmpty) {
+                        Path staged =
+                                workspaceHome.resolveSibling(
+                                        workspaceHome.getFileName() + ".migration-tmp");
+                        if (Files.exists(staged, LinkOption.NOFOLLOW_LINKS)) {
+                            deleteTree(staged);
+                        }
+                        copyTree(legacy, staged);
+                        if (destinationEmpty) {
+                            Files.delete(workspaceHome);
+                        }
+                        try {
+                            Files.move(staged, workspaceHome, StandardCopyOption.ATOMIC_MOVE);
+                        } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                            Files.move(staged, workspaceHome);
+                        }
+                    } else {
+                        ensurePlainDirectory(workspaceHome);
+                        mergeLegacyTree(legacy, workspaceHome);
+                    }
+                }
+                ensurePlainDirectory(workspaceHome);
+                machine.setHomePath(workspaceHome.toAbsolutePath().normalize().toString());
+                machines.save(machine);
+            } catch (IOException failure) {
+                throw new UncheckedIOException(
+                        "cannot migrate workspace home " + workspace.getWorkspaceId(), failure);
+            }
+        }
     }
 
     private static void ensurePlainDirectory(Path path) throws IOException {
@@ -151,7 +137,7 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
 
     private static void copyTree(Path source, Path destination) throws IOException {
         Files.createDirectories(destination);
-        try (var paths = Files.walk(source)) {
+        try (Stream<Path> paths = Files.walk(source)) {
             for (Path item : paths.toList()) {
                 if (item.equals(source)) {
                     continue;
@@ -171,9 +157,17 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
     @SuppressWarnings("null")
     private static void mergeLegacyTree(Path source, Path destination) throws IOException {
         Path normalizedDestination = destination.toAbsolutePath().normalize();
-        try (var paths = Files.walk(source)) {
-            for (Path item :
-                    paths.sorted(java.util.Comparator.comparingInt(Path::getNameCount)).toList()) {
+        try (Stream<Path> paths = Files.walk(source)) {
+            List<Path> items = new ArrayList<>(paths.toList());
+            java.util.Collections.sort(
+                    items,
+                    new java.util.Comparator<Path>() {
+                        @Override
+                        public int compare(Path left, Path right) {
+                            return Integer.compare(left.getNameCount(), right.getNameCount());
+                        }
+                    });
+            for (Path item : items) {
                 if (item.equals(source)) {
                     continue;
                 }
@@ -225,8 +219,17 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
     }
 
     private static void deleteTree(Path root) throws IOException {
-        try (var paths = Files.walk(root)) {
-            for (Path item : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+        try (Stream<Path> paths = Files.walk(root)) {
+            List<Path> items = new ArrayList<>(paths.toList());
+            java.util.Collections.sort(
+                    items,
+                    new java.util.Comparator<Path>() {
+                        @Override
+                        public int compare(Path left, Path right) {
+                            return right.compareTo(left);
+                        }
+                    });
+            for (Path item : items) {
                 Files.deleteIfExists(item);
             }
         }
@@ -239,8 +242,8 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
         if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
             return false;
         }
-        try (var entries = Files.list(path)) {
-            return entries.findAny().isEmpty();
+        try (Stream<Path> entries = Files.list(path)) {
+            return !entries.iterator().hasNext();
         }
     }
 }
