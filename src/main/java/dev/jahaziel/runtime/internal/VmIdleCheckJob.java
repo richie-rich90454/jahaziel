@@ -9,6 +9,7 @@ import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 import dev.jahaziel.workspace.domain.WorkspaceState;
 
 import java.time.Duration;
@@ -19,7 +20,7 @@ import java.util.Objects;
  * activity, CPU, network over the idle window) lands with the metrics feed; until then the job
  * parks idle workspaces to make room, never killing running ones.
  */
-public final class VmIdleCheckJob implements PlatformJob {
+public final class VmIdleCheckJob extends PlatformJob {
     private final WorkspaceService workspaces;
     private final RuntimeService runtime;
 
@@ -36,7 +37,7 @@ public final class VmIdleCheckJob implements PlatformJob {
 
     @Override
     public void run(JobContext context) {
-        for (var view : workspaces.describeAll()) {
+        for (WorkspaceView view : workspaces.describeAll()) {
             if (view.workspace().state() instanceof WorkspaceState.Idle) {
                 runtime.stop(view.workspace().id());
             }
