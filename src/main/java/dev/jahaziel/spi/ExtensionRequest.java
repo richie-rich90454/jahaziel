@@ -15,8 +15,17 @@ import java.util.UUID;
  * @param userId the installing user
  * @param workspaceId the target workspace
  */
-public record ExtensionRequest(String extensionId, String version, UUID userId, UUID workspaceId) {
-    public ExtensionRequest {
+public final class ExtensionRequest {
+
+    private final String extensionId;
+
+    private final String version;
+
+    private final UUID userId;
+
+    private final UUID workspaceId;
+
+    public ExtensionRequest(String extensionId, String version, UUID userId, UUID workspaceId) {
         if (extensionId == null || extensionId.isBlank()) {
             throw new IllegalArgumentException("extensionId must not be blank");
         }
@@ -25,5 +34,75 @@ public record ExtensionRequest(String extensionId, String version, UUID userId, 
         }
         Objects.requireNonNull(userId, "userId");
         Objects.requireNonNull(workspaceId, "workspaceId");
+        this.extensionId = extensionId;
+        this.version = version;
+        this.userId = userId;
+        this.workspaceId = workspaceId;
+    }
+
+    public String extensionId() {
+        return this.extensionId;
+    }
+
+    public String getExtensionId() {
+        return extensionId;
+    }
+
+    public String version() {
+        return this.version;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public UUID userId() {
+        return this.userId;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public UUID workspaceId() {
+        return this.workspaceId;
+    }
+
+    public UUID getWorkspaceId() {
+        return workspaceId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ExtensionRequest)) return false;
+        ExtensionRequest other = (ExtensionRequest) o;
+        return (java.util.Objects.equals(this.extensionId, other.extensionId))
+                && java.util.Objects.equals(this.version, other.version)
+                && java.util.Objects.equals(this.userId, other.userId)
+                && java.util.Objects.equals(this.workspaceId, other.workspaceId);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(
+                this.extensionId, this.version, this.userId, this.workspaceId);
+    }
+
+    @Override
+    public String toString() {
+        return "ExtensionRequest["
+                + "extensionId="
+                + this.extensionId
+                + ", "
+                + "version="
+                + this.version
+                + ", "
+                + "userId="
+                + this.userId
+                + ", "
+                + "workspaceId="
+                + this.workspaceId
+                + "]";
     }
 }
