@@ -53,15 +53,29 @@ class TerminalSessionTest {
     void nonPositiveSizesAreRejected() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TerminalSession(sessionId, workspaceId, userId, 0, 120));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSession(sessionId, workspaceId, userId, 0, 120);
+                    }
+                });
         TerminalSession session = new TerminalSession(sessionId, workspaceId, userId, 30, 120);
-        assertThrows(IllegalArgumentException.class, () -> session.resize(30, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        session.resize(30, 0);
+                    }
+                });
     }
 
     @Test
     void nullsAreRejected() {
         assertThrows(
                 NullPointerException.class,
-                () -> new TerminalSession(null, workspaceId, userId, 30, 120));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSession(null, workspaceId, userId, 30, 120);
+                    }
+                });
     }
 }
