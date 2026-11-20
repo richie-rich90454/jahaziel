@@ -10,8 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -44,7 +49,12 @@ class JarDevKeysTemplateCoverageGapTest {
         Files.writeString(file, "x", StandardCharsets.UTF_8);
         assertThrows(
                 java.io.UncheckedIOException.class,
-                () -> JarDataDir.resolve(file.resolve("sub").toString()));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JarDataDir.resolve(file.resolve("sub").toString());
+                    }
+                });
     }
 
     @Test
@@ -56,18 +66,34 @@ class JarDevKeysTemplateCoverageGapTest {
         Mockito.when(mockFile.getAbsoluteFile()).thenReturn(mockFile);
         Mockito.when(mockFile.getParentFile()).thenReturn(dir.toFile());
         Mockito.when(mockFile.getPath()).thenReturn(dir.toString());
-        try (var ignored =
+        try (MockedConstruction<org.springframework.boot.system.ApplicationHome> ignored =
                 Mockito.mockConstruction(
                         org.springframework.boot.system.ApplicationHome.class,
-                        (mock, ctx) -> Mockito.when(mock.getSource()).thenReturn(mockFile))) {
+                        new MockedConstruction.MockInitializer<
+                                org.springframework.boot.system.ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    org.springframework.boot.system.ApplicationHome mock,
+                                    MockedConstruction.Context ctx) {
+                                Mockito.when(mock.getSource()).thenReturn(mockFile);
+                            }
+                        })) {
             assertEquals(dir.toString(), JarDataDir.adjacentBase());
         }
         File plainFile = Mockito.mock(File.class);
         Mockito.when(plainFile.getName()).thenReturn("classes");
-        try (var ignored =
+        try (MockedConstruction<org.springframework.boot.system.ApplicationHome> ignored =
                 Mockito.mockConstruction(
                         org.springframework.boot.system.ApplicationHome.class,
-                        (mock, ctx) -> Mockito.when(mock.getSource()).thenReturn(plainFile))) {
+                        new MockedConstruction.MockInitializer<
+                                org.springframework.boot.system.ApplicationHome>() {
+                            @Override
+                            public void prepare(
+                                    org.springframework.boot.system.ApplicationHome mock,
+                                    MockedConstruction.Context ctx) {
+                                Mockito.when(mock.getSource()).thenReturn(plainFile);
+                            }
+                        })) {
             String prev = System.getProperty("user.dir");
             try {
                 System.setProperty("user.dir", dir.toString());
@@ -96,7 +122,14 @@ class JarDevKeysTemplateCoverageGapTest {
         Files.createDirectories(keys);
         Files.createFile(keys.resolve(".lock"));
         long start = System.currentTimeMillis();
-        assertThrows(IllegalStateException.class, () -> DevKeys.ensure(keys));
+        assertThrows(
+                IllegalStateException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        DevKeys.ensure(keys);
+                    }
+                });
         assertTrue(System.currentTimeMillis() - start >= 5_000);
         Files.deleteIfExists(keys.resolve(".lock"));
     }
@@ -122,11 +155,14 @@ class JarDevKeysTemplateCoverageGapTest {
         Files.createFile(keys.resolve(".lock"));
         Thread worker =
                 new Thread(
-                        () -> {
-                            try {
-                                DevKeys.ensure(keys);
-                            } catch (IllegalStateException expected) {
-                                // Stuck path after interrupt.
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    DevKeys.ensure(keys);
+                                } catch (IllegalStateException expected) {
+                                    // Stuck path after interrupt.
+                                }
                             }
                         });
         worker.setDaemon(true);
@@ -150,15 +186,18 @@ class JarDevKeysTemplateCoverageGapTest {
                 StandardCharsets.UTF_8);
         assertThrows(
                 IllegalStateException.class,
-                () -> {
-                    Path onlyPrivate = dir.resolve("onlyprivate");
-                    Files.createDirectories(onlyPrivate);
-                    Files.copy(first.privateKey(), onlyPrivate.resolve("jwt.key"));
-                    Files.createFile(onlyPrivate.resolve(".lock"));
-                    try {
-                        DevKeys.ensure(onlyPrivate);
-                    } finally {
-                        Files.deleteIfExists(onlyPrivate.resolve(".lock"));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        Path onlyPrivate = dir.resolve("onlyprivate");
+                        Files.createDirectories(onlyPrivate);
+                        Files.copy(first.privateKey(), onlyPrivate.resolve("jwt.key"));
+                        Files.createFile(onlyPrivate.resolve(".lock"));
+                        try {
+                            DevKeys.ensure(onlyPrivate);
+                        } finally {
+                            Files.deleteIfExists(onlyPrivate.resolve(".lock"));
+                        }
                     }
                 });
     }
@@ -167,9 +206,30 @@ class JarDevKeysTemplateCoverageGapTest {
     void devKeysBadDirThrows(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("filekeys");
         Files.writeString(file, "x", StandardCharsets.UTF_8);
-        assertThrows(IllegalStateException.class, () -> DevKeys.ensure(file));
-        assertThrows(NullPointerException.class, () -> DevKeys.ensure(null));
-        assertThrows(NullPointerException.class, () -> new DevKeys.Keys(null, dir.resolve("p")));
+        assertThrows(
+                IllegalStateException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        DevKeys.ensure(file);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        DevKeys.ensure(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new DevKeys.Keys(null, dir.resolve("p"));
+                    }
+                });
     }
 
     @Test
@@ -193,17 +253,27 @@ class JarDevKeysTemplateCoverageGapTest {
                 new java.util.concurrent.atomic.AtomicInteger();
         Path priv = keys.resolve("jwt.key").toAbsolutePath().normalize();
         Path pub = keys.resolve("jwt.pub").toAbsolutePath().normalize();
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.isRegularFile(any(Path.class)))
-                    .thenAnswer(
-                            inv -> {
-                                Path p = inv.getArgument(0);
-                                Path norm = p.toAbsolutePath().normalize();
-                                if ((norm.equals(priv) || norm.equals(pub))
-                                        && calls.getAndIncrement() < 2) {
-                                    return false;
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isRegularFile(any(Path.class));
                                 }
-                                return (Boolean) inv.callRealMethod();
+                            })
+                    .thenAnswer(
+                            new Answer<Object>() {
+                                @Override
+                                public Object answer(InvocationOnMock inv) throws Throwable {
+                                    Path p = inv.getArgument(0);
+                                    Path norm = p.toAbsolutePath().normalize();
+                                    if ((norm.equals(priv) || norm.equals(pub))
+                                            && calls.getAndIncrement() < 2) {
+                                        return false;
+                                    }
+                                    return (Boolean) inv.callRealMethod();
+                                }
                             });
             DevKeys.Keys got = DevKeys.ensure(keys);
             assertTrue(Files.isRegularFile(got.privateKey()));
@@ -213,9 +283,22 @@ class JarDevKeysTemplateCoverageGapTest {
     @Test
     void devKeysPosixSuccessPath(@TempDir Path dir) throws Exception {
         Path keys = dir.resolve("posix");
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.setPosixFilePermissions(any(Path.class), any(Set.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.setPosixFilePermissions(any(Path.class), any(Set.class));
+                                }
+                            })
+                    .thenAnswer(
+                            new Answer<Object>() {
+                                @Override
+                                public Object answer(InvocationOnMock inv) throws Throwable {
+                                    return inv.getArgument(0);
+                                }
+                            });
             DevKeys.Keys got = DevKeys.ensure(keys);
             assertTrue(Files.isRegularFile(got.privateKey()));
         }
@@ -224,14 +307,19 @@ class JarDevKeysTemplateCoverageGapTest {
     @Test
     void devKeysAtomicMoveFallback(@TempDir Path dir) throws Exception {
         Path keys = dir.resolve("atomic");
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
             mocked.when(
-                            () ->
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
                                     Files.move(
                                             any(Path.class),
                                             any(Path.class),
                                             any(java.nio.file.CopyOption.class),
-                                            any(java.nio.file.CopyOption.class)))
+                                            any(java.nio.file.CopyOption.class));
+                                }
+                            })
                     .thenThrow(new java.nio.file.AtomicMoveNotSupportedException("x", "y", "mock"));
             DevKeys.Keys got = DevKeys.ensure(keys);
             assertTrue(Files.isRegularFile(got.privateKey()));
@@ -242,18 +330,44 @@ class JarDevKeysTemplateCoverageGapTest {
     void devKeysWriteFailureCleansStaged(@TempDir Path dir) throws Exception {
         Path keys = dir.resolve("writefail");
         Files.createDirectories(keys);
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.writeString(any(Path.class), any(CharSequence.class)))
-                    .thenThrow(new java.io.IOException("mock"));
-            assertThrows(IllegalStateException.class, () -> DevKeys.ensure(keys));
-        }
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
             mocked.when(
-                            () ->
-                                    Files.createTempFile(
-                                            any(Path.class), any(String.class), any(String.class)))
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.writeString(any(Path.class), any(CharSequence.class));
+                                }
+                            })
                     .thenThrow(new java.io.IOException("mock"));
-            assertThrows(IllegalStateException.class, () -> DevKeys.ensure(dir.resolve("tmpfail")));
+            assertThrows(
+                    IllegalStateException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            DevKeys.ensure(keys);
+                        }
+                    });
+        }
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.createTempFile(
+                                            any(Path.class), any(String.class), any(String.class));
+                                }
+                            })
+                    .thenThrow(new java.io.IOException("mock"));
+            assertThrows(
+                    IllegalStateException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            DevKeys.ensure(dir.resolve("tmpfail"));
+                        }
+                    });
         }
     }
 
