@@ -32,7 +32,23 @@ class JwtFinalTest {
     private static final String ISSUER = "https://code.test";
     private static final String AUDIENCE = "jahaziel-code-server";
 
-    private record Keys(KeyPair pair, RSAPublicKey pub) {}
+    private static final class Keys {
+        private final KeyPair pair;
+        private final RSAPublicKey pub;
+
+        Keys(KeyPair pair, RSAPublicKey pub) {
+            this.pair = pair;
+            this.pub = pub;
+        }
+
+        KeyPair pair() {
+            return pair;
+        }
+
+        RSAPublicKey pub() {
+            return pub;
+        }
+    }
 
     private static Keys keys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -65,7 +81,13 @@ class JwtFinalTest {
         String token = sign(keys.pair(), base(sub, wid).build());
         JwtVerifier verifier = new JwtVerifier(keys.pub(), ISSUER, AUDIENCE, Duration.ofHours(2));
         JwtRejectedException rejected =
-                assertThrows(JwtRejectedException.class, () -> verifier.verify(token));
+                assertThrows(
+                        JwtRejectedException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                verifier.verify(token);
+                            }
+                        });
         assertEquals("wrong audience", rejected.getMessage());
     }
 
@@ -77,7 +99,13 @@ class JwtFinalTest {
         String token = sign(keys.pair(), base(sub, wid).audience("someone-else").build());
         JwtVerifier verifier = new JwtVerifier(keys.pub(), ISSUER, AUDIENCE, Duration.ofHours(2));
         JwtRejectedException rejected =
-                assertThrows(JwtRejectedException.class, () -> verifier.verify(token));
+                assertThrows(
+                        JwtRejectedException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                verifier.verify(token);
+                            }
+                        });
         assertEquals("wrong audience", rejected.getMessage());
     }
 
