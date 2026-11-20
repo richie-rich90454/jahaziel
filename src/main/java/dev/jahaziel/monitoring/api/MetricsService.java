@@ -9,13 +9,13 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.Optional;
 
 /** Hourly resource rollups. Live samples arrive from the node agent. */
-public interface MetricsService {
+public abstract class MetricsService {
     /**
      * Records one hourly rollup.
      *
      * @param rollup the rollup
      */
-    void record(HourlyRollup rollup);
+    public abstract void record(HourlyRollup rollup);
 
     /**
      * Returns the newest rollup of a workspace.
@@ -23,5 +23,5 @@ public interface MetricsService {
      * @param workspaceId the workspace
      * @return the rollup, empty when none recorded
      */
-    Optional<HourlyRollup> latest(WorkspaceId workspaceId);
+    public abstract Optional<HourlyRollup> latest(WorkspaceId workspaceId);
 }
