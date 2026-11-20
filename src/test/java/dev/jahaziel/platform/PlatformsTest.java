@@ -16,6 +16,7 @@ import java.util.Map;
 
 /** Host detection and path conversions. No servers start here. */
 class PlatformsTest {
+
     @TempDir private Path tmp;
 
     @Test
@@ -26,12 +27,10 @@ class PlatformsTest {
         assertEquals(Platform.Os.WINDOWS, win.os());
         assertEquals(Platform.Arch.X64, win.arch());
         assertEquals(";", win.pathSeparator());
-
         Platform mac = Platforms.detect("Mac OS X", "aarch64", tmp.resolve("jar"), null);
         assertEquals(Platform.Os.MACOS, mac.os());
         assertEquals(Platform.Arch.ARM64, mac.arch());
         assertEquals(":", mac.pathSeparator());
-
         Platform linux = Platforms.detect("Linux", "x86_64", tmp.resolve("jar"), null);
         assertEquals(Platform.Os.LINUX, linux.os());
     }
@@ -55,7 +54,12 @@ class PlatformsTest {
         IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
-                        () -> Platforms.detect("Haiku", "sparc", tmp, null));
+                        new org.junit.jupiter.api.function.Executable() {
+
+                            public void execute() {
+                                Platforms.detect("Haiku", "sparc", tmp, null);
+                            }
+                        });
         assertTrue(failure.getMessage().contains("Linux x64"));
         assertTrue(failure.getMessage().contains("Linux arm64"));
         assertTrue(failure.getMessage().contains("Haiku"));
