@@ -41,8 +41,8 @@ public final class NodeMapper {
     }
 
     /**
-     * Rebuilds a node from its row. Stored degradation reasons are not recorded, so restored
-     * degraded and unhealthy states record that the reason was not recorded.
+     * Rebuilds a node from its row. Stored degradation reasons are not saved, so restored degraded
+     * and unhealthy states note that the reason was not saved.
      *
      * @param row the node row
      * @return the node
@@ -84,14 +84,21 @@ public final class NodeMapper {
     }
 
     private static void replay(Node node, String state) {
-        switch (state) {
-            case "healthy" -> {}
-            case "degraded" -> node.degrade("not recorded");
-            case "draining" -> node.drain();
-            case "unhealthy" -> node.markUnhealthy("not recorded");
-            default ->
-                    throw new IllegalStateException(
-                            "Node " + node.id() + " has unknown state " + state);
+        if ("healthy".equals(state)) {
+            return;
         }
+        if ("degraded".equals(state)) {
+            node.degrade("not recorded");
+            return;
+        }
+        if ("draining".equals(state)) {
+            node.drain();
+            return;
+        }
+        if ("unhealthy".equals(state)) {
+            node.markUnhealthy("not recorded");
+            return;
+        }
+        throw new IllegalStateException("Node " + node.id() + " has unknown state " + state);
     }
 }
