@@ -69,40 +69,114 @@ class FakeNodeAgentCoverageTest {
         SnapshotHandle snap2 = second.createSnapshot(handle2, new SnapshotTag("k2"), "tester");
         second.destroyWorkspace(handle2, true);
         // ponytail: keepSnapshots=true preserves snapshot rows even though unprepared.
-        assertThrows(IllegalArgumentException.class, () -> second.listSnapshots(handle2));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        second.listSnapshots(handle2);
+                    }
+                });
         assertTrue(snap != null && snap2 != null);
     }
 
     @Test
     void nullsAndUnprepared() {
         FakeNodeAgent agent = new FakeNodeAgent();
-        assertThrows(NullPointerException.class, () -> agent.prepare((PrepareRequest) null));
-        assertThrows(NullPointerException.class, () -> agent.start(null));
-        assertThrows(NullPointerException.class, () -> agent.stop(null, true));
-        assertThrows(NullPointerException.class, () -> agent.destroy(null));
-        assertThrows(NullPointerException.class, () -> agent.deleteSnapshot(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.prepare((PrepareRequest) null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.start(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.stop(null, true);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.destroy(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.deleteSnapshot(null);
+                    }
+                });
         UUID workspace = UUID.randomUUID();
         WorkspaceHandle ghost = new WorkspaceHandle(workspace, Path.of("/y"), Path.of("/z"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> agent.start(new RuntimeRequest(workspace, 1, 1, 0, 0, 0, 1, 1, List.of())));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.start(new RuntimeRequest(workspace, 1, 1, 0, 0, 0, 1, 1, List.of()));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> agent.stop(new RuntimeHandle(workspace), true));
-        assertThrows(IllegalArgumentException.class, () -> agent.destroy(ghost));
-        assertThrows(IllegalArgumentException.class, () -> agent.usage(ghost));
-        assertThrows(
-                IllegalArgumentException.class, () -> agent.snapshot(ghost, new SnapshotTag("t")));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.stop(new RuntimeHandle(workspace), true);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.destroy(ghost);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.usage(ghost);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.snapshot(ghost, new SnapshotTag("t"));
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         agent.restore(
                                 ghost,
                                 new SnapshotHandle(
-                                        UUID.randomUUID(),
-                                        Path.of("/s"),
-                                        java.time.Instant.now())));
-        assertThrows(IllegalArgumentException.class, () -> agent.attachPort(ghost, 80, "http"));
-        assertThrows(IllegalArgumentException.class, () -> agent.detachPort(ghost, 80));
+                                        UUID.randomUUID(), Path.of("/s"), java.time.Instant.now()));
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.attachPort(ghost, 80, "http");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.detachPort(ghost, 80);
+                    }
+                });
     }
 }
