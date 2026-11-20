@@ -35,11 +35,23 @@ public final class TimingBenchmark {
             return iterations;
         }
 
+        public int getIterations() {
+            return iterations;
+        }
+
         public long meanNanos() {
             return meanNanos;
         }
 
+        public long getMeanNanos() {
+            return meanNanos;
+        }
+
         public long p95Nanos() {
+            return p95Nanos;
+        }
+
+        public long getP95Nanos() {
             return p95Nanos;
         }
     }
