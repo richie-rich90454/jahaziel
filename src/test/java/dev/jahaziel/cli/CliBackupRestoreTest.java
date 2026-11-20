@@ -96,7 +96,14 @@ class CliBackupRestoreTest {
         new Random(1).nextBytes(big);
         Files.write(data.resolve("big.bin"), big);
         AtomicInteger code = new AtomicInteger(-1);
-        Thread worker = new Thread(() -> code.set(CliTestSupport.dispatch("backup").code()));
+        Thread worker =
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                code.set(CliTestSupport.dispatch("backup").code());
+                            }
+                        });
         worker.setDaemon(true);
         worker.start();
         Path dest = awaitBackupGrowth(30_000);
@@ -193,21 +200,29 @@ class CliBackupRestoreTest {
     }
 
     private static Path findBackup() throws Exception {
-        try (var stream = Files.list(Path.of(System.getProperty("user.dir")))) {
-            return stream.filter(
-                            path -> path.getFileName().toString().startsWith("jahaziel-backup-"))
-                    .filter(path -> path.getFileName().toString().endsWith(".tar.gz"))
-                    .filter(Files::isRegularFile)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("no backup found"));
+        try (java.util.stream.Stream<Path> stream =
+                Files.list(Path.of(System.getProperty("user.dir")))) {
+            java.util.Iterator<Path> iterator = stream.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                String name = path.getFileName().toString();
+                if (name.startsWith("jahaziel-backup-")
+                        && name.endsWith(".tar.gz")
+                        && Files.isRegularFile(path)) {
+                    return path;
+                }
+            }
         }
+        throw new IllegalStateException("no backup found");
     }
 
     private Path awaitBackupGrowth(long timeoutMs) throws Exception {
         long end = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < end) {
-            try (var stream = Files.list(jar)) {
-                for (Path path : stream.toList()) {
+            try (java.util.stream.Stream<Path> stream = Files.list(jar)) {
+                java.util.Iterator<Path> iterator = stream.iterator();
+                while (iterator.hasNext()) {
+                    Path path = iterator.next();
                     String name = path.getFileName().toString();
                     if (name.startsWith("jahaziel-backup-")
                             && name.endsWith(".tar.gz")
