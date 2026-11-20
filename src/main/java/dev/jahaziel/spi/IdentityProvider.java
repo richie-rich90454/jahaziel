@@ -9,14 +9,14 @@ import java.util.Optional;
 
 /** Authenticates users against an external identity provider. */
 @JahazielSpi(version = 1)
-public interface IdentityProvider {
+public abstract class IdentityProvider {
     /**
      * Authenticates a token and returns the user identity.
      *
      * @param token the token to authenticate
      * @return the authenticated identity
      */
-    UserIdentity authenticate(String token);
+    public abstract UserIdentity authenticate(String token);
 
     /**
      * Finds a user by external identifier.
@@ -24,7 +24,7 @@ public interface IdentityProvider {
      * @param externalId the subject claim from the identity provider
      * @return the identity, empty when unknown
      */
-    Optional<UserIdentity> findById(String externalId);
+    public abstract Optional<UserIdentity> findById(String externalId);
 
     /**
      * Creates an identity from raw claims.
@@ -32,5 +32,5 @@ public interface IdentityProvider {
      * @param claims the verified claims
      * @return the created identity
      */
-    UserIdentity createFromClaims(Map<String, Object> claims);
+    public abstract UserIdentity createFromClaims(Map<String, Object> claims);
 }
