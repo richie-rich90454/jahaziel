@@ -5,6 +5,7 @@
 package dev.jahaziel.security.api;
 
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Redacts common credentials before process output is stored or streamed to the workbench. */
@@ -38,7 +39,9 @@ public final class SecretRedactor {
     private SecretRedactor() {}
 
     public static String redact(String text) {
-        Objects.requireNonNull(text, "text");
+        if (text == null) {
+            return null;
+        }
         String assignmentSafe = ASSIGNED_SECRET.matcher(text).replaceAll("$1[redacted]");
         String bearerSafe = BEARER_TOKEN.matcher(assignmentSafe).replaceAll("$1[redacted]");
         return JWT.matcher(bearerSafe).replaceAll("[redacted token]");
@@ -90,7 +93,7 @@ public final class SecretRedactor {
             int start = text.length();
             for (Pattern pattern :
                     new Pattern[] {INCOMPLETE_ASSIGNMENT, INCOMPLETE_BEARER, INCOMPLETE_JWT}) {
-                var matcher = pattern.matcher(text);
+                Matcher matcher = pattern.matcher(text);
                 if (matcher.find()) start = Math.min(start, matcher.start());
             }
             return start;
@@ -107,7 +110,7 @@ public final class SecretRedactor {
                     }
                 }
             }
-            var assignmentLabel = ASSIGNMENT_LABEL_AT_END.matcher(text);
+            Matcher assignmentLabel = ASSIGNMENT_LABEL_AT_END.matcher(text);
             if (assignmentLabel.find()) start = Math.min(start, assignmentLabel.start());
             return start;
         }
