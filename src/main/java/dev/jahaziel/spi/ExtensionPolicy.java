@@ -6,12 +6,12 @@ package dev.jahaziel.spi;
 
 /** Decides whether an extension may be installed. */
 @JahazielSpi(version = 1)
-public interface ExtensionPolicy {
+public abstract class ExtensionPolicy {
     /**
      * Decides one extension request.
      *
      * @param request the install request
      * @return the decision
      */
-    Decision decide(ExtensionRequest request);
+    public abstract Decision decide(ExtensionRequest request);
 }
