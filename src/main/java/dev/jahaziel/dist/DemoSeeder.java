@@ -12,6 +12,7 @@ import dev.jahaziel.identity.persistence.UserRoleEntity;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -81,9 +82,13 @@ public final class DemoSeeder implements ApplicationRunner {
     }
 
     private void ensureWorkspace() {
-        boolean present =
-                workspaces.describeByOwner(DEMO_USER).stream()
-                        .anyMatch(view -> view.workspace().name().equals(DEMO_WORKSPACE));
+        boolean present = false;
+        for (WorkspaceView view : workspaces.describeByOwner(DEMO_USER)) {
+            if (view.workspace().name().equals(DEMO_WORKSPACE)) {
+                present = true;
+                break;
+            }
+        }
         if (!present) {
             workspaces.create(DEMO_USER, DEMO_WORKSPACE, 2, 4096, new NodeId("demo-node"));
         }
