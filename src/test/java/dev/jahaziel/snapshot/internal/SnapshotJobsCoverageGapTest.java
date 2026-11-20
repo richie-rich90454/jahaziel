@@ -17,6 +17,7 @@ import dev.jahaziel.audit.api.AuditService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.snapshot.api.SnapshotService;
 import dev.jahaziel.snapshot.domain.SnapshotKind;
+import dev.jahaziel.snapshot.domain.SnapshotMetadata;
 import dev.jahaziel.snapshot.persistence.SnapshotEntity;
 import dev.jahaziel.snapshot.persistence.SnapshotRepository;
 import dev.jahaziel.spi.JobContext;
@@ -43,27 +44,36 @@ class SnapshotJobsCoverageGapTest {
 
     @Test
     void createNullGuards() {
-        var snapshots = mock(SnapshotRepository.class);
-        var workspaces = mock(WorkspaceService.class);
-        var storage = mock(WorkspaceStorage.class);
-        var svc = service(snapshots, workspaces, storage);
+        SnapshotRepository snapshots = mock(SnapshotRepository.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
+        SnapshotServiceImpl svc = service(snapshots, workspaces, storage);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> svc.create(wid, null, SnapshotKind.AUTO, "u"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create(wid, null, SnapshotKind.AUTO, "u");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> svc.create(wid, "t", SnapshotKind.AUTO, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create(wid, "t", SnapshotKind.AUTO, null);
+                    }
+                });
     }
 
     @Test
     void createComparesTwoRowsForParent() {
-        var snapshots = mock(SnapshotRepository.class);
-        var workspaces = mock(WorkspaceService.class);
-        var storage = mock(WorkspaceStorage.class);
-        var svc = service(snapshots, workspaces, storage);
+        SnapshotRepository snapshots = mock(SnapshotRepository.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
+        SnapshotServiceImpl svc = service(snapshots, workspaces, storage);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(ws.id()).thenReturn(wid);
         when(ws.owner()).thenReturn(new UserId(UUID.randomUUID()));
         when(workspaces.get(wid)).thenReturn(ws);
@@ -86,29 +96,39 @@ class SnapshotJobsCoverageGapTest {
         newer.setCreatedBy("u");
         newer.setSnapshotPath("/s");
         when(snapshots.findByWorkspaceId(wid.value())).thenReturn(List.of(older, newer));
-        var meta = svc.create(wid, "new", SnapshotKind.MANUAL, "u");
+        SnapshotMetadata meta = svc.create(wid, "new", SnapshotKind.MANUAL, "u");
         assertTrue(meta.parentId().isPresent());
         assertEquals(newer.getSnapshotId(), meta.parentId().orElseThrow().value());
     }
 
     @Test
     void dailyCollectsTwoFailures() {
-        var snapshots = mock(SnapshotService.class);
-        var workspaces = mock(WorkspaceService.class);
+        SnapshotService snapshots = mock(SnapshotService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
         DailySnapshotJob job = new DailySnapshotJob(snapshots, workspaces);
         WorkspaceId firstId = new WorkspaceId(UUID.randomUUID());
         WorkspaceId secondId = new WorkspaceId(UUID.randomUUID());
-        var firstWs = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace firstWs =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(firstWs.id()).thenReturn(firstId);
-        var secondWs = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace secondWs =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(secondWs.id()).thenReturn(secondId);
-        var first = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView first =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(first.workspace()).thenReturn(firstWs);
-        var second = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView second =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(second.workspace()).thenReturn(secondWs);
         when(workspaces.describeAll()).thenReturn(List.of(first, second));
         when(snapshots.create(any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
-        assertThrows(RuntimeException.class, () -> job.run(JobContext.now()));
+        assertThrows(
+                RuntimeException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        job.run(JobContext.now());
+                    }
+                });
         verify(snapshots, times(2)).create(any(), any(), any(), any());
     }
 
@@ -123,13 +143,61 @@ class SnapshotJobsCoverageGapTest {
     @Test
     void snapshotTagBranches() {
         assertEquals("ok-1", new SnapshotTag("ok-1").value());
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(null));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("  "));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a..b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a/b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a\\b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(".hidden"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("/abs"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("C:\\win"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("  ");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("a..b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("a/b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("a\\b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag(".hidden");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("/abs");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotTag("C:\\win");
+                    }
+                });
     }
 }
