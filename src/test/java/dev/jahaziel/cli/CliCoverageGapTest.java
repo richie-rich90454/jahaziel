@@ -14,6 +14,7 @@ import dev.jahaziel.cli.CliTestSupport.Output;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -49,7 +50,13 @@ class CliCoverageGapTest {
     void bannerUnknownHost() throws Exception {
         try (MockedStatic<InetAddress> mocked =
                 Mockito.mockStatic(InetAddress.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(InetAddress::getLocalHost)
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    InetAddress.getLocalHost();
+                                }
+                            })
                     .thenThrow(new java.net.UnknownHostException("mock"));
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             Cli.printBanner(
@@ -68,9 +75,22 @@ class CliCoverageGapTest {
         Path file = dir.resolve("a.txt");
         Files.writeString(file, "abc", StandardCharsets.UTF_8);
         try (MockedStatic<MessageDigest> mocked = Mockito.mockStatic(MessageDigest.class)) {
-            mocked.when(() -> MessageDigest.getInstance(anyString()))
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    MessageDigest.getInstance(anyString());
+                                }
+                            })
                     .thenThrow(new java.security.NoSuchAlgorithmException("mock"));
-            assertThrows(IllegalStateException.class, () -> Cli.sha256(file));
+            assertThrows(
+                    IllegalStateException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            Cli.sha256(file);
+                        }
+                    });
         }
     }
 
@@ -171,7 +191,14 @@ class CliCoverageGapTest {
                 StandardCharsets.UTF_8);
         List<String> bad = Cli.malformedLines(file);
         assertTrue(bad.contains("NOT VALID"));
-        assertTrue(bad.stream().anyMatch(l -> l.contains("BAD KEY")));
+        boolean hasBadKey = false;
+        for (String line : bad) {
+            if (line.contains("BAD KEY")) {
+                hasBadKey = true;
+                break;
+            }
+        }
+        assertTrue(hasBadKey);
         Path clean = dir.resolve("c.env");
         Files.writeString(clean, "A=1\nexport B=2\n", StandardCharsets.UTF_8);
         assertTrue(Cli.malformedLines(clean).isEmpty());
