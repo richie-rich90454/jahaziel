@@ -24,9 +24,37 @@ class RuntimeMetricsTest {
 
     @Test
     void negativeValuesAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new RuntimeMetrics(-1, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new RuntimeMetrics(0, -1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new RuntimeMetrics(0, 0, -1, 0));
-        assertThrows(IllegalArgumentException.class, () -> new RuntimeMetrics(0, 0, 0, -1));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new RuntimeMetrics(-1, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new RuntimeMetrics(0, -1, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new RuntimeMetrics(0, 0, -1, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new RuntimeMetrics(0, 0, 0, -1);
+                    }
+                });
     }
 }
