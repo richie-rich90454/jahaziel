@@ -8,6 +8,7 @@ import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -15,17 +16,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * Removes orphaned jail directories: on disk but belonging to no known workspace. Home folders are
  * never touched; only the throwaway jail shells go.
  */
-public final class CleanupJob implements PlatformJob {
+public final class CleanupJob extends PlatformJob {
     private final WorkspaceService workspaces;
     private final String storageRoot;
 
@@ -45,10 +46,10 @@ public final class CleanupJob implements PlatformJob {
 
     @Override
     public void run(JobContext context) {
-        Set<String> known =
-                workspaces.describeAll().stream()
-                        .map(view -> view.workspace().id().value().toString())
-                        .collect(Collectors.toSet());
+        Set<String> known = new HashSet<>();
+        for (WorkspaceView view : workspaces.describeAll()) {
+            known.add(view.workspace().id().value().toString());
+        }
         Path jail = Path.of(storageRoot, "jail");
         if (!Files.isDirectory(jail)) {
             return;
