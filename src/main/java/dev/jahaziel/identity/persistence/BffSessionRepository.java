@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-/** Repository for BffSessionEntity persistence. */
+/** Spring Data repository for BffSessionEntity; interface is required by Spring Data. */
 public interface BffSessionRepository extends JpaRepository<BffSessionEntity, String> {
     /**
      * Removes sessions that expired before a cutoff.
