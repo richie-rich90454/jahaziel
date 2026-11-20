@@ -17,8 +17,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /** Measures a snapshot tree and creates its deterministic SHA-256 manifest digest. */
@@ -83,13 +86,19 @@ final class SnapshotManifest {
         if (attributes.isDirectory()) {
             List<Path> children = new ArrayList<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-                stream.forEach(children::add);
+                for (Path child : stream) {
+                    children.add(child);
+                }
             }
             children.sort(
-                    (left, right) ->
-                            left.getFileName()
+                    new Comparator<Path>() {
+                        @Override
+                        public int compare(Path left, Path right) {
+                            return left.getFileName()
                                     .toString()
-                                    .compareTo(right.getFileName().toString()));
+                                    .compareTo(right.getFileName().toString());
+                        }
+                    });
             for (Path child : children) {
                 visit(root, child, manifest, totals);
             }
@@ -166,18 +175,105 @@ final class SnapshotManifest {
     }
 
     /** Measured metadata for one immutable snapshot tree. */
-    record Measurement(long logicalBytes, long physicalBytes, String sha256) {
-        Measurement {
+    static final class Measurement {
+        private final long logicalBytes;
+        private final long physicalBytes;
+        private final String sha256;
+
+        Measurement(long logicalBytes, long physicalBytes, String sha256) {
             if (logicalBytes < 0 || physicalBytes < 0) {
                 throw new IllegalArgumentException("snapshot sizes must not be negative");
             }
             if (sha256 == null || !sha256.matches("[0-9a-f]{64}")) {
                 throw new IllegalArgumentException("sha256 must be a lowercase SHA-256 digest");
             }
+            this.logicalBytes = logicalBytes;
+            this.physicalBytes = physicalBytes;
+            this.sha256 = sha256;
+        }
+
+        long logicalBytes() {
+            return logicalBytes;
+        }
+
+        long physicalBytes() {
+            return physicalBytes;
+        }
+
+        String sha256() {
+            return sha256;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Measurement)) {
+                return false;
+            }
+            Measurement that = (Measurement) other;
+            return logicalBytes == that.logicalBytes
+                    && physicalBytes == that.physicalBytes
+                    && sha256.equals(that.sha256);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(logicalBytes, physicalBytes, sha256);
+        }
+
+        @Override
+        public String toString() {
+            return "Measurement[logicalBytes="
+                    + logicalBytes
+                    + ", physicalBytes="
+                    + physicalBytes
+                    + ", sha256="
+                    + sha256
+                    + "]";
         }
     }
 
-    private record FileMeasurement(long size, byte[] sha256) {}
+    private static final class FileMeasurement {
+        private final long size;
+        private final byte[] sha256;
+
+        FileMeasurement(long size, byte[] sha256) {
+            this.size = size;
+            this.sha256 = sha256;
+        }
+
+        long size() {
+            return size;
+        }
+
+        byte[] sha256() {
+            return sha256;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof FileMeasurement)) {
+                return false;
+            }
+            FileMeasurement that = (FileMeasurement) other;
+            return size == that.size && Arrays.equals(sha256, that.sha256);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Long.hashCode(size) + Arrays.hashCode(sha256);
+        }
+
+        @Override
+        public String toString() {
+            return "FileMeasurement[size=" + size + "]";
+        }
+    }
 
     private static final class Accumulator {
         private long logicalBytes;
