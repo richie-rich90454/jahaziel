@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.runtime.internal.BootProgressService.BootPhase;
+import dev.jahaziel.runtime.internal.BootProgressService.Progress;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class BootProgressServiceTest {
         service.report(id, BootPhase.PREPARING);
         UUID correlationId = service.snapshot(id).orElseThrow().correlationId();
         service.report(id, BootPhase.STARTING);
-        var progress = service.snapshot(id).orElseThrow();
+        Progress progress = service.snapshot(id).orElseThrow();
         assertEquals(BootPhase.STARTING, progress.phase());
         assertEquals(correlationId, progress.correlationId());
         assertTrue(service.snapshotAll().get(id.value()).phase() == BootPhase.STARTING);
@@ -47,17 +48,54 @@ class BootProgressServiceTest {
 
     @Test
     void guards() {
-        assertThrows(NullPointerException.class, () -> service.report(null, BootPhase.READY));
-        assertThrows(NullPointerException.class, () -> service.report(id, null));
-        assertThrows(NullPointerException.class, () -> service.snapshot(null));
-        assertThrows(NullPointerException.class, () -> service.clear(null));
         assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.report(null, BootPhase.READY);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.report(id, null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.snapshot(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.clear(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new BootProgressService.Progress(
-                                null, BootPhase.READY, java.time.Instant.now()));
+                                null, BootPhase.READY, java.time.Instant.now());
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new BootProgressService.Progress(UUID.randomUUID(), BootPhase.READY, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new BootProgressService.Progress(UUID.randomUUID(), BootPhase.READY, null);
+                    }
+                });
     }
 }
