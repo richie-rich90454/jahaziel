@@ -66,8 +66,22 @@ class AuditServiceImplTest {
 
     @Test
     void latestRejectsNonPositiveLimit() {
-        assertThrows(IllegalArgumentException.class, () -> service.latest(0));
-        assertThrows(IllegalArgumentException.class, () -> service.latest(-1));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.latest(0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.latest(-1);
+                    }
+                });
     }
 
     @Test
