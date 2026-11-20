@@ -221,14 +221,20 @@ public final class JahazielMain {
     }
 
     static String basisProperty(String envKey) {
-        return switch (envKey) {
-            case "BASIS_AUTH_ISSUER" -> "basis.auth-issuer";
-            case "BASIS_REDIRECT_URI" -> "basis.redirect-uri";
-            case "BASIS_CLIENT_ID" -> "basis.client-id";
-            case "BASIS_CLIENT_SECRET" -> "basis.client-secret";
-            case "BASIS_RESOURCE" -> "basis.resource";
-            default -> null;
-        };
+        switch (envKey) {
+            case "BASIS_AUTH_ISSUER":
+                return "basis.auth-issuer";
+            case "BASIS_REDIRECT_URI":
+                return "basis.redirect-uri";
+            case "BASIS_CLIENT_ID":
+                return "basis.client-id";
+            case "BASIS_CLIENT_SECRET":
+                return "basis.client-secret";
+            case "BASIS_RESOURCE":
+                return "basis.resource";
+            default:
+                return null;
+        }
     }
 
     static List<String> missingBasisVars(Map<String, String> fileEnv) {
@@ -268,19 +274,18 @@ public final class JahazielMain {
 
     static void portableProperties(
             JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
-        portablePropertyMap(data, keys, parsed, platform)
-                .forEach(
-                        (key, value) -> {
-                            if (parsed.demo() && key.equals("server.address")) {
-                                // Demo authentication grants a fixed admin identity, so never let
-                                // an inherited
-                                // environment or system property expose that mode on a network
-                                // interface.
-                                System.setProperty(key, value);
-                            } else {
-                                setIfAbsent(key, value);
-                            }
-                        });
+        for (Map.Entry<String, String> entry :
+                portablePropertyMap(data, keys, parsed, platform).entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (parsed.demo() && key.equals("server.address")) {
+                // Demo authentication grants a fixed admin identity, so never let an inherited
+                // environment or system property expose that mode on a network interface.
+                System.setProperty(key, value);
+            } else {
+                setIfAbsent(key, value);
+            }
+        }
     }
 
     /**
@@ -370,42 +375,128 @@ public final class JahazielMain {
     }
 
     static String help() {
-        return """
-        Usage: java -jar jahaziel.jar [options]
-
-        No-args with a jar-adjacent .env boots the FULL stack (API + node agent +
-        gateway) on 11451. No-args without .env prints this help; run `init` first.
-
-        Options:
-          --data-dir=PATH       Data root (default: data/ next to the jar)
-          --port=N              Control-plane HTTP port (default: 11451, or PORT from .env)
-          --gateway-port=N      Legacy standalone gateway socket (default: off;
-                                workspace traffic relays on the API port instead;
-                                or JAHAZIEL_GATEWAY_PORT from .env)
-          --domain=HOST         Public domain and token issuer (default: localhost,
-                                or JAHAZIEL_DOMAIN from .env)
-          --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
-          --help                Print this help
-          --version             Print the version
-
-        Layout: data/ holds workspaces/, language-packs/, logs/, tmp/, backups/,
-        dumps/, plugins/, templates/, keys/, audit/, sync/, and jahaziel.db
-        (SQLite WAL, created once, never cleared). Env is read from
-        jar-adjacent .env (real environment wins); login needs all five
-        BASIS_* vars (BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI, BASIS_CLIENT_ID,
-        BASIS_CLIENT_SECRET, BASIS_RESOURCE).
-        """;
+        return "Usage: java -jar jahaziel.jar [options]\n"
+                + "\n"
+                + "No-args with a jar-adjacent .env boots the FULL stack (API + node agent +\n"
+                + "gateway) on 11451. No-args without .env prints this help; run `init` first.\n"
+                + "\n"
+                + "Options:\n"
+                + "  --data-dir=PATH       Data root (default: data/ next to the jar)\n"
+                + "  --port=N              Control-plane HTTP port (default: 11451, or PORT from .env)\n"
+                + "  --gateway-port=N      Legacy standalone gateway socket (default: off;\n"
+                + "                        workspace traffic relays on the API port instead;\n"
+                + "                        or JAHAZIEL_GATEWAY_PORT from .env)\n"
+                + "  --domain=HOST         Public domain and token issuer (default: localhost,\n"
+                + "                        or JAHAZIEL_DOMAIN from .env)\n"
+                + "  --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*\n"
+                + "  --help                Print this help\n"
+                + "  --version             Print the version\n"
+                + "\n"
+                + "Layout: data/ holds workspaces/, language-packs/, logs/, tmp/, backups/,\n"
+                + "dumps/, plugins/, templates/, keys/, audit/, sync/, and jahaziel.db\n"
+                + "(SQLite WAL, created once, never cleared). Env is read from\n"
+                + "jar-adjacent .env (real environment wins); login needs all five\n"
+                + "BASIS_* vars (BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI, BASIS_CLIENT_ID,\n"
+                + "BASIS_CLIENT_SECRET, BASIS_RESOURCE).\n";
     }
 
     /** Parsed dispatcher arguments. */
-    record Arguments(
-            String dataDir,
-            int port,
-            int gatewayPort,
-            String domain,
-            boolean demo,
-            boolean help,
-            boolean version) {
+    static final class Arguments {
+        private final String dataDir;
+        private final int port;
+        private final int gatewayPort;
+        private final String domain;
+        private final boolean demo;
+        private final boolean help;
+        private final boolean version;
+
+        Arguments(
+                String dataDir,
+                int port,
+                int gatewayPort,
+                String domain,
+                boolean demo,
+                boolean help,
+                boolean version) {
+            this.dataDir = dataDir;
+            this.port = port;
+            this.gatewayPort = gatewayPort;
+            this.domain = domain;
+            this.demo = demo;
+            this.help = help;
+            this.version = version;
+        }
+
+        String dataDir() {
+            return dataDir;
+        }
+
+        int port() {
+            return port;
+        }
+
+        int gatewayPort() {
+            return gatewayPort;
+        }
+
+        String domain() {
+            return domain;
+        }
+
+        boolean demo() {
+            return demo;
+        }
+
+        boolean help() {
+            return help;
+        }
+
+        boolean version() {
+            return version;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Arguments)) {
+                return false;
+            }
+            Arguments that = (Arguments) other;
+            return port == that.port
+                    && gatewayPort == that.gatewayPort
+                    && demo == that.demo
+                    && help == that.help
+                    && version == that.version
+                    && Objects.equals(dataDir, that.dataDir)
+                    && Objects.equals(domain, that.domain);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(dataDir, port, gatewayPort, domain, demo, help, version);
+        }
+
+        @Override
+        public String toString() {
+            return "Arguments[dataDir="
+                    + dataDir
+                    + ", port="
+                    + port
+                    + ", gatewayPort="
+                    + gatewayPort
+                    + ", domain="
+                    + domain
+                    + ", demo="
+                    + demo
+                    + ", help="
+                    + help
+                    + ", version="
+                    + version
+                    + "]";
+        }
+
         static Arguments parse(String[] args) {
             return parse(args, Map.of());
         }
