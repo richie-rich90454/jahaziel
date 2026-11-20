@@ -49,10 +49,18 @@ class JwtVerifierCoverageGapTest {
         RSAPublicKey pub = (RSAPublicKey) kp.getPublic();
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new JwtVerifier(pub, null, "aud", Duration.ofMinutes(1)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(pub, null, "aud", Duration.ofMinutes(1));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new JwtVerifier(pub, "i", null, Duration.ofMinutes(1)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new JwtVerifier(pub, "i", null, Duration.ofMinutes(1));
+                    }
+                });
     }
 
     @Test
@@ -74,7 +82,13 @@ class JwtVerifierCoverageGapTest {
         signer.initSign(kp.getPrivate());
         signer.update(input.getBytes(StandardCharsets.US_ASCII));
         String signature = Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign());
-        assertThrows(JwtRejectedException.class, () -> v.verify(input + "." + signature));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(input + "." + signature);
+                    }
+                });
     }
 
     @Test
@@ -91,7 +105,13 @@ class JwtVerifierCoverageGapTest {
                         .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
         jwt.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> v.verify(jwt.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(jwt.serialize());
+                    }
+                });
     }
 
     @Test
@@ -110,7 +130,13 @@ class JwtVerifierCoverageGapTest {
                         .build();
         SignedJWT j0 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), none);
         j0.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j0.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j0.serialize());
+                    }
+                });
         JWTClaimsSet wrong =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -121,7 +147,13 @@ class JwtVerifierCoverageGapTest {
                         .build();
         SignedJWT j1 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), wrong);
         j1.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> v.verify(j1.serialize()));
+        assertThrows(
+                JwtRejectedException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        v.verify(j1.serialize());
+                    }
+                });
     }
 
     @Test
@@ -150,7 +182,13 @@ class JwtVerifierCoverageGapTest {
     void keysMalformedPemThrows() throws Exception {
         Path bad = tmp.resolve("bad.pem");
         Files.writeString(bad, "-----BEGIN PUBLIC KEY-----\nA\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtKeys.loadPublicKey(bad));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        JwtKeys.loadPublicKey(bad);
+                    }
+                });
         assertTrue(Files.exists(bad));
     }
 }
