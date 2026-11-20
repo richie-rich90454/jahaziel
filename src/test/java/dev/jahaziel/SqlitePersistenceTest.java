@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Proves the JPA mappings run on the portable SQLite file: UUID keys, instants, JSON text, and
@@ -52,13 +53,46 @@ class SqlitePersistenceTest {
 
     @DynamicPropertySource
     static void sqlite(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_DIR.resolve("jahaziel.db"));
-        registry.add("spring.datasource.driver-class-name", () -> "org.sqlite.JDBC");
+        registry.add(
+                "spring.datasource.url",
+                new Supplier<Object>() {
+                    @Override
+                    public Object get() {
+                        return "jdbc:sqlite:" + DB_DIR.resolve("jahaziel.db");
+                    }
+                });
+        registry.add(
+                "spring.datasource.driver-class-name",
+                new Supplier<Object>() {
+                    @Override
+                    public Object get() {
+                        return "org.sqlite.JDBC";
+                    }
+                });
         registry.add(
                 "spring.jpa.properties.hibernate.dialect",
-                () -> "org.hibernate.community.dialect.SQLiteDialect");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-        registry.add("spring.flyway.enabled", () -> "false");
+                new Supplier<Object>() {
+                    @Override
+                    public Object get() {
+                        return "org.hibernate.community.dialect.SQLiteDialect";
+                    }
+                });
+        registry.add(
+                "spring.jpa.hibernate.ddl-auto",
+                new Supplier<Object>() {
+                    @Override
+                    public Object get() {
+                        return "create-drop";
+                    }
+                });
+        registry.add(
+                "spring.flyway.enabled",
+                new Supplier<Object>() {
+                    @Override
+                    public Object get() {
+                        return "false";
+                    }
+                });
     }
 
     @Autowired private AppUserRepository users;
