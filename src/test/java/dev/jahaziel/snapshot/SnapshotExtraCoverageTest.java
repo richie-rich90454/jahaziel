@@ -53,7 +53,13 @@ class SnapshotExtraCoverageTest {
         assertEquals(SnapshotKind.AUTO, SnapshotKinds.fromString("auto"));
         assertEquals(SnapshotKind.MANUAL, SnapshotKinds.fromString("manual"));
         assertEquals(SnapshotKind.PRE_DELETE, SnapshotKinds.fromString("pre-delete"));
-        assertThrows(IllegalStateException.class, () -> SnapshotKinds.fromString("nope"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotKinds.fromString("nope");
+                    }
+                });
     }
 
     @Test
@@ -105,34 +111,65 @@ class SnapshotExtraCoverageTest {
 
     @Test
     void serviceCtorAndNullGuards() {
-        var snapshots = mock(SnapshotRepository.class);
-        var workspaces = mock(WorkspaceService.class);
-        var storage = mock(WorkspaceStorage.class);
-        var audit = mock(AuditService.class);
+        SnapshotRepository snapshots = mock(SnapshotRepository.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
+        AuditService audit = mock(AuditService.class);
         assertThrows(
                 NullPointerException.class,
-                () -> new SnapshotServiceImpl(null, workspaces, storage, audit, "/r"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotServiceImpl(null, workspaces, storage, audit, "/r");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotServiceImpl(snapshots, workspaces, storage, audit, " "));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotServiceImpl(snapshots, workspaces, storage, audit, " ");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotServiceImpl(snapshots, workspaces, storage, audit, null));
-        var svc = new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotServiceImpl(snapshots, workspaces, storage, audit, null);
+                    }
+                });
+        SnapshotServiceImpl svc =
+                new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
         assertThrows(
-                NullPointerException.class, () -> svc.create(null, "t", SnapshotKind.AUTO, "u"));
-        assertThrows(NullPointerException.class, () -> svc.create(wid, "t", null, "u"));
-        assertThrows(NullPointerException.class, () -> svc.list(null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create(null, "t", SnapshotKind.AUTO, "u");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create(wid, "t", null, "u");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.list(null);
+                    }
+                });
     }
 
     @Test
     void restoreRejectsForeignWorkspace() {
-        var snapshots = mock(SnapshotRepository.class);
-        var workspaces = mock(WorkspaceService.class);
-        var storage = mock(WorkspaceStorage.class);
-        var audit = mock(AuditService.class);
-        var svc = new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
+        SnapshotRepository snapshots = mock(SnapshotRepository.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
+        AuditService audit = mock(AuditService.class);
+        SnapshotServiceImpl svc =
+                new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
         SnapshotEntity row = new SnapshotEntity();
         row.setSnapshotId(UUID.randomUUID());
         row.setWorkspaceId(UUID.randomUUID());
@@ -144,21 +181,26 @@ class SnapshotExtraCoverageTest {
         when(snapshots.findById(any())).thenReturn(Optional.of(row));
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         svc.restore(
                                 new WorkspaceId(UUID.randomUUID()),
-                                new SnapshotId(row.getSnapshotId())));
+                                new SnapshotId(row.getSnapshotId()));
+                    }
+                });
     }
 
     @Test
     void createLinksParent() {
-        var snapshots = mock(SnapshotRepository.class);
-        var workspaces = mock(WorkspaceService.class);
-        var storage = mock(WorkspaceStorage.class);
-        var audit = mock(AuditService.class);
-        var svc = new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
+        SnapshotRepository snapshots = mock(SnapshotRepository.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceStorage storage = mock(WorkspaceStorage.class);
+        AuditService audit = mock(AuditService.class);
+        SnapshotServiceImpl svc =
+                new SnapshotServiceImpl(snapshots, workspaces, storage, audit, "/r");
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(ws.id()).thenReturn(wid);
         when(ws.owner()).thenReturn(new dev.jahaziel.identity.domain.UserId(UUID.randomUUID()));
         when(workspaces.get(wid)).thenReturn(ws);
@@ -173,20 +215,23 @@ class SnapshotExtraCoverageTest {
         older.setCreatedBy("u");
         older.setSnapshotPath("/s");
         when(snapshots.findByWorkspaceId(wid.value())).thenReturn(List.of(older));
-        var meta = svc.create(wid, "new", SnapshotKind.MANUAL, "u");
+        SnapshotMetadata meta = svc.create(wid, "new", SnapshotKind.MANUAL, "u");
         assertTrue(meta.parentId().isPresent());
     }
 
     @Test
     void retentionEnforcesCountsAndAge() {
-        var snapshots = mock(dev.jahaziel.snapshot.api.SnapshotService.class);
-        var workspaces = mock(WorkspaceService.class);
+        dev.jahaziel.snapshot.api.SnapshotService snapshots =
+                mock(dev.jahaziel.snapshot.api.SnapshotService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-06-01T00:00:00Z"), ZoneOffset.UTC);
         SnapshotRetentionJob job = new SnapshotRetentionJob(snapshots, workspaces, 1, 30, clock);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(ws.id()).thenReturn(wid);
-        var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView view =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(view.workspace()).thenReturn(ws);
         when(workspaces.describeAll()).thenReturn(List.of(view));
         SnapshotMetadata auto1 =
@@ -262,42 +307,77 @@ class SnapshotExtraCoverageTest {
         assertEquals(JobScope.CLUSTER, job.scope());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotRetentionJob(snapshots, workspaces, 0, 1, clock));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotRetentionJob(snapshots, workspaces, 0, 1, clock);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotRetentionJob(snapshots, workspaces, 1, 0, clock));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotRetentionJob(snapshots, workspaces, 1, 0, clock);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new SnapshotRetentionJob(null, workspaces, 1, 1, clock));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotRetentionJob(null, workspaces, 1, 1, clock);
+                    }
+                });
     }
 
     @Test
     void dailySnapshotsCollectFirstFailure() {
-        var snapshots = mock(dev.jahaziel.snapshot.api.SnapshotService.class);
-        var workspaces = mock(WorkspaceService.class);
+        dev.jahaziel.snapshot.api.SnapshotService snapshots =
+                mock(dev.jahaziel.snapshot.api.SnapshotService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
         DailySnapshotJob job = new DailySnapshotJob(snapshots, workspaces);
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
         when(ws.id()).thenReturn(wid);
-        var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView view =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(view.workspace()).thenReturn(ws);
         when(workspaces.describeAll()).thenReturn(List.of(view));
         when(snapshots.create(any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
-        assertThrows(RuntimeException.class, () -> job.run(JobContext.now()));
+        assertThrows(
+                RuntimeException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        job.run(JobContext.now());
+                    }
+                });
         when(workspaces.describeAll()).thenReturn(List.of());
         job.run(JobContext.now());
         assertEquals(Duration.ofHours(24), job.period());
         assertEquals(JobScope.CLUSTER, job.scope());
-        assertThrows(NullPointerException.class, () -> new DailySnapshotJob(null, workspaces));
-        assertThrows(NullPointerException.class, () -> new DailySnapshotJob(snapshots, null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DailySnapshotJob(null, workspaces);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DailySnapshotJob(snapshots, null);
+                    }
+                });
     }
 
     @Test
     void snapshotNotFoundCarriesId() {
         SnapshotId id = new SnapshotId(UUID.randomUUID());
-        var ex = new dev.jahaziel.snapshot.api.SnapshotNotFoundException(id);
+        dev.jahaziel.snapshot.api.SnapshotNotFoundException ex =
+                new dev.jahaziel.snapshot.api.SnapshotNotFoundException(id);
         assertTrue(ex.getMessage().contains(id.value().toString()));
-        var missing = new dev.jahaziel.snapshot.api.SnapshotNotFoundException(null);
+        dev.jahaziel.snapshot.api.SnapshotNotFoundException missing =
+                new dev.jahaziel.snapshot.api.SnapshotNotFoundException(null);
         assertNull(missing.snapshotId());
     }
 }
