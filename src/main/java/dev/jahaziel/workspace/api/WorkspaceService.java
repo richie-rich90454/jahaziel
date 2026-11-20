@@ -12,7 +12,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.List;
 
 /** Workspaces: create, read, describe, delete. Lifecycle arrives with the runtime slice. */
-public interface WorkspaceService {
+public abstract class WorkspaceService {
     /**
      * Creates a workspace. The node must already be registered; memory and disk are reserved at
      * start, not at creation.
@@ -25,7 +25,8 @@ public interface WorkspaceService {
      * @return the created workspace in requested state
      * @throws dev.jahaziel.identity.api.UserNotFoundException when the owner does not exist
      */
-    Workspace create(UserId owner, String name, int vcpuCount, long memoryMib, NodeId nodeId);
+    public abstract Workspace create(
+            UserId owner, String name, int vcpuCount, long memoryMib, NodeId nodeId);
 
     /**
      * Returns one workspace.
@@ -34,7 +35,7 @@ public interface WorkspaceService {
      * @return the workspace
      * @throws WorkspaceNotFoundException when the workspace does not exist
      */
-    Workspace get(WorkspaceId id);
+    public abstract Workspace get(WorkspaceId id);
 
     /**
      * Describes one workspace for reads. Usage stays zero until the metrics slice supplies live
@@ -44,7 +45,7 @@ public interface WorkspaceService {
      * @return the view
      * @throws WorkspaceNotFoundException when the workspace does not exist
      */
-    WorkspaceView describe(WorkspaceId id);
+    public abstract WorkspaceView describe(WorkspaceId id);
 
     /**
      * Describes all workspaces of an owner.
@@ -52,14 +53,14 @@ public interface WorkspaceService {
      * @param owner the owning user
      * @return the views, empty when none exist
      */
-    List<WorkspaceView> describeByOwner(UserId owner);
+    public abstract List<WorkspaceView> describeByOwner(UserId owner);
 
     /**
      * Describes every workspace. Administration only.
      *
      * @return the views, empty when none exist
      */
-    List<WorkspaceView> describeAll();
+    public abstract List<WorkspaceView> describeAll();
 
     /**
      * Persists state changes of a managed workspace.
@@ -67,7 +68,7 @@ public interface WorkspaceService {
      * @param workspace the workspace to persist
      * @throws WorkspaceNotFoundException when the workspace does not exist
      */
-    void save(Workspace workspace);
+    public abstract void save(Workspace workspace);
 
     /**
      * Destroys a workspace and removes its rows. Snapshots cascade with the workspace row.
@@ -75,5 +76,5 @@ public interface WorkspaceService {
      * @param id the workspace identifier
      * @throws WorkspaceNotFoundException when the workspace does not exist
      */
-    void delete(WorkspaceId id);
+    public abstract void delete(WorkspaceId id);
 }
