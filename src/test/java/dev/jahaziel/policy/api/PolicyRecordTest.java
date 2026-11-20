@@ -24,26 +24,61 @@ class PolicyRecordTest {
         assertEquals("workspace", doc.scope());
         assertNull(doc.scopeId());
         assertThrows(
-                NullPointerException.class, () -> new PolicyDoc(null, "s", null, "{}", at(), "a"));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(null, "s", null, "{}", at(), "a");
+                    }
+                });
         assertThrows(
-                NullPointerException.class, () -> new PolicyDoc(id(), "s", null, "{}", null, "a"));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "s", null, "{}", null, "a");
+                    }
+                });
         assertThrows(
-                NullPointerException.class, () -> new PolicyDoc(id(), "s", null, "{}", at(), null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "s", null, "{}", at(), null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(id(), null, null, "{}", at(), "a"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), null, null, "{}", at(), "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(id(), "  ", null, "{}", at(), "a"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "  ", null, "{}", at(), "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(id(), "s", null, null, at(), "a"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "s", null, null, at(), "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(id(), "s", null, "  ", at(), "a"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "s", null, "  ", at(), "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(id(), "s", null, "{}", at(), "  "));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(id(), "s", null, "{}", at(), "  ");
+                    }
+                });
     }
 
     @Test
@@ -62,28 +97,60 @@ class PolicyRecordTest {
         assertNull(doc.versionConstraint());
         assertThrows(
                 NullPointerException.class,
-                () -> new ExtensionPolicyDoc(null, "s", null, "e", "a", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(null, "s", null, "e", "a", null, at());
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new ExtensionPolicyDoc(id(), "s", null, "e", "a", null, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "s", null, "e", "a", null, null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), null, null, "e", "a", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), null, null, "e", "a", null, at());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), "  ", null, "e", "a", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "  ", null, "e", "a", null, at());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), "s", null, null, "a", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "s", null, null, "a", null, at());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), "s", null, "  ", "a", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "s", null, "  ", "a", null, at());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), "s", null, "e", null, null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "s", null, "e", null, null, at());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ExtensionPolicyDoc(id(), "s", null, "e", "  ", null, at()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ExtensionPolicyDoc(id(), "s", null, "e", "  ", null, at());
+                    }
+                });
     }
 
     private static UUID id() {
