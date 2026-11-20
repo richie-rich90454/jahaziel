@@ -108,13 +108,18 @@ class CliSupportBundleTest {
     }
 
     private Path findBundle() throws Exception {
-        try (var stream = Files.list(jar)) {
-            return stream.filter(
-                            path -> path.getFileName().toString().startsWith("jahaziel-support-"))
-                    .filter(path -> path.getFileName().toString().endsWith(".zip"))
-                    .filter(Files::isRegularFile)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("no bundle found"));
+        try (java.util.stream.Stream<Path> stream = Files.list(jar)) {
+            java.util.Iterator<Path> iterator = stream.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                String name = path.getFileName().toString();
+                if (name.startsWith("jahaziel-support-")
+                        && name.endsWith(".zip")
+                        && Files.isRegularFile(path)) {
+                    return path;
+                }
+            }
         }
+        throw new IllegalStateException("no bundle found");
     }
 }
