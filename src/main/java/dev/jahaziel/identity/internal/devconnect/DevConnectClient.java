@@ -32,6 +32,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * The basis-auth OIDC calls: discovery, authorization URL, code exchange, UserInfo, and ID token
@@ -272,7 +274,12 @@ public final class DevConnectClient {
                                         // JwtClaimValidator skips null claims before testing, so
                                         // audiences is
                                         // never null here.
-                                        audiences -> audiences.contains(props.getClientId()))));
+                                        new Predicate<List<String>>() {
+                                            @Override
+                                            public boolean test(List<String> audiences) {
+                                                return audiences.contains(props.getClientId());
+                                            }
+                                        })));
                 decoder = built;
                 decoderJwksUri = document.jwksUri();
             }
@@ -360,7 +367,52 @@ public final class DevConnectClient {
      * @param idToken the login proof
      * @param accessToken the token used for UserInfo
      */
-    public record Tokens(String idToken, String accessToken) {}
+    public static final class Tokens {
+        private final String idToken;
+        private final String accessToken;
+
+        /** Creates a token pair. */
+        public Tokens(String idToken, String accessToken) {
+            this.idToken = idToken;
+            this.accessToken = accessToken;
+        }
+
+        /** Returns the login proof. */
+        public String idToken() {
+            return idToken;
+        }
+
+        /** Returns the token used for UserInfo. */
+        public String accessToken() {
+            return accessToken;
+        }
+
+        /** Compares by class and all fields. */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Tokens that = (Tokens) o;
+            return Objects.equals(idToken, that.idToken)
+                    && Objects.equals(accessToken, that.accessToken);
+        }
+
+        /** Returns the hash code derived from all fields. */
+        @Override
+        public int hashCode() {
+            return Objects.hash(idToken, accessToken);
+        }
+
+        /** Returns a readable representation. */
+        @Override
+        public String toString() {
+            return "Tokens[idToken=" + idToken + ", accessToken=" + accessToken + "]";
+        }
+    }
 
     /**
      * The identity read from UserInfo.
@@ -369,10 +421,79 @@ public final class DevConnectClient {
      * @param email the email, used once to join a legacy account
      * @param name the display name
      */
-    public record UserInfo(String sub, String email, String name, boolean emailVerified) {
+    public static final class UserInfo {
+        private final String sub;
+        private final String email;
+        private final String name;
+        private final boolean emailVerified;
+
+        /** Creates a UserInfo identity. */
+        public UserInfo(String sub, String email, String name, boolean emailVerified) {
+            this.sub = sub;
+            this.email = email;
+            this.name = name;
+            this.emailVerified = emailVerified;
+        }
+
         /** Compatibility constructor for callers that do not provide verification state. */
         public UserInfo(String sub, String email, String name) {
             this(sub, email, name, false);
+        }
+
+        /** Returns the subject. */
+        public String sub() {
+            return sub;
+        }
+
+        /** Returns the email. */
+        public String email() {
+            return email;
+        }
+
+        /** Returns the display name. */
+        public String name() {
+            return name;
+        }
+
+        /** Returns the email verification state. */
+        public boolean emailVerified() {
+            return emailVerified;
+        }
+
+        /** Compares by class and all fields. */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            UserInfo that = (UserInfo) o;
+            return emailVerified == that.emailVerified
+                    && Objects.equals(sub, that.sub)
+                    && Objects.equals(email, that.email)
+                    && Objects.equals(name, that.name);
+        }
+
+        /** Returns the hash code derived from all fields. */
+        @Override
+        public int hashCode() {
+            return Objects.hash(sub, email, name, emailVerified);
+        }
+
+        /** Returns a readable representation. */
+        @Override
+        public String toString() {
+            return "UserInfo[sub="
+                    + sub
+                    + ", email="
+                    + email
+                    + ", name="
+                    + name
+                    + ", emailVerified="
+                    + emailVerified
+                    + "]";
         }
     }
 }
