@@ -20,18 +20,26 @@ import java.util.List;
 import java.util.UUID;
 
 class AgentToolControllerTest {
+
     private final AgentToolService tools = mock(AgentToolService.class);
+
     private final AgentToolController controller = new AgentToolController(tools);
+
     private final UserId user = new UserId(UUID.randomUUID());
-    private final Principal principal = () -> user.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return user.value().toString();
+                }
+            };
 
     @Test
     void catalogIsScopedToTheAuthenticatedUser() {
         ToolStatus status = status("INSTALLED");
         when(tools.catalog(user)).thenReturn(List.of(status));
-
         assertEquals(List.of(status), controller.catalog(principal));
-
         verify(tools).catalog(user);
     }
 
@@ -41,10 +49,8 @@ class AgentToolControllerTest {
         ToolStatus updating = status("INSTALLING");
         when(tools.installOpenCode(user)).thenReturn(installing);
         when(tools.updateOpenCode(user)).thenReturn(updating);
-
         assertEquals(installing, controller.installOpenCode(principal));
         assertEquals(updating, controller.updateOpenCode(principal));
-
         verify(tools).installOpenCode(user);
         verify(tools).updateOpenCode(user);
     }
@@ -53,9 +59,7 @@ class AgentToolControllerTest {
     void removalPreservesTheServiceOwnedProfileLifecycle() {
         ToolStatus removed = status("NOT_INSTALLED");
         when(tools.removeOpenCode(user)).thenReturn(removed);
-
         assertEquals(removed, controller.removeOpenCode(principal));
-
         verify(tools).removeOpenCode(user);
     }
 
