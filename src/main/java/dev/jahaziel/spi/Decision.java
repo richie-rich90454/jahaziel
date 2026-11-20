@@ -5,11 +5,31 @@
 package dev.jahaziel.spi;
 
 /** Policy decision for an extension request. */
-public enum Decision {
+public final class Decision {
     /** The extension may be installed. */
-    ALLOW,
+    public static final Decision ALLOW = new Decision("ALLOW");
+
     /** The extension must not be installed. */
-    BLOCK,
+    public static final Decision BLOCK = new Decision("BLOCK");
+
     /** Installation waits for an administrator approval. */
-    REQUIRE_APPROVAL
+    public static final Decision REQUIRE_APPROVAL = new Decision("REQUIRE_APPROVAL");
+
+    private static final Decision[] VALUES = {ALLOW, BLOCK, REQUIRE_APPROVAL};
+
+    private final String name;
+
+    private Decision(String name) {
+        this.name = name;
+    }
+
+    /** Returns the constant name. */
+    public String name() {
+        return name;
+    }
+
+    /** Returns all constants. */
+    public static Decision[] values() {
+        return VALUES.clone();
+    }
 }
