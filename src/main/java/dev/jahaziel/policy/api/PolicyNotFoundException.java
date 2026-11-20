@@ -24,4 +24,8 @@ public final class PolicyNotFoundException extends RuntimeException {
     public UUID policyId() {
         return policyId;
     }
+
+    public UUID getPolicyId() {
+        return policyId;
+    }
 }
