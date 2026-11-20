@@ -12,8 +12,40 @@ import java.util.UUID;
  *
  * @param value the identifier value
  */
-public record WorkspaceId(UUID value) {
-    public WorkspaceId {
+public final class WorkspaceId {
+    private final UUID value;
+
+    public WorkspaceId(UUID value) {
         Objects.requireNonNull(value, "value");
+
+        this.value = value;
+    }
+
+    public UUID value() {
+        return value;
+    }
+
+    public UUID getValue() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WorkspaceId other = (WorkspaceId) o;
+        return Objects.equals(value, other.value);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        result = 31 * result + Objects.hashCode(value);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "WorkspaceId{" + "value=" + value + '}';
     }
 }
