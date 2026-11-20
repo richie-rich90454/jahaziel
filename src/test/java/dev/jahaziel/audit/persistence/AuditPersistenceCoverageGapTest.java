@@ -50,15 +50,43 @@ class AuditPersistenceCoverageGapTest {
     void converterRejectsBadEscapesAndSeparators() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> converter.convertToEntityAttribute("[\"\\x\"]"));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"\\x\"]");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> converter.convertToEntityAttribute("[\"\\u12\"]"));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"\\u12\"]");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[,]"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[,]");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[\"a]"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"a]");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[\"a\""));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"a\"");
+                    }
+                });
     }
 }
