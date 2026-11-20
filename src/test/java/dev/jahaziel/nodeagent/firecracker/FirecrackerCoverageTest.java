@@ -33,17 +33,28 @@ class FirecrackerCoverageTest {
     void statusRejectsMalformed() {
         assertThrows(
                 FirecrackerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         FirecrackerClient.statusOf(
-                                "HELLO\r\n\r\n".getBytes(StandardCharsets.US_ASCII)));
+                                "HELLO\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+                    }
+                });
         assertThrows(
                 FirecrackerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         FirecrackerClient.statusOf(
-                                "HTTP/1.1 XYZ oops\r\n\r\n".getBytes(StandardCharsets.US_ASCII)));
+                                "HTTP/1.1 XYZ oops\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+                    }
+                });
         FirecrackerException failure =
                 assertThrows(
-                        FirecrackerException.class, () -> FirecrackerClient.statusOf(new byte[0]));
+                        FirecrackerException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                FirecrackerClient.statusOf(new byte[0]);
+                            }
+                        });
         assertEquals("<response>", failure.path());
         assertEquals(-1, failure.status());
     }
@@ -69,7 +80,8 @@ class FirecrackerCoverageTest {
         Path missing = root.resolve("missing.sock");
         assertThrows(
                 FirecrackerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         client.boot(
                                 missing.toString(),
                                 "/rootfs.img",
@@ -78,8 +90,16 @@ class FirecrackerCoverageTest {
                                 1,
                                 512,
                                 "/kernel",
-                                List.of()));
-        assertThrows(FirecrackerException.class, () -> client.shutdown(missing.toString()));
+                                List.of());
+                    }
+                });
+        assertThrows(
+                FirecrackerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        client.shutdown(missing.toString());
+                    }
+                });
     }
 
     @Test
@@ -89,30 +109,32 @@ class FirecrackerCoverageTest {
         ServerSocketChannel serverCh = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         serverCh.bind(UnixDomainSocketAddress.of(socketPath));
         Thread server =
-                Thread.ofPlatform()
-                        .daemon()
-                        .start(
-                                () -> {
-                                    try {
-                                        for (int i = 0; i < 6; i++) {
-                                            try (SocketChannel accepted = serverCh.accept()) {
-                                                byte[] request = readAll(accepted);
-                                                lastRequest.set(
-                                                        new String(
-                                                                request, StandardCharsets.UTF_8));
-                                                String response =
-                                                        "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
-                                                accepted.write(
-                                                        ByteBuffer.wrap(
-                                                                response.getBytes(
-                                                                        StandardCharsets
-                                                                                .US_ASCII)));
-                                            }
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    for (int i = 0; i < 6; i++) {
+                                        try (SocketChannel accepted = serverCh.accept()) {
+                                            byte[] request = readAll(accepted);
+                                            lastRequest.set(
+                                                    new String(request, StandardCharsets.UTF_8));
+                                            String response =
+                                                    "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+                                            accepted.write(
+                                                    ByteBuffer.wrap(
+                                                            response.getBytes(
+                                                                    StandardCharsets.US_ASCII)));
                                         }
-                                    } catch (Exception ignored) {
-                                        // Test server; client assertions carry the outcome.
                                     }
-                                });
+                                } catch (Exception ignored) {
+                                    // Test server; client assertions carry the outcome.
+                                }
+                            }
+                        },
+                        "firecracker-fake-204");
+        server.setDaemon(true);
+        server.start();
         try {
             FirecrackerClient client = new FirecrackerClient();
             client.boot(
@@ -139,27 +161,37 @@ class FirecrackerCoverageTest {
         ServerSocketChannel serverCh = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         serverCh.bind(UnixDomainSocketAddress.of(socketPath));
         Thread server =
-                Thread.ofPlatform()
-                        .daemon()
-                        .start(
-                                () -> {
-                                    try {
-                                        try (SocketChannel accepted = serverCh.accept()) {
-                                            readAll(accepted);
-                                            String response =
-                                                    "HTTP/1.1 400 Bad Request\r\nContent-Length: 2\r\n\r\n{}";
-                                            accepted.write(
-                                                    ByteBuffer.wrap(
-                                                            response.getBytes(
-                                                                    StandardCharsets.US_ASCII)));
-                                        }
-                                    } catch (Exception ignored) {
-                                        // Best effort.
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    try (SocketChannel accepted = serverCh.accept()) {
+                                        readAll(accepted);
+                                        String response =
+                                                "HTTP/1.1 400 Bad Request\r\nContent-Length: 2\r\n\r\n{}";
+                                        accepted.write(
+                                                ByteBuffer.wrap(
+                                                        response.getBytes(
+                                                                StandardCharsets.US_ASCII)));
                                     }
-                                });
+                                } catch (Exception ignored) {
+                                    // Best effort.
+                                }
+                            }
+                        },
+                        "firecracker-fake-400");
+        server.setDaemon(true);
+        server.start();
         try {
             FirecrackerClient client = new FirecrackerClient();
-            assertThrows(FirecrackerException.class, () -> client.shutdown(socketPath.toString()));
+            assertThrows(
+                    FirecrackerException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            client.shutdown(socketPath.toString());
+                        }
+                    });
         } finally {
             serverCh.close();
             server.interrupt();
@@ -202,7 +234,13 @@ class FirecrackerCoverageTest {
         mapperField.set(client, failing);
         try {
             Path missing = root.resolve("never.sock");
-            assertThrows(IllegalArgumentException.class, () -> client.shutdown(missing.toString()));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            client.shutdown(missing.toString());
+                        }
+                    });
         } finally {
             mapperField.set(client, original);
         }
@@ -211,7 +249,8 @@ class FirecrackerCoverageTest {
         try {
             assertThrows(
                     IllegalArgumentException.class,
-                    () ->
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
                             client.boot(
                                     root.resolve("x.sock").toString(),
                                     "/r",
@@ -220,7 +259,9 @@ class FirecrackerCoverageTest {
                                     1,
                                     128,
                                     "/k",
-                                    List.of()));
+                                    List.of());
+                        }
+                    });
         } finally {
             mapperField.set(client, original);
         }
