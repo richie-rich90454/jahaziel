@@ -16,7 +16,7 @@ import java.util.Objects;
  * Converges the gateway routing table: starts, stops, and port changes all land here, so a missed
  * event costs at most one period.
  */
-public final class GatewayRouteSyncJob implements PlatformJob {
+public final class GatewayRouteSyncJob extends PlatformJob {
     private final GatewayRouteService routes;
 
     /**
