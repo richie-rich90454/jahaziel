@@ -43,7 +43,8 @@ class GatewayRouteCoverageGapTest {
                         new WorkspaceState.Idle(now, now));
         for (WorkspaceState state : serving) {
             WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
-            var owner = new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
+            dev.jahaziel.identity.domain.UserId owner =
+                    new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
             Workspace ws = mock(Workspace.class);
             when(ws.id()).thenReturn(wid);
             when(ws.owner()).thenReturn(owner);
