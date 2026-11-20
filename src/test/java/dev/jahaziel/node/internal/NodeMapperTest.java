@@ -50,7 +50,13 @@ class NodeMapperTest {
 
     @Test
     void unknownStateThrows() {
-        assertThrows(IllegalStateException.class, () -> NodeMapper.toDomain(row("bogus")));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeMapper.toDomain(row("bogus"));
+                    }
+                });
     }
 
     private NodeEntity row(String state) {
