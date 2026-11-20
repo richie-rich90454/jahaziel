@@ -23,6 +23,8 @@ import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -47,52 +49,73 @@ class SecurityConfigCoverageGapTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private HttpSecurity wired(CsrfConfigurer<HttpSecurity> csrf) throws Exception {
-        HttpSecurity http = mock(HttpSecurity.class, RETURNS_DEEP_STUBS);
+    private HttpSecurity wired(final CsrfConfigurer<HttpSecurity> csrf) throws Exception {
+        final HttpSecurity http = mock(HttpSecurity.class, RETURNS_DEEP_STUBS);
         when(http.authorizeHttpRequests(any()))
                 .thenAnswer(
-                        inv -> {
-                            ((org.springframework.security.config.Customizer) inv.getArgument(0))
-                                    .customize(
-                                            mock(
-                                                    AuthorizationManagerRequestMatcherRegistry
-                                                            .class,
-                                                    RETURNS_DEEP_STUBS));
-                            return http;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) {
+                                ((org.springframework.security.config.Customizer)
+                                                inv.getArgument(0))
+                                        .customize(
+                                                mock(
+                                                        AuthorizationManagerRequestMatcherRegistry
+                                                                .class,
+                                                        RETURNS_DEEP_STUBS));
+                                return http;
+                            }
                         });
         when(http.logout(any()))
                 .thenAnswer(
-                        inv -> {
-                            ((org.springframework.security.config.Customizer) inv.getArgument(0))
-                                    .customize(mock(LogoutConfigurer.class, RETURNS_DEEP_STUBS));
-                            return http;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) {
+                                ((org.springframework.security.config.Customizer)
+                                                inv.getArgument(0))
+                                        .customize(
+                                                mock(LogoutConfigurer.class, RETURNS_DEEP_STUBS));
+                                return http;
+                            }
                         });
         when(http.sessionManagement(any()))
                 .thenAnswer(
-                        inv -> {
-                            ((org.springframework.security.config.Customizer) inv.getArgument(0))
-                                    .customize(
-                                            mock(
-                                                    SessionManagementConfigurer.class,
-                                                    RETURNS_DEEP_STUBS));
-                            return http;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) {
+                                ((org.springframework.security.config.Customizer)
+                                                inv.getArgument(0))
+                                        .customize(
+                                                mock(
+                                                        SessionManagementConfigurer.class,
+                                                        RETURNS_DEEP_STUBS));
+                                return http;
+                            }
                         });
         when(http.exceptionHandling(any()))
                 .thenAnswer(
-                        inv -> {
-                            ((org.springframework.security.config.Customizer) inv.getArgument(0))
-                                    .customize(
-                                            mock(
-                                                    ExceptionHandlingConfigurer.class,
-                                                    RETURNS_DEEP_STUBS));
-                            return http;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) {
+                                ((org.springframework.security.config.Customizer)
+                                                inv.getArgument(0))
+                                        .customize(
+                                                mock(
+                                                        ExceptionHandlingConfigurer.class,
+                                                        RETURNS_DEEP_STUBS));
+                                return http;
+                            }
                         });
         when(http.csrf(any()))
                 .thenAnswer(
-                        inv -> {
-                            ((org.springframework.security.config.Customizer) inv.getArgument(0))
-                                    .customize(csrf);
-                            return http;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) {
+                                ((org.springframework.security.config.Customizer)
+                                                inv.getArgument(0))
+                                        .customize(csrf);
+                                return http;
+                            }
                         });
         when(http.addFilterBefore(any(), any())).thenReturn(http);
         when(http.addFilterAfter(any(), any())).thenReturn(http);
@@ -131,7 +154,7 @@ class SecurityConfigCoverageGapTest {
         UserService users = mock(UserService.class);
         when(dev.enabled()).thenReturn(true);
         BffAuthenticationFilter filter = new BffAuthenticationFilter(dev, tokens, users);
-        var present =
+        UsernamePasswordAuthenticationToken present =
                 new UsernamePasswordAuthenticationToken(
                         "already", null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
         SecurityContextHolder.getContext().setAuthentication(present);
