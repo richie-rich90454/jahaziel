@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import org.junit.jupiter.api.AfterEach;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -65,8 +68,78 @@ class DoctorTest {
         }
     }
 
-    private record Env(
-            Path jarDir, Path dataDir, int port, Map<String, String> fileEnv, Path jarFile) {}
+    private static final class Env {
+        private final Path jarDir;
+        private final Path dataDir;
+        private final int port;
+        private final Map<String, String> fileEnv;
+        private final Path jarFile;
+
+        private Env(
+                Path jarDir, Path dataDir, int port, Map<String, String> fileEnv, Path jarFile) {
+            this.jarDir = jarDir;
+            this.dataDir = dataDir;
+            this.port = port;
+            this.fileEnv = fileEnv;
+            this.jarFile = jarFile;
+        }
+
+        private Path jarDir() {
+            return jarDir;
+        }
+
+        private Path dataDir() {
+            return dataDir;
+        }
+
+        private int port() {
+            return port;
+        }
+
+        private Map<String, String> fileEnv() {
+            return fileEnv;
+        }
+
+        private Path jarFile() {
+            return jarFile;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Env)) {
+                return false;
+            }
+            Env that = (Env) other;
+            return port == that.port
+                    && java.util.Objects.equals(jarDir, that.jarDir)
+                    && java.util.Objects.equals(dataDir, that.dataDir)
+                    && java.util.Objects.equals(fileEnv, that.fileEnv)
+                    && java.util.Objects.equals(jarFile, that.jarFile);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(jarDir, dataDir, port, fileEnv, jarFile);
+        }
+
+        @Override
+        public String toString() {
+            return "Env[jarDir="
+                    + jarDir
+                    + ", dataDir="
+                    + dataDir
+                    + ", port="
+                    + port
+                    + ", fileEnv="
+                    + fileEnv
+                    + ", jarFile="
+                    + jarFile
+                    + "]";
+        }
+    }
 
     private Env green(Path jarDir) throws Exception {
         Files.createDirectories(jarDir);
@@ -420,10 +493,17 @@ class DoctorTest {
     void tmpdirFailsWhenNotWritable() throws Exception {
         Env env = green(root.resolve("jar"));
         Path tmp = env.dataDir().resolve("tmp");
-        try (var files =
+        try (MockedStatic<Files> files =
                 org.mockito.Mockito.mockStatic(
                         Files.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.isWritable(tmp)).thenReturn(false);
+            files.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.isWritable(tmp);
+                                }
+                            })
+                    .thenReturn(false);
             Doctor.Check check =
                     CliTestSupport.find(
                             Doctor.run(
@@ -444,10 +524,10 @@ class DoctorTest {
     void strayFailsWhileDataLockHeld() throws Exception {
         Env env = green(root.resolve("jar"));
         Path lock = env.dataDir().resolve(".lock");
-        try (var channel =
+        try (FileChannel channel =
                         FileChannel.open(
                                 lock, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                var held = channel.lock()) {
+                java.nio.channels.FileLock held = channel.lock()) {
             Doctor.Check check =
                     CliTestSupport.find(
                             Doctor.run(
@@ -538,14 +618,17 @@ class DoctorTest {
         HttpServer http = HttpServer.create(new InetSocketAddress(0), 0);
         http.createContext(
                 "/actuator/health",
-                exchange -> {
-                    if (server != null) {
-                        exchange.getResponseHeaders().set("Server", server);
-                    }
-                    byte[] body = "body".getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(status, body.length);
-                    try (OutputStream out = exchange.getResponseBody()) {
-                        out.write(body);
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws java.io.IOException {
+                        if (server != null) {
+                            exchange.getResponseHeaders().set("Server", server);
+                        }
+                        byte[] body = "body".getBytes(StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(status, body.length);
+                        try (OutputStream out = exchange.getResponseBody()) {
+                            out.write(body);
+                        }
                     }
                 });
         http.start();
