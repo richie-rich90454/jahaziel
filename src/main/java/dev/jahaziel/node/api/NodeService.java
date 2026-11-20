@@ -11,7 +11,7 @@ import dev.jahaziel.node.domain.NodeId;
 import java.util.List;
 
 /** Nodes, looked up by the rest of the platform. */
-public interface NodeService {
+public abstract class NodeService {
     /**
      * Registers a healthy node.
      *
@@ -23,7 +23,7 @@ public interface NodeService {
      * @return the registered node
      * @throws IllegalArgumentException when the node is already registered
      */
-    Node register(
+    public abstract Node register(
             NodeId id, String name, String region, NodeCapacity capacity, String certFingerprint);
 
     /**
@@ -33,14 +33,14 @@ public interface NodeService {
      * @return the node
      * @throws NodeNotFoundException when the node does not exist
      */
-    Node get(NodeId id);
+    public abstract Node get(NodeId id);
 
     /**
      * Returns all nodes.
      *
      * @return the nodes, empty when none exist
      */
-    List<Node> list();
+    public abstract List<Node> list();
 
     /**
      * Starts draining a node. Placed workspaces stay; no new placements.
@@ -48,7 +48,7 @@ public interface NodeService {
      * @param id the node identifier
      * @throws NodeNotFoundException when the node does not exist
      */
-    void drain(NodeId id);
+    public abstract void drain(NodeId id);
 
     /**
      * Records a heartbeat.
@@ -56,7 +56,7 @@ public interface NodeService {
      * @param id the node identifier
      * @throws NodeNotFoundException when the node does not exist
      */
-    void heartbeat(NodeId id);
+    public abstract void heartbeat(NodeId id);
 
     /**
      * Marks the node unhealthy, for example on missed heartbeats.
@@ -65,5 +65,5 @@ public interface NodeService {
      * @param reason why the node is considered lost
      * @throws NodeNotFoundException when the node does not exist
      */
-    void markUnhealthy(NodeId id, String reason);
+    public abstract void markUnhealthy(NodeId id, String reason);
 }
