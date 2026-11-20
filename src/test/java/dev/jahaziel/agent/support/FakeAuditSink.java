@@ -10,11 +10,12 @@ import dev.jahaziel.spi.AuditSink;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Stream;
 
 /** Test double that keeps every audit event in memory. */
-public final class FakeAuditSink implements AuditSink {
+public final class FakeAuditSink extends AuditSink {
     private final List<AuditEvent> events = new ArrayList<AuditEvent>();
 
     @Override
@@ -23,8 +24,8 @@ public final class FakeAuditSink implements AuditSink {
     }
 
     @Override
-    public Stream<AuditEvent> query(AuditQuery query) {
-        return Stream.empty();
+    public Iterator<AuditEvent> query(AuditQuery query) {
+        return Collections.emptyIterator();
     }
 
     @Override
