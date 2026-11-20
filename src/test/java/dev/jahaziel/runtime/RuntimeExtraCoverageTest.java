@@ -87,7 +87,7 @@ class RuntimeExtraCoverageTest {
         booting.prepare();
         booting.boot();
         when(ws.get(id)).thenReturn(booting);
-        var stopped = svc.stop(id);
+        Workspace stopped = svc.stop(id);
         assertEquals(WorkspaceState.Suspended.class, stopped.state().getClass());
         verify(backend)
                 .stop(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(true));
@@ -99,48 +99,68 @@ class RuntimeExtraCoverageTest {
         NodeBackend b = mock(NodeBackend.class);
         org.junit.jupiter.api.Assertions.assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new RuntimeServiceImpl(
                                 null,
                                 ws,
                                 new ImageRef("b:1"),
                                 mock(dev.jahaziel.networking.api.PortService.class),
-                                mock(dev.jahaziel.runtime.internal.BootProgressService.class)));
+                                mock(dev.jahaziel.runtime.internal.BootProgressService.class));
+                    }
+                });
         org.junit.jupiter.api.Assertions.assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new RuntimeServiceImpl(
                                 b,
                                 null,
                                 new ImageRef("b:1"),
                                 mock(dev.jahaziel.networking.api.PortService.class),
-                                mock(dev.jahaziel.runtime.internal.BootProgressService.class)));
+                                mock(dev.jahaziel.runtime.internal.BootProgressService.class));
+                    }
+                });
         org.junit.jupiter.api.Assertions.assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new RuntimeServiceImpl(
                                 b,
                                 ws,
                                 null,
                                 mock(dev.jahaziel.networking.api.PortService.class),
-                                mock(dev.jahaziel.runtime.internal.BootProgressService.class)));
+                                mock(dev.jahaziel.runtime.internal.BootProgressService.class));
+                    }
+                });
         org.junit.jupiter.api.Assertions.assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new RuntimeServiceImpl(
                                 b,
                                 ws,
                                 new ImageRef("b:1"),
                                 null,
-                                mock(dev.jahaziel.runtime.internal.BootProgressService.class)));
+                                mock(dev.jahaziel.runtime.internal.BootProgressService.class));
+                    }
+                });
         org.junit.jupiter.api.Assertions.assertThrows(
                 NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
                         new RuntimeServiceImpl(
                                 b,
                                 ws,
                                 new ImageRef("b:1"),
                                 mock(dev.jahaziel.networking.api.PortService.class),
-                                null));
+                                null);
+                    }
+                });
     }
 }
