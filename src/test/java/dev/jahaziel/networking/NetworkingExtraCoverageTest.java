@@ -43,23 +43,53 @@ class NetworkingExtraCoverageTest {
         UUID w = UUID.randomUUID();
         assertThrows(
                 NullPointerException.class,
-                () -> new PortBinding(null, 1, w, "http", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(null, 1, w, "http", Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(u, 0, w, "http", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 0, w, "http", Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(u, 70000, w, "http", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 70000, w, "http", Instant.now());
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new PortBinding(u, 1, null, "http", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 1, null, "http", Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(u, 1, w, "ftp", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 1, w, "ftp", Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PortBinding(u, 1, w, null, Instant.now()));
-        assertThrows(NullPointerException.class, () -> new PortBinding(u, 1, w, "http", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 1, w, null, Instant.now());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortBinding(u, 1, w, "http", null);
+                    }
+                });
     }
 
     @Test
@@ -72,40 +102,76 @@ class NetworkingExtraCoverageTest {
 
     @Test
     void registerGuardsRangeProtocol() {
-        var ports = mock(WorkspacePortRepository.class);
-        var users = mock(UserService.class);
-        var workspaces = mock(WorkspaceService.class);
+        WorkspacePortRepository ports = mock(WorkspacePortRepository.class);
+        UserService users = mock(UserService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
         PortServiceImpl svc = new PortServiceImpl(ports, users, workspaces);
-        var user = new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
-        var wid = new WorkspaceId(UUID.randomUUID());
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.identity.domain.UserId user =
+                new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
+        WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(ws.isOwnedBy(user)).thenReturn(true);
         when(workspaces.get(wid)).thenReturn(ws);
         when(users.get(user)).thenReturn(mock(dev.jahaziel.spi.UserIdentity.class));
-        assertThrows(IllegalArgumentException.class, () -> svc.registerPort(user, 0, wid, "http"));
         assertThrows(
-                IllegalArgumentException.class, () -> svc.registerPort(user, 70000, wid, "http"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.registerPort(user, 0, wid, "http");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> svc.registerPort(user, 8080, wid, "ftp"));
-        assertThrows(NullPointerException.class, () -> svc.registerPort(user, 8081, wid, null));
-        assertThrows(NullPointerException.class, () -> svc.unregisterPort(null, 1));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.registerPort(user, 70000, wid, "http");
+                    }
+                });
         assertThrows(
-                NullPointerException.class, () -> new PortServiceImpl(null, users, workspaces));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.registerPort(user, 8080, wid, "ftp");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.registerPort(user, 8081, wid, null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.unregisterPort(null, 1);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PortServiceImpl(null, users, workspaces);
+                    }
+                });
     }
 
     @Test
     void bindingsByWorkspaceMapsOwner() {
-        var ports = mock(WorkspacePortRepository.class);
-        var users = mock(UserService.class);
-        var workspaces = mock(WorkspaceService.class);
+        WorkspacePortRepository ports = mock(WorkspacePortRepository.class);
+        UserService users = mock(UserService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
         PortServiceImpl svc = new PortServiceImpl(ports, users, workspaces);
-        var wid = new WorkspaceId(UUID.randomUUID());
+        WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
         UUID owner = UUID.randomUUID();
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(ws.owner()).thenReturn(new dev.jahaziel.identity.domain.UserId(owner));
         when(workspaces.get(wid)).thenReturn(ws);
         WorkspacePortEntity row = new WorkspacePortEntity();
-        var key = new WorkspacePortEntity.Id();
+        WorkspacePortEntity.Id key = new WorkspacePortEntity.Id();
         key.setWorkspaceId(wid.value());
         key.setPort(8080);
         row.setId(key);
@@ -117,33 +183,42 @@ class NetworkingExtraCoverageTest {
 
     @Test
     void reconcileNoopWithoutRegistry() {
-        var workspaces = mock(WorkspaceService.class);
-        var users = mock(UserService.class);
-        var ports = mock(dev.jahaziel.networking.api.PortService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        UserService users = mock(UserService.class);
+        dev.jahaziel.networking.api.PortService ports =
+                mock(dev.jahaziel.networking.api.PortService.class);
         GatewayRouteServiceImpl svc =
                 new GatewayRouteServiceImpl(Optional.empty(), workspaces, users, ports);
         svc.reconcile();
         verify(workspaces, never()).describeAll();
         assertThrows(
                 NullPointerException.class,
-                () -> new GatewayRouteServiceImpl(null, workspaces, users, ports));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayRouteServiceImpl(null, workspaces, users, ports);
+                    }
+                });
     }
 
     @Test
     void reconcileAddsRemovesAndSkips() {
         RouteRegistry registry = mock(RouteRegistry.class);
-        var workspaces = mock(WorkspaceService.class);
-        var users = mock(UserService.class);
-        var ports = mock(dev.jahaziel.networking.api.PortService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        UserService users = mock(UserService.class);
+        dev.jahaziel.networking.api.PortService ports =
+                mock(dev.jahaziel.networking.api.PortService.class);
         GatewayRouteServiceImpl svc =
                 new GatewayRouteServiceImpl(Optional.of(registry), workspaces, users, ports);
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
-        var owner = new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
+        dev.jahaziel.identity.domain.UserId owner =
+                new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
         when(ws.id()).thenReturn(wid);
         when(ws.owner()).thenReturn(owner);
         when(ws.state()).thenReturn(new WorkspaceState.Ready(Instant.now()));
-        var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView view =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(view.workspace()).thenReturn(ws);
         when(workspaces.describeAll()).thenReturn(List.of(view));
         when(users.slug(owner)).thenReturn("slug");
@@ -160,27 +235,33 @@ class NetworkingExtraCoverageTest {
     @Test
     void reconcileSkipsNonServingAndSlugFailure() {
         RouteRegistry registry = mock(RouteRegistry.class);
-        var workspaces = mock(WorkspaceService.class);
-        var users = mock(UserService.class);
-        var ports = mock(dev.jahaziel.networking.api.PortService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        UserService users = mock(UserService.class);
+        dev.jahaziel.networking.api.PortService ports =
+                mock(dev.jahaziel.networking.api.PortService.class);
         GatewayRouteServiceImpl svc =
                 new GatewayRouteServiceImpl(Optional.of(registry), workspaces, users, ports);
-        var ws = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace ws =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
         when(ws.id()).thenReturn(wid);
         when(ws.owner()).thenReturn(new dev.jahaziel.identity.domain.UserId(UUID.randomUUID()));
         when(ws.state()).thenReturn(new WorkspaceState.Suspended(Instant.now()));
-        var view = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView view =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(view.workspace()).thenReturn(ws);
         when(workspaces.describeAll()).thenReturn(List.of(view));
         svc.reconcile();
         verify(registry, never()).register(any(), any(Integer.class), any());
-        var booting = mock(dev.jahaziel.workspace.domain.Workspace.class);
+        dev.jahaziel.workspace.domain.Workspace booting =
+                mock(dev.jahaziel.workspace.domain.Workspace.class);
         when(booting.id()).thenReturn(wid);
-        var owner = new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
+        dev.jahaziel.identity.domain.UserId owner =
+                new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
         when(booting.owner()).thenReturn(owner);
         when(booting.state()).thenReturn(new WorkspaceState.Booting(Instant.now()));
-        var bv = mock(dev.jahaziel.workspace.api.WorkspaceView.class);
+        dev.jahaziel.workspace.api.WorkspaceView bv =
+                mock(dev.jahaziel.workspace.api.WorkspaceView.class);
         when(bv.workspace()).thenReturn(booting);
         when(workspaces.describeAll()).thenReturn(List.of(bv));
         when(users.slug(owner)).thenThrow(new RuntimeException("no slug"));
@@ -197,12 +278,19 @@ class NetworkingExtraCoverageTest {
 
     @Test
     void syncJobDelegates() {
-        var routes = mock(dev.jahaziel.networking.api.GatewayRouteService.class);
+        dev.jahaziel.networking.api.GatewayRouteService routes =
+                mock(dev.jahaziel.networking.api.GatewayRouteService.class);
         GatewayRouteSyncJob job = new GatewayRouteSyncJob(routes);
         job.run(JobContext.now());
         verify(routes).reconcile();
         assertEquals(Duration.ofSeconds(5), job.period());
         assertEquals(JobScope.CLUSTER, job.scope());
-        assertThrows(NullPointerException.class, () -> new GatewayRouteSyncJob(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayRouteSyncJob(null);
+                    }
+                });
     }
 }
