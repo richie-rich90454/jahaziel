@@ -26,7 +26,8 @@ import java.util.UUID;
 class PolicyExtraCoverageTest {
     @Test
     void evaluatorMergesAndHandlesEmpty() {
-        var svc = mock(dev.jahaziel.policy.api.PolicyService.class);
+        dev.jahaziel.policy.api.PolicyService svc =
+                mock(dev.jahaziel.policy.api.PolicyService.class);
         when(svc.listByScope(any(), any())).thenReturn(List.of());
         assertEquals(
                 "{}", new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty()));
@@ -62,47 +63,131 @@ class PolicyExtraCoverageTest {
         assertTrue(merged.contains("\"a\":2"));
         assertTrue(merged.contains("\"x\":9"));
         assertTrue(merged.contains("\"y\":2"));
-        assertThrows(NullPointerException.class, () -> new PolicyEvaluator(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyEvaluator(null);
+                    }
+                });
     }
 
     @Test
     void evaluatorRejectsBadJsonAndNonObject() {
-        var svc = mock(dev.jahaziel.policy.api.PolicyService.class);
+        dev.jahaziel.policy.api.PolicyService svc =
+                mock(dev.jahaziel.policy.api.PolicyService.class);
         PolicyDoc bad =
                 new PolicyDoc(UUID.randomUUID(), "global", null, "not-json", Instant.now(), "op");
         when(svc.listByScope("global", null)).thenReturn(List.of(bad));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty());
+                    }
+                });
         PolicyDoc arr =
                 new PolicyDoc(UUID.randomUUID(), "global", null, "[1,2]", Instant.now(), "op");
         when(svc.listByScope("global", null)).thenReturn(List.of(arr));
         assertThrows(
                 Exception.class,
-                () -> new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyEvaluator(svc).effectiveJson(Optional.empty(), Optional.empty());
+                    }
+                });
     }
 
     @Test
     void serviceValidations() {
-        var repo = mock(dev.jahaziel.policy.persistence.PolicyRepository.class);
+        dev.jahaziel.policy.persistence.PolicyRepository repo =
+                mock(dev.jahaziel.policy.persistence.PolicyRepository.class);
         PolicyServiceImpl svc = new PolicyServiceImpl(repo);
-        assertThrows(IllegalArgumentException.class, () -> svc.create("nope", null, "{}", "op"));
-        assertThrows(IllegalArgumentException.class, () -> svc.create("global", "x", "{}", "op"));
-        assertThrows(IllegalArgumentException.class, () -> svc.create("global", null, "", "op"));
-        assertThrows(IllegalArgumentException.class, () -> svc.create("global", null, null, "op"));
-        assertThrows(IllegalArgumentException.class, () -> svc.create("global", null, "{}", ""));
-        assertThrows(IllegalArgumentException.class, () -> svc.create("global", null, "{}", null));
-        assertThrows(IllegalArgumentException.class, () -> svc.listByScope(null, null));
-        assertThrows(IllegalArgumentException.class, () -> svc.listByScope(" ", null));
-        assertThrows(NullPointerException.class, () -> svc.get(null));
-        assertThrows(NullPointerException.class, () -> svc.delete(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("nope", null, "{}", "op");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("global", "x", "{}", "op");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("global", null, "", "op");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("global", null, null, "op");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("global", null, "{}", "");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.create("global", null, "{}", null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.listByScope(null, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.listByScope(" ", null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.get(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.delete(null);
+                    }
+                });
         when(repo.findById(any())).thenReturn(Optional.empty());
         assertThrows(
                 dev.jahaziel.policy.api.PolicyNotFoundException.class,
-                () -> svc.get(UUID.randomUUID()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.get(UUID.randomUUID());
+                    }
+                });
         assertThrows(
                 dev.jahaziel.policy.api.PolicyNotFoundException.class,
-                () -> svc.delete(UUID.randomUUID()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.delete(UUID.randomUUID());
+                    }
+                });
         PolicyEntity row = new PolicyEntity();
         row.setPolicyId(UUID.randomUUID());
         row.setScope("global");
@@ -117,19 +202,37 @@ class PolicyExtraCoverageTest {
         row.setScopeId("u");
         assertEquals(1, svc.listByScope("user", "u").size());
         assertEquals(0, svc.listByScope("user", null).size());
-        assertThrows(NullPointerException.class, () -> new PolicyServiceImpl(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyServiceImpl(null);
+                    }
+                });
     }
 
     @Test
     void policyDocGuards() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(UUID.randomUUID(), "", null, "{}", Instant.now(), "op"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(UUID.randomUUID(), "", null, "{}", Instant.now(), "op");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(UUID.randomUUID(), "s", null, "", Instant.now(), "op"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(UUID.randomUUID(), "s", null, "", Instant.now(), "op");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PolicyDoc(UUID.randomUUID(), "s", null, "{}", Instant.now(), ""));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new PolicyDoc(UUID.randomUUID(), "s", null, "{}", Instant.now(), "");
+                    }
+                });
     }
 }
