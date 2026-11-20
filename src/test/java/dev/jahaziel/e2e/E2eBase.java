@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -83,46 +84,227 @@ abstract class E2eBase {
 
     @DynamicPropertySource
     static void e2eProperties(DynamicPropertyRegistry registry) {
-        registry.add("jahaziel.dist.enabled", () -> "true");
-        registry.add("jahaziel.dist.gateway-enabled", () -> "true");
-        registry.add("jahaziel.dist.gateway-port", () -> String.valueOf(GATEWAY_PORT));
-        registry.add("jahaziel.dist.domain", () -> DOMAIN);
+        registry.add(
+                "jahaziel.dist.enabled",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "true";
+                    }
+                });
+        registry.add(
+                "jahaziel.dist.gateway-enabled",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "true";
+                    }
+                });
+        registry.add(
+                "jahaziel.dist.gateway-port",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return String.valueOf(GATEWAY_PORT);
+                    }
+                });
+        registry.add(
+                "jahaziel.dist.domain",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return DOMAIN;
+                    }
+                });
         registry.add(
                 "spring.datasource.url",
-                () ->
-                        "jdbc:sqlite:"
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "jdbc:sqlite:"
                                 + ROOT_POSIX
-                                + "/jahaziel.db?journal_mode=WAL&busy_timeout=5000&foreign_keys=ON");
-        registry.add("spring.datasource.driver-class-name", () -> "org.sqlite.JDBC");
+                                + "/jahaziel.db?journal_mode=WAL&busy_timeout=5000&foreign_keys=ON";
+                    }
+                });
+        registry.add(
+                "spring.datasource.driver-class-name",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "org.sqlite.JDBC";
+                    }
+                });
         registry.add(
                 "spring.jpa.properties.hibernate.dialect",
-                () -> "org.hibernate.community.dialect.SQLiteDialect");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
-        registry.add("spring.flyway.enabled", () -> "false");
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "org.hibernate.community.dialect.SQLiteDialect";
+                    }
+                });
+        registry.add(
+                "spring.jpa.hibernate.ddl-auto",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "update";
+                    }
+                });
+        registry.add(
+                "spring.flyway.enabled",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "false";
+                    }
+                });
         // The E2E suite shares one seeded user and intentionally makes hundreds of calls in a
         // minute; keep production rate limiting enabled but raise the test ceiling.
-        registry.add("jahaziel.ops.rate-limit-per-minute", () -> "100000");
-        registry.add("spring.datasource.hikari.maximum-pool-size", () -> "1");
-        registry.add("spring.datasource.hikari.minimum-idle", () -> "1");
+        registry.add(
+                "jahaziel.ops.rate-limit-per-minute",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "100000";
+                    }
+                });
+        registry.add(
+                "spring.datasource.hikari.maximum-pool-size",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "1";
+                    }
+                });
+        registry.add(
+                "spring.datasource.hikari.minimum-idle",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "1";
+                    }
+                });
         registry.add(
                 "spring.autoconfigure.exclude",
-                () ->
-                        "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration,"
-                                + "org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration");
-        registry.add("DB_USER", () -> "");
-        registry.add("DB_PASSWORD", () -> "");
-        registry.add("jahaziel.storage.root", () -> ROOT_POSIX);
-        registry.add("jahaziel.data-dir", () -> ROOT_POSIX);
-        registry.add("jahaziel.templates.dir", () -> ROOT_POSIX + "/templates");
-        registry.add("jahaziel.plugins.dir", () -> ROOT_POSIX + "/plugins");
-        registry.add("jahaziel.ide.dir", () -> ROOT_POSIX + "/ide");
-        registry.add("jahaziel.domain", () -> DOMAIN);
-        registry.add("jahaziel.jwt.private-key-file", () -> ROOT_POSIX + "/keys/jwt.key");
-        registry.add("jahaziel.jwt.public-key-file", () -> ROOT_POSIX + "/keys/jwt.pub");
-        registry.add("jahaziel.jwt.issuer", () -> "https://" + DOMAIN);
-        registry.add("logging.file.name", () -> ROOT_POSIX + "/logs/control-plane.log");
-        registry.add("server.shutdown", () -> "graceful");
-        registry.add("spring.lifecycle.timeout-per-shutdown-phase", () -> "20s");
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration,"
+                                + "org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration";
+                    }
+                });
+        registry.add(
+                "DB_USER",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "";
+                    }
+                });
+        registry.add(
+                "DB_PASSWORD",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "";
+                    }
+                });
+        registry.add(
+                "jahaziel.storage.root",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX;
+                    }
+                });
+        registry.add(
+                "jahaziel.data-dir",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX;
+                    }
+                });
+        registry.add(
+                "jahaziel.templates.dir",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/templates";
+                    }
+                });
+        registry.add(
+                "jahaziel.plugins.dir",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/plugins";
+                    }
+                });
+        registry.add(
+                "jahaziel.ide.dir",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/ide";
+                    }
+                });
+        registry.add(
+                "jahaziel.domain",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return DOMAIN;
+                    }
+                });
+        registry.add(
+                "jahaziel.jwt.private-key-file",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/keys/jwt.key";
+                    }
+                });
+        registry.add(
+                "jahaziel.jwt.public-key-file",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/keys/jwt.pub";
+                    }
+                });
+        registry.add(
+                "jahaziel.jwt.issuer",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "https://" + DOMAIN;
+                    }
+                });
+        registry.add(
+                "logging.file.name",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return ROOT_POSIX + "/logs/control-plane.log";
+                    }
+                });
+        registry.add(
+                "server.shutdown",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "graceful";
+                    }
+                });
+        registry.add(
+                "spring.lifecycle.timeout-per-shutdown-phase",
+                new java.util.function.Supplier() {
+                    @Override
+                    public Object get() {
+                        return "20s";
+                    }
+                });
     }
 
     @BeforeEach
@@ -286,7 +468,15 @@ abstract class E2eBase {
             String status,
             boolean mfa,
             List<String> roles) {
-        AppUserEntity row = userRows.findById(id).orElseGet(AppUserEntity::new);
+        AppUserEntity row =
+                userRows.findById(id)
+                        .orElseGet(
+                                new java.util.function.Supplier<AppUserEntity>() {
+                                    @Override
+                                    public AppUserEntity get() {
+                                        return new AppUserEntity();
+                                    }
+                                });
         row.setUserId(id);
         row.setExternalId(externalId);
         row.setEmail(email);
@@ -297,7 +487,14 @@ abstract class E2eBase {
         row.setStatus(status);
         row.setMfaEnabled(mfa);
         userRows.save(row);
-        roleRows.findByIdUserId(id).forEach(roleRows::delete);
+        roleRows.findByIdUserId(id)
+                .forEach(
+                        new java.util.function.Consumer<UserRoleEntity>() {
+                            @Override
+                            public void accept(UserRoleEntity role) {
+                                roleRows.delete(role);
+                            }
+                        });
         for (String role : roles) {
             UserRoleEntity grant = new UserRoleEntity();
             grant.setId(new UserRoleEntity.Id(id, role));
@@ -377,13 +574,59 @@ abstract class E2eBase {
     }
 
     /** Minimal HTTP result: status, headers, body. */
-    record E2eResponse(int status, HttpHeaders headers, String body) {
+    static final class E2eResponse {
+        private final int status;
+        private final HttpHeaders headers;
+        private final String body;
+
+        E2eResponse(int status, HttpHeaders headers, String body) {
+            this.status = status;
+            this.headers = headers;
+            this.body = body;
+        }
+
+        int status() {
+            return status;
+        }
+
+        HttpHeaders headers() {
+            return headers;
+        }
+
+        String body() {
+            return body;
+        }
+
         String header(String name) {
             return headers.firstValue(name).orElse("");
         }
 
         String allHeaders(String name) {
             return String.join(";", headers.allValues(name));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            E2eResponse other = (E2eResponse) o;
+            return status == other.status
+                    && Objects.equals(headers, other.headers)
+                    && Objects.equals(body, other.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(status, headers, body);
+        }
+
+        @Override
+        public String toString() {
+            return "E2eResponse[status=" + status + ", headers=" + headers + ", body=" + body + "]";
         }
     }
 }
