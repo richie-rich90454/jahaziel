@@ -1771,6 +1771,7 @@ button:active:not(:disabled) {
     min-height: 44px;
     flex: 0 0 auto;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 9px;
     border-top: 1px solid var(--line);
@@ -1791,8 +1792,9 @@ button:active:not(:disabled) {
     background: var(--paper);
 }
 .preview-heading > span {
-    min-width: 0;
+    min-width: 44px;
     flex: 1;
+    flex-shrink: 0;
     overflow: hidden;
     color: var(--muted);
     text-overflow: ellipsis;
@@ -1967,33 +1969,6 @@ button:active:not(:disabled) {
     .breadcrumb > b {
         display: none;
     }
-    .workbench-panel-nav {
-        display: flex;
-        flex: 0 0 auto;
-        gap: 5px;
-        overflow-x: auto;
-        border-bottom: 1px solid var(--line);
-        padding: 5px 8px;
-        background: var(--color-base-100);
-        scrollbar-width: none;
-    }
-    .workbench-panel-nav button {
-        min-width: 72px;
-        min-height: 44px;
-        flex: 1 0 auto;
-        border: 1px solid transparent;
-        padding: 0 12px;
-        background: transparent;
-        color: var(--muted);
-        cursor: pointer;
-        font-size: 12px;
-        touch-action: manipulation;
-    }
-    .workbench-panel-nav button[aria-pressed="true"] {
-        border-color: var(--accent);
-        background: var(--accent-soft);
-        color: var(--accent);
-    }
     .workbench-layout {
         display: flex;
         overflow: hidden;
@@ -2129,6 +2104,38 @@ button:active:not(:disabled) {
     .brand-divider,
     .user-email {
         display: none;
+    }
+}
+
+/* Touch tablets keep the panel strip at every width; mouse desktops above the
+   narrow breakpoint keep quick open as the only panel switcher. */
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+    .workbench-panel-nav {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 5px;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--line);
+        padding: 5px 8px;
+        background: var(--color-base-100);
+        scrollbar-width: none;
+    }
+    .workbench-panel-nav button {
+        min-width: 72px;
+        min-height: 44px;
+        flex: 1 0 auto;
+        border: 1px solid transparent;
+        padding: 0 12px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 12px;
+        touch-action: manipulation;
+    }
+    .workbench-panel-nav button[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
     }
 }
 
@@ -2289,6 +2296,20 @@ button:active:not(:disabled) {
 :root[dir="rtl"] .workbench-bar,
 :root[dir="rtl"] .panel-heading {
     direction: rtl;
+}
+
+/* Component rules outrank the generic coarse-pointer sizing, so raise the
+   specific controls a tablet actually taps. */
+@media (hover: none) and (pointer: coarse) {
+    .locale-control select,
+    .theme-control select,
+    .button-save,
+    .save-conflict-actions button,
+    .terminal-action,
+    .terminal-session-select {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 /* ---- Onboarding tour ----------------------------------------------------- */
