@@ -9,15 +9,15 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 /**
  * Lifecycle port for terminating interactive server processes when a workspace stops or is removed.
  */
-public interface WorkspaceProcessLifecycle {
+public abstract class WorkspaceProcessLifecycle {
     /** Stops all registered processes belonging to the workspace. */
-    void closeByWorkspace(WorkspaceId workspaceId);
+    public abstract void closeByWorkspace(WorkspaceId workspaceId);
 
     /** Allows new interactive processes after a workspace has successfully started. */
-    default void allowByWorkspace(WorkspaceId workspaceId) {}
+    public void allowByWorkspace(WorkspaceId workspaceId) {}
 
     /** Stops processes and releases workspace-scoped process metadata before deletion. */
-    default void deleteWorkspace(WorkspaceId workspaceId) {
+    public void deleteWorkspace(WorkspaceId workspaceId) {
         closeByWorkspace(workspaceId);
     }
 }
