@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Trash keeps files workspace-scoped and restores them unchanged. */
-final class TrashServiceTest {
+public final class TrashServiceTest {
     @Test
     void trashAndRestoreRoundTrip(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
