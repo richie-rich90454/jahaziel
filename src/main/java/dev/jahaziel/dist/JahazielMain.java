@@ -199,44 +199,76 @@ public final class JahazielMain {
                 continue;
             }
             System.setProperty(key, entry.getValue());
-            String basisProperty = basisProperty(key);
-            if (basisProperty != null && System.getProperty(basisProperty) == null) {
-                System.setProperty(basisProperty, entry.getValue());
-            }
         }
-        List<String> keys = new ArrayList<>(DotEnv.BASIS_ALIAS_VARS);
-        keys.addAll(DotEnv.BASIS_VARS);
-        for (String key : keys) {
-            String property = basisProperty(key);
-            if (property == null) {
-                continue;
+        setBasis("basis.auth-issuer", "BASIS_AUTH_ISSUER", null, fileEnv);
+        setBasis("basis.client-id", "BASIS_AUTH_CLIENT_ID", "BASIS_CLIENT_ID", fileEnv);
+        setBasis("basis.client-secret", "BASIS_AUTH_CLIENT_SECRET", "BASIS_CLIENT_SECRET", fileEnv);
+        setBasis("basis.resource", "BASIS_AUTH_RESOURCE", "BASIS_RESOURCE", fileEnv);
+        setBasis(
+                "basis.resource-secret",
+                "BASIS_AUTH_RESOURCE_SECRET",
+                "BASIS_RESOURCE_SECRET",
+                fileEnv);
+        setBasis("basis.internal-url", "BASIS_AUTH_INTERNAL_URL", "BASIS_INTERNAL_URL", fileEnv);
+        setBasis("basis.cookie-secret", "BASIS_AUTH_COOKIE_SECRET", null, fileEnv);
+        setBasis("basis.current-url-origin", "CURRENT_URL_ORIGIN", null, fileEnv);
+        setBasis("basis.redirect-uri", "BASIS_REDIRECT_URI", null, fileEnv);
+        if (System.getProperty("basis.redirect-uri") == null) {
+            String origin = basisValue("CURRENT_URL_ORIGIN", null, fileEnv);
+            if (origin != null && !origin.isBlank()) {
+                String base = origin.trim();
+                while (base.endsWith("/")) {
+                    base = base.substring(0, base.length() - 1);
+                }
+                System.setProperty("basis.redirect-uri", base + "/api/auth/basis/callback");
             }
-            String value = basisValue(key, fileEnv);
-            if (value != null && !value.isBlank() && System.getProperty(property) == null) {
-                System.setProperty(property, value);
-            }
-        }
-        String origin = basisValue("CURRENT_URL_ORIGIN", fileEnv);
-        if (origin != null
-                && !origin.isBlank()
-                && System.getProperty("basis.redirect-uri") == null) {
-            String base = origin.trim();
-            while (base.endsWith("/")) {
-                base = base.substring(0, base.length() - 1);
-            }
-            System.setProperty("basis.redirect-uri", base + "/api/auth/basis/callback");
         }
     }
 
-    private static String basisValue(String key, Map<String, String> fileEnv) {
-        String value = System.getenv(key);
-        if (value == null) {
-            value = System.getProperty(key);
+    private static void setBasis(
+            String property, String canonical, String legacy, Map<String, String> fileEnv) {
+        String value = basisValue(canonical, legacy, fileEnv);
+        if (value != null && System.getProperty(property) == null) {
+            System.setProperty(property, value);
         }
-        if (value == null) {
-            value = fileEnv.get(key);
+    }
+
+    /**
+     * Resolves one basis property. Real environment wins over {@code .env}; within a source the
+     * canonical spelling wins over the legacy alias.
+     */
+    private static String basisValue(String canonical, String legacy, Map<String, String> fileEnv) {
+        String value =
+                firstNonNull(
+                        canonical == null ? null : System.getenv(canonical),
+                        legacy == null ? null : System.getenv(legacy));
+        if (value != null) {
+            return value;
         }
-        return value;
+        value =
+                firstNonNull(
+                        canonical == null ? null : System.getProperty(canonical),
+                        legacy == null ? null : System.getProperty(legacy));
+        if (value != null) {
+            return value;
+        }
+        String fileCanonical = canonical == null ? null : fileEnv.get(canonical);
+        String fileLegacy = legacy == null ? null : fileEnv.get(legacy);
+        return firstNonNull(fileCanonical, fileLegacy);
+    }
+
+    private static String firstNonNull(String first, String second) {
+        return first != null ? first : second;
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
     }
 
     static String basisProperty(String envKey) {
@@ -274,19 +306,18 @@ public final class JahazielMain {
         Map<String, String> effective = new java.util.LinkedHashMap<>(fileEnv);
         for (int index = 0; index < DotEnv.BASIS_ALIAS_VARS.size(); index++) {
             String alias = DotEnv.BASIS_ALIAS_VARS.get(index);
-            String value = basisValue(alias, Map.of());
-            if (value != null && !value.isBlank()) {
+            String value = firstNonBlank(System.getenv(alias), System.getProperty(alias));
+            if (value != null) {
                 effective.put(alias, value);
             }
         }
         for (int index = 0; index < DotEnv.BASIS_VARS.size(); index++) {
             String key = DotEnv.BASIS_VARS.get(index);
-            String value = basisValue(key, Map.of());
-            if (value != null && !value.isBlank()) {
+            String value = firstNonBlank(System.getenv(key), System.getProperty(key));
+            if (value != null) {
                 effective.put(key, value);
             }
         }
-        effective.putAll(System.getenv());
         return DotEnv.missingBasisVars(effective);
     }
 
