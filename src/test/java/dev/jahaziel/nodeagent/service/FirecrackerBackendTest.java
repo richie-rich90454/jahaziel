@@ -100,26 +100,50 @@ class FirecrackerBackendTest {
     void constructorRejectsNulls() {
         assertThrows(
                 NullPointerException.class,
-                () -> new FirecrackerBackend(null, firecracker, jailer, cgroups, commands, config));
-        assertThrows(
-                NullPointerException.class,
-                () -> new FirecrackerBackend(storage, null, jailer, cgroups, commands, config));
-        assertThrows(
-                NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new FirecrackerBackend(
-                                storage, firecracker, null, cgroups, commands, config));
+                                null, firecracker, jailer, cgroups, commands, config);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new FirecrackerBackend(storage, firecracker, jailer, null, commands, config));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new FirecrackerBackend(storage, null, jailer, cgroups, commands, config);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new FirecrackerBackend(storage, firecracker, jailer, cgroups, null, config));
-        assertThrows(
-                NullPointerException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new FirecrackerBackend(
-                                storage, firecracker, jailer, cgroups, commands, null));
+                                storage, firecracker, null, cgroups, commands, config);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new FirecrackerBackend(
+                                storage, firecracker, jailer, null, commands, config);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new FirecrackerBackend(storage, firecracker, jailer, cgroups, null, config);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new FirecrackerBackend(
+                                storage, firecracker, jailer, cgroups, commands, null);
+                    }
+                });
     }
 
     @Test
@@ -145,7 +169,13 @@ class FirecrackerBackendTest {
         verify(storage).prepare(any(), any(), any(), any());
         verify(cgroups).apply(workspace, 2, 2048, 4096);
         assertTrue(Files.isRegularFile(jail.resolve("root/firecracker.json")));
-        assertThrows(NullPointerException.class, () -> backend.prepare(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.prepare(null);
+                    }
+                });
     }
 
     @Test
@@ -167,7 +197,13 @@ class FirecrackerBackendTest {
         backend.prepare(request);
         RuntimeRequest runtime =
                 new RuntimeRequest(workspace, 1, 512, 0, 0, 0, 100, 100, List.of());
-        assertThrows(UncheckedIOException.class, () -> backend.start(runtime));
+        assertThrows(
+                UncheckedIOException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.start(runtime);
+                    }
+                });
     }
 
     @Test
@@ -185,7 +221,13 @@ class FirecrackerBackendTest {
                         new QuotaBytes(1 << 20),
                         1,
                         512);
-        assertThrows(UncheckedIOException.class, () -> backend.prepare(request));
+        assertThrows(
+                UncheckedIOException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.prepare(request);
+                    }
+                });
     }
 
     @Test
@@ -227,7 +269,13 @@ class FirecrackerBackendTest {
         RuntimeRequest second =
                 new RuntimeRequest(workspace, 1, 512, 0, 0, 0, 100, 100, List.of("k=v"));
         backend.start(second);
-        assertThrows(NullPointerException.class, () -> backend.start(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.start(null);
+                    }
+                });
     }
 
     @Test
@@ -236,7 +284,13 @@ class FirecrackerBackendTest {
         RuntimeRequest request =
                 new RuntimeRequest(workspace, 2, 2048, 0, 0, 0, 5000, 4096, List.of());
         IllegalStateException failure =
-                assertThrows(IllegalStateException.class, () -> backend.start(request));
+                assertThrows(
+                        IllegalStateException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                backend.start(request);
+                            }
+                        });
         assertTrue(failure.getMessage().contains(workspace.toString()));
     }
 
@@ -251,7 +305,13 @@ class FirecrackerBackendTest {
                 .shutdown(anyString());
         backend.stop(handle, true);
         backend.stop(handle, false);
-        assertThrows(NullPointerException.class, () -> backend.stop(null, true));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.stop(null, true);
+                    }
+                });
     }
 
     @Test
@@ -263,6 +323,12 @@ class FirecrackerBackendTest {
         backend.destroy(handle);
         verify(commands).run(List.of("ip", "netns", "delete", "jahaziel-" + workspace));
         verify(storage).destroy(handle);
-        assertThrows(NullPointerException.class, () -> backend.destroy(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.destroy(null);
+                    }
+                });
     }
 }
