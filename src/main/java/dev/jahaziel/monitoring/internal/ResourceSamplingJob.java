@@ -10,6 +10,7 @@ import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -21,7 +22,7 @@ import java.util.Objects;
  * Records hourly rollups. Live sampling from the agent Metrics feed replaces the provisional zeros;
  * one row per workspace per hour, skipped when already sampled this hour.
  */
-public final class ResourceSamplingJob implements PlatformJob {
+public final class ResourceSamplingJob extends PlatformJob {
     private final MetricsService metrics;
     private final WorkspaceService workspaces;
     private final Clock clock;
@@ -51,7 +52,7 @@ public final class ResourceSamplingJob implements PlatformJob {
             return;
         }
         sampledHour = hour;
-        for (var view : workspaces.describeAll()) {
+        for (WorkspaceView view : workspaces.describeAll()) {
             metrics.record(
                     new HourlyRollup(
                             view.workspace().id().value(),
