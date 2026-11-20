@@ -323,5 +323,43 @@ final class TemplateSeeds {
         }
     }
 
-    private record Stored(String version, String hash) {}
+    private static final class Stored {
+        private final String version;
+        private final String hash;
+
+        private Stored(String version, String hash) {
+            this.version = version;
+            this.hash = hash;
+        }
+
+        private String version() {
+            return version;
+        }
+
+        private String hash() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Stored)) {
+                return false;
+            }
+            Stored that = (Stored) other;
+            return version.equals(that.version) && hash.equals(that.hash);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(version, hash);
+        }
+
+        @Override
+        public String toString() {
+            return "Stored[version=" + version + ", hash=" + hash + "]";
+        }
+    }
 }
