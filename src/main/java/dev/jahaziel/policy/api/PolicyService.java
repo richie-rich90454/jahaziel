@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Policies, stored per scope. */
-public interface PolicyService {
+public abstract class PolicyService {
     /**
      * Creates a policy.
      *
@@ -19,7 +19,8 @@ public interface PolicyService {
      * @return the created document with a fresh id and the current timestamp
      * @throws IllegalArgumentException when scope, policyJson, or updatedBy is blank
      */
-    PolicyDoc create(String scope, String scopeId, String policyJson, String updatedBy);
+    public abstract PolicyDoc create(
+            String scope, String scopeId, String policyJson, String updatedBy);
 
     /**
      * Returns one policy.
@@ -28,7 +29,7 @@ public interface PolicyService {
      * @return the policy document
      * @throws PolicyNotFoundException when the policy does not exist
      */
-    PolicyDoc get(UUID id);
+    public abstract PolicyDoc get(UUID id);
 
     /**
      * Lists policies for a scope. A null scope id lists global policies.
@@ -38,7 +39,7 @@ public interface PolicyService {
      * @return the matching documents
      * @throws IllegalArgumentException when scope is blank
      */
-    List<PolicyDoc> listByScope(String scope, String scopeId);
+    public abstract List<PolicyDoc> listByScope(String scope, String scopeId);
 
     /**
      * Deletes a policy.
@@ -46,5 +47,5 @@ public interface PolicyService {
      * @param id the policy identifier
      * @throws PolicyNotFoundException when the policy does not exist
      */
-    void delete(UUID id);
+    public abstract void delete(UUID id);
 }
