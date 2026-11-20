@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mockStatic;
 import dev.jahaziel.identity.internal.devconnect.Pkce;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.MockedStatic;
 
 import java.security.MessageDigest;
@@ -30,9 +31,22 @@ class PkceCoverageGapTest {
     @Test
     void challengeWithoutShaThrowsState() {
         try (MockedStatic<MessageDigest> digest = mockStatic(MessageDigest.class)) {
-            digest.when(() -> MessageDigest.getInstance("SHA-256"))
+            digest.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    MessageDigest.getInstance("SHA-256");
+                                }
+                            })
                     .thenThrow(new NoSuchAlgorithmException("gone"));
-            assertThrows(IllegalStateException.class, () -> Pkce.challenge("verifier"));
+            assertThrows(
+                    IllegalStateException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() {
+                            Pkce.challenge("verifier");
+                        }
+                    });
         }
     }
 }
