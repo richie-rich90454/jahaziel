@@ -48,17 +48,41 @@ class TerminalServiceImplTest {
         assertEquals(session.id(), service.get(session.id()).id());
         service.activity(session.id());
         service.close(session.id());
-        assertThrows(TerminalNotFoundException.class, () -> service.get(session.id()));
+        assertThrows(
+                TerminalNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.get(session.id());
+                    }
+                });
     }
 
     @Test
     void unknownSessionsThrowWithId() {
         TerminalSessionId id = new TerminalSessionId(UUID.randomUUID());
         TerminalNotFoundException failure =
-                assertThrows(TerminalNotFoundException.class, () -> service.get(id));
+                assertThrows(
+                        TerminalNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                service.get(id);
+                            }
+                        });
         assertEquals(id, failure.sessionId());
-        assertThrows(TerminalNotFoundException.class, () -> service.close(id));
-        assertThrows(TerminalNotFoundException.class, () -> service.activity(id));
+        assertThrows(
+                TerminalNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.close(id);
+                    }
+                });
+        assertThrows(
+                TerminalNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.activity(id);
+                    }
+                });
     }
 
     @Test
@@ -66,7 +90,8 @@ class TerminalServiceImplTest {
         TerminalSession first = service.open(workspaceId, userId, 30, 120);
         WorkspaceId other = new WorkspaceId(UUID.randomUUID());
         service.open(other, userId, 30, 120);
-        var found = service.listByWorkspace(workspaceId);
+        java.util.List<dev.jahaziel.terminal.domain.TerminalSession> found =
+                service.listByWorkspace(workspaceId);
         assertEquals(1, found.size());
         assertEquals(first.id(), found.get(0).id());
         assertTrue(service.listByWorkspace(new WorkspaceId(UUID.randomUUID())).isEmpty());
@@ -119,7 +144,11 @@ class TerminalServiceImplTest {
         IllegalWorkspaceStateException failure =
                 assertThrows(
                         IllegalWorkspaceStateException.class,
-                        () -> guarded.open(workspaceId, userId, 30, 120));
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                guarded.open(workspaceId, userId, 30, 120);
+                            }
+                        });
 
         assertEquals(workspaceId, failure.workspaceId());
         assertEquals("open terminal", failure.action());
@@ -139,6 +168,10 @@ class TerminalServiceImplTest {
 
         assertThrows(
                 IllegalWorkspaceStateException.class,
-                () -> guarded.open(workspaceId, userId, 30, 120));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        guarded.open(workspaceId, userId, 30, 120);
+                    }
+                });
     }
 }
