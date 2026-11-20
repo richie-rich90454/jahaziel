@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /** Database-backed administration. */
-public final class AdminServiceImpl implements AdminService {
+public final class AdminServiceImpl extends AdminService {
     private final UserService users;
     private final WorkspaceService workspaces;
     private final AdminActionRepository actions;
