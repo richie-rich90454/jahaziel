@@ -23,7 +23,20 @@ class VirtualMachineConfigurationTest {
     @Test
     void nonPositiveSizingIsRejected() {
         assertThrows(
-                IllegalArgumentException.class, () -> new VirtualMachineConfiguration(0, 2048));
-        assertThrows(IllegalArgumentException.class, () -> new VirtualMachineConfiguration(2, 0));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineConfiguration(0, 2048);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineConfiguration(2, 0);
+                    }
+                });
     }
 }
