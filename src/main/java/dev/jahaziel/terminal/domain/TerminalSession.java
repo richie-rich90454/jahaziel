@@ -51,8 +51,16 @@ public final class TerminalSession {
         return id;
     }
 
+    public TerminalSessionId getId() {
+        return id;
+    }
+
     /** Returns the workspace. */
     public WorkspaceId workspaceId() {
+        return workspaceId;
+    }
+
+    public WorkspaceId getWorkspaceId() {
         return workspaceId;
     }
 
@@ -61,8 +69,16 @@ public final class TerminalSession {
         return userId;
     }
 
+    public UserId getUserId() {
+        return userId;
+    }
+
     /** Returns when the session started. */
     public Instant startedAt() {
+        return startedAt;
+    }
+
+    public Instant getStartedAt() {
         return startedAt;
     }
 
@@ -71,8 +87,16 @@ public final class TerminalSession {
         return lastActivityAt;
     }
 
+    public Instant getLastActivityAt() {
+        return lastActivityAt;
+    }
+
     /** Returns the terminal rows. */
     public int rowCount() {
+        return rowCount;
+    }
+
+    public int getRowCount() {
         return rowCount;
     }
 
@@ -81,8 +105,16 @@ public final class TerminalSession {
         return colCount;
     }
 
+    public int getColCount() {
+        return colCount;
+    }
+
     /** Returns the process exit status, or {@code null} while the session is running. */
     public Integer exitCode() {
+        return exitCode;
+    }
+
+    public Integer getExitCode() {
         return exitCode;
     }
 
