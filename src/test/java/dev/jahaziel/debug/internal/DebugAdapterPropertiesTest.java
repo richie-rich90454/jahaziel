@@ -19,18 +19,16 @@ class DebugAdapterPropertiesTest {
         DebugAdapterProperties.Adapter adapter =
                 new DebugAdapterProperties.Adapter("1.0", List.of(executable()), null);
 
-        assertEquals(DebugAdapterProperties.Transport.STDIO, adapter.transport());
+        assertEquals("STDIO", adapter.transport());
     }
 
     @Test
     void acceptsTcpAdapterWithServerOwnedPortArgument() {
         DebugAdapterProperties.Adapter adapter =
                 new DebugAdapterProperties.Adapter(
-                        "1.2.3",
-                        List.of(executable(), "dap", "--listen=127.0.0.1:{port}"),
-                        DebugAdapterProperties.Transport.TCP);
+                        "1.2.3", List.of(executable(), "dap", "--listen=127.0.0.1:{port}"), "TCP");
 
-        assertEquals(DebugAdapterProperties.Transport.TCP, adapter.transport());
+        assertEquals("TCP", adapter.transport());
     }
 
     @Test
@@ -46,8 +44,7 @@ class DebugAdapterPropertiesTest {
                 IllegalArgumentException.class,
                 new org.junit.jupiter.api.function.Executable() {
                     public void execute() throws Throwable {
-                        new DebugAdapterProperties.Adapter(
-                                "1.0", List.of(executable()), DebugAdapterProperties.Transport.TCP);
+                        new DebugAdapterProperties.Adapter("1.0", List.of(executable()), "TCP");
                     }
                 });
     }
