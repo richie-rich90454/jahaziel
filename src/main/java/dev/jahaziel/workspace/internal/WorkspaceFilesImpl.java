@@ -30,15 +30,18 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 /** Filesystem implementation with path confinement, bounded text reads, and optimistic saves. */
-public final class WorkspaceFilesImpl implements WorkspaceFiles.Operations {
+public final class WorkspaceFilesImpl extends WorkspaceFiles.Operations {
     private static final int MAX_TEXT_BYTES = 2 * 1024 * 1024;
     private static final int MAX_DIRECTORY_ENTRIES = 5000;
     private static final int MAX_SEARCH_FILES = 10000;
@@ -70,16 +73,31 @@ public final class WorkspaceFilesImpl implements WorkspaceFiles.Operations {
             throw new IllegalArgumentException("path is not a directory");
         }
         try (Stream<Path> entries = Files.list(directory)) {
-            List<Entry> result =
-                    entries.filter(this::staysInsideRoot)
-                            .limit(MAX_DIRECTORY_ENTRIES + 1L)
-                            .sorted(
-                                    Comparator.comparing(
-                                            path -> path.getFileName().toString().toLowerCase()))
-                            .map(this::entry)
-                            .toList();
-            if (result.size() > MAX_DIRECTORY_ENTRIES) {
+            List<Path> paths = new ArrayList<>();
+            Iterator<Path> iterator = entries.iterator();
+            while (iterator.hasNext() && paths.size() <= MAX_DIRECTORY_ENTRIES) {
+                Path path = iterator.next();
+                if (staysInsideRoot(path)) {
+                    paths.add(path);
+                }
+            }
+            if (paths.size() > MAX_DIRECTORY_ENTRIES) {
                 throw new IllegalArgumentException("directory contains too many entries");
+            }
+            Collections.sort(
+                    paths,
+                    new Comparator<Path>() {
+                        @Override
+                        public int compare(Path left, Path right) {
+                            return left.getFileName()
+                                    .toString()
+                                    .toLowerCase()
+                                    .compareTo(right.getFileName().toString().toLowerCase());
+                        }
+                    });
+            List<Entry> result = new ArrayList<>();
+            for (Path path : paths) {
+                result.add(entry(path));
             }
             return result;
         } catch (IOException failure) {
@@ -464,11 +482,18 @@ public final class WorkspaceFilesImpl implements WorkspaceFiles.Operations {
 
     private static boolean isIgnoredSearchPath(Path relative) {
         for (Path segment : relative) {
-            if (switch (segment.toString().toLowerCase(Locale.ROOT)) {
-                case ".git", ".cache", "node_modules", "target", "dist", "build", "out" -> true;
-                default -> false;
-            }) {
-                return true;
+            String value = segment.toString().toLowerCase(Locale.ROOT);
+            switch (value) {
+                case ".git":
+                case ".cache":
+                case "node_modules":
+                case "target":
+                case "dist":
+                case "build":
+                case "out":
+                    return true;
+                default:
+                    break;
             }
         }
         return false;
