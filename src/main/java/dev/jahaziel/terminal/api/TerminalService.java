@@ -10,12 +10,13 @@ import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
  * Terminal session registry. PTYs run in the trusted host account, rooted in the workspace home.
  */
-public interface TerminalService {
+public abstract class TerminalService {
     /**
      * Opens a session.
      *
@@ -25,7 +26,8 @@ public interface TerminalService {
      * @param cols terminal columns
      * @return the session
      */
-    TerminalSession open(WorkspaceId workspaceId, UserId userId, int rows, int cols);
+    public abstract TerminalSession open(
+            WorkspaceId workspaceId, UserId userId, int rows, int cols);
 
     /**
      * Returns one session.
@@ -34,7 +36,7 @@ public interface TerminalService {
      * @return the session
      * @throws TerminalNotFoundException when the session does not exist
      */
-    TerminalSession get(TerminalSessionId id);
+    public abstract TerminalSession get(TerminalSessionId id);
 
     /**
      * Closes a session.
@@ -42,7 +44,7 @@ public interface TerminalService {
      * @param id the session identifier
      * @throws TerminalNotFoundException when the session does not exist
      */
-    void close(TerminalSessionId id);
+    public abstract void close(TerminalSessionId id);
 
     /**
      * Lists a workspace's sessions.
@@ -50,7 +52,7 @@ public interface TerminalService {
      * @param workspaceId the workspace
      * @return the sessions
      */
-    List<TerminalSession> listByWorkspace(WorkspaceId workspaceId);
+    public abstract List<TerminalSession> listByWorkspace(WorkspaceId workspaceId);
 
     /**
      * Records activity on a session.
@@ -58,26 +60,68 @@ public interface TerminalService {
      * @param id the session identifier
      * @throws TerminalNotFoundException when the session does not exist
      */
-    void activity(TerminalSessionId id);
+    public abstract void activity(TerminalSessionId id);
 
     /** Subscribes to process events and immediately replays buffered output and an exit status. */
-    AutoCloseable attach(TerminalSessionId id, Consumer<StreamEvent> output);
+    public abstract AutoCloseable attach(TerminalSessionId id, Consumer<StreamEvent> output);
 
     /** Writes terminal input to the process stdin. */
-    void write(TerminalSessionId id, String input);
+    public abstract void write(TerminalSessionId id, String input);
 
     /** Updates the PTY dimensions. */
-    void resize(TerminalSessionId id, int rows, int cols);
+    public abstract void resize(TerminalSessionId id, int rows, int cols);
 
     /** Closes every live PTY for a workspace. */
-    void closeByWorkspace(WorkspaceId workspaceId);
+    public abstract void closeByWorkspace(WorkspaceId workspaceId);
 
     /** Allows new PTYs after the workspace has successfully started. */
-    default void allowByWorkspace(WorkspaceId workspaceId) {}
+    public void allowByWorkspace(WorkspaceId workspaceId) {}
 
     /** Closes every live PTY during server shutdown. */
-    void closeAll();
+    public abstract void closeAll();
 
     /** One stream event delivered to the browser. */
-    record StreamEvent(String type, String data, Integer exitCode) {}
+    public static final class StreamEvent {
+        private final String type;
+        private final String data;
+        private final Integer exitCode;
+
+        public StreamEvent(String type, String data, Integer exitCode) {
+            this.type = type;
+            this.data = data;
+            this.exitCode = exitCode;
+        }
+
+        public String type() {
+            return type;
+        }
+
+        public String data() {
+            return data;
+        }
+
+        public Integer exitCode() {
+            return exitCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof StreamEvent)) return false;
+            StreamEvent other = (StreamEvent) o;
+            return Objects.equals(type, other.type)
+                    && Objects.equals(data, other.data)
+                    && Objects.equals(exitCode, other.exitCode);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(type, data, exitCode);
+        }
+
+        @Override
+        public String toString() {
+            return "StreamEvent[type=" + type + ", data=" + data + ", exitCode=" + exitCode + "]";
+        }
+    }
 }
