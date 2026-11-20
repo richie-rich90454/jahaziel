@@ -21,8 +21,29 @@ class ResourcePolicyTest {
 
     @Test
     void nonPositiveCeilingsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new ResourcePolicy(0, 2, 20));
-        assertThrows(IllegalArgumentException.class, () -> new ResourcePolicy(2048, 0, 20));
-        assertThrows(IllegalArgumentException.class, () -> new ResourcePolicy(2048, 2, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ResourcePolicy(0, 2, 20);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ResourcePolicy(2048, 0, 20);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new ResourcePolicy(2048, 2, 0);
+                    }
+                });
     }
 }
