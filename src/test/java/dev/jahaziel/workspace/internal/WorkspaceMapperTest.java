@@ -123,7 +123,12 @@ class WorkspaceMapperTest {
     void unknownStateThrows() {
         assertThrows(
                 IllegalStateException.class,
-                () -> WorkspaceMapper.toDomain(row("bogus"), List.of(), machineRow(), List.of()));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspaceMapper.toDomain(row("bogus"), List.of(), machineRow(), List.of());
+                    }
+                });
     }
 
     @Test
