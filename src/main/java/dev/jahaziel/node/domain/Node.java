@@ -81,8 +81,16 @@ public final class Node {
         return id;
     }
 
+    public NodeId getId() {
+        return id;
+    }
+
     /** Returns the human-readable name. */
     public String name() {
+        return name;
+    }
+
+    public String getName() {
         return name;
     }
 
@@ -91,8 +99,16 @@ public final class Node {
         return region;
     }
 
+    public String getRegion() {
+        return region;
+    }
+
     /** Returns the total capacity. */
     public NodeCapacity capacity() {
+        return capacity;
+    }
+
+    public NodeCapacity getCapacity() {
         return capacity;
     }
 
@@ -101,8 +117,16 @@ public final class Node {
         return certFingerprint;
     }
 
+    public String getCertFingerprint() {
+        return certFingerprint;
+    }
+
     /** Returns when the node registered. */
     public Instant registeredAt() {
+        return registeredAt;
+    }
+
+    public Instant getRegisteredAt() {
         return registeredAt;
     }
 
@@ -113,6 +137,10 @@ public final class Node {
 
     /** Returns the current state. */
     public NodeState state() {
+        return state;
+    }
+
+    public NodeState getState() {
         return state;
     }
 
@@ -127,6 +155,10 @@ public final class Node {
 
     /** Returns the latest resource sample. */
     public NodeMetrics metrics() {
+        return metrics;
+    }
+
+    public NodeMetrics getMetrics() {
         return metrics;
     }
 
