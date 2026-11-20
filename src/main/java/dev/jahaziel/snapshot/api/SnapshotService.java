@@ -12,7 +12,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.List;
 
 /** Workspace home snapshots. */
-public interface SnapshotService {
+public abstract class SnapshotService {
     /**
      * Creates a snapshot.
      *
@@ -22,7 +22,7 @@ public interface SnapshotService {
      * @param createdBy who triggered it
      * @return the metadata
      */
-    SnapshotMetadata create(
+    public abstract SnapshotMetadata create(
             WorkspaceId workspaceId, String tag, SnapshotKind kind, String createdBy);
 
     /**
@@ -31,7 +31,7 @@ public interface SnapshotService {
      * @param workspaceId the workspace
      * @return the metadata
      */
-    List<SnapshotMetadata> list(WorkspaceId workspaceId);
+    public abstract List<SnapshotMetadata> list(WorkspaceId workspaceId);
 
     /**
      * Restores a workspace home from a snapshot.
@@ -39,7 +39,7 @@ public interface SnapshotService {
      * @param workspaceId the workspace
      * @param snapshotId the snapshot
      */
-    void restore(WorkspaceId workspaceId, SnapshotId snapshotId);
+    public abstract void restore(WorkspaceId workspaceId, SnapshotId snapshotId);
 
     /**
      * Deletes a snapshot.
@@ -47,5 +47,5 @@ public interface SnapshotService {
      * @param workspaceId the workspace that owns the snapshot
      * @param snapshotId the snapshot
      */
-    void delete(WorkspaceId workspaceId, SnapshotId snapshotId);
+    public abstract void delete(WorkspaceId workspaceId, SnapshotId snapshotId);
 }
