@@ -58,7 +58,11 @@ class FirecrackerClientCoverageGapTest {
             FirecrackerException failure =
                     assertThrows(
                             FirecrackerException.class,
-                            () -> new FirecrackerClient().shutdown(socket.toString()));
+                            new org.junit.jupiter.api.function.Executable() {
+                                public void execute() throws Throwable {
+                                    new FirecrackerClient().shutdown(socket.toString());
+                                }
+                            });
             assertEquals("/actions", failure.path());
             assertEquals(500, failure.status());
         } finally {
@@ -96,7 +100,17 @@ class FirecrackerClientCoverageGapTest {
             this.response = response;
             listener = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             listener.bind(UnixDomainSocketAddress.of(socketPath));
-            server = Thread.ofPlatform().daemon().start(this::serve);
+            server =
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    serve();
+                                }
+                            },
+                            "firecracker-fake-api");
+            server.setDaemon(true);
+            server.start();
         }
 
         void close() throws Exception {
