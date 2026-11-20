@@ -179,7 +179,7 @@ public class DevConnectController {
     @GetMapping("/api/auth/me")
     public UserDto me(Principal principal) {
         UserId id = userId(principal);
-        var identity = users.get(id);
+        dev.jahaziel.spi.UserIdentity identity = users.get(id);
         return new UserDto(
                 id.value(),
                 identity.email(),
