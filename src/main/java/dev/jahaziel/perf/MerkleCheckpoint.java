@@ -38,11 +38,23 @@ public final class MerkleCheckpoint {
         return index;
     }
 
+    public int getIndex() {
+        return index;
+    }
+
     public String chainHash() {
         return chainHash;
     }
 
+    public String getChainHash() {
+        return chainHash;
+    }
+
     public String merkleRoot() {
+        return merkleRoot;
+    }
+
+    public String getMerkleRoot() {
         return merkleRoot;
     }
 
