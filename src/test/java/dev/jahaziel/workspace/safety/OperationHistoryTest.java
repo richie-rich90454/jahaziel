@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** Undo and redo must replay operations exactly once and survive a service restart. */
-final class OperationHistoryTest {
+public final class OperationHistoryTest {
     @Test
     void undoRestoresOldContentAndRedoReapplies(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
