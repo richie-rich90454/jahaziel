@@ -11,12 +11,12 @@ import java.util.Optional;
  * files.
  */
 @JahazielSpi(version = 1)
-public interface SecretProvider {
+public abstract class SecretProvider {
     /**
      * Reads one secret.
      *
      * @param key the secret key
      * @return the secret value, empty when unset
      */
-    Optional<String> get(String key);
+    public abstract Optional<String> get(String key);
 }
