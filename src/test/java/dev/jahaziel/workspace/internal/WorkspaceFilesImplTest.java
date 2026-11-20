@@ -42,12 +42,19 @@ class WorkspaceFilesImplTest {
     @Test
     void savesRequireCurrentVersionAndReturnReplacementVersion() {
         WorkspaceFilesImpl files = new WorkspaceFilesImpl(temporary.toString(), id());
-        var original = files.save("main.ts", "const value = 1;", null, true);
+        dev.jahaziel.workspace.api.WorkspaceFiles.Document original =
+                files.save("main.ts", "const value = 1;", null, true);
 
         assertThrows(
                 WorkspaceFileConflictException.class,
-                () -> files.save("main.ts", "const value = 2;", "stale", false));
-        var updated = files.save("main.ts", "const value = 2;", original.version(), false);
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.save("main.ts", "const value = 2;", "stale", false);
+                    }
+                });
+        dev.jahaziel.workspace.api.WorkspaceFiles.Document updated =
+                files.save("main.ts", "const value = 2;", original.version(), false);
 
         assertEquals("const value = 2;", updated.content());
         assertNotEquals(original.version(), updated.version());
@@ -57,28 +64,37 @@ class WorkspaceFilesImplTest {
     @Test
     void concurrentSavesWithOneVersionAllowOnlyOneReplacement() throws Exception {
         WorkspaceFilesImpl files = new WorkspaceFilesImpl(temporary.toString(), id());
-        var original = files.save("main.ts", "const value = 1;", null, true);
-        var ready = new CountDownLatch(2);
-        var start = new CountDownLatch(1);
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var first =
+        dev.jahaziel.workspace.api.WorkspaceFiles.Document original =
+                files.save("main.ts", "const value = 1;", null, true);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (java.util.concurrent.ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Future<Boolean> first =
                     executor.submit(
-                            () ->
-                                    saveAfter(
+                            new java.util.concurrent.Callable<Boolean>() {
+                                @Override
+                                public Boolean call() throws Exception {
+                                    return saveAfter(
                                             start,
                                             ready,
                                             files,
                                             original.version(),
-                                            "const value = 2;"));
-            var second =
+                                            "const value = 2;");
+                                }
+                            });
+            java.util.concurrent.Future<Boolean> second =
                     executor.submit(
-                            () ->
-                                    saveAfter(
+                            new java.util.concurrent.Callable<Boolean>() {
+                                @Override
+                                public Boolean call() throws Exception {
+                                    return saveAfter(
                                             start,
                                             ready,
                                             files,
                                             original.version(),
-                                            "const value = 3;"));
+                                            "const value = 3;");
+                                }
+                            });
             ready.await();
             start.countDown();
 
@@ -110,18 +126,37 @@ class WorkspaceFilesImplTest {
 
         assertThrows(
                 WorkspaceFileConflictException.class,
-                () -> files.save("main.py", "print('overwrite')", null, true));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.save("main.py", "print('overwrite')", null, true);
+                    }
+                });
         assertEquals("print('safe')", files.read("main.py").content());
     }
 
     @Test
     void concurrentCreateOnlySavesCannotReplaceTheWinningFile() throws Exception {
         WorkspaceFilesImpl files = new WorkspaceFilesImpl(temporary.toString(), id());
-        var ready = new CountDownLatch(2);
-        var start = new CountDownLatch(1);
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var first = executor.submit(() -> createAfter(start, ready, files, "first"));
-            var second = executor.submit(() -> createAfter(start, ready, files, "second"));
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (java.util.concurrent.ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Future<Boolean> first =
+                    executor.submit(
+                            new java.util.concurrent.Callable<Boolean>() {
+                                @Override
+                                public Boolean call() throws Exception {
+                                    return createAfter(start, ready, files, "first");
+                                }
+                            });
+            java.util.concurrent.Future<Boolean> second =
+                    executor.submit(
+                            new java.util.concurrent.Callable<Boolean>() {
+                                @Override
+                                public Boolean call() throws Exception {
+                                    return createAfter(start, ready, files, "second");
+                                }
+                            });
             ready.await();
             start.countDown();
 
@@ -151,10 +186,22 @@ class WorkspaceFilesImplTest {
         Path home = Path.of(WorkspacePaths.homePath(temporary.toString(), workspaceId));
         Files.writeString(home.resolve("large.txt"), "x".repeat(2 * 1024 * 1024 + 1));
 
-        assertThrows(IllegalArgumentException.class, () -> files.read("large.txt"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("large.txt");
+                    }
+                });
         assertThrows(
                 WorkspaceFileConflictException.class,
-                () -> files.save("large.txt", "replacement", "stale-version", false));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.save("large.txt", "replacement", "stale-version", false);
+                    }
+                });
     }
 
     @Test
@@ -164,13 +211,40 @@ class WorkspaceFilesImplTest {
         files.createDirectories(".");
         Path home = Path.of(WorkspacePaths.homePath(temporary.toString(), workspaceId));
 
-        assertThrows(IllegalArgumentException.class, () -> files.read("../outside.txt"));
-        assertThrows(IllegalArgumentException.class, () -> files.read("C:/outside.txt"));
         assertThrows(
-                IllegalArgumentException.class, () -> files.save("bad\\path", "x", null, true));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("../outside.txt");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("C:/outside.txt");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.save("bad\\path", "x", null, true);
+                    }
+                });
 
         Files.write(home.resolve("binary.dat"), new byte[] {0, 1, 2});
-        assertThrows(IllegalArgumentException.class, () -> files.read("binary.dat"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("binary.dat");
+                    }
+                });
         assertEquals("binary.dat", files.download("binary.dat").fileName());
         assertEquals(3, files.download("binary.dat").size());
     }
@@ -184,19 +258,18 @@ class WorkspaceFilesImplTest {
         files.save("node_modules/example/index.js", "needle", null, true);
         files.save("src/needle-notes.txt", "nothing relevant", null, true);
 
-        var matches = files.search("NEEDLE", 20);
+        List<dev.jahaziel.workspace.api.WorkspaceFiles.SearchResult> matches =
+                files.search("NEEDLE", 20);
 
         assertEquals(2, matches.size());
-        assertTrue(
-                matches.stream()
-                        .anyMatch(
-                                match -> match.path().equals("src/main.ts") && match.line() == 1));
-        assertTrue(
-                matches.stream()
-                        .anyMatch(
-                                match ->
-                                        match.path().equals("src/needle-notes.txt")
-                                                && match.line() == 0));
+        boolean mainMatch = false;
+        boolean nameMatch = false;
+        for (dev.jahaziel.workspace.api.WorkspaceFiles.SearchResult match : matches) {
+            if (match.path().equals("src/main.ts") && match.line() == 1) mainMatch = true;
+            if (match.path().equals("src/needle-notes.txt") && match.line() == 0) nameMatch = true;
+        }
+        assertTrue(mainMatch);
+        assertTrue(nameMatch);
         assertEquals(1, files.search("needle", 1).size());
     }
 
@@ -204,9 +277,30 @@ class WorkspaceFilesImplTest {
     void searchRejectsInvalidQueryAndResultLimit() {
         WorkspaceFilesImpl files = new WorkspaceFilesImpl(temporary.toString(), id());
 
-        assertThrows(IllegalArgumentException.class, () -> files.search("  ", 10));
-        assertThrows(IllegalArgumentException.class, () -> files.search("needle", 0));
-        assertThrows(IllegalArgumentException.class, () -> files.search("needle", 101));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.search("  ", 10);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.search("needle", 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.search("needle", 101);
+                    }
+                });
     }
 
     @Test
@@ -225,10 +319,23 @@ class WorkspaceFilesImplTest {
                     "symbolic links are unavailable on this host: " + unavailable.getMessage());
         }
 
-        assertThrows(IllegalArgumentException.class, () -> files.read("external-link"));
-        assertThrows(IllegalArgumentException.class, () -> files.download("external-link"));
-        assertFalse(
-                files.list(".").stream().anyMatch(entry -> entry.name().equals("external-link")));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("external-link");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.download("external-link");
+                    }
+                });
+        assertFalse(hasExternalLink(files));
     }
 
     @Test
@@ -241,10 +348,24 @@ class WorkspaceFilesImplTest {
 
         assertEquals("value", files.read("nested/new.txt").content());
         files.delete("nested/new.txt");
-        assertThrows(IllegalArgumentException.class, () -> files.read("nested/new.txt"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        files.read("nested/new.txt");
+                    }
+                });
     }
 
     private static WorkspaceId id() {
         return new WorkspaceId(UUID.randomUUID());
+    }
+
+    private static boolean hasExternalLink(WorkspaceFilesImpl files) {
+        for (dev.jahaziel.workspace.api.WorkspaceFiles.Entry entry : files.list(".")) {
+            if (entry.name().equals("external-link")) return true;
+        }
+        return false;
     }
 }
