@@ -9,6 +9,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,13 +92,14 @@ public final class DotEnv {
      * @return the missing names, empty when login can run
      */
     public static List<String> missingBasisVars(Map<String, String> effectiveEnv) {
-        return BASIS_VARS.stream()
-                .filter(
-                        key -> {
-                            String value = effectiveEnv.get(key);
-                            return value == null || value.isBlank();
-                        })
-                .toList();
+        List<String> missing = new ArrayList<>();
+        for (String key : BASIS_VARS) {
+            String value = effectiveEnv.get(key);
+            if (value == null || value.isBlank()) {
+                missing.add(key);
+            }
+        }
+        return missing;
     }
 
     private static String stripInlineComment(String value) {
