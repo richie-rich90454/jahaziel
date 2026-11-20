@@ -11,6 +11,7 @@ import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.terminal.api.TerminalService;
+import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -85,15 +87,20 @@ public class TerminalController {
             Principal principal) {
         UserId user = userId(principal);
         WorkspaceId workspace = require(principal, id, "write");
-        if (agentTools == null
-                || agentTools.catalog(user).stream()
-                        .noneMatch(
-                                tool ->
-                                        "opencode".equals(tool.id())
-                                                && "INSTALLED".equals(tool.status()))) {
+        boolean installed = false;
+        if (agentTools != null) {
+            for (AgentToolService.ToolStatus tool : agentTools.catalog(user)) {
+                if ("opencode".equals(tool.id()) && "INSTALLED".equals(tool.status())) {
+                    installed = true;
+                    break;
+                }
+            }
+        }
+        if (!installed) {
             throw new AgentToolNotInstalledException();
         }
-        var session = terminals.open(workspace, user, rows, cols);
+        dev.jahaziel.terminal.domain.TerminalSession session =
+                terminals.open(workspace, user, rows, cols);
         try {
             terminals.write(session.id(), "opencode\r");
             return TerminalSessionDto.from(session);
@@ -113,7 +120,11 @@ public class TerminalController {
     @GetMapping("/workspaces/{id}/terminals")
     public List<TerminalSessionDto> list(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = require(principal, id, "read");
-        return terminals.listByWorkspace(workspace).stream().map(TerminalSessionDto::from).toList();
+        List<TerminalSessionDto> result = new ArrayList<>();
+        for (TerminalSession session : terminals.listByWorkspace(workspace)) {
+            result.add(TerminalSessionDto.from(session));
+        }
+        return result;
     }
 
     /**
@@ -125,7 +136,8 @@ public class TerminalController {
     @DeleteMapping("/terminals/{sessionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void close(@PathVariable UUID sessionId, Principal principal) {
-        var session = terminals.get(new TerminalSessionId(sessionId));
+        dev.jahaziel.terminal.domain.TerminalSession session =
+                terminals.get(new TerminalSessionId(sessionId));
         require(principal, session.workspaceId().value(), "write");
         terminals.close(new TerminalSessionId(sessionId));
     }
