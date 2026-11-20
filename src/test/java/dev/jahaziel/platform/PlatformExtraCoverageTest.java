@@ -16,27 +16,33 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 class PlatformExtraCoverageTest {
+
     @TempDir private Path tmp;
 
     @Test
     void admissionDegradedAndRefused() {
-        var admit = AdmissionControl.evaluate(8000, 1000, 1000, 1000, 500, 500, 512, 0.9);
+        dev.jahaziel.platform.api.AdmissionDecision admit =
+                AdmissionControl.evaluate(8000, 1000, 1000, 1000, 500, 500, 512, 0.9);
         assertTrue(admit instanceof dev.jahaziel.platform.api.AdmissionDecision.Admit);
-        var degraded = AdmissionControl.evaluate(8000, 1000, 6000, 1000, 500, 500, 512, 0.9);
+        dev.jahaziel.platform.api.AdmissionDecision degraded =
+                AdmissionControl.evaluate(8000, 1000, 6000, 1000, 500, 500, 512, 0.9);
         assertTrue(degraded instanceof dev.jahaziel.platform.api.AdmissionDecision.Admit);
         assertEquals(
                 512L, ((dev.jahaziel.platform.api.AdmissionDecision.Admit) degraded).memoryMib());
-        var refusedFloorTooBig =
+        dev.jahaziel.platform.api.AdmissionDecision refusedFloorTooBig =
                 AdmissionControl.evaluate(4000, 1000, 6000, 1000, 500, 500, 5000, 0.9);
         assertTrue(
                 refusedFloorTooBig instanceof dev.jahaziel.platform.api.AdmissionDecision.Refuse);
-        var refusedPressure = AdmissionControl.evaluate(4000, 3900, 6000, 0, 0, 0, 50, 0.5);
+        dev.jahaziel.platform.api.AdmissionDecision refusedPressure =
+                AdmissionControl.evaluate(4000, 3900, 6000, 0, 0, 0, 50, 0.5);
         assertTrue(refusedPressure instanceof dev.jahaziel.platform.api.AdmissionDecision.Refuse);
-        var refusedSmallFloor = AdmissionControl.evaluate(8000, 7900, 6000, 0, 0, 0, 512, 0.9);
+        dev.jahaziel.platform.api.AdmissionDecision refusedSmallFloor =
+                AdmissionControl.evaluate(8000, 7900, 6000, 0, 0, 0, 512, 0.9);
         assertTrue(refusedSmallFloor instanceof dev.jahaziel.platform.api.AdmissionDecision.Refuse);
     }
 
@@ -56,7 +62,13 @@ class PlatformExtraCoverageTest {
         assertEquals(null, Platforms.mapArch("sparc"));
         assertEquals(null, Platforms.mapArch(null));
         assertThrows(
-                NullPointerException.class, () -> Platforms.detect("Linux", "x86_64", null, null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        Platforms.detect("Linux", "x86_64", null, null);
+                    }
+                });
         Platform blankDir = Platforms.detect("Linux", "x86_64", tmp, "  ");
         assertTrue(blankDir.dataDir().toString().endsWith("data"));
         assertTrue(Platforms.resolveJarDir() != null);
@@ -70,8 +82,22 @@ class PlatformExtraCoverageTest {
         assertTrue(w.tempDir().toString().endsWith("tmp"));
         assertEquals(tmp.toAbsolutePath().normalize(), w.jarDir());
         assertEquals(";", w.pathSeparator());
-        assertThrows(NullPointerException.class, () -> w.toNative(null));
-        assertThrows(NullPointerException.class, () -> w.toPosix(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        w.toNative(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        w.toPosix(null);
+                    }
+                });
         Map<String, String> env = w.subprocessEnv();
         assertTrue(env.get("TEMP").contains("tmp"));
     }
@@ -80,12 +106,31 @@ class PlatformExtraCoverageTest {
     void posixRejectsWindowsAndCoversMacPaths() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new PosixPlatform(Platform.Os.WINDOWS, Platform.Arch.X64, tmp, tmp));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new PosixPlatform(Platform.Os.WINDOWS, Platform.Arch.X64, tmp, tmp);
+                    }
+                });
         PosixPlatform mac = new PosixPlatform(Platform.Os.MACOS, Platform.Arch.X64, tmp, tmp);
         assertTrue(mac != null);
         PosixPlatform linux = new PosixPlatform(Platform.Os.LINUX, Platform.Arch.ARM64, tmp, tmp);
-        assertThrows(NullPointerException.class, () -> linux.toNative(null));
-        assertThrows(NullPointerException.class, () -> linux.toPosix(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        linux.toNative(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        linux.toPosix(null);
+                    }
+                });
     }
 
     @Test
@@ -122,10 +167,12 @@ class PlatformExtraCoverageTest {
         Path dirAsFile = tmp.resolve("adir");
         Files.createDirectory(dirAsFile);
         assertTrue(DotEnv.parse(dirAsFile).isEmpty());
-        assertEquals(
-                List.of(),
-                DotEnv.missingBasisVars(DotEnv.withRealEnvWins(Map.of(), Map.of())).stream()
-                        .filter(s -> s.equals("NEVER"))
-                        .toList());
+        List<String> never = new ArrayList<>();
+        for (String s : DotEnv.missingBasisVars(DotEnv.withRealEnvWins(Map.of(), Map.of()))) {
+            if (s.equals("NEVER")) {
+                never.add(s);
+            }
+        }
+        assertEquals(List.of(), never);
     }
 }
