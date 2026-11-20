@@ -136,35 +136,27 @@ public final class Cli {
                 return OpsCommands.dispatch(new String[] {"ops", "capabilities"}, out, err);
             }
             switch (args[0]) {
-                case "init" -> {
+                case "init":
                     return init(jarDir(), out, err);
-                }
-                case "doctor" -> {
+                case "doctor":
                     return doctor(args, out);
-                }
-                case "upgrade" -> {
+                case "upgrade":
                     return upgrade(args, out, err);
-                }
-                case "backup" -> {
+                case "backup":
                     return backup(args, out, err);
-                }
-                case "restore" -> {
+                case "restore":
                     return restore(args, out, err);
-                }
-                case "logs" -> {
+                case "logs":
                     return logs(args, out, err);
-                }
-                case "support-bundle" -> {
+                case "support-bundle":
                     return supportBundle(args, out, err);
-                }
-                default -> {
+                default:
                     if (args[0].startsWith("-")) {
                         return validatedRun(args, out, err);
                     }
                     err.println("jahaziel: unknown command: " + args[0]);
                     err.print(usage());
                     return 2;
-                }
             }
         } catch (IOException failure) {
             err.println("jahaziel: failed: " + failure.getMessage());
@@ -201,20 +193,18 @@ public final class Cli {
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
         String body =
-                """
-        # Jahaziel single-file install. Fill the placeholders, then run `doctor`.
-        BASIS_AUTH_ISSUER=https://idp.example.com
-        BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback
-        BASIS_CLIENT_ID=jahaziel
-        BASIS_CLIENT_SECRET=%s
-        BASIS_RESOURCE=urn:basis:api:jahaziel
-        PORT=11451
-        JAHAZIEL_GATEWAY_PORT=8081
-        JAHAZIEL_DOMAIN=localhost
-        JAHAZIEL_LOG_LEVEL=INFO
-        JAHAZIEL_DEMO=false
-        JAHAZIEL_BACKEND=local
-        """
+                ("# Jahaziel single-file install. Fill the placeholders, then run `doctor`.\n"
+                                + "BASIS_AUTH_ISSUER=https://idp.example.com\n"
+                                + "BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback\n"
+                                + "BASIS_CLIENT_ID=jahaziel\n"
+                                + "BASIS_CLIENT_SECRET=%s\n"
+                                + "BASIS_RESOURCE=urn:basis:api:jahaziel\n"
+                                + "PORT=11451\n"
+                                + "JAHAZIEL_GATEWAY_PORT=8081\n"
+                                + "JAHAZIEL_DOMAIN=localhost\n"
+                                + "JAHAZIEL_LOG_LEVEL=INFO\n"
+                                + "JAHAZIEL_DEMO=false\n"
+                                + "JAHAZIEL_BACKEND=local\n")
                         .formatted(HexFormat.of().formatHex(random));
         Files.createDirectories(jar);
         Files.writeString(env, body, StandardCharsets.UTF_8);
@@ -387,9 +377,18 @@ public final class Cli {
             err.println("jahaziel: cannot list " + archive + " (is tar on PATH?)");
             return 1;
         }
-        if (entries.lines()
-                .map((String entry) -> entry.strip())
-                .anyMatch(entry -> !safeBackupEntry(entry))) {
+        boolean unsafe = false;
+        try (java.io.BufferedReader reader =
+                new java.io.BufferedReader(new java.io.StringReader(entries))) {
+            String entry;
+            while ((entry = reader.readLine()) != null) {
+                if (!safeBackupEntry(entry.strip())) {
+                    unsafe = true;
+                    break;
+                }
+            }
+        }
+        if (unsafe) {
             err.println("jahaziel: archive contains an unsafe path, refusing");
             return 1;
         }
@@ -407,12 +406,19 @@ public final class Cli {
             err.println("jahaziel: cannot list " + archive + " (is tar on PATH?)");
             return 1;
         }
-        if (verbose.toString(StandardCharsets.UTF_8)
-                .lines()
-                .anyMatch(
-                        line ->
-                                line.isEmpty()
-                                        || (line.charAt(0) != '-' && line.charAt(0) != 'd'))) {
+        boolean badListing = false;
+        try (java.io.BufferedReader reader =
+                new java.io.BufferedReader(
+                        new java.io.StringReader(verbose.toString(StandardCharsets.UTF_8)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty() || (line.charAt(0) != '-' && line.charAt(0) != 'd')) {
+                    badListing = true;
+                    break;
+                }
+            }
+        }
+        if (badListing) {
             err.println("jahaziel: extraction failed");
             return 1;
         }
@@ -477,7 +483,7 @@ public final class Cli {
                 position = 0;
             }
             if (size > position) {
-                try (var in = Files.newInputStream(log)) {
+                try (java.io.InputStream in = Files.newInputStream(log)) {
                     in.skip(position);
                     String tail = new String(in.readAllBytes(), StandardCharsets.UTF_8);
                     for (String line : tail.split("\r?\n")) {
@@ -502,7 +508,8 @@ public final class Cli {
                 Doctor.run(
                         jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
                 new PrintStream(doctors, true, StandardCharsets.UTF_8));
-        try (var zip = new java.util.zip.ZipOutputStream(Files.newOutputStream(dest))) {
+        try (java.util.zip.ZipOutputStream zip =
+                new java.util.zip.ZipOutputStream(Files.newOutputStream(dest))) {
             entry(zip, ".env.redacted", redact(fileEnv).getBytes(StandardCharsets.UTF_8));
             entry(zip, "doctor.txt", doctors.toByteArray());
             entry(
@@ -521,9 +528,11 @@ public final class Cli {
                             .getBytes(StandardCharsets.UTF_8));
             Path logs = data.resolve("logs");
             if (Files.isDirectory(logs)) {
-                try (var stream = Files.list(logs)) {
-                    for (Path file : stream.filter(Files::isRegularFile).toList()) {
-                        if (Files.size(file) < 50_000_000L) {
+                try (java.util.stream.Stream<Path> stream = Files.list(logs)) {
+                    java.util.Iterator<Path> iterator = stream.iterator();
+                    while (iterator.hasNext()) {
+                        Path file = iterator.next();
+                        if (Files.isRegularFile(file) && Files.size(file) < 50_000_000L) {
                             entry(zip, "logs/" + file.getFileName(), Files.readAllBytes(file));
                         }
                     }
@@ -572,44 +581,42 @@ public final class Cli {
     }
 
     static String usage() {
-        return """
-        Usage: java -jar jahaziel.jar COMMAND [options]
-                java -jar jahaziel.jar [options]
-
-        No-args with a jar-adjacent .env boots the FULL stack (API + node agent +
-        gateway) on 11451. No-args without .env prints this help; run `init` first.
-
-        Commands:
-          init                  Write .env (BASIS_* placeholders + random secret), mkdir data/
-          doctor                Pre-boot checks, one line each; exit 0 when all pass
-          update --to <jar>     Stage and verify a jar update (--dry-run, --sums, --version)
-          update --status       Show staged and applied updates
-          update --rollback     Restore the jar kept before the last applied update
-          upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)
-          upgrade --check       Print the running version
-          backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/
-          restore <file>        Extract a backup tar.gz into this directory
-          logs [--follow] [--level=LEVEL]  Tail data/logs/control-plane.log
-          support-bundle        Write jahaziel-support-<stamp>.zip (secrets redacted)
-          completion SHELL      Print a bash, zsh, or powershell completion script
-          ops SUBCOMMAND        Delegate to ops/datatools services:
-                                  support-bundle, backup, restore-drill, audit query,
-                                  export-user <id>, delete-user <id> --confirm 'DELETE <id>',
-                                  reindex [--workspace=<uuid>], capabilities
-          capabilities          List tool capabilities (unavailable when offline)
-
-        Run:
-          --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*
-          --offline             Forbid tool downloads; report capabilities unavailable
-          --port=N              API port (default: 11451, or PORT from .env)
-          --gateway-port=N      Legacy standalone gateway socket (default: 8081, or
-                                JAHAZIEL_GATEWAY_PORT from .env; off unless enabled)
-          --domain=HOST         Public domain and token issuer (default: localhost,
-                                or JAHAZIEL_DOMAIN from .env)
-          --data-dir=PATH       Data root (default: data/ next to the jar)
-          --help                Print this help
-          --version             Print the version
-        """;
+        return "Usage: java -jar jahaziel.jar COMMAND [options]\n"
+                + "        java -jar jahaziel.jar [options]\n"
+                + "\n"
+                + "No-args with a jar-adjacent .env boots the FULL stack (API + node agent +\n"
+                + "gateway) on 11451. No-args without .env prints this help; run `init` first.\n"
+                + "\n"
+                + "Commands:\n"
+                + "  init                  Write .env (BASIS_* placeholders + random secret), mkdir data/\n"
+                + "  doctor                Pre-boot checks, one line each; exit 0 when all pass\n"
+                + "  update --to <jar>     Stage and verify a jar update (--dry-run, --sums, --version)\n"
+                + "  update --status       Show staged and applied updates\n"
+                + "  update --rollback     Restore the jar kept before the last applied update\n"
+                + "  upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)\n"
+                + "  upgrade --check       Print the running version\n"
+                + "  backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/\n"
+                + "  restore <file>        Extract a backup tar.gz into this directory\n"
+                + "  logs [--follow] [--level=LEVEL]  Tail data/logs/control-plane.log\n"
+                + "  support-bundle        Write jahaziel-support-<stamp>.zip (secrets redacted)\n"
+                + "  completion SHELL      Print a bash, zsh, or powershell completion script\n"
+                + "  ops SUBCOMMAND        Delegate to ops/datatools services:\n"
+                + "                          support-bundle, backup, restore-drill, audit query,\n"
+                + "                          export-user <id>, delete-user <id> --confirm 'DELETE <id>',\n"
+                + "                          reindex [--workspace=<uuid>], capabilities\n"
+                + "  capabilities          List tool capabilities (unavailable when offline)\n"
+                + "\n"
+                + "Run:\n"
+                + "  --demo                Stub IdP, seed demo user/workspace, ignore BASIS_*\n"
+                + "  --offline             Forbid tool downloads; report capabilities unavailable\n"
+                + "  --port=N              API port (default: 11451, or PORT from .env)\n"
+                + "  --gateway-port=N      Legacy standalone gateway socket (default: 8081, or\n"
+                + "                        JAHAZIEL_GATEWAY_PORT from .env; off unless enabled)\n"
+                + "  --domain=HOST         Public domain and token issuer (default: localhost,\n"
+                + "                        or JAHAZIEL_DOMAIN from .env)\n"
+                + "  --data-dir=PATH       Data root (default: data/ next to the jar)\n"
+                + "  --help                Print this help\n"
+                + "  --version             Print the version\n";
     }
 
     /** Returns the jar version from the manifest, or the development fallback. */
@@ -640,7 +647,13 @@ public final class Cli {
     }
 
     static List<String> missingVars(Map<String, String> merged) {
-        return BASIS_VARS.stream().filter(key -> merged.getOrDefault(key, "").isBlank()).toList();
+        List<String> missing = new ArrayList<>();
+        for (String key : BASIS_VARS) {
+            if (merged.getOrDefault(key, "").isBlank()) {
+                missing.add(key);
+            }
+        }
+        return List.copyOf(missing);
     }
 
     static Map<String, String> merge(Map<String, String> file, Map<String, String> env) {
@@ -775,16 +788,17 @@ public final class Cli {
 
     static String redact(Map<String, String> fileEnv) {
         StringBuilder redacted = new StringBuilder("# redacted by support-bundle\n");
-        fileEnv.forEach(
-                (key, value) -> {
-                    String upper = key.toUpperCase(Locale.ROOT);
-                    boolean secret =
-                            upper.contains("SECRET")
-                                    || upper.contains("PASSWORD")
-                                    || upper.contains("TOKEN")
-                                    || upper.startsWith("BASIS_");
-                    redacted.append(key).append('=').append(secret ? "***" : value).append('\n');
-                });
+        for (Map.Entry<String, String> entry : fileEnv.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            String upper = key.toUpperCase(Locale.ROOT);
+            boolean secret =
+                    upper.contains("SECRET")
+                            || upper.contains("PASSWORD")
+                            || upper.contains("TOKEN")
+                            || upper.startsWith("BASIS_");
+            redacted.append(key).append('=').append(secret ? "***" : value).append('\n');
+        }
         return redacted.toString();
     }
 
@@ -792,7 +806,7 @@ public final class Cli {
     public static String sha256(Path file) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            try (var in = Files.newInputStream(file)) {
+            try (java.io.InputStream in = Files.newInputStream(file)) {
                 digest.update(in.readAllBytes());
             }
             return HexFormat.of().formatHex(digest.digest());
@@ -805,14 +819,21 @@ public final class Cli {
         if (level == null) {
             return -1;
         }
-        return switch (level.strip().toUpperCase(Locale.ROOT)) {
-            case "TRACE" -> 0;
-            case "DEBUG" -> 1;
-            case "INFO" -> 2;
-            case "WARN", "WARNING" -> 3;
-            case "ERROR" -> 4;
-            default -> -2;
-        };
+        switch (level.strip().toUpperCase(Locale.ROOT)) {
+            case "TRACE":
+                return 0;
+            case "DEBUG":
+                return 1;
+            case "INFO":
+                return 2;
+            case "WARN":
+            case "WARNING":
+                return 3;
+            case "ERROR":
+                return 4;
+            default:
+                return -2;
+        }
     }
 
     private static void emit(String line, int threshold, PrintStream out) {
