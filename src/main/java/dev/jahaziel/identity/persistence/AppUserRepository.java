@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Repository for AppUserEntity persistence. */
+/** Spring Data repository for AppUserEntity; interface is required by Spring Data. */
 public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
     /**
      * Finds the account linked to an identity provider subject.
