@@ -44,7 +44,14 @@ class AuditSpoolCoverageGapTest {
                         .build());
         view.setAcl(updated);
         try {
-            UncheckedIOException failure = assertThrows(UncheckedIOException.class, spool::spooled);
+            UncheckedIOException failure =
+                    assertThrows(
+                            UncheckedIOException.class,
+                            new org.junit.jupiter.api.function.Executable() {
+                                public void execute() throws Throwable {
+                                    spool.spooled();
+                                }
+                            });
             assertTrue(failure.getMessage().contains(root.toString()));
         } finally {
             try {
