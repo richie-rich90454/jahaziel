@@ -23,13 +23,20 @@ import java.util.List;
 import java.util.UUID;
 
 class LanguagePackControllerTest {
+
     @Test
     void marksTemplatePacksAndRejectsEnablingAnUnlistedPack() {
         UUID user = UUID.randomUUID();
         UUID workspaceId = UUID.randomUUID();
         UserId actor = new UserId(user);
         WorkspaceId workspace = new WorkspaceId(workspaceId);
-        Principal principal = () -> user.toString();
+        Principal principal =
+                new java.security.Principal() {
+
+                    public String getName() {
+                        return user.toString();
+                    }
+                };
         AuthorizationService authorization = mock(AuthorizationService.class);
         WorkspaceTaskService tasks = mock(WorkspaceTaskService.class);
         LanguagePackService packs = mock(LanguagePackService.class);
@@ -39,14 +46,17 @@ class LanguagePackControllerTest {
         when(packs.forWorkspace(workspace))
                 .thenReturn(List.of(pack("python", false), pack("java", true)));
         LanguagePackController controller = new LanguagePackController(packs, authorization, tasks);
-
         List<LanguagePackService.Pack> result = controller.forWorkspace(workspaceId, principal);
-
         assertTrue(result.getFirst().supportedByTemplate());
         assertFalse(result.get(1).supportedByTemplate());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> controller.select(workspaceId, "java", principal));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.select(workspaceId, "java", principal);
+                    }
+                });
     }
 
     private static LanguagePackService.Pack pack(String id, boolean supported) {
