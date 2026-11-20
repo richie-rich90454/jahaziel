@@ -36,8 +36,20 @@ class NodeMetricsCollectorCoverageGapTest {
         Files.writeString(stat, "cpu  100 200 300 400 500 0 0 0 0 0\n");
         try (MockedStatic<Paths> paths =
                 Mockito.mockStatic(Paths.class, Mockito.CALLS_REAL_METHODS)) {
-            paths.when(() -> Paths.get("/proc/meminfo")).thenReturn(meminfo);
-            paths.when(() -> Paths.get("/proc/stat")).thenReturn(stat);
+            paths.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Paths.get("/proc/meminfo");
+                                }
+                            })
+                    .thenReturn(meminfo);
+            paths.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Paths.get("/proc/stat");
+                                }
+                            })
+                    .thenReturn(stat);
             NodeMetricsCollector collector = new NodeMetricsCollector(root);
             HostSample first = collector.sample();
             assertEquals(6000000L * 1024, first.memoryUsedBytes());
@@ -51,8 +63,20 @@ class NodeMetricsCollectorCoverageGapTest {
 
             try (MockedStatic<Files> files =
                     Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                files.when(() -> Files.readAllLines(meminfo)).thenThrow(new IOException("denied"));
-                assertThrows(UncheckedIOException.class, collector::sample);
+                files.when(
+                                new org.mockito.MockedStatic.Verification() {
+                                    public void apply() throws Throwable {
+                                        Files.readAllLines(meminfo);
+                                    }
+                                })
+                        .thenThrow(new IOException("denied"));
+                assertThrows(
+                        UncheckedIOException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                collector.sample();
+                            }
+                        });
             }
         }
     }
