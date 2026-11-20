@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 /**
  * Live boot phases per workspace. These phases describe workspace storage preparation and backend
@@ -20,24 +21,92 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BootProgressService {
     /** Coarse boot phases visible to the workbench. */
-    public enum BootPhase {
-        PREPARING,
-        STARTING,
-        READY
+    public static final class BootPhase {
+        /** Storage preparation. */
+        public static final BootPhase PREPARING = new BootPhase("PREPARING");
+
+        /** Backend start. */
+        public static final BootPhase STARTING = new BootPhase("STARTING");
+
+        /** Boot complete. */
+        public static final BootPhase READY = new BootPhase("READY");
+
+        private final String name;
+
+        private BootPhase(String name) {
+            this.name = name;
+        }
+
+        /** Returns the phase name. */
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 
-    /**
-     * A phase report.
-     *
-     * @param correlationId the identifier shared by every phase of one start operation
-     * @param phase the current sub-step
-     * @param updatedAt when the workspace entered it
-     */
-    public record Progress(UUID correlationId, BootPhase phase, Instant updatedAt) {
-        public Progress {
-            Objects.requireNonNull(correlationId, "correlationId");
-            Objects.requireNonNull(phase, "phase");
-            Objects.requireNonNull(updatedAt, "updatedAt");
+    /** A phase report. */
+    public static final class Progress {
+        private final UUID correlationId;
+        private final BootPhase phase;
+        private final Instant updatedAt;
+
+        /** Creates the report, validating every component. */
+        public Progress(UUID correlationId, BootPhase phase, Instant updatedAt) {
+            this.correlationId = Objects.requireNonNull(correlationId, "correlationId");
+            this.phase = Objects.requireNonNull(phase, "phase");
+            this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
+        }
+
+        /** Returns the identifier shared by every phase of one start operation. */
+        public UUID correlationId() {
+            return correlationId;
+        }
+
+        /** Returns the current sub-step. */
+        public BootPhase phase() {
+            return phase;
+        }
+
+        /** Returns when the workspace entered it. */
+        public Instant updatedAt() {
+            return updatedAt;
+        }
+
+        /** Compares by class and every component. */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Progress other = (Progress) o;
+            return Objects.equals(correlationId, other.correlationId)
+                    && Objects.equals(phase, other.phase)
+                    && Objects.equals(updatedAt, other.updatedAt);
+        }
+
+        /** Returns a hash derived from every component. */
+        @Override
+        public int hashCode() {
+            return Objects.hash(correlationId, phase, updatedAt);
+        }
+
+        /** Returns a readable representation. */
+        @Override
+        public String toString() {
+            return "Progress[correlationId="
+                    + correlationId
+                    + ", phase="
+                    + phase
+                    + ", updatedAt="
+                    + updatedAt
+                    + "]";
         }
     }
 
@@ -54,12 +123,15 @@ public final class BootProgressService {
         Objects.requireNonNull(phase, "phase");
         phases.compute(
                 id.value(),
-                (ignored, previous) -> {
-                    UUID correlationId =
-                            phase == BootPhase.PREPARING || previous == null
-                                    ? UUID.randomUUID()
-                                    : previous.correlationId();
-                    return new Progress(correlationId, phase, Instant.now());
+                new BiFunction<UUID, Progress, Progress>() {
+                    @Override
+                    public Progress apply(UUID ignored, Progress previous) {
+                        UUID correlationId =
+                                phase == BootPhase.PREPARING || previous == null
+                                        ? UUID.randomUUID()
+                                        : previous.correlationId();
+                        return new Progress(correlationId, phase, Instant.now());
+                    }
                 });
     }
 
