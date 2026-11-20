@@ -79,10 +79,43 @@ public final class DevKeys {
     }
 
     /** Key file locations. */
-    public record Keys(Path privateKey, Path publicKey) {
-        public Keys {
-            Objects.requireNonNull(privateKey, "privateKey");
-            Objects.requireNonNull(publicKey, "publicKey");
+    public static final class Keys {
+        private final Path privateKey;
+        private final Path publicKey;
+
+        public Keys(Path privateKey, Path publicKey) {
+            this.privateKey = Objects.requireNonNull(privateKey, "privateKey");
+            this.publicKey = Objects.requireNonNull(publicKey, "publicKey");
+        }
+
+        public Path privateKey() {
+            return privateKey;
+        }
+
+        public Path publicKey() {
+            return publicKey;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Keys)) {
+                return false;
+            }
+            Keys that = (Keys) other;
+            return privateKey.equals(that.privateKey) && publicKey.equals(that.publicKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(privateKey, publicKey);
+        }
+
+        @Override
+        public String toString() {
+            return "Keys[privateKey=" + privateKey + ", publicKey=" + publicKey + "]";
         }
     }
 
