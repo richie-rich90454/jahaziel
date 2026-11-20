@@ -10,8 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.ByteArrayOutputStream;
@@ -23,6 +25,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -95,10 +98,24 @@ class ServiceSupervisorCoverageGapTest {
         Path services = dir.resolve("s2");
         Files.createDirectories(services);
         write(services, "x.service", "[Service]\nExecStart=/bin/true\n");
-        try (var mocked = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> Files.list(services)).thenThrow(new IOException("mock"));
+        try (MockedStatic<Files> mocked =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.list(services);
+                                }
+                            })
+                    .thenThrow(new IOException("mock"));
             assertThrows(
-                    java.io.UncheckedIOException.class, () -> ServiceSupervisor.load(services));
+                    java.io.UncheckedIOException.class,
+                    new Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            ServiceSupervisor.load(services);
+                        }
+                    });
         }
     }
 
@@ -118,7 +135,13 @@ class ServiceSupervisorCoverageGapTest {
                                 "b.service",
                                 "[Unit]\nAfter=a.service\n[Service]\nExecStart=/bin/true\n"));
         assertThrows(
-                IllegalStateException.class, () -> ServiceSupervisor.requireOrdered(List.of(a, b)));
+                IllegalStateException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceSupervisor.requireOrdered(List.of(a, b));
+                    }
+                });
         ServiceUnit self =
                 ServiceUnit.parse(
                         write(
@@ -153,10 +176,10 @@ class ServiceSupervisorCoverageGapTest {
                                 dir,
                                 "aa.service",
                                 "[Unit]\nAfter=bb.service cc.service\n[Service]\nExecStart=/bin/true\n"));
-        List<String> order =
-                ServiceSupervisor.requireOrdered(List.of(aa, bb, cc, d)).stream()
-                        .map(ServiceUnit::name)
-                        .toList();
+        List<String> order = new ArrayList<>();
+        for (ServiceUnit unit : ServiceSupervisor.requireOrdered(List.of(aa, bb, cc, d))) {
+            order.add(unit.name());
+        }
         assertEquals(4, order.size());
         assertTrue(order.indexOf("d") < order.indexOf("bb"));
         assertTrue(order.indexOf("d") < order.indexOf("cc"));
@@ -171,7 +194,12 @@ class ServiceSupervisorCoverageGapTest {
         Files.writeString(logFile, "x", StandardCharsets.UTF_8);
         assertThrows(
                 java.io.UncheckedIOException.class,
-                () -> ServiceSupervisor.supervise(services, logFile, nullOut()));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceSupervisor.supervise(services, logFile, nullOut());
+                    }
+                });
     }
 
     @Test
@@ -321,14 +349,21 @@ class ServiceSupervisorCoverageGapTest {
         try (MockedConstruction<ProcessBuilder> ignored =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, ctx) -> {
-                            Mockito.when(mock.start()).thenReturn(mockProc);
-                            Mockito.when(mock.redirectErrorStream(any(boolean.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.redirectOutput(any(ProcessBuilder.Redirect.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.directory(any())).thenReturn(mock);
-                            Mockito.when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(ProcessBuilder mock, MockedConstruction.Context ctx)
+                                    throws Throwable {
+                                Mockito.when(mock.start()).thenReturn(mockProc);
+                                Mockito.when(mock.redirectErrorStream(any(boolean.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(
+                                                mock.redirectOutput(
+                                                        any(ProcessBuilder.Redirect.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(mock.directory(any())).thenReturn(mock);
+                                Mockito.when(mock.environment())
+                                        .thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             int code = (int) invoke(service, "launchOnce");
             assertEquals(0, code);
@@ -338,13 +373,20 @@ class ServiceSupervisorCoverageGapTest {
         try (MockedConstruction<ProcessBuilder> ignored =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, ctx) -> {
-                            Mockito.when(mock.start()).thenReturn(mockFail);
-                            Mockito.when(mock.redirectErrorStream(any(boolean.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.redirectOutput(any(ProcessBuilder.Redirect.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(ProcessBuilder mock, MockedConstruction.Context ctx)
+                                    throws Throwable {
+                                Mockito.when(mock.start()).thenReturn(mockFail);
+                                Mockito.when(mock.redirectErrorStream(any(boolean.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(
+                                                mock.redirectOutput(
+                                                        any(ProcessBuilder.Redirect.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(mock.environment())
+                                        .thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             int code = (int) invoke(service, "launchOnce");
             assertEquals(130, code);
@@ -367,13 +409,20 @@ class ServiceSupervisorCoverageGapTest {
         try (MockedConstruction<ProcessBuilder> ignored =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, ctx) -> {
-                            Mockito.when(mock.start()).thenReturn(mockProc);
-                            Mockito.when(mock.redirectErrorStream(any(boolean.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.redirectOutput(any(ProcessBuilder.Redirect.class)))
-                                    .thenReturn(mock);
-                            Mockito.when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(ProcessBuilder mock, MockedConstruction.Context ctx)
+                                    throws Throwable {
+                                Mockito.when(mock.start()).thenReturn(mockProc);
+                                Mockito.when(mock.redirectErrorStream(any(boolean.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(
+                                                mock.redirectOutput(
+                                                        any(ProcessBuilder.Redirect.class)))
+                                        .thenReturn(mock);
+                                Mockito.when(mock.environment())
+                                        .thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             invokeVoid(service, "runHooks", List.of("/bin/echo", "hi"));
         }
