@@ -129,7 +129,16 @@ class TerminalStreamHandshakeInterceptorTest {
                                 "http://localhost:8080/api/v1/terminals/"
                                         + sessionId.value()
                                         + "/stream"));
-        if (principal != null) when(request.getPrincipal()).thenReturn(() -> principal);
+        if (principal != null) {
+            when(request.getPrincipal())
+                    .thenReturn(
+                            new java.security.Principal() {
+                                @Override
+                                public String getName() {
+                                    return principal;
+                                }
+                            });
+        }
         return request;
     }
 }
