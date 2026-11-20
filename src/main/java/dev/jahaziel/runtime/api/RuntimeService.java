@@ -11,14 +11,14 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
  * Workspace runtime lifecycle. The backend prepares the workspace home, and that home survives
  * stop, restart, and resume.
  */
-public interface RuntimeService {
+public abstract class RuntimeService {
     /**
      * Starts a workspace runtime and persists each lifecycle transition.
      *
      * @param id the workspace identifier
      * @return the workspace while its runtime is starting
      */
-    Workspace start(WorkspaceId id);
+    public abstract Workspace start(WorkspaceId id);
 
     /**
      * Stops a workspace gracefully, preserving the home folder.
@@ -26,7 +26,7 @@ public interface RuntimeService {
      * @param id the workspace identifier
      * @return the suspended workspace
      */
-    Workspace stop(WorkspaceId id);
+    public abstract Workspace stop(WorkspaceId id);
 
     /**
      * Restarts a workspace runtime from its preserved home.
@@ -34,7 +34,7 @@ public interface RuntimeService {
      * @param id the workspace identifier
      * @return the workspace while its runtime is starting
      */
-    Workspace restart(WorkspaceId id);
+    public abstract Workspace restart(WorkspaceId id);
 
     /**
      * Resumes a suspended workspace runtime on the preserved home.
@@ -42,7 +42,7 @@ public interface RuntimeService {
      * @param id the workspace identifier
      * @return the active workspace
      */
-    Workspace resume(WorkspaceId id);
+    public abstract Workspace resume(WorkspaceId id);
 
     /**
      * Stops workspace-owned processes, removes its port bindings, and destroys the backend handle.
@@ -50,7 +50,7 @@ public interface RuntimeService {
      *
      * @param id the workspace identifier
      */
-    void destroy(WorkspaceId id);
+    public abstract void destroy(WorkspaceId id);
 
     /**
      * Marks a started workspace ready after runtime preparation completes.
@@ -58,7 +58,7 @@ public interface RuntimeService {
      * @param id the workspace identifier
      * @return the ready workspace
      */
-    Workspace markReady(WorkspaceId id);
+    public abstract Workspace markReady(WorkspaceId id);
 
     /**
      * Marks a ready workspace active on first user session.
@@ -66,5 +66,5 @@ public interface RuntimeService {
      * @param id the workspace identifier
      * @return the active workspace
      */
-    Workspace markActive(WorkspaceId id);
+    public abstract Workspace markActive(WorkspaceId id);
 }
