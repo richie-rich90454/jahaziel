@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** Runs host commands. The seam that lets storage logic be tested without touching the host. */
-public interface CommandRunner {
+public abstract class CommandRunner {
     /**
      * Runs one command.
      *
@@ -16,7 +16,7 @@ public interface CommandRunner {
      * @return the trimmed stdout
      * @throws StorageException when the command exits nonzero
      */
-    String run(List<String> command);
+    public abstract String run(List<String> command);
 
     /**
      * Checks a path exists.
@@ -24,5 +24,5 @@ public interface CommandRunner {
      * @param path the path
      * @return true when the path exists
      */
-    boolean exists(Path path);
+    public abstract boolean exists(Path path);
 }
