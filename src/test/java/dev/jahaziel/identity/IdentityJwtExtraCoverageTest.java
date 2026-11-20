@@ -20,6 +20,7 @@ import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.identity.internal.JwtServiceImpl;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
@@ -52,49 +53,95 @@ class IdentityJwtExtraCoverageTest {
         return g.generateKeyPair();
     }
 
+    private static Executable body(final JwtServiceImpl s, final String token) {
+        return new Executable() {
+            @Override
+            public void execute() {
+                s.verify(token);
+            }
+        };
+    }
+
     @Test
     void ctorAndIssueGuards() throws Exception {
-        KeyPair kp = keys();
+        final KeyPair kp = keys();
         assertThrows(
                 NullPointerException.class,
-                () -> new JwtServiceImpl(null, (RSAPublicKey) kp.getPublic(), "i", "a"));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new JwtServiceImpl(null, (RSAPublicKey) kp.getPublic(), "i", "a");
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new JwtServiceImpl((RSAPrivateKey) kp.getPrivate(), null, "i", "a"));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new JwtServiceImpl((RSAPrivateKey) kp.getPrivate(), null, "i", "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new JwtServiceImpl(
                                 (RSAPrivateKey) kp.getPrivate(),
                                 (RSAPublicKey) kp.getPublic(),
                                 "",
-                                "a"));
+                                "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new JwtServiceImpl(
                                 (RSAPrivateKey) kp.getPrivate(),
                                 (RSAPublicKey) kp.getPublic(),
                                 null,
-                                "a"));
+                                "a");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new JwtServiceImpl(
                                 (RSAPrivateKey) kp.getPrivate(),
                                 (RSAPublicKey) kp.getPublic(),
                                 "i",
-                                " "));
+                                " ");
+                    }
+                });
         JwtServiceImpl s = svc(kp);
         assertThrows(
                 NullPointerException.class,
-                () -> s.issue(null, null, List.of(), Duration.ofMinutes(1)));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.issue(null, null, List.of(), Duration.ofMinutes(1));
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> s.issue(new UserId(UUID.randomUUID()), null, null, Duration.ofMinutes(1)));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.issue(new UserId(UUID.randomUUID()), null, null, Duration.ofMinutes(1));
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> s.issue(new UserId(UUID.randomUUID()), null, List.of(), null));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.issue(new UserId(UUID.randomUUID()), null, List.of(), null);
+                    }
+                });
     }
 
     @Test
@@ -106,9 +153,9 @@ class IdentityJwtExtraCoverageTest {
         String good = s.issue(u, UUID.randomUUID(), List.of("a b"), Duration.ofMinutes(5));
         JwtSession sess = s.verify(good);
         assertEquals(u, sess.user());
-        assertThrows(JwtRejectedException.class, () -> s.verify("not-a-token"));
+        assertThrows(JwtRejectedException.class, body(s, "not-a-token"));
         String tampered = good + "x";
-        assertThrows(JwtRejectedException.class, () -> s.verify(tampered));
+        assertThrows(JwtRejectedException.class, body(s, tampered));
         JwtServiceImpl wrongKey =
                 new JwtServiceImpl(
                         (RSAPrivateKey) other.getPrivate(),
@@ -116,7 +163,7 @@ class IdentityJwtExtraCoverageTest {
                         "https://code.example.com",
                         "jahaziel-code-server");
         String foreign = wrongKey.issue(u, null, List.of(), Duration.ofMinutes(5));
-        assertThrows(JwtRejectedException.class, () -> s.verify(foreign));
+        assertThrows(JwtRejectedException.class, body(s, foreign));
         JWTClaimsSet wrongIss =
                 new JWTClaimsSet.Builder()
                         .issuer("https://evil")
@@ -126,7 +173,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), wrongIss);
         j.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j.serialize()));
         JWTClaimsSet wrongAud =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -136,7 +183,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j2 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), wrongAud);
         j2.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j2.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j2.serialize()));
         JWTClaimsSet noAud =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -145,7 +192,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j3 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), noAud);
         j3.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j3.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j3.serialize()));
         JWTClaimsSet noExp =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -154,7 +201,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j4 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), noExp);
         j4.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j4.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j4.serialize()));
         JWTClaimsSet nbf =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -165,7 +212,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j5 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), nbf);
         j5.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j5.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j5.serialize()));
         assertTrue(s.verify(s.issue(u, null, List.of(), Duration.ofMinutes(5))).scopes().isEmpty());
         JWTClaimsSet badWid =
                 new JWTClaimsSet.Builder()
@@ -177,7 +224,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j6 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), badWid);
         j6.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j6.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j6.serialize()));
         JWTClaimsSet badSub =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -187,7 +234,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j7 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), badSub);
         j7.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j7.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j7.serialize()));
         JWTClaimsSet noSub =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -196,7 +243,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j8 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), noSub);
         j8.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j8.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j8.serialize()));
         JWTClaimsSet scopeList =
                 new JWTClaimsSet.Builder()
                         .issuer("https://code.example.com")
@@ -207,7 +254,7 @@ class IdentityJwtExtraCoverageTest {
                         .build();
         SignedJWT j9 = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), scopeList);
         j9.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(j9.serialize()));
+        assertThrows(JwtRejectedException.class, body(s, j9.serialize()));
         String withWid = s.issue(u, UUID.randomUUID(), List.of(), Duration.ofMinutes(5));
         assertTrue(s.verify(withWid).workspaceId().isPresent());
     }
@@ -233,32 +280,79 @@ class IdentityJwtExtraCoverageTest {
         Path qf = tmp.resolve("pub.pem");
         Files.writeString(qf, pubPem, StandardCharsets.UTF_8);
         assertEquals(pub, JwtServiceImpl.loadPublicKey(qf));
+        final Path missing = tmp.resolve("no.pem");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JwtServiceImpl.loadPrivateKey(tmp.resolve("no.pem")));
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPrivateKey(missing);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JwtServiceImpl.loadPublicKey(tmp.resolve("no.pem")));
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPrivateKey(tmp));
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPublicKey(missing);
+                    }
+                });
+        final Path directory = tmp;
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPrivateKey(directory);
+                    }
+                });
         Path bad64 = tmp.resolve("bad.pem");
         Files.writeString(bad64, "-----BEGIN PRIVATE KEY-----\n!!!\n-----END PRIVATE KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPrivateKey(bad64));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPrivateKey(bad64);
+                    }
+                });
         Path badPub64 = tmp.resolve("badpub.pem");
         Files.writeString(badPub64, "-----BEGIN PUBLIC KEY-----\n!!!\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPublicKey(badPub64));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPublicKey(badPub64);
+                    }
+                });
         Path notKey = tmp.resolve("notkey.pem");
         Files.writeString(
                 notKey,
                 "-----BEGIN PRIVATE KEY-----\n"
                         + Base64.getMimeEncoder().encodeToString(new byte[] {1, 2, 3})
                         + "\n-----END PRIVATE KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPrivateKey(notKey));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPrivateKey(notKey);
+                    }
+                });
         Path notPub = tmp.resolve("notpub.pem");
         Files.writeString(
                 notPub,
                 "-----BEGIN PUBLIC KEY-----\n"
                         + Base64.getMimeEncoder().encodeToString(new byte[] {1, 2, 3})
                         + "\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPublicKey(notPub));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Exception {
+                        JwtServiceImpl.loadPublicKey(notPub);
+                    }
+                });
     }
 }
