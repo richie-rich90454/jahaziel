@@ -18,14 +18,13 @@ import dev.jahaziel.workspace.internal.WorkspaceBackendConfig;
 import org.junit.jupiter.api.Test;
 
 class AppConfigCoverageGapTest {
+
     private final WorkspaceBackendConfig config = new WorkspaceBackendConfig();
 
     @Test
     void selectsTheLocalBackendExplicitly() {
         WorkspaceStorage storage = mock(WorkspaceStorage.class);
-
         NodeBackend backend = config.nodeBackend("local", storage);
-
         assertInstanceOf(LocalProcessBackend.class, backend);
         assertEquals("local", backend.name());
     }
@@ -34,7 +33,12 @@ class AppConfigCoverageGapTest {
     void rejectsUnknownBackendAtStartup() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> config.nodeBackend("unknown", mock(WorkspaceStorage.class)));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        config.nodeBackend("unknown", mock(WorkspaceStorage.class));
+                    }
+                });
     }
 
     @Test
