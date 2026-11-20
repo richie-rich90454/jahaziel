@@ -10,7 +10,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.util.Objects;
 
 /** Creates a filesystem capability scoped to exactly one workspace. */
-public final class WorkspaceFilesServiceImpl implements WorkspaceFiles {
+public final class WorkspaceFilesServiceImpl extends WorkspaceFiles {
     private final String storageRoot;
 
     public WorkspaceFilesServiceImpl(String storageRoot) {
