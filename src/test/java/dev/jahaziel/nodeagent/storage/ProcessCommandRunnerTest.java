@@ -31,7 +31,13 @@ class ProcessCommandRunnerTest {
     @Test
     void runNonZeroThrowsWithOutput() {
         StorageException failure =
-                assertThrows(StorageException.class, () -> runner.run(shellCommand("exit 1")));
+                assertThrows(
+                        StorageException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                runner.run(shellCommand("exit 1"));
+                            }
+                        });
         assertTrue(failure.getMessage().contains("exit 1"));
         assertEquals(1, failure.exitCode());
     }
@@ -41,7 +47,11 @@ class ProcessCommandRunnerTest {
         StorageException failure =
                 assertThrows(
                         StorageException.class,
-                        () -> runner.run(List.of("jahaziel-no-such-binary-xyz")));
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                runner.run(List.of("jahaziel-no-such-binary-xyz"));
+                            }
+                        });
         assertEquals(-1, failure.exitCode());
         assertEquals("jahaziel-no-such-binary-xyz", failure.command());
         assertEquals("", failure.output());
@@ -49,12 +59,24 @@ class ProcessCommandRunnerTest {
 
     @Test
     void runNullThrows() {
-        assertThrows(NullPointerException.class, () -> runner.run(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(null);
+                    }
+                });
     }
 
     @Test
     void existsNullThrows() {
-        assertThrows(NullPointerException.class, () -> runner.exists(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.exists(null);
+                    }
+                });
     }
 
     @Test
