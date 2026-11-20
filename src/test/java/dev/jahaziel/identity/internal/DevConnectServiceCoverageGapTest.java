@@ -21,6 +21,8 @@ import dev.jahaziel.identity.persistence.OidcPendingRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Clock;
@@ -66,17 +68,26 @@ class DevConnectServiceCoverageGapTest {
                 props, client, pending, sessions, users, roles, tokens, clock);
     }
 
+    private static Answer<Object> firstArgument() {
+        return new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocation) {
+                return invocation.getArgument(0);
+            }
+        };
+    }
+
     @Test
     void provisionLinksBlankExternalId() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        var users = mock(AppUserRepository.class);
-        var sessions = mock(BffSessionRepository.class);
-        var tokens = mock(JwtService.class);
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        BffSessionRepository sessions = mock(BffSessionRepository.class);
+        JwtService tokens = mock(JwtService.class);
         when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
-        when(users.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(users.save(any())).thenAnswer(firstArgument());
         when(pending.findById("s")).thenReturn(Optional.of(row(clock)));
         when(client.exchange(any(), any(), any()))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
@@ -90,7 +101,7 @@ class DevConnectServiceCoverageGapTest {
         legacy.setStatus("active");
         legacy.setExternalId("  ");
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(legacy));
-        var s =
+        DevConnectServiceImpl s =
                 svc(
                         props,
                         client,
@@ -108,13 +119,13 @@ class DevConnectServiceCoverageGapTest {
     void provisionTouchesAlreadyLinkedEmail() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        var users = mock(AppUserRepository.class);
-        var sessions = mock(BffSessionRepository.class);
-        var tokens = mock(JwtService.class);
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        BffSessionRepository sessions = mock(BffSessionRepository.class);
+        JwtService tokens = mock(JwtService.class);
         when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
-        when(users.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(users.save(any())).thenAnswer(firstArgument());
         when(pending.findById("s")).thenReturn(Optional.of(row(clock)));
         when(client.exchange(any(), any(), any()))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
@@ -128,7 +139,7 @@ class DevConnectServiceCoverageGapTest {
         same.setStatus("active");
         same.setExternalId("sub");
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(same));
-        var s =
+        DevConnectServiceImpl s =
                 svc(
                         props,
                         client,
