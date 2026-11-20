@@ -154,7 +154,14 @@ class DebugStreamHandshakeInterceptorTest {
                                         + "/debug-sessions/"
                                         + sessionId
                                         + "/stream"));
-        when(request.getPrincipal()).thenReturn(() -> owner.value().toString());
+        when(request.getPrincipal())
+                .thenReturn(
+                        new java.security.Principal() {
+                            @Override
+                            public String getName() {
+                                return owner.value().toString();
+                            }
+                        });
         return request;
     }
 }
