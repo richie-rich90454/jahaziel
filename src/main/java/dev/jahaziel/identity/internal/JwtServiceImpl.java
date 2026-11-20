@@ -35,7 +35,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** RS256 session tokens. Keys load from PKCS8 and X.509 PEM files. */
-public final class JwtServiceImpl implements JwtService {
+public final class JwtServiceImpl extends JwtService {
     private final RSAPrivateKey privateKey;
     private final RSAPublicKey publicKey;
     private final String issuer;
