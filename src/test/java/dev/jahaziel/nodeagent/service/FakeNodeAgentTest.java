@@ -68,11 +68,27 @@ class FakeNodeAgentTest {
     @Test
     void unpreparedHandlesThrow() {
         WorkspaceHandle handle = new WorkspaceHandle(workspaceId, Path.of("/y"), Path.of("/z"));
-        assertThrows(IllegalArgumentException.class, () -> agent.startRuntime(handle, runtime()));
-        assertThrows(IllegalArgumentException.class, () -> agent.stopRuntime(handle, true, 30));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> agent.createSnapshot(handle, new SnapshotTag("t"), "system"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.startRuntime(handle, runtime());
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.stopRuntime(handle, true, 30);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        agent.createSnapshot(handle, new SnapshotTag("t"), "system");
+                    }
+                });
     }
 
     @Test
@@ -80,7 +96,11 @@ class FakeNodeAgentTest {
         SnapshotHandle snap = new SnapshotHandle(UUID.randomUUID(), Path.of("/s"), Instant.now());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotSummary(snap, "  ", Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotSummary(snap, "  ", Instant.now());
+                    }
+                });
     }
 
     private WorkspaceHandle prepare() {
