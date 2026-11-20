@@ -23,6 +23,7 @@ import dev.jahaziel.workspace.domain.WorkspaceQuota;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.List;
 import java.util.UUID;
@@ -72,7 +73,13 @@ class AuthorizationServiceImplTest {
     @Test
     void blankPermissionIsRejected() {
         assertThrows(
-                IllegalArgumentException.class, () -> service.isAllowed(user, "  ", workspaceId));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.isAllowed(user, "  ", workspaceId);
+                    }
+                });
     }
 
     private UserIdentity identity(List<String> roles) {
