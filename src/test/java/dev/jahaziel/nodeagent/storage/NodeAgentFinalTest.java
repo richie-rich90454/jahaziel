@@ -18,6 +18,7 @@ import dev.jahaziel.nodeagent.sync.SyncServer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -40,11 +41,31 @@ class NodeAgentFinalTest {
     void sampleWithPlainBeanAndNoLoad() {
         OperatingSystemMXBean plain = mock(OperatingSystemMXBean.class);
         when(plain.getSystemLoadAverage()).thenReturn(-1.0);
-        try (var paths = Mockito.mockStatic(Paths.class, Mockito.CALLS_REAL_METHODS)) {
-            paths.when(() -> Paths.get("/proc/meminfo")).thenReturn(tmp.resolve("missing-meminfo"));
-            paths.when(() -> Paths.get("/proc/stat")).thenReturn(tmp.resolve("missing-stat"));
-            try (var factory = Mockito.mockStatic(ManagementFactory.class)) {
-                factory.when(ManagementFactory::getOperatingSystemMXBean).thenReturn(plain);
+        try (MockedStatic<Paths> paths =
+                Mockito.mockStatic(Paths.class, Mockito.CALLS_REAL_METHODS)) {
+            paths.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Paths.get("/proc/meminfo");
+                                }
+                            })
+                    .thenReturn(tmp.resolve("missing-meminfo"));
+            paths.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Paths.get("/proc/stat");
+                                }
+                            })
+                    .thenReturn(tmp.resolve("missing-stat"));
+            try (MockedStatic<ManagementFactory> factory =
+                    Mockito.mockStatic(ManagementFactory.class)) {
+                factory.when(
+                                new org.mockito.MockedStatic.Verification() {
+                                    public void apply() throws Throwable {
+                                        ManagementFactory.getOperatingSystemMXBean();
+                                    }
+                                })
+                        .thenReturn(plain);
                 HostSample sample = new NodeMetricsCollector(tmp).sample();
                 assertEquals(0, sample.memoryUsedBytes());
                 assertEquals(0, sample.memoryTotalBytes());
@@ -57,8 +78,15 @@ class NodeAgentFinalTest {
     void sampleReportsPositiveLoad() {
         OperatingSystemMXBean plain = mock(OperatingSystemMXBean.class);
         when(plain.getSystemLoadAverage()).thenReturn(2.5);
-        try (var factory = Mockito.mockStatic(ManagementFactory.class)) {
-            factory.when(ManagementFactory::getOperatingSystemMXBean).thenReturn(plain);
+        try (MockedStatic<ManagementFactory> factory =
+                Mockito.mockStatic(ManagementFactory.class)) {
+            factory.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    ManagementFactory.getOperatingSystemMXBean();
+                                }
+                            })
+                    .thenReturn(plain);
             HostSample sample = new NodeMetricsCollector(tmp).sample();
             assertEquals(2.5, sample.loadAverage1m());
         }
@@ -89,17 +117,40 @@ class NodeAgentFinalTest {
     void chmodRejectsUnknownMode() {
         assertThrows(
                 dev.jahaziel.nodeagent.storage.StorageException.class,
-                () -> chmod(tmp.resolve("nope"), "+w"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        chmod(tmp.resolve("nope"), "+w");
+                    }
+                });
     }
 
     @Test
     void chmodAppliesPosixModes() throws Exception {
         Path dir = tmp.resolve("posix");
         Files.createDirectories(dir);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.getPosixFilePermissions(any(), any()))
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.getPosixFilePermissions(any(), any());
+                                }
+                            })
                     .thenReturn(EnumSet.of(PosixFilePermission.OWNER_READ));
-            files.when(() -> Files.setPosixFilePermissions(any(), any())).thenAnswer(inv -> null);
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.setPosixFilePermissions(any(), any());
+                                }
+                            })
+                    .thenAnswer(
+                            new org.mockito.stubbing.Answer<Object>() {
+                                public Object answer(
+                                        org.mockito.invocation.InvocationOnMock invocation)
+                                        throws Throwable {
+                                    return null;
+                                }
+                            });
             chmod(dir, "u+w");
             chmod(dir, "a-w");
         }
@@ -109,10 +160,29 @@ class NodeAgentFinalTest {
     void deleteRecursiveHandlesMissingAndDangling() throws Exception {
         NioCommandRunner.deleteRecursive(tmp.resolve("missing-dir"));
         Path dangling = tmp.resolve("dangling");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.exists(dangling)).thenReturn(false);
-            files.when(() -> Files.isSymbolicLink(dangling)).thenReturn(true);
-            assertThrows(StorageException.class, () -> NioCommandRunner.deleteRecursive(dangling));
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.exists(dangling);
+                                }
+                            })
+                    .thenReturn(false);
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.isSymbolicLink(dangling);
+                                }
+                            })
+                    .thenReturn(true);
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            NioCommandRunner.deleteRecursive(dangling);
+                        }
+                    });
         }
     }
 
@@ -127,9 +197,22 @@ class NodeAgentFinalTest {
         when(iterator.hasNext()).thenReturn(true);
         when(iterator.next())
                 .thenThrow(new java.nio.file.DirectoryIteratorException(new IOException("boom")));
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.newDirectoryStream(any())).thenReturn(stream);
-            assertThrows(StorageException.class, () -> NioCommandRunner.deleteRecursive(dir));
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.newDirectoryStream(any());
+                                }
+                            })
+                    .thenReturn(stream);
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            NioCommandRunner.deleteRecursive(dir);
+                        }
+                    });
         }
     }
 
@@ -137,14 +220,24 @@ class NodeAgentFinalTest {
     void deleteRecursiveReportsTreeFailure() throws Exception {
         Path dir = tmp.resolve("tree");
         Files.createDirectories(dir);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
             files.when(
-                            () ->
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
                                     Files.walkFileTree(
                                             Mockito.<Path>any(),
-                                            Mockito.<java.nio.file.FileVisitor<Path>>any()))
+                                            Mockito.<java.nio.file.FileVisitor<Path>>any());
+                                }
+                            })
                     .thenThrow(new IOException("no walk"));
-            assertThrows(StorageException.class, () -> NioCommandRunner.deleteRecursive(dir));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            NioCommandRunner.deleteRecursive(dir);
+                        }
+                    });
         }
     }
 
@@ -154,8 +247,15 @@ class NodeAgentFinalTest {
         Files.createDirectories(dir);
         Path file = dir.resolve("f.txt");
         Files.writeString(file, "hello");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.size(file)).thenThrow(new IOException("deny"));
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.size(file);
+                                }
+                            })
+                    .thenThrow(new IOException("deny"));
             assertEquals(0, NioCommandRunner.sizeOf(dir));
         }
         assertEquals(5, NioCommandRunner.sizeOf(dir));
@@ -191,9 +291,22 @@ class NodeAgentFinalTest {
     void sizeOfReportsWalkFailure() throws Exception {
         Path dir = tmp.resolve("sized");
         Files.createDirectories(dir);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.walk(any(Path.class))).thenThrow(new IOException("no walk"));
-            assertThrows(StorageException.class, () -> NioCommandRunner.sizeOf(dir));
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.walk(any(Path.class));
+                                }
+                            })
+                    .thenThrow(new IOException("no walk"));
+            assertThrows(
+                    StorageException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            NioCommandRunner.sizeOf(dir);
+                        }
+                    });
         }
     }
 
@@ -231,14 +344,18 @@ class NodeAgentFinalTest {
         Files.createDirectories(state);
         Path home = tmp.resolve("home");
         Files.createDirectories(home);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
             files.when(
-                            () ->
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
                                     Files.move(
                                             any(),
                                             any(),
                                             eq(java.nio.file.StandardCopyOption.ATOMIC_MOVE),
-                                            eq(java.nio.file.StandardCopyOption.REPLACE_EXISTING)))
+                                            eq(java.nio.file.StandardCopyOption.REPLACE_EXISTING));
+                                }
+                            })
                     .thenThrow(new java.nio.file.AtomicMoveNotSupportedException("a", "b", "c"));
             SyncServer server = new SyncServer(freePort(), state);
             server.register(UUID.randomUUID(), home, 1024L);
@@ -252,8 +369,22 @@ class NodeAgentFinalTest {
         Files.createDirectories(state);
         Path home = tmp.resolve("home3");
         Files.createDirectories(home);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.setPosixFilePermissions(any(), any())).thenAnswer(inv -> null);
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.setPosixFilePermissions(any(), any());
+                                }
+                            })
+                    .thenAnswer(
+                            new org.mockito.stubbing.Answer<Object>() {
+                                public Object answer(
+                                        org.mockito.invocation.InvocationOnMock invocation)
+                                        throws Throwable {
+                                    return null;
+                                }
+                            });
             SyncServer server = new SyncServer(freePort(), state);
             server.register(UUID.randomUUID(), home, 1024L);
             assertTrue(Files.isRegularFile(state.resolve("registry.properties")));
@@ -266,8 +397,14 @@ class NodeAgentFinalTest {
         Files.createDirectories(state);
         Path home = tmp.resolve("home2");
         Files.createDirectories(home);
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.setPosixFilePermissions(any(), any()))
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.setPosixFilePermissions(any(), any());
+                                }
+                            })
                     .thenThrow(new IOException("deny"));
             SyncServer server = new SyncServer(freePort(), state);
             server.register(UUID.randomUUID(), home, 1024L);
@@ -279,11 +416,22 @@ class NodeAgentFinalTest {
         Path state = tmp.resolve("corrupt");
         Files.createDirectories(state);
         Files.writeString(state.resolve("registry.properties"), "k=v");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.newInputStream(any())).thenThrow(new IOException("deny"));
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.newInputStream(any());
+                                }
+                            })
+                    .thenThrow(new IOException("deny"));
             assertThrows(
                     dev.jahaziel.nodeagent.sync.SyncException.class,
-                    () -> new SyncServer(freePort(), state));
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            new SyncServer(freePort(), state);
+                        }
+                    });
         }
     }
 }
