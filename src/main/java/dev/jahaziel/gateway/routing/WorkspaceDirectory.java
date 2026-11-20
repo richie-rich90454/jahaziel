@@ -6,6 +6,7 @@ package dev.jahaziel.gateway.routing;
 
 import dev.jahaziel.spi.RouteRegistry;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /** In-memory user-port to workspace routing table. */
-public final class WorkspaceDirectory implements RouteRegistry {
+public final class WorkspaceDirectory extends RouteRegistry {
     private final ConcurrentMap<Route, UUID> routes = new ConcurrentHashMap<>();
 
     /**
@@ -64,20 +65,46 @@ public final class WorkspaceDirectory implements RouteRegistry {
         if (port < 1 || port > 65535) {
             return Optional.empty();
         }
-        return routes.entrySet().stream()
-                .filter(
-                        entry ->
-                                entry.getKey().port() == port
-                                        && entry.getValue().equals(workspaceId))
-                .map(entry -> entry.getKey().userSlug())
-                .findFirst();
+        for (Map.Entry<Route, UUID> entry : routes.entrySet()) {
+            if (entry.getKey().port() == port && entry.getValue().equals(workspaceId)) {
+                return Optional.of(entry.getKey().userSlug());
+            }
+        }
+        return Optional.empty();
     }
 
-    private record Route(String userSlug, int port) {
-        Route {
+    /** A user-slug and workspace-port route key. */
+    private static final class Route {
+        private final String userSlug;
+        private final int port;
+
+        Route(String userSlug, int port) {
             if (userSlug == null || userSlug.isBlank()) {
                 throw new IllegalArgumentException("userSlug must not be blank");
             }
+            this.userSlug = userSlug;
+            this.port = port;
+        }
+
+        String userSlug() {
+            return userSlug;
+        }
+
+        int port() {
+            return port;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Route)) return false;
+            Route other = (Route) o;
+            return port == other.port && userSlug.equals(other.userSlug);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(userSlug, port);
         }
     }
 }
