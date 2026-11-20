@@ -29,7 +29,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/workspaces/{id}/git")
 public final class WorkspaceGitController {
+
     private final WorkspaceGitService git;
+
     private final AuthorizationService authorization;
 
     public WorkspaceGitController(WorkspaceGitService git, AuthorizationService authorization) {
@@ -80,7 +82,77 @@ public final class WorkspaceGitController {
         return workspace;
     }
 
-    public record PathRequest(@NotBlank @Size(max = 1024) String path) {}
+    public static final class PathRequest {
 
-    public record CommitRequest(@NotBlank @Size(max = 512) String message) {}
+        @NotBlank
+        @Size(max = 1024)
+        private final String path;
+
+        public PathRequest(@NotBlank @Size(max = 1024) String path) {
+            this.path = path;
+        }
+
+        public String path() {
+            return this.path;
+        }
+
+        public String getPath() {
+            return this.path;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PathRequest)) return false;
+            PathRequest other = (PathRequest) o;
+            return (java.util.Objects.equals(this.path, other.path));
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.path);
+        }
+
+        @Override
+        public String toString() {
+            return "PathRequest[" + "path=" + this.path + "]";
+        }
+    }
+
+    public static final class CommitRequest {
+
+        @NotBlank
+        @Size(max = 512)
+        private final String message;
+
+        public CommitRequest(@NotBlank @Size(max = 512) String message) {
+            this.message = message;
+        }
+
+        public String message() {
+            return this.message;
+        }
+
+        public String getMessage() {
+            return this.message;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof CommitRequest)) return false;
+            CommitRequest other = (CommitRequest) o;
+            return (java.util.Objects.equals(this.message, other.message));
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.message);
+        }
+
+        @Override
+        public String toString() {
+            return "CommitRequest[" + "message=" + this.message + "]";
+        }
+    }
 }
