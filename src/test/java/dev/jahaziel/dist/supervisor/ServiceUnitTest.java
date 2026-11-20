@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Parsing and ordering of our own service files, the systemd replacement. */
@@ -32,30 +33,28 @@ class ServiceUnitTest {
                 write(
                         dir,
                         "jahaziel-control-plane.service",
-                        """
-            [Unit]
-            Description=Jahaziel Control Plane
-            After=network.target postgresql.service
-            Wants=postgresql.service
-
-            [Service]
-            Type=simple
-            User=jahaziel-control-plane
-            Group=jahaziel-control-plane
-            EnvironmentFile=/etc/jahaziel/control-plane.env
-            ExecStart=/usr/bin/java -jar /opt/jahaziel/control-plane-exec.jar
-            Restart=on-failure
-            RestartSec=5
-            LimitNOFILE=65536
-            NoNewPrivileges=yes
-            ProtectSystem=strict
-            ProtectHome=yes
-            PrivateTmp=yes
-            ReadWritePaths=/var/log/jahaziel
-
-            [Install]
-            WantedBy=multi-user.target
-            """);
+                        "[Unit]\n"
+                                + "Description=Jahaziel Control Plane\n"
+                                + "After=network.target postgresql.service\n"
+                                + "Wants=postgresql.service\n"
+                                + "\n"
+                                + "[Service]\n"
+                                + "Type=simple\n"
+                                + "User=jahaziel-control-plane\n"
+                                + "Group=jahaziel-control-plane\n"
+                                + "EnvironmentFile=/etc/jahaziel/control-plane.env\n"
+                                + "ExecStart=/usr/bin/java -jar /opt/jahaziel/control-plane-exec.jar\n"
+                                + "Restart=on-failure\n"
+                                + "RestartSec=5\n"
+                                + "LimitNOFILE=65536\n"
+                                + "NoNewPrivileges=yes\n"
+                                + "ProtectSystem=strict\n"
+                                + "ProtectHome=yes\n"
+                                + "PrivateTmp=yes\n"
+                                + "ReadWritePaths=/var/log/jahaziel\n"
+                                + "\n"
+                                + "[Install]\n"
+                                + "WantedBy=multi-user.target\n");
 
         ServiceUnit unit = ServiceUnit.parse(file);
 
@@ -85,15 +84,13 @@ class ServiceUnitTest {
                 write(
                         dir,
                         "jahaziel-sync-push.service",
-                        """
-            [Service]
-            User=jahaziel-guest
-            ExecStartPre=/usr/bin/python3 /usr/local/bin/jahaziel-sync pull
-            ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
-            ExecStop=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
-            Restart=always
-            RestartSec=2s
-            """);
+                        "[Service]\n"
+                                + "User=jahaziel-guest\n"
+                                + "ExecStartPre=/usr/bin/python3 /usr/local/bin/jahaziel-sync pull\n"
+                                + "ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push\n"
+                                + "ExecStop=/usr/bin/python3 /usr/local/bin/jahaziel-sync push\n"
+                                + "Restart=always\n"
+                                + "RestartSec=2s\n");
         ServiceUnit unit = ServiceUnit.parse(service);
 
         assertEquals(
@@ -110,13 +107,11 @@ class ServiceUnitTest {
                 write(
                         dir,
                         "jahaziel-sync-push.service",
-                        """
-            [Service]
-            ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
-
-            [Timer]
-            OnUnitActiveSec=1m
-            """);
+                        "[Service]\n"
+                                + "ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push\n"
+                                + "\n"
+                                + "[Timer]\n"
+                                + "OnUnitActiveSec=1m\n");
         ServiceUnit interval = ServiceUnit.parse(timer);
 
         assertTrue(interval.isTimer());
@@ -128,17 +123,8 @@ class ServiceUnitTest {
         write(
                 dir,
                 "jahaziel-sync-push.service",
-                """
-        [Service]
-        ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push
-        """);
-        write(
-                dir,
-                "jahaziel-sync-push.timer",
-                """
-        [Timer]
-        OnUnitActiveSec=1m
-        """);
+                "[Service]\n" + "ExecStart=/usr/bin/python3 /usr/local/bin/jahaziel-sync push\n");
+        write(dir, "jahaziel-sync-push.timer", "[Timer]\n" + "OnUnitActiveSec=1m\n");
 
         List<ServiceUnit> units = ServiceSupervisor.load(dir);
 
@@ -155,38 +141,33 @@ class ServiceUnitTest {
                         write(
                                 dir,
                                 "jahaziel-gateway.service",
-                                """
-                [Unit]
-                After=network.target jahaziel-control-plane.service
-                [Service]
-                ExecStart=/usr/bin/java -jar /opt/jahaziel/gateway-exec.jar
-                """));
+                                "[Unit]\n"
+                                        + "After=network.target jahaziel-control-plane.service\n"
+                                        + "[Service]\n"
+                                        + "ExecStart=/usr/bin/java -jar /opt/jahaziel/gateway-exec.jar\n"));
         ServiceUnit controlPlane =
                 ServiceUnit.parse(
                         write(
                                 dir,
                                 "jahaziel-control-plane.service",
-                                """
-                [Unit]
-                After=network.target
-                [Service]
-                ExecStart=/usr/bin/java -jar /opt/jahaziel/control-plane-exec.jar
-                """));
+                                "[Unit]\n"
+                                        + "After=network.target\n"
+                                        + "[Service]\n"
+                                        + "ExecStart=/usr/bin/java -jar /opt/jahaziel/control-plane-exec.jar\n"));
         ServiceUnit relay =
                 ServiceUnit.parse(
                         write(
                                 dir,
                                 "jahaziel-sync-relay.service",
-                                """
-                [Service]
-                User=root
-                ExecStart=/usr/sbin/socat VSOCK-LISTEN:9002,fork TCP:127.0.0.1:19002
-                """));
+                                "[Service]\n"
+                                        + "User=root\n"
+                                        + "ExecStart=/usr/sbin/socat VSOCK-LISTEN:9002,fork TCP:127.0.0.1:19002\n"));
 
-        List<String> order =
-                ServiceSupervisor.requireOrdered(List.of(gateway, relay, controlPlane)).stream()
-                        .map(ServiceUnit::name)
-                        .toList();
+        List<String> order = new ArrayList<>();
+        for (ServiceUnit unit :
+                ServiceSupervisor.requireOrdered(List.of(gateway, relay, controlPlane))) {
+            order.add(unit.name());
+        }
 
         assertTrue(
                 order.indexOf("jahaziel-control-plane") < order.indexOf("jahaziel-gateway"),
@@ -201,17 +182,15 @@ class ServiceUnitTest {
                         write(
                                 dir,
                                 "jahaziel-node-agent.service",
-                                """
-                [Service]
-                User=jahaziel-node-agent
-                Group=jahaziel-node-agent
-                ExecStart=/usr/bin/java -jar /opt/jahaziel/node-agent-exec.jar
-                LimitNOFILE=65536
-                NoNewPrivileges=yes
-                ProtectSystem=strict
-                PrivateTmp=yes
-                ReadWritePaths=/var/log/jahaziel /var/lib/jahaziel
-                """));
+                                "[Service]\n"
+                                        + "User=jahaziel-node-agent\n"
+                                        + "Group=jahaziel-node-agent\n"
+                                        + "ExecStart=/usr/bin/java -jar /opt/jahaziel/node-agent-exec.jar\n"
+                                        + "LimitNOFILE=65536\n"
+                                        + "NoNewPrivileges=yes\n"
+                                        + "ProtectSystem=strict\n"
+                                        + "PrivateTmp=yes\n"
+                                        + "ReadWritePaths=/var/log/jahaziel /var/lib/jahaziel\n"));
 
         List<String> prefix = ServiceSupervisor.sandboxPrefix(unit);
 
