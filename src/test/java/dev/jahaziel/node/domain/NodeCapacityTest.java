@@ -21,8 +21,26 @@ class NodeCapacityTest {
 
     @Test
     void nonPositiveCapacityIsRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new NodeCapacity(0, 49152, 500));
-        assertThrows(IllegalArgumentException.class, () -> new NodeCapacity(14, 0, 500));
-        assertThrows(IllegalArgumentException.class, () -> new NodeCapacity(14, 49152, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeCapacity(0, 49152, 500);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeCapacity(14, 0, 500);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeCapacity(14, 49152, 0);
+                    }
+                });
     }
 }
