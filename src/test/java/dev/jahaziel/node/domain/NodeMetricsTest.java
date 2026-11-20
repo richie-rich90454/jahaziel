@@ -22,9 +22,33 @@ class NodeMetricsTest {
 
     @Test
     void negativeValuesAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new NodeMetrics(-1, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new NodeMetrics(0, -1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new NodeMetrics(0, 0, -1, 0));
-        assertThrows(IllegalArgumentException.class, () -> new NodeMetrics(0, 0, 0, -1));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeMetrics(-1, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeMetrics(0, -1, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeMetrics(0, 0, -1, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeMetrics(0, 0, 0, -1);
+                    }
+                });
     }
 }
