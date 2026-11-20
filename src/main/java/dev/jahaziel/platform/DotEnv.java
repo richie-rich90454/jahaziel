@@ -29,7 +29,63 @@ public final class DotEnv {
                     "BASIS_CLIENT_SECRET",
                     "BASIS_RESOURCE");
 
+    /**
+     * Canonical basis-auth names. Each is an alias for a {@link #BASIS_VARS} entry; either spelling
+     * satisfies the same requirement. CURRENT_URL_ORIGIN derives the callback when no redirect URI
+     * is set.
+     */
+    public static final List<String> BASIS_ALIAS_VARS =
+            List.of(
+                    "BASIS_AUTH_ISSUER",
+                    "BASIS_AUTH_CLIENT_ID",
+                    "BASIS_AUTH_CLIENT_SECRET",
+                    "BASIS_AUTH_RESOURCE",
+                    "BASIS_AUTH_RESOURCE_SECRET",
+                    "BASIS_AUTH_INTERNAL_URL",
+                    "BASIS_AUTH_COOKIE_SECRET",
+                    "CURRENT_URL_ORIGIN");
+
     private DotEnv() {}
+
+    /**
+     * Returns the legacy variable satisfied by a canonical alias, or null when the key has no
+     * legacy counterpart.
+     */
+    public static String legacyCounterpart(String key) {
+        if (key == null) return null;
+        switch (key) {
+            case "BASIS_AUTH_ISSUER":
+                return "BASIS_AUTH_ISSUER";
+            case "BASIS_AUTH_CLIENT_ID":
+                return "BASIS_CLIENT_ID";
+            case "BASIS_AUTH_CLIENT_SECRET":
+                return "BASIS_CLIENT_SECRET";
+            case "BASIS_AUTH_RESOURCE":
+                return "BASIS_RESOURCE";
+            case "CURRENT_URL_ORIGIN":
+                return "BASIS_REDIRECT_URI";
+            default:
+                return null;
+        }
+    }
+
+    /** Reports whether a legacy variable, or any of its canonical aliases, has a value. */
+    public static boolean basisPresent(Map<String, String> env, String legacyKey) {
+        String value = env.get(legacyKey);
+        if (value != null && !value.isBlank()) {
+            return true;
+        }
+        for (int index = 0; index < BASIS_ALIAS_VARS.size(); index++) {
+            String alias = BASIS_ALIAS_VARS.get(index);
+            if (legacyKey.equals(legacyCounterpart(alias))) {
+                String aliasValue = env.get(alias);
+                if (aliasValue != null && !aliasValue.isBlank()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /**
      * Parses a {@code .env} file. Missing files yield an empty map.
@@ -94,8 +150,7 @@ public final class DotEnv {
     public static List<String> missingBasisVars(Map<String, String> effectiveEnv) {
         List<String> missing = new ArrayList<>();
         for (String key : BASIS_VARS) {
-            String value = effectiveEnv.get(key);
-            if (value == null || value.isBlank()) {
+            if (!basisPresent(effectiveEnv, key)) {
                 missing.add(key);
             }
         }

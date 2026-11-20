@@ -204,20 +204,39 @@ public final class JahazielMain {
                 System.setProperty(basisProperty, entry.getValue());
             }
         }
-        for (String key : DotEnv.BASIS_VARS) {
-            // Every BASIS_VARS entry maps below; basisProperty returns null only for foreign keys.
+        List<String> keys = new ArrayList<>(DotEnv.BASIS_ALIAS_VARS);
+        keys.addAll(DotEnv.BASIS_VARS);
+        for (String key : keys) {
             String property = basisProperty(key);
-            String value = System.getenv(key);
-            if (value == null) {
-                value = System.getProperty(key);
+            if (property == null) {
+                continue;
             }
-            if (value == null) {
-                value = fileEnv.get(key);
-            }
+            String value = basisValue(key, fileEnv);
             if (value != null && !value.isBlank() && System.getProperty(property) == null) {
                 System.setProperty(property, value);
             }
         }
+        String origin = basisValue("CURRENT_URL_ORIGIN", fileEnv);
+        if (origin != null
+                && !origin.isBlank()
+                && System.getProperty("basis.redirect-uri") == null) {
+            String base = origin.trim();
+            while (base.endsWith("/")) {
+                base = base.substring(0, base.length() - 1);
+            }
+            System.setProperty("basis.redirect-uri", base + "/api/auth/basis/callback");
+        }
+    }
+
+    private static String basisValue(String key, Map<String, String> fileEnv) {
+        String value = System.getenv(key);
+        if (value == null) {
+            value = System.getProperty(key);
+        }
+        if (value == null) {
+            value = fileEnv.get(key);
+        }
+        return value;
     }
 
     static String basisProperty(String envKey) {
@@ -232,26 +251,43 @@ public final class JahazielMain {
                 return "basis.client-secret";
             case "BASIS_RESOURCE":
                 return "basis.resource";
+            case "BASIS_AUTH_CLIENT_ID":
+                return "basis.client-id";
+            case "BASIS_AUTH_CLIENT_SECRET":
+                return "basis.client-secret";
+            case "BASIS_AUTH_RESOURCE":
+                return "basis.resource";
+            case "BASIS_AUTH_RESOURCE_SECRET":
+                return "basis.resource-secret";
+            case "BASIS_AUTH_INTERNAL_URL":
+                return "basis.internal-url";
+            case "BASIS_AUTH_COOKIE_SECRET":
+                return "basis.cookie-secret";
+            case "CURRENT_URL_ORIGIN":
+                return "basis.current-url-origin";
             default:
                 return null;
         }
     }
 
     static List<String> missingBasisVars(Map<String, String> fileEnv) {
-        List<String> missing = new ArrayList<>();
-        for (String key : DotEnv.BASIS_VARS) {
-            String value = System.getenv(key);
-            if (value == null) {
-                value = System.getProperty(key);
-            }
-            if (value == null) {
-                value = fileEnv.get(key);
-            }
-            if (value == null || value.isBlank()) {
-                missing.add(key);
+        Map<String, String> effective = new java.util.LinkedHashMap<>(fileEnv);
+        for (int index = 0; index < DotEnv.BASIS_ALIAS_VARS.size(); index++) {
+            String alias = DotEnv.BASIS_ALIAS_VARS.get(index);
+            String value = basisValue(alias, Map.of());
+            if (value != null && !value.isBlank()) {
+                effective.put(alias, value);
             }
         }
-        return List.copyOf(missing);
+        for (int index = 0; index < DotEnv.BASIS_VARS.size(); index++) {
+            String key = DotEnv.BASIS_VARS.get(index);
+            String value = basisValue(key, Map.of());
+            if (value != null && !value.isBlank()) {
+                effective.put(key, value);
+            }
+        }
+        effective.putAll(System.getenv());
+        return DotEnv.missingBasisVars(effective);
     }
 
     private static void reportBasisVars(
@@ -395,9 +431,11 @@ public final class JahazielMain {
                 + "Layout: data/ holds workspaces/, language-packs/, logs/, tmp/, backups/,\n"
                 + "dumps/, plugins/, templates/, keys/, audit/, sync/, and jahaziel.db\n"
                 + "(SQLite WAL, created once, never cleared). Env is read from\n"
-                + "jar-adjacent .env (real environment wins); login needs all five\n"
-                + "BASIS_* vars (BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI, BASIS_CLIENT_ID,\n"
-                + "BASIS_CLIENT_SECRET, BASIS_RESOURCE).\n";
+                + "jar-adjacent .env (real environment wins); basis-auth login needs\n"
+                + "BASIS_AUTH_ISSUER, BASIS_AUTH_CLIENT_ID, BASIS_AUTH_CLIENT_SECRET,\n"
+                + "BASIS_AUTH_RESOURCE, and CURRENT_URL_ORIGIN. Legacy BASIS_* names\n"
+                + "(BASIS_REDIRECT_URI, BASIS_CLIENT_ID, BASIS_CLIENT_SECRET, BASIS_RESOURCE)\n"
+                + "remain accepted aliases.\n";
     }
 
     /** Parsed dispatcher arguments. */

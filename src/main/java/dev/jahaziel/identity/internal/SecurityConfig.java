@@ -118,6 +118,9 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(
                                                 "/api/login",
+                                                "/api/auth/basis/callback",
+                                                "/api/auth/basis/backchannel",
+                                                "/api/auth/backchannel",
                                                 "/api/oauth/callback",
                                                 "/api/oauth2/bcallback",
                                                 "/api/auth/local",

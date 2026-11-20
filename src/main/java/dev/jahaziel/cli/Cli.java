@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.cli;
 
+import dev.jahaziel.platform.DotEnv;
 import dev.jahaziel.platform.Platforms;
 
 import java.io.ByteArrayOutputStream;
@@ -192,20 +193,32 @@ public final class Cli {
         }
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
+        String hex = HexFormat.of().formatHex(random);
         String body =
                 ("# Jahaziel single-file install. Fill the placeholders, then run `doctor`.\n"
+                                + "# Canonical basis-auth keys. Legacy BASIS_* names are aliases.\n"
                                 + "BASIS_AUTH_ISSUER=https://idp.example.com\n"
-                                + "BASIS_REDIRECT_URI=https://code.example.com/api/oauth/callback\n"
+                                + "BASIS_AUTH_CLIENT_ID=jahaziel\n"
+                                + "BASIS_AUTH_CLIENT_SECRET=%s\n"
+                                + "BASIS_AUTH_RESOURCE=urn:basis:api:jahaziel\n"
+                                + "BASIS_AUTH_RESOURCE_SECRET=replace_with_the_secret_issued_by_basis_auth\n"
+                                + "BASIS_AUTH_INTERNAL_URL=http://127.0.0.1:3001\n"
+                                + "BASIS_AUTH_COOKIE_SECRET=%s\n"
+                                + "CURRENT_URL_ORIGIN=http://localhost:11451\n"
+                                + "\n"
+                                + "# Legacy aliases for existing installs; values above win when both exist.\n"
+                                + "BASIS_REDIRECT_URI=http://localhost:11451/api/auth/basis/callback\n"
                                 + "BASIS_CLIENT_ID=jahaziel\n"
                                 + "BASIS_CLIENT_SECRET=%s\n"
                                 + "BASIS_RESOURCE=urn:basis:api:jahaziel\n"
+                                + "\n"
                                 + "PORT=11451\n"
                                 + "JAHAZIEL_GATEWAY_PORT=8081\n"
                                 + "JAHAZIEL_DOMAIN=localhost\n"
                                 + "JAHAZIEL_LOG_LEVEL=INFO\n"
                                 + "JAHAZIEL_DEMO=false\n"
                                 + "JAHAZIEL_BACKEND=local\n")
-                        .formatted(HexFormat.of().formatHex(random));
+                        .formatted(hex, hex, hex);
         Files.createDirectories(jar);
         Files.writeString(env, body, StandardCharsets.UTF_8);
         Files.createDirectories(jar.resolve("data").resolve("tmp"));
@@ -649,7 +662,7 @@ public final class Cli {
     static List<String> missingVars(Map<String, String> merged) {
         List<String> missing = new ArrayList<>();
         for (String key : BASIS_VARS) {
-            if (merged.getOrDefault(key, "").isBlank()) {
+            if (!DotEnv.basisPresent(merged, key)) {
                 missing.add(key);
             }
         }

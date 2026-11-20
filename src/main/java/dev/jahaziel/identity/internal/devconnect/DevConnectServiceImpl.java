@@ -331,8 +331,10 @@ public class DevConnectServiceImpl extends DevConnectService {
     private void requireConfigured() {
         if (!props.configured()) {
             throw new DevConnectException(
-                    "DevConnect is not configured: set BASIS_AUTH_ISSUER, BASIS_REDIRECT_URI,"
-                            + " BASIS_CLIENT_ID, BASIS_CLIENT_SECRET, and BASIS_RESOURCE");
+                    "basis-auth is not configured: set BASIS_AUTH_ISSUER,"
+                            + " BASIS_AUTH_CLIENT_ID, BASIS_AUTH_CLIENT_SECRET,"
+                            + " BASIS_AUTH_RESOURCE, and CURRENT_URL_ORIGIN"
+                            + " (legacy BASIS_* names are accepted aliases)");
         }
     }
 

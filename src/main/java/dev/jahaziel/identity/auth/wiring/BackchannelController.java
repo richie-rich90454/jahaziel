@@ -45,7 +45,7 @@ public final class BackchannelController {
     }
 
     /** Handles webhook verification, logout tokens, and access-token revocations. */
-    @PostMapping("/api/auth/backchannel")
+    @PostMapping({"/api/auth/basis/backchannel", "/api/auth/backchannel"})
     public ResponseEntity<String> handle(@RequestParam Map<String, String> form) {
         Object service = context.service(BasisAuthPlugin.SERVICE_BACKCHANNEL);
         if (!(service instanceof BackchannelHandler)) {

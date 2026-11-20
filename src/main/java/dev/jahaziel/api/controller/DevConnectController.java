@@ -91,7 +91,7 @@ public class DevConnectController {
      * @param error the IdP-reported error, when present
      * @return a redirect to the dashboard, with the session and token cookies set
      */
-    @GetMapping({"/api/oauth/callback", "/api/oauth2/bcallback"})
+    @GetMapping({"/api/auth/basis/callback", "/api/oauth/callback", "/api/oauth2/bcallback"})
     public ResponseEntity<Void> callback(
             @RequestParam(name = "state", required = false) String state,
             @RequestParam(name = "code", required = false) String code,
