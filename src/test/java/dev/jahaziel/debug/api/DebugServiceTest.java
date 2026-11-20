@@ -29,7 +29,7 @@ class DebugServiceTest {
 
     @Test
     void acceptsWorkspaceRelativeNodeLaunch() {
-        var request =
+        DebugService.StartRequest request =
                 new DebugService.StartRequest(
                         "node", "src/../server.js", null, List.of("--inspect"), "src", true);
 
@@ -41,14 +41,15 @@ class DebugServiceTest {
 
     @Test
     void defaultsWorkingDirectoryToWorkspaceRoot() {
-        var request = new DebugService.StartRequest("python", "main.py", null, null, null, false);
+        DebugService.StartRequest request =
+                new DebugService.StartRequest("python", "main.py", null, null, null, false);
 
         assertEquals(".", request.workingDirectory());
     }
 
     @Test
     void acceptsJavaMainClassWithoutExecutablePath() {
-        var request =
+        DebugService.StartRequest request =
                 new DebugService.StartRequest(
                         "java", null, "com.example.Main", List.of(), ".", false);
 
@@ -59,37 +60,49 @@ class DebugServiceTest {
     void rejectsUnknownLanguage() {
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugService.StartRequest(
-                                "shell", "script.sh", null, List.of(), ".", false));
+                                "shell", "script.sh", null, List.of(), ".", false);
+                    }
+                });
     }
 
     @Test
     void rejectsAbsoluteAndTraversingProgramPaths() {
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugService.StartRequest(
                                 "node",
                                 "C:\\Windows\\system32\\calc.exe",
                                 null,
                                 List.of(),
                                 ".",
-                                false));
+                                false);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugService.StartRequest(
-                                "node", "../../outside.js", null, List.of(), ".", false));
+                                "node", "../../outside.js", null, List.of(), ".", false);
+                    }
+                });
     }
 
     @Test
     void rejectsExecutableAndRemoteAttachFieldsForJava() {
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugService.StartRequest(
-                                "java", "java.exe", "com.example.Main", List.of(), ".", false));
+                                "java", "java.exe", "com.example.Main", List.of(), ".", false);
+                    }
+                });
     }
 
     @Test
@@ -97,18 +110,31 @@ class DebugServiceTest {
         List<String> tooMany = java.util.Collections.nCopies(129, "x");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DebugService.StartRequest("go", "main.go", null, tooMany, ".", false));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DebugService.StartRequest("go", "main.go", null, tooMany, ".", false);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new DebugService.StartRequest(
-                                "java", null, "../Main", List.of(), ".", false));
+                                "java", null, "../Main", List.of(), ".", false);
+                    }
+                });
     }
 
     @Test
     void attachRequestRequiresAnOpaqueTargetId() {
-        var targetId = java.util.UUID.randomUUID();
+        java.util.UUID targetId = java.util.UUID.randomUUID();
         assertEquals(targetId, new DebugService.AttachRequest(targetId).targetId());
-        assertThrows(IllegalArgumentException.class, () -> new DebugService.AttachRequest(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new DebugService.AttachRequest(null);
+                    }
+                });
     }
 }
