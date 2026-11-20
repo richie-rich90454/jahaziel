@@ -7,6 +7,8 @@ package dev.jahaziel.dist;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import dev.jahaziel.JahazielApplication;
@@ -170,11 +172,14 @@ class WorkspaceAccessTest {
                 HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext(
                 "/",
-                exchange -> {
-                    byte[] body = "jahaziel-workspace-marker".getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(200, body.length);
-                    exchange.getResponseBody().write(body);
-                    exchange.close();
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        byte[] body = "jahaziel-workspace-marker".getBytes(StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(200, body.length);
+                        exchange.getResponseBody().write(body);
+                        exchange.close();
+                    }
                 });
         server.start();
         return server;
@@ -247,20 +252,62 @@ class WorkspaceAccessTest {
     }
 
     private static void deleteTree(Path root) {
+        List<Path> paths = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(root)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
         } catch (IOException ignored) {
             // Best-effort test cleanup.
         }
+        paths.sort(Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Best-effort test cleanup.
+            }
+        }
     }
 
-    private record RawResponse(int status, String body) {}
+    private static final class RawResponse {
+        private final int status;
+        private final String body;
+
+        private RawResponse(int status, String body) {
+            this.status = status;
+            this.body = body;
+        }
+
+        private int status() {
+            return status;
+        }
+
+        private String body() {
+            return body;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof RawResponse)) {
+                return false;
+            }
+            RawResponse that = (RawResponse) other;
+            return status == that.status && java.util.Objects.equals(body, that.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(status, body);
+        }
+
+        @Override
+        public String toString() {
+            return "RawResponse[status=" + status + ", body=" + body + "]";
+        }
+    }
 }
