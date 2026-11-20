@@ -37,21 +37,30 @@ class LanguageProtocolTest {
     void rejectsBrowserSelectedCommandsUnknownMethodsAndInvalidRequestIds() {
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageProtocol.parseClientMessage(
                                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"workspace/executeCommand\",\"params\":{}}",
-                                json));
+                                json);
+                    }
+                });
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageProtocol.parseClientMessage(
                                 "{\"jsonrpc\":\"2.0\",\"method\":\"workspace/symbol\",\"params\":{}}",
-                                json));
+                                json);
+                    }
+                });
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageProtocol.parseClientMessage(
                                 "{\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"initialize\",\"params\":{}}",
-                                json));
+                                json);
+                    }
+                });
     }
 }
