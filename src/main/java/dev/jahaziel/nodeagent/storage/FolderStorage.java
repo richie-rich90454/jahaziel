@@ -23,7 +23,7 @@ import java.util.UUID;
  * filesystem: no disk images, no partitions, no filesystem-specific features. Snapshots are
  * recursive copies frozen read-only; quotas are enforced logically against du measurements.
  */
-public final class FolderStorage implements WorkspaceStorage {
+public final class FolderStorage extends WorkspaceStorage {
     private final CommandRunner commands;
     private final String storageRoot;
 
