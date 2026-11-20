@@ -22,10 +22,10 @@ public final class DataLockHolder {
     public static void main(String[] args) throws Exception {
         Path lock = Path.of(args[0]);
         Files.createDirectories(lock.toAbsolutePath().normalize().getParent());
-        try (var channel =
+        try (FileChannel channel =
                         FileChannel.open(
                                 lock, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                var held = channel.lock()) {
+                java.nio.channels.FileLock held = channel.lock()) {
             System.out.println("locked " + lock);
             Thread.sleep(30_000);
         }
