@@ -33,10 +33,18 @@ class MonitoringRecordTest {
         HourlyRollup probe = valid();
         assertThrows(
                 NullPointerException.class,
-                () -> new HourlyRollup(null, probe.hourStart(), 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(null, probe.hourStart(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new HourlyRollup(probe.workspaceId(), null, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(probe.workspaceId(), null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
     }
 
     @Test
@@ -44,34 +52,20 @@ class MonitoringRecordTest {
         HourlyRollup probe = valid();
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                -1,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), -1, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                -1,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, -1, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
     }
 
     @Test
@@ -79,108 +73,59 @@ class MonitoringRecordTest {
         HourlyRollup probe = valid();
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                -1,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, -1, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                -1,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, -1, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                0,
-                                -1,
-                                0,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, 0, -1, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                -1,
-                                0,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, 0, 0, -1, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                -1,
-                                0,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, 0, 0, 0, -1, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                -1,
-                                0));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, 0, 0, 0, 0, -1, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         new HourlyRollup(
-                                probe.workspaceId(),
-                                probe.hourStart(),
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                -1));
+                                probe.workspaceId(), probe.hourStart(), 0, 0, 0, 0, 0, 0, 0, 0, -1);
+                    }
+                });
     }
 }
