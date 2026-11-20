@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Bulk operations reuse the workspace file API and enforce hard path and byte limits. */
-final class BulkFileServiceTest {
+public final class BulkFileServiceTest {
     @Test
     void copiesMovesAndDeletes(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
