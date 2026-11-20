@@ -13,9 +13,12 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.administration.internal.AdminServiceImpl;
 import dev.jahaziel.administration.persistence.AdminActionRepository;
+import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.workspace.api.WorkspaceService;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,9 +26,9 @@ import java.util.UUID;
 class AdministrationExtraCoverageTest {
     @Test
     void suspendUnsuspendAndLists() {
-        var users = mock(dev.jahaziel.identity.api.UserService.class);
-        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-        var actions = mock(AdminActionRepository.class);
+        UserService users = mock(UserService.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        AdminActionRepository actions = mock(AdminActionRepository.class);
         AdminServiceImpl svc = new AdminServiceImpl(users, workspaces, actions);
         UserId u = new UserId(UUID.randomUUID());
         UserId admin = new UserId(UUID.randomUUID());
@@ -38,15 +41,69 @@ class AdministrationExtraCoverageTest {
         assertTrue(svc.listUsers().isEmpty());
         when(workspaces.describeAll()).thenReturn(List.of());
         assertTrue(svc.listWorkspaces().isEmpty());
-        assertThrows(IllegalArgumentException.class, () -> svc.suspendUser(u, null, admin));
-        assertThrows(IllegalArgumentException.class, () -> svc.suspendUser(u, " ", admin));
-        assertThrows(IllegalArgumentException.class, () -> svc.unsuspendUser(u, "", admin));
-        assertThrows(NullPointerException.class, () -> svc.suspendUser(u, "r", null));
-        assertThrows(NullPointerException.class, () -> svc.unsuspendUser(u, "r", null));
         assertThrows(
-                NullPointerException.class, () -> new AdminServiceImpl(null, workspaces, actions));
-        assertThrows(NullPointerException.class, () -> new AdminServiceImpl(users, null, actions));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.suspendUser(u, null, admin);
+                    }
+                });
         assertThrows(
-                NullPointerException.class, () -> new AdminServiceImpl(users, workspaces, null));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.suspendUser(u, " ", admin);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.unsuspendUser(u, "", admin);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.suspendUser(u, "r", null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.unsuspendUser(u, "r", null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AdminServiceImpl(null, workspaces, actions);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AdminServiceImpl(users, null, actions);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AdminServiceImpl(users, workspaces, null);
+                    }
+                });
     }
 }
