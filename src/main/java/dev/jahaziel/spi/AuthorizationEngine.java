@@ -6,7 +6,7 @@ package dev.jahaziel.spi;
 
 /** Decides whether a user may act on a resource. */
 @JahazielSpi(version = 1)
-public interface AuthorizationEngine {
+public abstract class AuthorizationEngine {
     /**
      * Checks a permission.
      *
@@ -15,7 +15,7 @@ public interface AuthorizationEngine {
      * @param resource the targeted resource
      * @return true when the action is allowed
      */
-    boolean isAllowed(UserIdentity user, Permission permission, Resource resource);
+    public abstract boolean isAllowed(UserIdentity user, Permission permission, Resource resource);
 
     /**
      * Returns the effective policy for a user on a resource.
@@ -24,5 +24,5 @@ public interface AuthorizationEngine {
      * @param resource the targeted resource
      * @return the effective policy
      */
-    Policy effectivePolicy(UserIdentity user, Resource resource);
+    public abstract Policy effectivePolicy(UserIdentity user, Resource resource);
 }
