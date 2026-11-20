@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,12 +50,12 @@ public final class LanguagePackController {
     public List<LanguagePackService.Pack> forWorkspace(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = require(principal, id, "read");
         List<String> supported = tasks.supportedLanguagePacks(workspace);
-        return packs.forWorkspace(workspace).stream()
-                .map(
-                        pack ->
-                                pack.withTemplateSupport(
-                                        supported.isEmpty() || supported.contains(pack.id())))
-                .toList();
+        List<LanguagePackService.Pack> result = new ArrayList<>();
+        for (LanguagePackService.Pack pack : packs.forWorkspace(workspace)) {
+            result.add(
+                    pack.withTemplateSupport(supported.isEmpty() || supported.contains(pack.id())));
+        }
+        return result;
     }
 
     @PutMapping("/api/v1/workspaces/{id}/language-packs/{languageId}")
