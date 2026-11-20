@@ -147,32 +147,41 @@ function startServer(port) {
   return child;
 }
 
-async function stopChild(child) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
-  const kill = (force) => {
-    if (IS_WINDOWS) {
-      spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-        stdio: "ignore",
-        timeout: 15_000,
-      });
-      return;
-    }
-    try {
-      process.kill(-child.pid, force ? "SIGKILL" : "SIGTERM");
-    } catch (failure) {
-      if (failure.code !== "ESRCH") throw failure;
-    }
-  };
-  kill(false);
-  const stopped = await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(10_000).then(() => false),
-  ]);
-  if (stopped === false && child.exitCode === null && child.signalCode === null) {
-    kill(true);
-    child.kill();
-    await Promise.race([new Promise((resolve) => child.once("exit", resolve)), delay(5000)]);
+async function waitForExit(child, timeout) {
+  const deadline = Date.now() + timeout;
+  while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
+    await delay(50);
   }
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+async function stopChild(child) {
+  if (!child) return;
+  const alive = () => child.exitCode === null && child.signalCode === null;
+  const signalGroup = (signal) => {
+    if (IS_WINDOWS) return;
+    try {
+      process.kill(-child.pid, signal);
+    } catch { /* process group already gone */ }
+  };
+  const taskKill = () => spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+    stdio: "ignore",
+    timeout: 15_000,
+  });
+  if (alive()) {
+    if (IS_WINDOWS) taskKill();
+    else signalGroup("SIGTERM");
+    if (!(await waitForExit(child, 5_000))) {
+      if (IS_WINDOWS) taskKill();
+      else {
+        signalGroup("SIGKILL");
+        child.kill("SIGKILL");
+      }
+      await waitForExit(child, 5_000);
+    }
+  }
+  // Java can exit before its spawned task processes release files; sweep the whole group.
+  signalGroup("SIGKILL");
 }
 
 async function waitForHealth(origin, child) {
@@ -256,6 +265,8 @@ function isScratch(pathToCheck) {
 
 function makeWritable(root) {
   if (!fs.existsSync(root)) return;
+  // A read-only directory cannot have its contents unlinked; chmod dirs as well as files.
+  fs.chmodSync(root, 0o777);
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     const full = path.join(root, entry.name);
     if (entry.isDirectory()) makeWritable(full);
@@ -263,19 +274,24 @@ function makeWritable(root) {
   }
 }
 
+const REMOVE_RETRY_CODES = new Set(["EACCES", "EPERM", "EBUSY", "ENOTEMPTY", "EEXIST"]);
+
 async function removeScratch() {
   if (!scratchRoot || !isScratch(scratchRoot)) return;
-  makeWritable(scratchRoot);
   let last;
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
+      if (!IS_WINDOWS) makeWritable(scratchRoot);
       fs.rmSync(scratchRoot, { recursive: true, force: true });
+      if (fs.existsSync(scratchRoot)) {
+        throw Object.assign(new Error("scratch dir still present"), { code: "ENOTEMPTY" });
+      }
       console.error(`deployment acceptance: removed scratch ${scratchRoot}`);
       return;
     } catch (failure) {
       last = failure;
-      if (failure.code !== "EPERM" && failure.code !== "EBUSY") break;
-      await delay(400);
+      if (!REMOVE_RETRY_CODES.has(failure.code) || attempt === 4) break;
+      await delay(100 * (attempt + 1));
     }
   }
   console.error(`deployment acceptance: could not remove scratch ${scratchRoot}: ${last.message}`);
