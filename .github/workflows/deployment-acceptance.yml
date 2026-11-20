@@ -14,28 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-26.04
-            shell: bash
-            mvnw: ./mvnw
-          - arch: arm64
-            runner: ubuntu-26.04-arm
-            shell: bash
-            mvnw: ./mvnw
-          - arch: arm64
-            runner: macos-15
-            shell: bash
-            mvnw: ./mvnw
-          - arch: x64
-            runner: macos-15-intel
-            shell: bash
-            mvnw: ./mvnw
-          - arch: x64
-            runner: windows-2025
-            shell: pwsh
-            mvnw: .\mvnw.cmd
-    name: ${{ matrix.runner }} (${{ matrix.arch }})
+        runner: [ubuntu-26.04, ubuntu-26.04-arm, macos-15, macos-15-intel, windows-2025]
+    name: ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -52,15 +32,15 @@ jobs:
         with:
           version: 12.14.0
       - name: Build browser workbench
-        shell: ${{ matrix.shell }}
+        shell: bash
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
       - name: Package the executable jar
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.mvnw }} -B package -DskipTests
+        shell: bash
+        run: ./mvnw -B package -DskipTests -Dmaven.test.skip=true
       - name: Run deployment acceptance against the packaged jar
-        shell: ${{ matrix.shell }}
+        shell: bash
         timeout-minutes: 12
         run: node tools/deployment-acceptance.cjs target/jahaziel.jar
