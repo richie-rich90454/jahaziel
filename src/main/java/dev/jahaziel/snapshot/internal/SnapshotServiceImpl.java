@@ -31,9 +31,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Database-backed snapshots over workspace storage. */
-public final class SnapshotServiceImpl implements SnapshotService {
+public final class SnapshotServiceImpl extends SnapshotService {
     private final SnapshotRepository snapshots;
     private final WorkspaceService workspaces;
     private final WorkspaceStorage storage;
@@ -76,14 +77,18 @@ public final class SnapshotServiceImpl implements SnapshotService {
         if (createdBy == null || createdBy.isBlank()) {
             throw new IllegalArgumentException("createdBy must not be blank");
         }
-        boolean tagTaken =
-                snapshots.findByWorkspaceId(workspaceId.value()).stream()
-                        .anyMatch(row -> row.getTag().equals(tag));
+        boolean tagTaken = false;
+        for (SnapshotEntity row : snapshots.findByWorkspaceId(workspaceId.value())) {
+            if (row.getTag().equals(tag)) {
+                tagTaken = true;
+                break;
+            }
+        }
         if (tagTaken) {
             throw new IllegalArgumentException("snapshot tag already exists: " + tag);
         }
         Workspace workspace = workspaces.get(workspaceId);
-        var handle = handleOf(workspace);
+        WorkspaceHandle handle = handleOf(workspace);
         SnapshotHandle snapshot = storage.snapshot(handle, new SnapshotTag(tag));
         SnapshotManifest.Measurement measurement;
         try {
@@ -96,10 +101,16 @@ public final class SnapshotServiceImpl implements SnapshotService {
             }
             throw failure;
         }
+        SnapshotEntity latest = null;
+        for (SnapshotEntity row : snapshots.findByWorkspaceId(workspaceId.value())) {
+            if (latest == null || row.getCreatedAt().compareTo(latest.getCreatedAt()) > 0) {
+                latest = row;
+            }
+        }
         Optional<SnapshotId> parent =
-                snapshots.findByWorkspaceId(workspaceId.value()).stream()
-                        .max((left, right) -> left.getCreatedAt().compareTo(right.getCreatedAt()))
-                        .map(row -> new SnapshotId(row.getSnapshotId()));
+                latest == null
+                        ? Optional.empty()
+                        : Optional.of(new SnapshotId(latest.getSnapshotId()));
         SnapshotMetadata metadata =
                 new SnapshotMetadata(
                         new SnapshotId(UUID.randomUUID()),
@@ -135,10 +146,18 @@ public final class SnapshotServiceImpl implements SnapshotService {
     @Override
     public List<SnapshotMetadata> list(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        return snapshots.findByWorkspaceId(workspaceId.value()).stream()
-                .map(SnapshotMapper::toDomain)
-                .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
-                .toList();
+        List<SnapshotMetadata> result = new java.util.ArrayList<>();
+        for (SnapshotEntity row : snapshots.findByWorkspaceId(workspaceId.value())) {
+            result.add(SnapshotMapper.toDomain(row));
+        }
+        result.sort(
+                new java.util.Comparator<SnapshotMetadata>() {
+                    @Override
+                    public int compare(SnapshotMetadata left, SnapshotMetadata right) {
+                        return right.createdAt().compareTo(left.createdAt());
+                    }
+                });
+        return result;
     }
 
     @Override
@@ -186,7 +205,13 @@ public final class SnapshotServiceImpl implements SnapshotService {
     private SnapshotEntity rowOf(SnapshotId snapshotId) {
         return snapshots
                 .findById(snapshotId.value())
-                .orElseThrow(() -> new SnapshotNotFoundException(snapshotId));
+                .orElseThrow(
+                        new Supplier<SnapshotNotFoundException>() {
+                            @Override
+                            public SnapshotNotFoundException get() {
+                                return new SnapshotNotFoundException(snapshotId);
+                            }
+                        });
     }
 
     private WorkspaceHandle handleOf(Workspace workspace) {
