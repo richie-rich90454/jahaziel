@@ -29,11 +29,23 @@ import java.util.List;
 import java.util.UUID;
 
 class WorkspaceTaskControllerTest {
+
     private final UserId userId = new UserId(UUID.randomUUID());
+
     private final WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
-    private final Principal principal = () -> userId.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return userId.value().toString();
+                }
+            };
+
     private WorkspaceTaskService tasks;
+
     private AuthorizationService auth;
+
     private MockMvc mvc;
 
     @BeforeEach
@@ -62,7 +74,6 @@ class WorkspaceTaskControllerTest {
                                 null,
                                 Instant.parse("2026-11-07T10:00:00Z"),
                                 Instant.parse("2026-11-07T10:01:00Z")));
-
         mvc.perform(
                         get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
                                 .principal(principal))
@@ -72,7 +83,6 @@ class WorkspaceTaskControllerTest {
                 .andExpect(
                         jsonPath("$.output")
                                 .value(org.hamcrest.Matchers.containsString("interrupted")));
-
         verify(auth).isAllowed(userId, "read", workspaceId);
         verify(tasks).latestTaskRun(workspaceId);
     }
@@ -80,25 +90,21 @@ class WorkspaceTaskControllerTest {
     @Test
     void latestTaskRunReturnsNoContentWhenWorkspaceHasNoRun() throws Exception {
         when(tasks.latestTaskRun(workspaceId)).thenReturn(null);
-
         mvc.perform(
                         get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
                                 .principal(principal))
                 .andExpect(status().isNoContent());
-
         verify(tasks).latestTaskRun(workspaceId);
     }
 
     @Test
     void latestTaskRunRequiresWorkspaceReadAuthorization() throws Exception {
         when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
-
         mvc.perform(
                         get("/api/v1/workspaces/" + workspaceId.value() + "/task-runs/latest")
                                 .principal(principal))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-
         verifyNoInteractions(tasks);
     }
 
@@ -118,7 +124,6 @@ class WorkspaceTaskControllerTest {
                                         7654,
                                         null,
                                         "C:/private/server.js")));
-
         mvc.perform(
                         get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
                                 .principal(principal))
@@ -129,7 +134,6 @@ class WorkspaceTaskControllerTest {
                 .andExpect(jsonPath("$[0].processId").doesNotExist())
                 .andExpect(jsonPath("$[0].debugPort").doesNotExist())
                 .andExpect(jsonPath("$[0].program").doesNotExist());
-
         verify(auth).isAllowed(userId, "read", workspaceId);
         verify(tasks).debugTargets(workspaceId);
     }
@@ -137,12 +141,10 @@ class WorkspaceTaskControllerTest {
     @Test
     void debugTargetSummariesRequireWorkspaceReadAuthorization() throws Exception {
         when(auth.isAllowed(eq(userId), eq("read"), eq(workspaceId))).thenReturn(false);
-
         mvc.perform(
                         get("/api/v1/workspaces/" + workspaceId.value() + "/tasks/debug-targets")
                                 .principal(principal))
                 .andExpect(status().isForbidden());
-
         verifyNoInteractions(tasks);
     }
 }
