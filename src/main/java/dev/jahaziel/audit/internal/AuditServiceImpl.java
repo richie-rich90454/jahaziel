@@ -16,6 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +28,7 @@ import java.util.Optional;
  * {@code prevHash} is the previous hash or {@code genesis}, {@code target} is empty when absent,
  * and the remaining fields render with {@code toString} ({@code name} for the outcome).
  */
-public final class AuditServiceImpl implements AuditService {
+public final class AuditServiceImpl extends AuditService {
     private final AuditEventRepository events;
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -74,9 +75,11 @@ public final class AuditServiceImpl implements AuditService {
         if (limit <= 0) {
             throw new IllegalArgumentException("Limit must be positive, was " + limit);
         }
-        return events.findLatest(PageRequest.of(0, limit)).stream()
-                .map(row -> AuditMapper.toDomain(row, mapper))
-                .toList();
+        List<AuditRecord> result = new ArrayList<>();
+        for (AuditEventEntity row : events.findLatest(PageRequest.of(0, limit))) {
+            result.add(AuditMapper.toDomain(row, mapper));
+        }
+        return result;
     }
 
     private static String chainHash(String prevHash, AuditRecord event) {
