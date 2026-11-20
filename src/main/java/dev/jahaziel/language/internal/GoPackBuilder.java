@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /** Builds the pinned Go language server using only the SDK being installed in its pack. */
-@FunctionalInterface
-interface GoPackBuilder {
-    void build(Path goExecutable, Path stagingDirectory) throws IOException;
+abstract class GoPackBuilder {
+    /** Builds the language server in the staging directory. */
+    public abstract void build(Path goExecutable, Path stagingDirectory) throws IOException;
 }
