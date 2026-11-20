@@ -32,7 +32,15 @@ class BackendStopFinalTest {
 
     private static Process tree(ProcessHandle descendant) {
         Process fake = mock(Process.class);
-        when(fake.descendants()).thenAnswer(inv -> Stream.of(descendant));
+        when(fake.descendants())
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            @Override
+                            public Object answer(org.mockito.invocation.InvocationOnMock inv)
+                                    throws Throwable {
+                                return Stream.of(descendant);
+                            }
+                        });
         return fake;
     }
 
