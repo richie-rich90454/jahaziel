@@ -50,7 +50,13 @@ class MetricsServiceImplTest {
 
     @Test
     void rejectsNullRollup() {
-        assertThrows(NullPointerException.class, () -> service.record(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.record(null);
+                    }
+                });
     }
 
     @Test
@@ -61,7 +67,8 @@ class MetricsServiceImplTest {
         when(key.getWorkspaceId()).thenReturn(workspace);
         when(key.getHourStart()).thenReturn(Instant.parse("2026-01-02T03:00:00Z"));
         when(metrics.findLatest(any(UUID.class), any())).thenReturn(List.of(row));
-        var found = service.latest(new WorkspaceId(workspace));
+        java.util.Optional<dev.jahaziel.monitoring.api.HourlyRollup> found =
+                service.latest(new WorkspaceId(workspace));
         assertTrue(found.isPresent());
         assertEquals(workspace, found.get().workspaceId());
     }
