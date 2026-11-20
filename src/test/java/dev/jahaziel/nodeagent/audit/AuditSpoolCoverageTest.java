@@ -20,15 +20,39 @@ import java.util.UUID;
 class AuditSpoolCoverageTest {
     @Test
     void constructorRejectsNull() {
-        assertThrows(NullPointerException.class, () -> new AuditSpool(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new AuditSpool(null);
+                    }
+                });
     }
 
     @Test
     void appendRejectsNull(@TempDir Path root) {
         AuditSpool spool = new AuditSpool(root);
-        assertThrows(NullPointerException.class, () -> spool.append(null, "{}"));
-        assertThrows(IllegalArgumentException.class, () -> spool.append(UUID.randomUUID(), null));
-        assertThrows(IllegalArgumentException.class, () -> spool.append(UUID.randomUUID(), ""));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        spool.append(null, "{}");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        spool.append(UUID.randomUUID(), null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        spool.append(UUID.randomUUID(), "");
+                    }
+                });
     }
 
     @Test
@@ -50,6 +74,12 @@ class AuditSpoolCoverageTest {
         Path file = root.resolve("block");
         Files.writeString(file, "x");
         AuditSpool spool = new AuditSpool(file);
-        assertThrows(UncheckedIOException.class, () -> spool.append(UUID.randomUUID(), "{}"));
+        assertThrows(
+                UncheckedIOException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        spool.append(UUID.randomUUID(), "{}");
+                    }
+                });
     }
 }
