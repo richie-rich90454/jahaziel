@@ -24,8 +24,8 @@ public final class FirecrackerClient {
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
-     * Puts the root drive, network interface, vsock, machine config, and boot source, then starts
-     * the instance.
+     * Puts the root drive, network device, vsock, machine config, and boot source, then starts the
+     * instance.
      *
      * @param apiSocket the Firecracker API socket path inside the jail
      * @param rootfs the rootfs image path as seen by Firecracker
@@ -131,7 +131,7 @@ public final class FirecrackerClient {
     }
 
     /**
-     * Builds the network interface body.
+     * Builds the network attachment body.
      *
      * @param tapName the host TAP device
      * @param guestMac the guest MAC
