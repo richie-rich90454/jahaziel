@@ -108,11 +108,11 @@ public final class Platforms {
      */
     public static Path resolveJarDir() {
         try {
-            var source =
+            java.io.File source =
                     new org.springframework.boot.system.ApplicationHome(Platforms.class)
                             .getSource();
             if (source != null && source.getName().endsWith(".jar")) {
-                var parent = source.getAbsoluteFile().getParentFile();
+                java.io.File parent = source.getAbsoluteFile().getParentFile();
                 if (parent != null) {
                     return parent.toPath().toAbsolutePath().normalize();
                 }
