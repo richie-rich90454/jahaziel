@@ -20,7 +20,7 @@ import java.util.UUID;
  * Drains node spool files into the audit log. Spool files are named {@code
  * <workspace-uuid>-<date>.jsonl}; the leading 36 characters address the workspace.
  */
-public final class AuditCollectorJob implements PlatformJob {
+public final class AuditCollectorJob extends PlatformJob {
     private final AuditSpoolReader reader;
     private final Path stagingDir;
 
