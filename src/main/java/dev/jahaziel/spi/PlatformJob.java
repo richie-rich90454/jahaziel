@@ -7,25 +7,25 @@ package dev.jahaziel.spi;
 import java.time.Duration;
 
 /** A periodic platform job. */
-public interface PlatformJob {
+public abstract class PlatformJob {
     /**
      * Runs once.
      *
      * @param context the run context
      */
-    void run(JobContext context);
+    public abstract void run(JobContext context);
 
     /**
      * Returns how often the job runs.
      *
      * @return the period
      */
-    Duration period();
+    public abstract Duration period();
 
     /**
      * Returns where the job runs.
      *
      * @return the scope
      */
-    JobScope scope();
+    public abstract JobScope scope();
 }
