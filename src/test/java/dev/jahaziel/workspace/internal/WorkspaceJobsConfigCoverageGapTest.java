@@ -52,15 +52,38 @@ import java.util.UUID;
 class WorkspaceJobsConfigCoverageGapTest {
     @Test
     void cleanupCtorGuards() {
-        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
-        assertThrows(NullPointerException.class, () -> new CleanupJob(null, "/r"));
-        assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, null));
-        assertThrows(IllegalArgumentException.class, () -> new CleanupJob(workspaces, "  "));
+        dev.jahaziel.workspace.api.WorkspaceService workspaces =
+                mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CleanupJob(null, "/r");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CleanupJob(workspaces, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new CleanupJob(workspaces, "  ");
+                    }
+                });
     }
 
     @Test
     void cleanupNoJailReturns(@TempDir Path root) {
-        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        dev.jahaziel.workspace.api.WorkspaceService workspaces =
+                mock(dev.jahaziel.workspace.api.WorkspaceService.class);
         when(workspaces.describeAll()).thenReturn(List.of());
         new CleanupJob(workspaces, root.toString()).run(JobContext.now());
     }
@@ -74,9 +97,10 @@ class WorkspaceJobsConfigCoverageGapTest {
         Files.createDirectories(jail.resolve(orphanId.toString()));
         Files.writeString(jail.resolve(orphanId.toString()).resolve("x.txt"), "x");
         Files.writeString(jail.resolve("not-a-uuid"), "x");
-        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        dev.jahaziel.workspace.api.WorkspaceService workspaces =
+                mock(dev.jahaziel.workspace.api.WorkspaceService.class);
         Workspace workspace = workspace(knownId);
-        var view = mock(WorkspaceView.class);
+        WorkspaceView view = mock(WorkspaceView.class);
         when(view.workspace()).thenReturn(workspace);
         when(workspaces.describeAll()).thenReturn(List.of(view));
         new CleanupJob(workspaces, root.toString()).run(JobContext.now());
@@ -92,41 +116,71 @@ class WorkspaceJobsConfigCoverageGapTest {
     void cleanupListFailureThrows(@TempDir Path root) throws Exception {
         Path jail = root.resolve("jail");
         Files.createDirectories(jail);
-        var workspaces = mock(dev.jahaziel.workspace.api.WorkspaceService.class);
+        dev.jahaziel.workspace.api.WorkspaceService workspaces =
+                mock(dev.jahaziel.workspace.api.WorkspaceService.class);
         when(workspaces.describeAll()).thenReturn(List.of());
-        try (var files =
+        try (org.mockito.MockedStatic<java.nio.file.Files> files =
                 org.mockito.Mockito.mockStatic(
                         Files.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.list(any(Path.class)))
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    Files.list(any(Path.class));
+                                }
+                            })
                     .thenThrow(new java.io.IOException("boom"));
             assertThrows(
                     java.io.UncheckedIOException.class,
-                    () -> new CleanupJob(workspaces, root.toString()).run(JobContext.now()));
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            new CleanupJob(workspaces, root.toString()).run(JobContext.now());
+                        }
+                    });
         }
     }
 
     @Test
     void backendConfigSelectsOnlyVerifiedBackend() {
         WorkspaceBackendConfig config = new WorkspaceBackendConfig();
-        var storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
+        dev.jahaziel.spi.WorkspaceStorage storage = mock(dev.jahaziel.spi.WorkspaceStorage.class);
         NodeBackend local = config.nodeBackend("local", storage);
         assertInstanceOf(LocalProcessBackend.class, local);
         assertInstanceOf(LocalProcessBackend.class, config.nodeBackend("  LOCAL  ", storage));
         IllegalArgumentException unsupported =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> config.nodeBackend("firecracker", storage));
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                config.nodeBackend("firecracker", storage);
+                            }
+                        });
         assertTrue(unsupported.getMessage().contains("WORKSPACE_BACKEND_UNSUPPORTED"));
         assertTrue(unsupported.getMessage().matches(".*correlationId=[0-9a-f-]{36}:.*"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> config.nodeBackend("  FIRECRACKER  ", storage));
-        assertThrows(IllegalArgumentException.class, () -> config.nodeBackend("other", storage));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        config.nodeBackend("  FIRECRACKER  ", storage);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        config.nodeBackend("other", storage);
+                    }
+                });
     }
 
     @Test
     void backendConfigReadsDocumentedEnvironmentProperty() {
-        try (var context = new AnnotationConfigApplicationContext()) {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext()) {
             context.getEnvironment()
                     .getPropertySources()
                     .addFirst(
@@ -134,10 +188,22 @@ class WorkspaceJobsConfigCoverageGapTest {
                                     "test", Map.of("JAHAZIEL_BACKEND", "firecracker")));
             context.registerBean(
                     dev.jahaziel.spi.WorkspaceStorage.class,
-                    () -> mock(dev.jahaziel.spi.WorkspaceStorage.class));
+                    new java.util.function.Supplier<dev.jahaziel.spi.WorkspaceStorage>() {
+                        @Override
+                        public dev.jahaziel.spi.WorkspaceStorage get() {
+                            return mock(dev.jahaziel.spi.WorkspaceStorage.class);
+                        }
+                    });
             context.register(WorkspaceBackendConfig.class);
 
-            assertThrows(BeanCreationException.class, context::refresh);
+            assertThrows(
+                    BeanCreationException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            context.refresh();
+                        }
+                    });
         }
     }
 
@@ -147,32 +213,66 @@ class WorkspaceJobsConfigCoverageGapTest {
         assertTrue(WorkspacePaths.jailPath("/r", id).equals("/r/jail/" + id.value()));
         assertTrue(
                 WorkspacePaths.homePath("/r", id).equals("/r/workspaces/" + id.value() + "/home"));
-        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath(null, id));
-        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.jailPath("  ", id));
-        assertThrows(IllegalArgumentException.class, () -> WorkspacePaths.homePath("", id));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspacePaths.jailPath(null, id);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspacePaths.jailPath("  ", id);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspacePaths.homePath("", id);
+                    }
+                });
     }
 
     @Test
     void serviceCtorGuards() {
-        var workspaces = mock(WorkspaceRepository.class);
-        var acl = mock(WorkspaceAclRepository.class);
-        var machines = mock(VirtualMachineRepository.class);
-        var users = mock(dev.jahaziel.identity.api.UserService.class);
+        WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
+        WorkspaceAclRepository acl = mock(WorkspaceAclRepository.class);
+        VirtualMachineRepository machines = mock(VirtualMachineRepository.class);
+        dev.jahaziel.identity.api.UserService users =
+                mock(dev.jahaziel.identity.api.UserService.class);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new WorkspaceServiceImpl(workspaces, acl, machines, users, null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new WorkspaceServiceImpl(workspaces, acl, machines, users, "  "));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new WorkspaceServiceImpl(workspaces, acl, machines, users, "  ");
+                    }
+                });
     }
 
     @Test
     void createRollsBackWhenMachineFails() {
-        var workspaces = mock(WorkspaceRepository.class);
-        var acl = mock(WorkspaceAclRepository.class);
-        var machines = mock(VirtualMachineRepository.class);
-        var users = mock(dev.jahaziel.identity.api.UserService.class);
-        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
+        WorkspaceAclRepository acl = mock(WorkspaceAclRepository.class);
+        VirtualMachineRepository machines = mock(VirtualMachineRepository.class);
+        dev.jahaziel.identity.api.UserService users =
+                mock(dev.jahaziel.identity.api.UserService.class);
+        WorkspaceServiceImpl service =
+                new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
         UserId owner = new UserId(UUID.randomUUID());
         when(users.get(owner))
                 .thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
@@ -180,17 +280,24 @@ class WorkspaceJobsConfigCoverageGapTest {
         when(machines.save(any())).thenThrow(new RuntimeException("boom"));
         assertThrows(
                 RuntimeException.class,
-                () -> service.create(owner, "site", 1, 512, new NodeId("n")));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "site", 1, 512, new NodeId("n"));
+                    }
+                });
         verify(workspaces).deleteById(any(UUID.class));
     }
 
     @Test
     void getWithoutMachineRowThrows() {
-        var workspaces = mock(WorkspaceRepository.class);
-        var acl = mock(WorkspaceAclRepository.class);
-        var machines = mock(VirtualMachineRepository.class);
-        var users = mock(dev.jahaziel.identity.api.UserService.class);
-        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
+        WorkspaceAclRepository acl = mock(WorkspaceAclRepository.class);
+        VirtualMachineRepository machines = mock(VirtualMachineRepository.class);
+        dev.jahaziel.identity.api.UserService users =
+                mock(dev.jahaziel.identity.api.UserService.class);
+        WorkspaceServiceImpl service =
+                new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
         WorkspaceId id = new WorkspaceId(UUID.randomUUID());
         WorkspaceEntity row = new WorkspaceEntity();
         row.setWorkspaceId(id.value());
@@ -204,25 +311,44 @@ class WorkspaceJobsConfigCoverageGapTest {
         when(workspaces.findById(id.value())).thenReturn(Optional.of(row));
         when(acl.findByIdWorkspaceId(id.value())).thenReturn(List.of());
         when(machines.findByWorkspaceId(id.value())).thenReturn(Optional.empty());
-        assertThrows(IllegalStateException.class, () -> service.get(id));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.get(id);
+                    }
+                });
     }
 
     @Test
     void createRejectsNullAndLongNames() {
-        var workspaces = mock(WorkspaceRepository.class);
-        var acl = mock(WorkspaceAclRepository.class);
-        var machines = mock(VirtualMachineRepository.class);
-        var users = mock(dev.jahaziel.identity.api.UserService.class);
-        var service = new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
+        WorkspaceRepository workspaces = mock(WorkspaceRepository.class);
+        WorkspaceAclRepository acl = mock(WorkspaceAclRepository.class);
+        VirtualMachineRepository machines = mock(VirtualMachineRepository.class);
+        dev.jahaziel.identity.api.UserService users =
+                mock(dev.jahaziel.identity.api.UserService.class);
+        WorkspaceServiceImpl service =
+                new WorkspaceServiceImpl(workspaces, acl, machines, users, "/r");
         UserId owner = new UserId(UUID.randomUUID());
         when(users.get(owner))
                 .thenReturn(new UserIdentity("s", "a@b.c", "A", List.of(), List.of()));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(owner, null, 1, 512, new NodeId("n")));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, null, 1, 512, new NodeId("n"));
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(owner, "x".repeat(65), 1, 512, new NodeId("n")));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.create(owner, "x".repeat(65), 1, 512, new NodeId("n"));
+                    }
+                });
     }
 
     @Test
@@ -244,7 +370,14 @@ class WorkspaceJobsConfigCoverageGapTest {
         when(machine.getMemoryMib()).thenReturn(512L);
         Workspace workspace = WorkspaceMapper.toDomain(row, List.of(), machine, List.of());
         assertInstanceOf(WorkspaceState.Idle.class, workspace.state());
-        assertThrows(IllegalArgumentException.class, () -> WorkspaceMapper.stateToString(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspaceMapper.stateToString(null);
+                    }
+                });
     }
 
     private Workspace workspace(UUID id) {
