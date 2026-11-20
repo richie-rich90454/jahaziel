@@ -36,10 +36,28 @@ class StringArrayConverterTest {
     @Test
     void rejectsMalformed() {
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("nope"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("nope");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[\"a]"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"a]");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[a]"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[a]");
+                    }
+                });
     }
 }
