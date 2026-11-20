@@ -12,9 +12,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** Port bindings for the gateway. Bind events are auditable. */
-public interface PortService {
+public abstract class PortService {
     /** Maximum registered preview ports on one workspace. */
-    int MAX_PORTS_PER_WORKSPACE = 32;
+    public static final int MAX_PORTS_PER_WORKSPACE = 32;
 
     /**
      * Registers a port binding. Reserved ports 22 and 25 are never exposed.
@@ -25,7 +25,8 @@ public interface PortService {
      * @param protocol the transport protocol
      * @return the binding
      */
-    PortBinding registerPort(UserId userId, int port, WorkspaceId workspaceId, String protocol);
+    public abstract PortBinding registerPort(
+            UserId userId, int port, WorkspaceId workspaceId, String protocol);
 
     /**
      * Removes a port binding.
@@ -33,7 +34,7 @@ public interface PortService {
      * @param userId the owning user
      * @param port the bound port
      */
-    void unregisterPort(UserId userId, int port);
+    public abstract void unregisterPort(UserId userId, int port);
 
     /**
      * Removes every binding of a workspace, for deletion. Never throws for a workspace without
@@ -41,7 +42,7 @@ public interface PortService {
      *
      * @param workspaceId the workspace
      */
-    void unregisterWorkspacePorts(WorkspaceId workspaceId);
+    public abstract void unregisterWorkspacePorts(WorkspaceId workspaceId);
 
     /**
      * Lists a workspace's bindings.
@@ -49,7 +50,7 @@ public interface PortService {
      * @param workspaceId the workspace
      * @return the bindings
      */
-    List<PortBinding> bindingsByWorkspace(WorkspaceId workspaceId);
+    public abstract List<PortBinding> bindingsByWorkspace(WorkspaceId workspaceId);
 
     /**
      * Looks up the workspace serving a user port.
@@ -58,5 +59,5 @@ public interface PortService {
      * @param port the bound port
      * @return the workspace, empty when unregistered
      */
-    Optional<WorkspaceId> lookup(UUID userId, int port);
+    public abstract Optional<WorkspaceId> lookup(UUID userId, int port);
 }
