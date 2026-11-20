@@ -35,17 +35,49 @@ class TerminalExtraCoverageTest {
         s.activity(opened.id());
         assertEquals(1, s.listByWorkspace(w).size());
         assertTrue(s.listByWorkspace(new WorkspaceId(UUID.randomUUID())).isEmpty());
-        assertThrows(NullPointerException.class, () -> s.get(null));
-        assertThrows(NullPointerException.class, () -> s.close(null));
-        assertThrows(NullPointerException.class, () -> s.listByWorkspace(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.get(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.close(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.listByWorkspace(null);
+                    }
+                });
         TerminalSessionId missing = new TerminalSessionId(UUID.randomUUID());
         assertThrows(
-                dev.jahaziel.terminal.api.TerminalNotFoundException.class, () -> s.get(missing));
-        assertThrows(
-                dev.jahaziel.terminal.api.TerminalNotFoundException.class, () -> s.close(missing));
+                dev.jahaziel.terminal.api.TerminalNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.get(missing);
+                    }
+                });
         assertThrows(
                 dev.jahaziel.terminal.api.TerminalNotFoundException.class,
-                () -> s.activity(missing));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.close(missing);
+                    }
+                });
+        assertThrows(
+                dev.jahaziel.terminal.api.TerminalNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.activity(missing);
+                    }
+                });
         s.close(opened.id());
         assertTrue(s.listByWorkspace(w).isEmpty());
     }
@@ -60,7 +92,8 @@ class TerminalExtraCoverageTest {
                 (ConcurrentHashMap<TerminalSessionId, Object>) f.get(s);
         Class<?> stateClass =
                 Class.forName("dev.jahaziel.terminal.internal.TerminalServiceImpl$State");
-        var stateConstructor = stateClass.getDeclaredConstructor(TerminalSession.class);
+        java.lang.reflect.Constructor stateConstructor =
+                stateClass.getDeclaredConstructor(TerminalSession.class);
         stateConstructor.setAccessible(true);
         WorkspaceId w = new WorkspaceId(UUID.randomUUID());
         UserId u = new UserId(UUID.randomUUID());
@@ -82,15 +115,35 @@ class TerminalExtraCoverageTest {
         UserId u = new UserId(UUID.randomUUID());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TerminalSession(new TerminalSessionId(UUID.randomUUID()), w, u, 0, 80));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSession(new TerminalSessionId(UUID.randomUUID()), w, u, 0, 80);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TerminalSession(new TerminalSessionId(UUID.randomUUID()), w, u, 24, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSession(new TerminalSessionId(UUID.randomUUID()), w, u, 24, 0);
+                    }
+                });
         TerminalSession s =
                 new TerminalSession(new TerminalSessionId(UUID.randomUUID()), w, u, 24, 80);
         s.resize(30, 100);
         assertEquals(30, s.rowCount());
-        assertThrows(IllegalArgumentException.class, () -> s.resize(0, 1));
-        assertThrows(NullPointerException.class, () -> new TerminalSession(null, w, u, 1, 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        s.resize(0, 1);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new TerminalSession(null, w, u, 1, 1);
+                    }
+                });
     }
 }
