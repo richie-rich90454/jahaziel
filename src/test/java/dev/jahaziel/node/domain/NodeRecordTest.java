@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
-/** Null guards of the node state records. */
+/** Null guards of the node state classes. */
 class NodeRecordTest {
     @Test
     void degradedGuardsInputs() {
@@ -19,9 +19,27 @@ class NodeRecordTest {
         NodeState.Degraded degraded = new NodeState.Degraded(at, "disk slow");
         assertEquals("disk slow", degraded.reason());
         assertEquals(at, degraded.at());
-        assertThrows(NullPointerException.class, () -> new NodeState.Degraded(null, "r"));
-        assertThrows(IllegalArgumentException.class, () -> new NodeState.Degraded(at, null));
-        assertThrows(IllegalArgumentException.class, () -> new NodeState.Degraded(at, "  "));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Degraded(null, "r");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Degraded(at, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Degraded(at, "  ");
+                    }
+                });
     }
 
     @Test
@@ -30,8 +48,26 @@ class NodeRecordTest {
         NodeState.Unhealthy unhealthy = new NodeState.Unhealthy(at, "no heartbeat");
         assertEquals("no heartbeat", unhealthy.reason());
         assertEquals(at, unhealthy.at());
-        assertThrows(NullPointerException.class, () -> new NodeState.Unhealthy(null, "r"));
-        assertThrows(IllegalArgumentException.class, () -> new NodeState.Unhealthy(at, null));
-        assertThrows(IllegalArgumentException.class, () -> new NodeState.Unhealthy(at, "  "));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Unhealthy(null, "r");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Unhealthy(at, null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeState.Unhealthy(at, "  ");
+                    }
+                });
     }
 }
