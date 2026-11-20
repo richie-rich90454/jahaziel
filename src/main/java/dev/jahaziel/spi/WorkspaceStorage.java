@@ -11,7 +11,7 @@ import java.util.UUID;
  * stays dependency-free; the domain value objects map to them at the boundary.
  */
 @JahazielSpi(version = 1)
-public interface WorkspaceStorage {
+public abstract class WorkspaceStorage {
     /**
      * Prepares storage for a workspace. Homes are keyed by workspace id; the owner is retained for
      * quota, audit, and policy decisions.
@@ -22,14 +22,15 @@ public interface WorkspaceStorage {
      * @param quota the logical quota for the home folder
      * @return the storage handle
      */
-    WorkspaceHandle prepare(UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota);
+    public abstract WorkspaceHandle prepare(
+            UUID workspaceId, UUID ownerId, ImageRef image, QuotaBytes quota);
 
     /**
      * Destroys workspace storage.
      *
      * @param handle the storage handle
      */
-    void destroy(WorkspaceHandle handle);
+    public abstract void destroy(WorkspaceHandle handle);
 
     /**
      * Destroys a workspace while optionally retaining its snapshots.
@@ -39,7 +40,7 @@ public interface WorkspaceStorage {
      * @param handle the storage handle
      * @param keepSnapshots whether snapshots should survive workspace removal
      */
-    default void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
+    public void destroy(WorkspaceHandle handle, boolean keepSnapshots) {
         destroy(handle);
     }
 
@@ -50,14 +51,14 @@ public interface WorkspaceStorage {
      * @param tag the snapshot tag
      * @return the snapshot handle
      */
-    SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag);
+    public abstract SnapshotHandle snapshot(WorkspaceHandle handle, SnapshotTag tag);
 
     /**
      * Deletes a snapshot folder.
      *
      * @param snapshot the snapshot handle
      */
-    void deleteSnapshot(SnapshotHandle snapshot);
+    public abstract void deleteSnapshot(SnapshotHandle snapshot);
 
     /**
      * Restores a workspace home folder from a snapshot.
@@ -65,7 +66,7 @@ public interface WorkspaceStorage {
      * @param handle the storage handle
      * @param snapshot the snapshot to restore
      */
-    void restore(WorkspaceHandle handle, SnapshotHandle snapshot);
+    public abstract void restore(WorkspaceHandle handle, SnapshotHandle snapshot);
 
     /**
      * Measures storage consumption.
@@ -73,5 +74,5 @@ public interface WorkspaceStorage {
      * @param handle the storage handle
      * @return the current usage
      */
-    StorageUsage usage(WorkspaceHandle handle);
+    public abstract StorageUsage usage(WorkspaceHandle handle);
 }
