@@ -11,7 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 
 /** Tests the same loopback address used by the single-server gateway. */
-public final class LoopbackPortStatusProbe implements PortStatusProbe {
+public final class LoopbackPortStatusProbe extends PortStatusProbe {
     private static final int CONNECT_TIMEOUT_MILLIS = 150;
 
     @Override
