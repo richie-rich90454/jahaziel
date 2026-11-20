@@ -36,12 +36,40 @@ class HostParserTest {
 
     @Test
     void rejectsForeignAndMalformedHosts() {
-        assertThrows(IllegalArgumentException.class, () -> parser.parse("richard-8080.evil.dev"));
         assertThrows(
-                IllegalArgumentException.class, () -> parser.parse("richard.code.example.com"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        parser.parse("richard-8080.evil.dev");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> parser.parse("richard-x.code.example.com"));
-        assertThrows(IllegalArgumentException.class, () -> parser.parse("-8080.code.example.com"));
-        assertThrows(NullPointerException.class, () -> parser.parse(null));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        parser.parse("richard.code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        parser.parse("richard-x.code.example.com");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        parser.parse("-8080.code.example.com");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        parser.parse(null);
+                    }
+                });
     }
 }
