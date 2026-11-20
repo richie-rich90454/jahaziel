@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Database-backed metric rollups. */
-public final class MetricsServiceImpl implements MetricsService {
+public final class MetricsServiceImpl extends MetricsService {
     private final ResourceMetricRepository metrics;
 
     /**
@@ -39,6 +39,9 @@ public final class MetricsServiceImpl implements MetricsService {
         Objects.requireNonNull(workspaceId, "workspaceId");
         List<dev.jahaziel.monitoring.persistence.ResourceMetricEntity> rows =
                 metrics.findLatest(workspaceId.value(), PageRequest.of(0, 1));
-        return rows.stream().findFirst().map(MetricsMapper::toDomain);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(MetricsMapper.toDomain(rows.get(0)));
     }
 }
