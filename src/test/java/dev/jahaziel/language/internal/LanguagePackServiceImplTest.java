@@ -13,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.language.api.LanguagePackInstallException;
+import dev.jahaziel.language.api.LanguagePackService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import org.junit.jupiter.api.AfterEach;
@@ -62,10 +63,18 @@ class LanguagePackServiceImplTest {
                         temporary.resolve("cache"), http, testCatalog(gzip(serverBytes())));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        assertEquals(
-                List.of("rust", "cpp", "java"),
-                service.catalog().stream().map(pack -> pack.id()).toList());
-        assertTrue(service.forWorkspace(workspace).stream().noneMatch(pack -> pack.selected()));
+        List<String> ids = new java.util.ArrayList<>();
+        for (LanguagePackService.Pack pack : service.catalog()) {
+            ids.add(pack.id());
+        }
+        assertEquals(List.of("rust", "cpp", "java"), ids);
+        boolean anySelected = false;
+        for (LanguagePackService.Pack pack : service.forWorkspace(workspace)) {
+            if (pack.selected()) {
+                anySelected = true;
+            }
+        }
+        assertFalse(anySelected);
         assertFalse(Files.exists(temporary.resolve("cache/rust")));
         assertFalse(Files.exists(temporary.resolve("cache/cpp")));
         assertFalse(Files.exists(temporary.resolve("cache/java")));
@@ -81,11 +90,13 @@ class LanguagePackServiceImplTest {
                         mock(HttpClient.class),
                         "/usr/bin/node");
 
-        var x64 =
-                service.catalog().stream()
-                        .filter(pack -> pack.id().equals("go"))
-                        .findFirst()
-                        .orElseThrow();
+        LanguagePackService.Pack x64 = null;
+        for (LanguagePackService.Pack pack : service.catalog()) {
+            if (pack.id().equals("go")) {
+                x64 = pack;
+                break;
+            }
+        }
 
         assertEquals("gopls-v0.24.0-go1.27.3", x64.version());
         assertEquals(67_000_000, x64.downloadBytes());
@@ -97,11 +108,13 @@ class LanguagePackServiceImplTest {
         assertTrue(x64.installationNote().contains("module downloads"));
 
         System.setProperty("os.arch", "aarch64");
-        var arm64 =
-                service.catalog().stream()
-                        .filter(pack -> pack.id().equals("go"))
-                        .findFirst()
-                        .orElseThrow();
+        LanguagePackService.Pack arm64 = null;
+        for (LanguagePackService.Pack pack : service.catalog()) {
+            if (pack.id().equals("go")) {
+                arm64 = pack;
+                break;
+            }
+        }
         assertEquals(64_000_000, arm64.downloadBytes());
         assertEquals(
                 List.of(
@@ -122,7 +135,7 @@ class LanguagePackServiceImplTest {
         System.setProperty("os.arch", "amd64");
         byte[] archive = tarGzip("go/bin/go", "fixture SDK".getBytes(StandardCharsets.UTF_8));
         String url = "https://example.invalid/go.tar.gz";
-        var asset =
+        LanguagePackServiceImpl.Asset asset =
                 new LanguagePackServiceImpl.Asset(
                         "go.tar.gz",
                         url,
@@ -131,17 +144,22 @@ class LanguagePackServiceImplTest {
                         "tar.gz",
                         "",
                         "toolchain");
-        var definition =
+        LanguagePackServiceImpl.Definition definition =
                 new LanguagePackServiceImpl.Definition(
                         "go", "gopls · Go", "test", Map.of("x86_64", asset));
         Path cache = temporary.resolve("cache");
         GoPackBuilder builder =
-                (goExecutable, staging) -> {
-                    assertTrue(Files.isExecutable(goExecutable));
-                    assertTrue(goExecutable.startsWith(staging));
-                    Files.createDirectories(staging.resolve("bin"));
-                    Files.writeString(
-                            staging.resolve("bin/gopls"), "fixture gopls", StandardCharsets.UTF_8);
+                new GoPackBuilder() {
+                    @Override
+                    public void build(Path goExecutable, Path staging) throws IOException {
+                        assertTrue(Files.isExecutable(goExecutable));
+                        assertTrue(goExecutable.startsWith(staging));
+                        Files.createDirectories(staging.resolve("bin"));
+                        Files.writeString(
+                                staging.resolve("bin/gopls"),
+                                "fixture gopls",
+                                StandardCharsets.UTF_8);
+                    }
                 };
         LanguagePackServiceImpl service =
                 new LanguagePackServiceImpl(
@@ -154,7 +172,7 @@ class LanguagePackServiceImplTest {
         Path workspaceHome = temporary.resolve("workspace");
         Files.createDirectories(workspaceHome);
 
-        var pack = service.select(workspace, "go");
+        LanguagePackService.Pack pack = service.select(workspace, "go");
         Path state = cache.resolve("state").resolve(workspace.value().toString()).resolve("go");
         List<String> command = service.launchCommandFor(workspace, "go", state);
         Map<String, String> environment =
@@ -203,7 +221,7 @@ class LanguagePackServiceImplTest {
                 new LanguagePackServiceImpl(temporary.resolve("cache"), http, List.of(definition));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        var selected = service.select(workspace, "rust");
+        LanguagePackService.Pack selected = service.select(workspace, "rust");
 
         assertTrue(selected.installed());
         assertTrue(selected.selected());
@@ -243,7 +261,13 @@ class LanguagePackServiceImplTest {
                         temporary.resolve("cache"), httpReturning(archive), List.of(wrong));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        assertThrows(LanguagePackInstallException.class, () -> service.select(workspace, "rust"));
+        assertThrows(
+                LanguagePackInstallException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.select(workspace, "rust");
+                    }
+                });
 
         assertFalse(Files.exists(temporary.resolve("cache/rust/test/x86_64")));
         assertFalse(
@@ -263,7 +287,7 @@ class LanguagePackServiceImplTest {
         Files.createDirectories(version);
         Files.writeString(version.resolve("payload"), "cached", StandardCharsets.UTF_8);
 
-        var dryRun = service.prune(true);
+        LanguagePackService.PruneReport dryRun = service.prune(true);
         assertTrue(dryRun.dryRun());
         assertEquals(List.of("rust:test:" + architecture), dryRun.versions());
         assertTrue(Files.exists(version.resolve("payload")));
@@ -275,7 +299,7 @@ class LanguagePackServiceImplTest {
         assertTrue(Files.exists(version.resolve("payload")));
 
         Files.delete(cache.resolve("selections/workspace.txt"));
-        var removed = service.prune(false);
+        LanguagePackService.PruneReport removed = service.prune(false);
         assertFalse(removed.dryRun());
         assertEquals(List.of("rust:test:" + architecture), removed.versions());
         assertFalse(Files.exists(version));
@@ -299,14 +323,14 @@ class LanguagePackServiceImplTest {
         Files.writeString(currentVersion.resolve("server"), "current", StandardCharsets.UTF_8);
         Files.writeString(selection, "rust\n", StandardCharsets.UTF_8);
 
-        var dryRun = service.prune(true);
+        LanguagePackService.PruneReport dryRun = service.prune(true);
 
         assertTrue(dryRun.dryRun());
         assertEquals(List.of("rust:older:" + architecture), dryRun.versions());
         assertTrue(Files.exists(oldVersion));
         assertTrue(Files.exists(currentVersion));
 
-        var applied = service.prune(false);
+        LanguagePackService.PruneReport applied = service.prune(false);
 
         assertFalse(applied.dryRun());
         assertEquals(List.of("rust:older:" + architecture), applied.versions());
@@ -337,7 +361,7 @@ class LanguagePackServiceImplTest {
                 new LanguagePackServiceImpl(cache, httpReturning(archive), List.of(definition));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        var selected = service.select(workspace, "cpp");
+        LanguagePackService.Pack selected = service.select(workspace, "cpp");
 
         Path executable = cache.resolve("cpp/tar-test/x86_64/bin/clangd");
         assertTrue(selected.installed());
@@ -371,7 +395,13 @@ class LanguagePackServiceImplTest {
                 new LanguagePackServiceImpl(cache, httpReturning(archive), List.of(definition));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        assertThrows(LanguagePackInstallException.class, () -> service.select(workspace, "cpp"));
+        assertThrows(
+                LanguagePackInstallException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.select(workspace, "cpp");
+                    }
+                });
 
         assertFalse(Files.exists(cache.resolve("escape")));
         assertFalse(Files.exists(cache.resolve("cpp/tar-test/x86_64")));
@@ -396,7 +426,7 @@ class LanguagePackServiceImplTest {
                 tarGzip(
                         "package/lib/tsserver.js",
                         "// fake TS runtime".getBytes(StandardCharsets.UTF_8));
-        var serverAsset =
+        LanguagePackServiceImpl.Asset serverAsset =
                 new LanguagePackServiceImpl.Asset(
                         "typescript-language-server.tgz",
                         serverUrl,
@@ -405,7 +435,7 @@ class LanguagePackServiceImplTest {
                         "npm.tar.gz",
                         sha512(serverArchive),
                         "node_modules/typescript-language-server");
-        var runtimeAsset =
+        LanguagePackServiceImpl.Asset runtimeAsset =
                 new LanguagePackServiceImpl.Asset(
                         "typescript.tgz",
                         runtimeUrl,
@@ -414,7 +444,7 @@ class LanguagePackServiceImplTest {
                         "npm.tar.gz",
                         sha512(runtimeArchive),
                         "node_modules/typescript");
-        var definition =
+        LanguagePackServiceImpl.Definition definition =
                 new LanguagePackServiceImpl.Definition(
                         "typescript",
                         "TypeScript Language Server",
@@ -422,7 +452,7 @@ class LanguagePackServiceImplTest {
                         Map.of("x86_64", serverAsset),
                         List.of(runtimeAsset));
         Path cache = temporary.resolve("cache");
-        var service =
+        LanguagePackServiceImpl service =
                 new LanguagePackServiceImpl(
                         cache,
                         httpReturningUrls(
@@ -431,18 +461,25 @@ class LanguagePackServiceImplTest {
                         node);
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        var selected = service.select(workspace, "typescript");
+        LanguagePackService.Pack selected = service.select(workspace, "typescript");
         List<String> command =
                 service.launchCommandFor(
                         workspace,
                         "typescript",
                         cache.resolve("state").resolve(workspace.value().toString()));
-        var options = service.initializationOptionsFor(workspace, "typescript");
+        java.util.Map<String, Object> options =
+                service.initializationOptionsFor(workspace, "typescript");
 
         Path installed = cache.resolve("typescript/test/x86_64/node_modules");
         assertTrue(selected.installed());
         assertTrue(selected.selected());
-        assertTrue(selected.checksums().stream().allMatch(value -> value.startsWith("SHA-512: ")));
+        boolean allSha512 = true;
+        for (String checksum : selected.checksums()) {
+            if (!checksum.startsWith("SHA-512: ")) {
+                allSha512 = false;
+            }
+        }
+        assertTrue(allSha512);
         assertTrue(
                 Files.isRegularFile(installed.resolve("typescript-language-server/lib/cli.mjs")));
         assertTrue(Files.isRegularFile(installed.resolve("typescript/lib/tsserver.js")));
@@ -463,7 +500,7 @@ class LanguagePackServiceImplTest {
         System.setProperty("os.arch", "amd64");
         byte[] archive = tarGzip("package/../../escape", serverBytes());
         String url = "https://example.invalid/pyright.tgz";
-        var asset =
+        LanguagePackServiceImpl.Asset asset =
                 new LanguagePackServiceImpl.Asset(
                         "pyright.tgz",
                         url,
@@ -472,17 +509,21 @@ class LanguagePackServiceImplTest {
                         "npm.tar.gz",
                         sha512(archive),
                         "node_modules/pyright");
-        var definition =
+        LanguagePackServiceImpl.Definition definition =
                 new LanguagePackServiceImpl.Definition(
                         "python", "Pyright", "test", Map.of("x86_64", asset));
         Path cache = temporary.resolve("cache");
-        var service =
+        LanguagePackServiceImpl service =
                 new LanguagePackServiceImpl(
                         cache, httpReturningUrls(Map.of(url, archive)), List.of(definition), node);
 
         assertThrows(
                 LanguagePackInstallException.class,
-                () -> service.select(new WorkspaceId(UUID.randomUUID()), "python"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.select(new WorkspaceId(UUID.randomUUID()), "python");
+                    }
+                });
         assertFalse(Files.exists(cache.resolve("escape")));
         assertFalse(Files.exists(cache.resolve("python/test/x86_64")));
     }
@@ -534,7 +575,13 @@ class LanguagePackServiceImplTest {
         assertTrue(command.contains(launcher.toRealPath().toString()));
         assertTrue(command.contains(config.toRealPath().toString()));
         assertTrue(command.contains(state.toRealPath().toString()));
-        assertFalse(command.stream().anyMatch(argument -> argument.contains("example.invalid")));
+        boolean leaksExampleHost = false;
+        for (String argument : command) {
+            if (argument.contains("example.invalid")) {
+                leaksExampleHost = true;
+            }
+        }
+        assertFalse(leaksExampleHost);
     }
 
     @Test
@@ -577,7 +624,11 @@ class LanguagePackServiceImplTest {
 
         assertThrows(
                 java.io.UncheckedIOException.class,
-                () -> service.launchCommandFor(workspace, "java", outside));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.launchCommandFor(workspace, "java", outside);
+                    }
+                });
     }
 
     @Test
@@ -609,7 +660,7 @@ class LanguagePackServiceImplTest {
                 new LanguagePackServiceImpl(cache, httpReturning(archive), List.of(definition));
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
-        var selected = service.select(workspace, "java");
+        LanguagePackService.Pack selected = service.select(workspace, "java");
 
         assertTrue(selected.installed());
         assertTrue(selected.selected());
@@ -632,7 +683,11 @@ class LanguagePackServiceImplTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.deselect(new WorkspaceId(UUID.randomUUID()), "arbitrary-command"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.deselect(new WorkspaceId(UUID.randomUUID()), "arbitrary-command");
+                    }
+                });
     }
 
     @Test
@@ -697,12 +752,25 @@ class LanguagePackServiceImplTest {
         HttpClient http = mock(HttpClient.class);
         HttpResponse<java.io.InputStream> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenAnswer(ignored -> new ByteArrayInputStream(archive));
+        when(response.body())
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            @Override
+                            public Object answer(
+                                    org.mockito.invocation.InvocationOnMock invocation) {
+                                return new ByteArrayInputStream(archive);
+                            }
+                        });
         when(response.headers())
                 .thenReturn(
                         HttpHeaders.of(
                                 Map.of("Content-Length", List.of(Integer.toString(archive.length))),
-                                (name, value) -> true));
+                                new java.util.function.BiPredicate<String, String>() {
+                                    @Override
+                                    public boolean test(String name, String value) {
+                                        return true;
+                                    }
+                                }));
         when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(response);
         return http;
@@ -713,25 +781,44 @@ class LanguagePackServiceImplTest {
         HttpClient http = mock(HttpClient.class);
         when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenAnswer(
-                        invocation -> {
-                            HttpRequest request = invocation.getArgument(0);
-                            byte[] archive = archives.get(request.uri().toString());
-                            if (archive == null)
-                                throw new IOException("unexpected archive request");
-                            HttpResponse<java.io.InputStream> response = mock(HttpResponse.class);
-                            when(response.statusCode()).thenReturn(200);
-                            when(response.body())
-                                    .thenAnswer(ignored -> new ByteArrayInputStream(archive));
-                            when(response.headers())
-                                    .thenReturn(
-                                            HttpHeaders.of(
-                                                    Map.of(
-                                                            "Content-Length",
-                                                            List.of(
-                                                                    Integer.toString(
-                                                                            archive.length))),
-                                                    (name, value) -> true));
-                            return response;
+                        new org.mockito.stubbing.Answer<Object>() {
+                            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
+                                    throws Throwable {
+                                HttpRequest request = invocation.getArgument(0);
+                                byte[] archive = archives.get(request.uri().toString());
+                                if (archive == null)
+                                    throw new IOException("unexpected archive request");
+                                HttpResponse<java.io.InputStream> response =
+                                        mock(HttpResponse.class);
+                                when(response.statusCode()).thenReturn(200);
+                                when(response.body())
+                                        .thenAnswer(
+                                                new org.mockito.stubbing.Answer<Object>() {
+                                                    @Override
+                                                    public Object answer(
+                                                            org.mockito.invocation.InvocationOnMock
+                                                                    invocation) {
+                                                        return new ByteArrayInputStream(archive);
+                                                    }
+                                                });
+                                when(response.headers())
+                                        .thenReturn(
+                                                HttpHeaders.of(
+                                                        Map.of(
+                                                                "Content-Length",
+                                                                List.of(
+                                                                        Integer.toString(
+                                                                                archive.length))),
+                                                        new java.util.function.BiPredicate<
+                                                                String, String>() {
+                                                            @Override
+                                                            public boolean test(
+                                                                    String name, String value) {
+                                                                return true;
+                                                            }
+                                                        }));
+                                return response;
+                            }
                         });
         return http;
     }
