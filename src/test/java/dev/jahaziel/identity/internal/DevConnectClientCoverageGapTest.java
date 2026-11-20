@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import dev.jahaziel.identity.api.DevConnectException;
@@ -18,6 +20,7 @@ import dev.jahaziel.identity.internal.devconnect.DevConnectProperties;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -25,6 +28,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -78,34 +82,83 @@ class DevConnectClientCoverageGapTest {
                 + "/jwks\"}";
     }
 
+    private HttpHandler discoveryHandler(final String base) {
+        return new HttpHandler() {
+            @Override
+            public void handle(HttpExchange ex) throws IOException {
+                byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
+                ex.sendResponseHeaders(200, b.length);
+                ex.getResponseBody().write(b);
+                ex.close();
+            }
+        };
+    }
+
+    private HttpHandler bodyHandler(final AtomicReference<String> body) {
+        return new HttpHandler() {
+            @Override
+            public void handle(HttpExchange ex) throws IOException {
+                byte[] b = body.get().getBytes(StandardCharsets.UTF_8);
+                ex.sendResponseHeaders(200, b.length);
+                ex.getResponseBody().write(b);
+                ex.close();
+            }
+        };
+    }
+
+    private HttpHandler errorHandler() {
+        return new HttpHandler() {
+            @Override
+            public void handle(HttpExchange ex) throws IOException {
+                ex.sendResponseHeaders(500, 0);
+                ex.close();
+            }
+        };
+    }
+
+    private DevConnectClient client(String base) {
+        return new DevConnectClient(
+                RestClient.builder().build(), new RestTemplate(), props(base), Clock.systemUTC());
+    }
+
+    private static Executable verify(
+            final DevConnectClient c, final String token, final String nonce) {
+        return new Executable() {
+            @Override
+            public void execute() {
+                c.verifyIdToken(token, nonce);
+            }
+        };
+    }
+
+    private static Executable userinfo(final DevConnectClient c, final String token) {
+        return new Executable() {
+            @Override
+            public void execute() {
+                c.userinfo(token);
+            }
+        };
+    }
+
+    private static Executable exchange(final DevConnectClient c) {
+        return new Executable() {
+            @Override
+            public void execute() {
+                c.exchange("code", "ver", "https://app/cb");
+            }
+        };
+    }
+
     @Test
     void userinfoHttpFailureThrows() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
-        server.createContext(
-                "/.well-known/openid-configuration",
-                ex -> {
-                    byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
-        server.createContext(
-                "/userinfo",
-                ex -> {
-                    ex.sendResponseHeaders(500, 0);
-                    ex.close();
-                });
+        server.createContext("/.well-known/openid-configuration", discoveryHandler(base));
+        server.createContext("/userinfo", errorHandler());
         server.start();
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        DevConnectException failure =
-                assertThrows(DevConnectException.class, () -> c.userinfo("token"));
+        DevConnectClient c = client(base);
+        DevConnectException failure = assertThrows(DevConnectException.class, userinfo(c, "token"));
         assertTrue(failure.getMessage().contains("UserInfo failed"));
     }
 
@@ -116,13 +169,16 @@ class DevConnectClientCoverageGapTest {
             closed = probe.getLocalPort();
         }
         String base = "http://127.0.0.1:" + closed;
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        DevConnectException failure = assertThrows(DevConnectException.class, c::discovery);
+        DevConnectClient c = client(base);
+        DevConnectException failure =
+                assertThrows(
+                        DevConnectException.class,
+                        new Executable() {
+                            @Override
+                            public void execute() {
+                                c.discovery();
+                            }
+                        });
         assertTrue(failure.getMessage().contains("discovery failed"));
     }
 
@@ -132,32 +188,13 @@ class DevConnectClientCoverageGapTest {
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
         AtomicReference<String> tokenBody = new AtomicReference<>("{\"access_token\":\"a\"}");
-        server.createContext(
-                "/.well-known/openid-configuration",
-                ex -> {
-                    byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
-        server.createContext(
-                "/token",
-                ex -> {
-                    byte[] b = tokenBody.get().getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
+        server.createContext("/.well-known/openid-configuration", discoveryHandler(base));
+        server.createContext("/token", bodyHandler(tokenBody));
         server.start();
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        assertThrows(DevConnectException.class, () -> c.exchange("code", "ver", "https://app/cb"));
+        DevConnectClient c = client(base);
+        assertThrows(DevConnectException.class, exchange(c));
         tokenBody.set("{\"id_token\":null,\"access_token\":\"a\"}");
-        assertThrows(DevConnectException.class, () -> c.exchange("code", "ver", "https://app/cb"));
+        assertThrows(DevConnectException.class, exchange(c));
     }
 
     @Test
@@ -166,44 +203,20 @@ class DevConnectClientCoverageGapTest {
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
         AtomicReference<String> userBody = new AtomicReference<>("{\"email\":\"e@x.y\"}");
-        server.createContext(
-                "/.well-known/openid-configuration",
-                ex -> {
-                    byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
-        server.createContext(
-                "/userinfo",
-                ex -> {
-                    byte[] b = userBody.get().getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
+        server.createContext("/.well-known/openid-configuration", discoveryHandler(base));
+        server.createContext("/userinfo", bodyHandler(userBody));
         server.start();
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        assertThrows(DevConnectException.class, () -> c.userinfo("token"));
+        DevConnectClient c = client(base);
+        assertThrows(DevConnectException.class, userinfo(c, "token"));
         userBody.set("{\"sub\":null,\"email\":\"e@x.y\"}");
-        assertThrows(DevConnectException.class, () -> c.userinfo("token"));
+        assertThrows(DevConnectException.class, userinfo(c, "token"));
     }
 
     @Test
     void readNullBodyThrowsEmpty() throws Exception {
         Method read = DevConnectClient.class.getDeclaredMethod("read", String.class, String.class);
         read.setAccessible(true);
-        DevConnectClient client =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props("http://x"),
-                        Clock.systemUTC());
+        DevConnectClient client = client("http://x");
         try {
             read.invoke(client, null, "http://x/token");
         } catch (java.lang.reflect.InvocationTargetException expected) {
@@ -228,22 +241,10 @@ class DevConnectClientCoverageGapTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
-        server.createContext(
-                "/.well-known/openid-configuration",
-                ex -> {
-                    byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
+        server.createContext("/.well-known/openid-configuration", discoveryHandler(base));
         server.start();
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        assertThrows(DevConnectException.class, () -> c.verifyIdToken("a.b.c", null));
+        DevConnectClient c = client(base);
+        assertThrows(DevConnectException.class, verify(c, "a.b.c", null));
         Field decoderField = DevConnectClient.class.getDeclaredField("decoder");
         decoderField.setAccessible(true);
         assertTrue(decoderField.get(c) != null);
@@ -258,37 +259,25 @@ class DevConnectClientCoverageGapTest {
         assertEquals(jwt, c.verifyIdToken("good", "n"));
         assertTrue(decoderField.get(c) == stale);
         uriField.set(c, base + "/old-jwks");
-        assertThrows(DevConnectException.class, () -> c.verifyIdToken("good", "n"));
+        assertThrows(DevConnectException.class, verify(c, "good", "n"));
         assertTrue(decoderField.get(c) != stale);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void audienceValidatorHandlesNullWrongAndRight() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
-        server.createContext(
-                "/.well-known/openid-configuration",
-                ex -> {
-                    byte[] b = discoveryJson(base).getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
-                });
+        server.createContext("/.well-known/openid-configuration", discoveryHandler(base));
         server.start();
-        DevConnectClient c =
-                new DevConnectClient(
-                        RestClient.builder().build(),
-                        new RestTemplate(),
-                        props(base),
-                        Clock.systemUTC());
-        assertThrows(DevConnectException.class, () -> c.verifyIdToken("a.b.c", null));
+        DevConnectClient c = client(base);
+        assertThrows(DevConnectException.class, verify(c, "a.b.c", null));
         Field decoderField = DevConnectClient.class.getDeclaredField("decoder");
         decoderField.setAccessible(true);
         NimbusJwtDecoder built = (NimbusJwtDecoder) decoderField.get(c);
         Field validatorField = NimbusJwtDecoder.class.getDeclaredField("jwtValidator");
         validatorField.setAccessible(true);
-        @SuppressWarnings("unchecked")
         OAuth2TokenValidator<Jwt> validator = (OAuth2TokenValidator<Jwt>) validatorField.get(built);
         Jwt missing = mock(Jwt.class);
         when(missing.getAudience()).thenReturn(null);
@@ -309,28 +298,31 @@ class DevConnectClientCoverageGapTest {
     @Test
     void concurrentDiscoverySkipsSecondFetch() throws Exception {
         AtomicReference<String> body = new AtomicReference<>("");
-        AtomicInteger hits = new AtomicInteger();
+        final AtomicInteger hits = new AtomicInteger();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();
         String base = "http://127.0.0.1:" + port;
         body.set(discoveryJson(base));
         server.createContext(
                 "/.well-known/openid-configuration",
-                ex -> {
-                    hits.incrementAndGet();
-                    try {
-                        Thread.sleep(800);
-                    } catch (InterruptedException interrupted) {
-                        Thread.currentThread().interrupt();
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange ex) throws IOException {
+                        hits.incrementAndGet();
+                        try {
+                            Thread.sleep(800);
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                        byte[] b = body.get().getBytes(StandardCharsets.UTF_8);
+                        ex.sendResponseHeaders(200, b.length);
+                        ex.getResponseBody().write(b);
+                        ex.close();
                     }
-                    byte[] b = body.get().getBytes(StandardCharsets.UTF_8);
-                    ex.sendResponseHeaders(200, b.length);
-                    ex.getResponseBody().write(b);
-                    ex.close();
                 });
         server.start();
         Clock fixed = Clock.fixed(Instant.now(), ZoneOffset.UTC);
-        DevConnectClient c =
+        final DevConnectClient c =
                 new DevConnectClient(
                         RestClient.builder().build(), new RestTemplate(), props(base), fixed);
         c.discovery();
@@ -338,25 +330,37 @@ class DevConnectClientCoverageGapTest {
         Field clockField = DevConnectClient.class.getDeclaredField("clock");
         clockField.setAccessible(true);
         clockField.set(c, Clock.offset(fixed, java.time.Duration.ofMinutes(6)));
-        CountDownLatch ready = new CountDownLatch(2);
-        CountDownLatch go = new CountDownLatch(1);
+        final CountDownLatch ready = new CountDownLatch(2);
+        final CountDownLatch go = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             Future<?> first =
                     pool.submit(
-                            () -> {
-                                ready.countDown();
-                                go.await();
-                                c.discovery();
-                                return null;
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    ready.countDown();
+                                    try {
+                                        go.await();
+                                        c.discovery();
+                                    } catch (Exception failure) {
+                                        throw new AssertionError(failure);
+                                    }
+                                }
                             });
             Future<?> second =
                     pool.submit(
-                            () -> {
-                                ready.countDown();
-                                go.await();
-                                c.discovery();
-                                return null;
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    ready.countDown();
+                                    try {
+                                        go.await();
+                                        c.discovery();
+                                    } catch (Exception failure) {
+                                        throw new AssertionError(failure);
+                                    }
+                                }
                             });
             assertTrue(ready.await(5, TimeUnit.SECONDS));
             go.countDown();
