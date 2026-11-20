@@ -6,11 +6,11 @@ package dev.jahaziel.spi;
 
 /** Sends messages to users through one channel. */
 @JahazielSpi(version = 1)
-public interface NotificationChannel {
+public abstract class NotificationChannel {
     /**
      * Sends one notification.
      *
      * @param notification the message to send
      */
-    void send(Notification notification);
+    public abstract void send(Notification notification);
 }
