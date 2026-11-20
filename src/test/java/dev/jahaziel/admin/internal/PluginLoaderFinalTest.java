@@ -23,7 +23,7 @@ import java.util.jar.Manifest;
 /** Final gap tests: a real plugin jar on disk starts and stops its provider. */
 class PluginLoaderFinalTest {
     /** Provider loaded from the parent loader; only the services entry lives in the jar. */
-    public static class TestPlugin implements JahazielPlugin {
+    public static class TestPlugin extends JahazielPlugin {
         static final AtomicBoolean STARTED = new AtomicBoolean();
         static final AtomicBoolean STOPPED = new AtomicBoolean();
 
