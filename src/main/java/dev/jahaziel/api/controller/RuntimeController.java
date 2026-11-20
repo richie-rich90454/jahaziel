@@ -10,6 +10,7 @@ import dev.jahaziel.api.dto.WorkspaceDto;
 import dev.jahaziel.authorization.api.AccessDeniedException;
 import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
+import dev.jahaziel.monitoring.api.HourlyRollup;
 import dev.jahaziel.monitoring.api.MetricsService;
 import dev.jahaziel.runtime.api.RuntimeService;
 import dev.jahaziel.workspace.api.WorkspaceService;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** User-facing runtime lifecycle and metrics endpoints. */
 @RestController
@@ -107,7 +110,21 @@ public class RuntimeController {
     @GetMapping("/workspaces/{id}/metrics")
     public MetricsDto metrics(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = require(principal, id, "read");
-        return metrics.latest(workspace).map(MetricsDto::from).orElseGet(MetricsDto::zero);
+        return metrics.latest(workspace)
+                .map(
+                        new Function<HourlyRollup, MetricsDto>() {
+                            @Override
+                            public MetricsDto apply(HourlyRollup rollup) {
+                                return MetricsDto.from(rollup);
+                            }
+                        })
+                .orElseGet(
+                        new Supplier<MetricsDto>() {
+                            @Override
+                            public MetricsDto get() {
+                                return MetricsDto.zero();
+                            }
+                        });
     }
 
     private WorkspaceId require(Principal principal, UUID id, String permission) {
