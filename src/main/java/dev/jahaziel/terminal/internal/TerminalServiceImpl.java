@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** Live terminal sessions backed by PTYs in the workspace home directory. */
-public final class TerminalServiceImpl implements TerminalService {
+public final class TerminalServiceImpl extends TerminalService {
     private static final int MAX_SESSIONS = 128;
     private static final int MAX_SESSIONS_PER_WORKSPACE = 8;
     private static final int MAX_HISTORY_CHARS = 64 * 1024;
@@ -116,10 +116,13 @@ public final class TerminalServiceImpl implements TerminalService {
         if (sessions.size() >= MAX_SESSIONS) {
             throw new TerminalLimitException("terminal session limit reached");
         }
-        if (sessions.values().stream()
-                        .filter(state -> state.session.workspaceId().equals(workspaceId))
-                        .count()
-                >= MAX_SESSIONS_PER_WORKSPACE) {
+        int workspaceSessions = 0;
+        for (State state : sessions.values()) {
+            if (state.session.workspaceId().equals(workspaceId)) {
+                workspaceSessions++;
+            }
+        }
+        if (workspaceSessions >= MAX_SESSIONS_PER_WORKSPACE) {
             throw new TerminalLimitException("workspace terminal session limit reached");
         }
         TerminalSession session =
@@ -146,11 +149,23 @@ public final class TerminalServiceImpl implements TerminalService {
             Thread.ofPlatform()
                     .daemon()
                     .name("terminal-output-" + session.id().value())
-                    .start(() -> readOutput(state));
+                    .start(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    readOutput(state);
+                                }
+                            });
             Thread.ofPlatform()
                     .daemon()
                     .name("terminal-exit-" + session.id().value())
-                    .start(() -> watchExit(state));
+                    .start(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    watchExit(state);
+                                }
+                            });
         }
         return session;
     }
@@ -172,10 +187,13 @@ public final class TerminalServiceImpl implements TerminalService {
     @Override
     public List<TerminalSession> listByWorkspace(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        return sessions.values().stream()
-                .map(state -> state.session)
-                .filter(session -> session.workspaceId().equals(workspaceId))
-                .toList();
+        List<TerminalSession> result = new ArrayList<TerminalSession>();
+        for (State state : sessions.values()) {
+            if (state.session.workspaceId().equals(workspaceId)) {
+                result.add(state.session);
+            }
+        }
+        return result;
     }
 
     @Override
@@ -199,7 +217,12 @@ public final class TerminalServiceImpl implements TerminalService {
             }
         }
         state.session.recordActivity();
-        return () -> state.listeners.remove(output);
+        return new AutoCloseable() {
+            @Override
+            public void close() {
+                state.listeners.remove(output);
+            }
+        };
     }
 
     @Override
@@ -235,11 +258,15 @@ public final class TerminalServiceImpl implements TerminalService {
     public synchronized void closeByWorkspace(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
         stoppingWorkspaces.add(workspaceId);
-        sessions.values().stream()
-                .filter(state -> state.session.workspaceId().equals(workspaceId))
-                .map(state -> state.session.id())
-                .toList()
-                .forEach(this::closeIfPresent);
+        List<TerminalSessionId> matching = new ArrayList<TerminalSessionId>();
+        for (State state : sessions.values()) {
+            if (state.session.workspaceId().equals(workspaceId)) {
+                matching.add(state.session.id());
+            }
+        }
+        for (TerminalSessionId id : matching) {
+            closeIfPresent(id);
+        }
     }
 
     @Override
@@ -249,7 +276,9 @@ public final class TerminalServiceImpl implements TerminalService {
 
     @Override
     public void closeAll() {
-        List.copyOf(sessions.keySet()).forEach(this::closeIfPresent);
+        for (TerminalSessionId id : new ArrayList<TerminalSessionId>(sessions.keySet())) {
+            closeIfPresent(id);
+        }
     }
 
     private State stateOf(TerminalSessionId id) {
@@ -262,7 +291,7 @@ public final class TerminalServiceImpl implements TerminalService {
 
     private void requireWorkspaceAvailable(WorkspaceId workspaceId) {
         if (workspaces == null) return;
-        var workspace = workspaces.get(workspaceId);
+        dev.jahaziel.workspace.domain.Workspace workspace = workspaces.get(workspaceId);
         WorkspaceState state = workspace.state();
         if (stoppingWorkspaces.contains(workspaceId)
                 || !(state instanceof WorkspaceState.Ready
@@ -337,7 +366,7 @@ public final class TerminalServiceImpl implements TerminalService {
     }
 
     private static void readOutput(State state) {
-        try (var reader =
+        try (InputStreamReader reader =
                 new InputStreamReader(state.process.getInputStream(), StandardCharsets.UTF_8)) {
             char[] buffer = new char[4096];
             int count;
@@ -371,13 +400,14 @@ public final class TerminalServiceImpl implements TerminalService {
     private synchronized void reapIdle() {
         Instant cutoff = Instant.now().minus(IDLE_TTL);
         List<TerminalSessionId> idle = new ArrayList<>();
-        sessions.forEach(
-                (id, state) -> {
-                    if (state.session.lastActivityAt().isBefore(cutoff)) {
-                        idle.add(id);
-                    }
-                });
-        idle.forEach(this::closeIfPresent);
+        for (Map.Entry<TerminalSessionId, State> entry : sessions.entrySet()) {
+            if (entry.getValue().session.lastActivityAt().isBefore(cutoff)) {
+                idle.add(entry.getKey());
+            }
+        }
+        for (TerminalSessionId id : idle) {
+            closeIfPresent(id);
+        }
     }
 
     private void closeIfPresent(TerminalSessionId id) {
@@ -396,11 +426,15 @@ public final class TerminalServiceImpl implements TerminalService {
         ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
         List<ProcessHandle> descendants =
                 handle == null ? List.of() : handle.descendants().toList();
-        descendants.forEach((ProcessHandle descendant) -> descendant.destroy());
+        for (ProcessHandle descendant : descendants) {
+            descendant.destroy();
+        }
         process.destroy();
         try {
             if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                descendants.forEach((ProcessHandle descendant) -> descendant.destroyForcibly());
+                for (ProcessHandle descendant : descendants) {
+                    descendant.destroyForcibly();
+                }
                 process.destroyForcibly();
             }
         } catch (InterruptedException failure) {
@@ -460,14 +494,13 @@ public final class TerminalServiceImpl implements TerminalService {
                 }
             }
             StreamEvent outputEvent = event;
-            listeners.forEach(
-                    listener -> {
-                        try {
-                            listener.accept(outputEvent);
-                        } catch (RuntimeException disconnected) {
-                            listeners.remove(listener);
-                        }
-                    });
+            for (Consumer<StreamEvent> listener : listeners) {
+                try {
+                    listener.accept(outputEvent);
+                } catch (RuntimeException disconnected) {
+                    listeners.remove(listener);
+                }
+            }
         }
 
         private void emit(String output) {
