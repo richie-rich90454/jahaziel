@@ -44,13 +44,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /** Installs the pinned OpenCode CLI into one user's application-managed tool directory. */
 @Service
-public final class AgentToolServiceImpl implements AgentToolService {
+public final class AgentToolServiceImpl extends AgentToolService {
     private static final Logger log = LoggerFactory.getLogger(AgentToolServiceImpl.class);
     private static final String TOOL_ID = "opencode";
     private static final String VERSION = "1.19.5";
@@ -226,7 +227,13 @@ public final class AgentToolServiceImpl implements AgentToolService {
         try {
             Thread.ofVirtual()
                     .name("agent-tool-opencode-" + userId.value())
-                    .start(() -> install(userId, architecture, artifact));
+                    .start(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    install(userId, architecture, artifact);
+                                }
+                            });
         } catch (RuntimeException failure) {
             installations.remove(userId.value());
             return remember(
@@ -767,7 +774,7 @@ public final class AgentToolServiceImpl implements AgentToolService {
                 || Files.isSymbolicLink(staging)) {
             return;
         }
-        try (var children = Files.list(staging)) {
+        try (Stream<Path> children = Files.list(staging)) {
             for (Path child : children.toList()) {
                 if (Files.isRegularFile(child, LinkOption.NOFOLLOW_LINKS)
                         && !Files.isSymbolicLink(child)) {
@@ -981,15 +988,94 @@ public final class AgentToolServiceImpl implements AgentToolService {
         }
     }
 
-    private record Artifact(
-            String url,
-            String sha256,
-            long downloadBytes,
-            String executableEntry,
-            String format,
-            long expandedBytes) {
+    private static final class Artifact {
+        private final String url;
+        private final String sha256;
+        private final long downloadBytes;
+        private final String executableEntry;
+        private final String format;
+        private final long expandedBytes;
+
+        Artifact(
+                String url,
+                String sha256,
+                long downloadBytes,
+                String executableEntry,
+                String format,
+                long expandedBytes) {
+            this.url = url;
+            this.sha256 = sha256;
+            this.downloadBytes = downloadBytes;
+            this.executableEntry = executableEntry;
+            this.format = format;
+            this.expandedBytes = expandedBytes;
+        }
+
         Artifact(String url, String sha256, long downloadBytes, String executableEntry) {
             this(url, sha256, downloadBytes, executableEntry, "tar.gz", MAX_EXECUTABLE_BYTES);
+        }
+
+        String url() {
+            return url;
+        }
+
+        String sha256() {
+            return sha256;
+        }
+
+        long downloadBytes() {
+            return downloadBytes;
+        }
+
+        String executableEntry() {
+            return executableEntry;
+        }
+
+        String format() {
+            return format;
+        }
+
+        long expandedBytes() {
+            return expandedBytes;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Artifact other = (Artifact) o;
+            return downloadBytes == other.downloadBytes
+                    && expandedBytes == other.expandedBytes
+                    && Objects.equals(url, other.url)
+                    && Objects.equals(sha256, other.sha256)
+                    && Objects.equals(executableEntry, other.executableEntry)
+                    && Objects.equals(format, other.format);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(url, sha256, downloadBytes, executableEntry, format, expandedBytes);
+        }
+
+        @Override
+        public String toString() {
+            return "Artifact[url="
+                    + url
+                    + ", sha256="
+                    + sha256
+                    + ", downloadBytes="
+                    + downloadBytes
+                    + ", executableEntry="
+                    + executableEntry
+                    + ", format="
+                    + format
+                    + ", expandedBytes="
+                    + expandedBytes
+                    + "]";
         }
     }
 
