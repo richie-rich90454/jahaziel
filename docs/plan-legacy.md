@@ -1,13 +1,17 @@
 <!-- Copyright 2026 The Jahaziel Authors. SPDX-License-Identifier: Apache-2.0. -->
 
-# Historical plan: the original all-platform design
+# Historical plan: the original all-platform design (RETIRED)
 
-> This plan is retained for design history only. It is superseded by the
-> [current Linux remote source IDE contract](./plan.md). Its Windows/macOS
-> server, VS Code REH, and six-target requirements no longer apply.
+> **RETIRED — SUPERSEDED — DO NOT USE.** This plan is retained for design
+> history only. The authoritative contract is the
+> [current Linux remote source IDE plan](./plan.md), with live status in the
+> [release acceptance record](./operations/release-acceptance.md). Its
+> Windows/macOS server, VS Code REH bundling, six-target matrix, and Phase 9
+> manual-acceptance requirements no longer apply.
 
 The original proposal below is preserved verbatim apart from this status
-notice and title. Do not use it to guide current implementation or releases.
+notice and title. Do not use it to guide current implementation or releases,
+and do not treat any of its phases or done-when checks as open work.
 
 ---
 

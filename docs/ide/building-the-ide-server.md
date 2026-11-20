@@ -7,8 +7,10 @@
 
 # IDE server build (retired)
 
-> **Legacy reference — superseded and not part of the shipped product.** Jahaziel no longer builds
-> or bundles a VS Code-derived IDE server. Kept for historical context only.
+> **Retired legacy reference — superseded by the SolidJS workbench and the
+> modular monolith.** Not part of the shipped product. Jahaziel no longer
+> builds or bundles a VS Code-derived IDE server. Kept for historical context
+> only.
 
 Jahaziel no longer builds or embeds a VS Code-derived remote extension host.
 The tracked `ide/` fork sources, build scripts, patch stack, and bundled REH
@@ -22,5 +24,7 @@ single jar by the repository-local Windows PowerShell workflow:
 .\dev.ps1 build
 ```
 
-See [the current workbench architecture](../architecture/ide.md),
-[the product plan](../plan.md), and [the development guide](../guide/quick-start.md).
+See [the architecture overview](../architecture/overview.md),
+[workspaces](../architecture/workspaces.md),
+[the product plan](../plan.md), and
+[the development guide](../guide/quick-start.md).

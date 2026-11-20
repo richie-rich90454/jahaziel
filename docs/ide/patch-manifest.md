@@ -7,7 +7,8 @@
 
 # IDE patch manifest
 
-> **Legacy reference — superseded and not part of the shipped product.** This manifest documents a
+> **Retired legacy reference — superseded by the SolidJS workbench and the
+> modular monolith.** Not part of the shipped product. This manifest documents a
 > retired IDE-server patching process. Kept for historical context only.
 
 > Historical record only. The tracked VS Code fork build tree and patch stack
@@ -105,5 +106,8 @@ rebases.
 | 0017 | Strip Microsoft/GitHub auth extensions | `patch-smoke.sh` (0009-*, 0017-*) |
 | 0018 | Minify-safe regex escapes for upstream non-ASCII literals | `patch-smoke.sh` (0018-*) |
 
-See `docs/ide/building-the-ide-server.md` for how to run the build.
+No current build uses these patches. For the maintained workbench, see
+[the architecture overview](../architecture/overview.md),
+[workspaces](../architecture/workspaces.md), and
+[the current plan](../plan.md).
 

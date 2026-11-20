@@ -2,6 +2,26 @@
 
 # Linux remote source IDE: product contract and delivery plan
 
+## Status (current)
+
+This document is the current product contract. Delivery status is tracked in the
+[release acceptance record](./operations/release-acceptance.md):
+
+- **Delivered and CI-verified:** the single-jar build, browser workflow, files
+  with ETags, terminals and tasks, path-based previews, operations, and the
+  automated deployment walkthrough on Linux x64/arm64, macOS x64/arm64 and
+  Windows x64.
+- **Open external gates:** the physical iPad browser matrix and live real-host
+  deployment with identity-provider MFA. These are blockers, not follow-up
+  work; the repository is not release-accepted until both are signed off.
+- **Superseded:** the earlier six-target, VS Code REH server design in the
+  [retired historical plan](./plan-legacy.md) is not the product. Items tagged
+  `(superseded)` below are design history, not release requirements.
+
+The [delivery sequence](#delivery-sequence) records work now delivered. The
+[acceptance gates](#acceptance-gates) below are the release contract; their
+live status is in the record linked above.
+
 ## Product contract
 
 Jahaziel is a self-hosted, browser-based source IDE for trusted users who need to work on code stored on a self-hosted server. iPad is the primary client: Safari, Chrome, and Edge on the current and two previous major iPadOS versions, with touch-only and keyboard/trackpad interaction in portrait, landscape, Split View, and Stage Manager. Windows, macOS, and Linux desktops are also browser clients and may host the server. The same jar targets Linux x64 and arm64, macOS, and Windows; Ubuntu 26.04 LTS on Linux is the CI-verified reference host, and native real-host acceptance on macOS and Windows is still open.
@@ -35,6 +55,11 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 
 ## Delivery sequence
 
+> **Status:** these stages are the delivery record, not pending work. Items
+> tagged `(superseded)` were replaced by the final implementation; see the
+> [current status](#status-current) and the
+> [release acceptance record](./operations/release-acceptance.md#gate-status).
+
 ### 1. Build and release foundation
 
 1. Pin the frontend dependencies and commit a lockfile. Build only `web/src` into static assets and package those assets into the jar; remove the separate hand-maintained browser JavaScript.
@@ -45,11 +70,11 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 
 ### 2. Runtime lifecycle and storage
 
-1. Remove REH extraction and IDE process startup from normal startup and workspace lifecycle paths. Keep the existing ignored upstream IDE build artifacts untouched.
+1. Remove REH extraction and IDE process startup from normal startup and workspace lifecycle paths. Keep the existing ignored upstream IDE build artifacts untouched. `(delivered — the packaged jar serves a lightweight in-app workbench and bundles no VS Code server)`
 2. Keep one local backend implementation. Starting a workspace prepares its home and changes lifecycle state; it does not launch `sleep infinity`, a ping process, or an undocumented runtime descriptor.
 3. Persist one home per workspace. Migrate legacy owner-shared homes conservatively, retain the source until migration is verified, and expose an actionable failure instead of silently resetting a workspace.
 4. Reconcile persisted `preparing`, `booting`, and stale live states at startup. Mark interrupted operations recoverable, clear transient sessions, and report a correlation identifier and reason.
-5. Describe native process mode plainly in the threat model. Verify Firecracker as a separate backend; do not imply that KVM is configured merely because its backend class exists.
+5. Describe native process mode plainly in the threat model. Verify Firecracker as a separate backend; do not imply that KVM is configured merely because its backend class exists. `(superseded — the local backend is the only selectable backend; Firecracker verification is deferred)`
 
 ### 3. Workspace creation and files
 
@@ -112,6 +137,12 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 
 ## Acceptance gates
 
+> **Status:** Gate 1 (CI green on all release targets) and Gate 2 (automated
+> deployment walkthrough) are passing. Gate 3 (physical iPad browser matrix)
+> and Gate 4 (live real-host deployment with IdP MFA) remain open external
+> gates. See the [release acceptance record](./operations/release-acceptance.md#gate-status)
+> for evidence and sign-off.
+
 1. On the Windows development machine, bootstrap and build use existing JDK/Node/package-manager runtimes, native PowerShell, and only repository-local dependency stores. No WSL, PATH edits, global toolchain installs, or service installation occur.
 2. Native Linux x64 and arm64 CI build and launch the packaged jar. The arm64 job must run on a native `aarch64` runner and pass before a release is signed off.
 3. The packaged browser workflow covers login, template materialization, setup status, file edit/save/conflict, an explicitly enabled language diagnostic, terminal stream/resize/close, run task output/exit/stop, preview authorization, and restart recovery. After an abrupt server stop during a running task, the workbench restores its latest status, bounded output, and interruption reason, and startup stops only the recorded process session.
@@ -121,4 +152,14 @@ OpenCode is the only coding-agent CLI in the current product catalog. It is mana
 
 ## Explicitly deferred
 
-Real-host acceptance on native macOS and Windows servers; workbench panels for the backend-only collaboration, agent, agent-tool, data-tool, Club, observability, and compliance modules; VS Code extension compatibility; extension marketplace; real-time collaborative editing UI; hostile multi-tenant isolation; automatic language-pack downloads; automatic tool/cache cleanup; and Firecracker release claims before native verification.
+Real-host acceptance on native macOS and Windows servers; the physical iPad
+browser matrix (open gate — see [status](#status-current)); VS Code extension
+compatibility; extension marketplace; real-time collaborative editing UI;
+hostile multi-tenant isolation; automatic language-pack downloads; automatic
+tool/cache cleanup; and Firecracker release claims before native verification.
+Workbench panels for collaboration, agent, agent-tool, data-tool, Club,
+observability, and compliance have been delivered.
+
+The superseded design history lives in [plan-legacy.md](./plan-legacy.md),
+which is explicitly retired and must not be used to guide implementation or
+releases.

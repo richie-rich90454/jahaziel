@@ -9,16 +9,31 @@
 
 A lightweight, self-hosted browser IDE for trusted users working with code on their own server.
 
-Jahaziel keeps source files on the server and serves an editor, authenticated terminal, run tasks, and workspace previews from one Java application. The browser workbench uses SolidJS, DaisyUI, CodeMirror 6, and xterm.js. The same jar runs on Linux, macOS, and Windows; Linux x64 and arm64 are the CI-verified targets, and real-host acceptance on the other OSes is still open.
+Jahaziel keeps source files on the server and serves an editor, authenticated terminal, run tasks, and workspace previews from one Java application. The browser workbench uses SolidJS, DaisyUI, CodeMirror 6, and xterm.js. One jar, one service port, and all state below the configured data directory. The same jar runs on Linux, macOS, and Windows; Linux x64 and arm64 are the CI-verified targets, and real-host acceptance on the other OSes is still open.
 
-## Start here
+## Docs map
 
-- [Deploy on a Linux server](./deployment/single-server.md) for the complete jar, identity-provider, systemd, HTTPS, backup, and upgrade walkthrough, plus launchd and Windows service templates.
-- [Try the quick start](./guide/quick-start.md) with an existing jar or local demo.
-- [Use the workbench](./guide/using-jahaziel.md) to create a workspace, edit and save files, run commands, and preview a project.
-- [Integrate with basis-auth](./basis_auth_setup_guide.md) for the downstream IdP contract: endpoints, token claims, backchannel logout, scopes, and secret rotation.
-- [Check platforms and supervisors](./guide/platforms.md) for per-OS process and port behavior.
-- [Review the current product plan](./plan.md), [release acceptance checklist](./operations/acceptance.md) and [release acceptance record](./operations/release-acceptance.md).
+### Start here
+
+- [Quick start](./guide/quick-start.md) — boot an existing jar or the local demo.
+- [Use the workbench](./guide/using-jahaziel.md) — workspaces, files, tasks, terminal, previews.
+- [Configuration](./guide/configuration.md) — credentials, providers, secret rotation.
+- [basis-auth integration](./basis_auth_setup_guide.md) — the downstream IdP contract: endpoints, claims, backchannel, registration, error codes.
+- [Platforms](./guide/platforms.md) — per-OS process and port behavior; [templates](./guide/templates.md), [demo mode](./guide/demo-mode.md), [share links](./guide/share-links.md).
+
+### Deploy and operate
+
+- [Deploy on a Linux server](./deployment/single-server.md) — jar, identity provider, systemd, HTTPS, backup and upgrade, plus launchd and Windows service templates.
+- [Update and rollback](./operations/update-and-rollback.md) — stage, apply, and revert a jar update.
+- [Bugfix workflow](./operations/bugfix-workflow.md) — take a production bug through staging to production.
+- [Operations runbooks](./operations/README.md) — health, backup, reset, verification, restore drills.
+- [Reference](./reference/cli.md) — CLI, [environment variables](./reference/env-vars.md), [error codes](./reference/errors.md), [ports](./reference/ports.md).
+
+### Plan and acceptance
+
+- [Current product plan](./plan.md) — status, delivered work, and remaining external gates.
+- [Release acceptance checklist](./operations/acceptance.md) and [release acceptance record](./operations/release-acceptance.md) — gate status and sign-off.
+- [Historical plan](./plan-legacy.md) — **retired**; design history only.
 
 ## What it includes
 
@@ -29,12 +44,13 @@ Jahaziel keeps source files on the server and serves an editor, authenticated te
 - Pinned language tools that administrators or workspace owners opt into.
 - Operations for health checks, logs, diagnostics, backup, and restore.
 
-Additional delivered modules are backend-only at this stage (domain/service
-layer, no dedicated workbench panel): collaboration (`dev.jahaziel.collaboration`),
+Additional delivered modules have authenticated workbench panels in `web/src`
+alongside their domain/service layers: collaboration (`dev.jahaziel.collaboration`),
 agent assistant (`dev.jahaziel.agent`) and agent tools (`dev.jahaziel.agenttools`), data tools
 (`dev.jahaziel.datatools`), Club (`dev.jahaziel.club`), observability
 (`dev.jahaziel.monitoring`), and compliance (`dev.jahaziel.audit`,
-`dev.jahaziel.policy`, `dev.jahaziel.administration`).
+`dev.jahaziel.policy`, `dev.jahaziel.administration`). See
+[Workspaces](architecture/workspaces.md) for the panel map.
 
 ## Trust boundary
 
