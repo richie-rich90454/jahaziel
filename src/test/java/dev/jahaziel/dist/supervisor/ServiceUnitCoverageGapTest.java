@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -41,7 +42,13 @@ class ServiceUnitCoverageGapTest {
     @Test
     void timerFileUnreadable(@TempDir Path dir) {
         assertThrows(
-                java.io.UncheckedIOException.class, () -> ServiceUnit.timerIntervalSeconds(dir));
+                java.io.UncheckedIOException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceUnit.timerIntervalSeconds(dir);
+                    }
+                });
     }
 
     @Test
@@ -60,14 +67,35 @@ class ServiceUnitCoverageGapTest {
     void parseWithoutSuffixAndUnreadable(@TempDir Path dir) throws IOException {
         Path file = write(dir, "custom", "[Service]\nExecStart=/bin/true\n");
         assertEquals("custom", ServiceUnit.parse(file).name());
-        assertThrows(NullPointerException.class, () -> ServiceUnit.parse(null));
-        assertThrows(java.io.UncheckedIOException.class, () -> ServiceUnit.parse(dir));
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceUnit.parse(null);
+                    }
+                });
+        assertThrows(
+                java.io.UncheckedIOException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceUnit.parse(dir);
+                    }
+                });
     }
 
     @Test
     void parseMissingExecStartThrows(@TempDir Path dir) throws IOException {
         Path file = write(dir, "empty.service", "[Service]\nUser=root\n");
-        assertThrows(IllegalArgumentException.class, () -> ServiceUnit.parse(file));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        ServiceUnit.parse(file);
+                    }
+                });
     }
 
     @Test
