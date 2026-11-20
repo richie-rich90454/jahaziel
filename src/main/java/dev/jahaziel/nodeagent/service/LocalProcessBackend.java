@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * records lifecycle state only; processes are created only for an explicit terminal or run task.
  * Processes share the Jahaziel service account and are not a hostile multi-tenant boundary.
  */
-public final class LocalProcessBackend implements NodeBackend {
+public final class LocalProcessBackend extends NodeBackend {
     private final WorkspaceStorage storage;
     private final ConcurrentHashMap<UUID, WorkspaceHandle> prepared = new ConcurrentHashMap<>();
     private final Set<UUID> running = ConcurrentHashMap.newKeySet();
