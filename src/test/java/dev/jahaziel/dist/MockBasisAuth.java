@@ -13,6 +13,7 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
@@ -63,11 +64,46 @@ final class MockBasisAuth implements AutoCloseable {
             throw new IOException("cannot generate the test signing key", failure);
         }
         MockBasisAuth idp = new MockBasisAuth(server, signingKey, clientId, clientSecret);
-        server.createContext("/.well-known/openid-configuration", idp::discovery);
-        server.createContext("/authorize", idp::authorize);
-        server.createContext("/token", idp::token);
-        server.createContext("/userinfo", idp::userinfo);
-        server.createContext("/jwks", idp::jwks);
+        server.createContext(
+                "/.well-known/openid-configuration",
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        idp.discovery(exchange);
+                    }
+                });
+        server.createContext(
+                "/authorize",
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        idp.authorize(exchange);
+                    }
+                });
+        server.createContext(
+                "/token",
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        idp.token(exchange);
+                    }
+                });
+        server.createContext(
+                "/userinfo",
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        idp.userinfo(exchange);
+                    }
+                });
+        server.createContext(
+                "/jwks",
+                new HttpHandler() {
+                    @Override
+                    public void handle(HttpExchange exchange) throws IOException {
+                        idp.jwks(exchange);
+                    }
+                });
         server.start();
         return idp;
     }
@@ -262,7 +298,114 @@ final class MockBasisAuth implements AutoCloseable {
         server.stop(0);
     }
 
-    private record Pending(String challenge, String redirectUri, Identity identity, String nonce) {}
+    private static final class Pending {
+        private final String challenge;
+        private final String redirectUri;
+        private final Identity identity;
+        private final String nonce;
 
-    record Identity(String sub, String email, String name) {}
+        private Pending(String challenge, String redirectUri, Identity identity, String nonce) {
+            this.challenge = challenge;
+            this.redirectUri = redirectUri;
+            this.identity = identity;
+            this.nonce = nonce;
+        }
+
+        private String challenge() {
+            return challenge;
+        }
+
+        private String redirectUri() {
+            return redirectUri;
+        }
+
+        private Identity identity() {
+            return identity;
+        }
+
+        private String nonce() {
+            return nonce;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Pending)) {
+                return false;
+            }
+            Pending that = (Pending) other;
+            return java.util.Objects.equals(challenge, that.challenge)
+                    && java.util.Objects.equals(redirectUri, that.redirectUri)
+                    && java.util.Objects.equals(identity, that.identity)
+                    && java.util.Objects.equals(nonce, that.nonce);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(challenge, redirectUri, identity, nonce);
+        }
+
+        @Override
+        public String toString() {
+            return "Pending[challenge="
+                    + challenge
+                    + ", redirectUri="
+                    + redirectUri
+                    + ", identity="
+                    + identity
+                    + ", nonce="
+                    + nonce
+                    + "]";
+        }
+    }
+
+    static final class Identity {
+        private final String sub;
+        private final String email;
+        private final String name;
+
+        Identity(String sub, String email, String name) {
+            this.sub = sub;
+            this.email = email;
+            this.name = name;
+        }
+
+        String sub() {
+            return sub;
+        }
+
+        String email() {
+            return email;
+        }
+
+        String name() {
+            return name;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Identity)) {
+                return false;
+            }
+            Identity that = (Identity) other;
+            return java.util.Objects.equals(sub, that.sub)
+                    && java.util.Objects.equals(email, that.email)
+                    && java.util.Objects.equals(name, that.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(sub, email, name);
+        }
+
+        @Override
+        public String toString() {
+            return "Identity[sub=" + sub + ", email=" + email + ", name=" + name + "]";
+        }
+    }
 }
