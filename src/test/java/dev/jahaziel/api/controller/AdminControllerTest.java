@@ -48,20 +48,36 @@ import java.util.UUID;
 
 /** Endpoints of {@link AdminController} with stubbed services. Standalone MockMvc. */
 class AdminControllerTest {
+
     private MockMvc mvc;
 
     private AdminService admin;
+
     private AuthorizationService auth;
+
     private UserService users;
+
     private WorkspaceService workspaces;
+
     private NodeService nodes;
+
     private AuditService audit;
+
     private PolicyService policies;
+
     private MetricsService metrics;
+
     private WorkspaceDtoFactory dtos;
 
     private final UserId adminId = new UserId(UUID.randomUUID());
-    private final Principal principal = () -> adminId.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return adminId.value().toString();
+                }
+            };
 
     @BeforeEach
     void setUp() {
