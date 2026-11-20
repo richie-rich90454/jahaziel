@@ -27,8 +27,12 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -61,7 +65,15 @@ class SyncServerTest {
     void tearDown() throws Exception {
         server.stop();
         try (Stream<Path> walk = Files.walk(root)) {
-            walk.sorted(Comparator.reverseOrder()).forEach(SyncServerTest::deleteQuietly);
+            List<Path> paths = new ArrayList<>();
+            Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
+            Collections.sort(paths, Comparator.reverseOrder());
+            for (Path path : paths) {
+                deleteQuietly(path);
+            }
         }
     }
 
@@ -72,12 +84,24 @@ class SyncServerTest {
         SyncServer reloaded = new SyncServer(0, root.resolve("state"));
         assertEquals(secret, reloaded.secretFor(workspaceId));
         server.deregister(workspaceId);
-        assertThrows(IllegalArgumentException.class, () -> server.secretFor(workspaceId));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.secretFor(workspaceId);
+                    }
+                });
     }
 
     @Test
     void secretForUnknownThrows() {
-        assertThrows(IllegalArgumentException.class, () -> server.secretFor(UUID.randomUUID()));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.secretFor(UUID.randomUUID());
+                    }
+                });
     }
 
     @Test
@@ -217,7 +241,13 @@ class SyncServerTest {
 
     @Test
     void startTwiceThrows() {
-        assertThrows(IllegalStateException.class, server::start);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.start();
+                    }
+                });
     }
 
     @Test
@@ -225,17 +255,53 @@ class SyncServerTest {
         try (Session session = open(workspaceId, server.secretFor(workspaceId))) {
             session.send(Map.of("op", "frobnicate"));
             assertEquals(false, session.frame().get("ok"));
-            assertThrows(EOFException.class, session::frame);
+            assertThrows(
+                    EOFException.class,
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            session.frame();
+                        }
+                    });
         }
     }
 
     @Test
     void registerValidates() {
-        assertThrows(NullPointerException.class, () -> server.register(null, home, 1));
-        assertThrows(NullPointerException.class, () -> server.register(workspaceId, null, 1));
-        assertThrows(IllegalArgumentException.class, () -> server.register(workspaceId, home, -1));
-        assertThrows(IllegalArgumentException.class, () -> new SyncServer(-1, root));
-        assertThrows(NullPointerException.class, () -> new SyncServer(0, null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.register(null, home, 1);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.register(workspaceId, null, 1);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        server.register(workspaceId, home, -1);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SyncServer(-1, root);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SyncServer(0, null);
+                    }
+                });
     }
 
     private static void write(Path path, String content) throws IOException {
