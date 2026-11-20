@@ -10,7 +10,7 @@ import dev.jahaziel.plugin.PluginDescriptor;
 
 import java.util.Map;
 
-/** Contract for an authentication provider. Abstract class, no interface keyword. */
+/** Contract for an authentication provider, expressed as an abstract class. */
 public abstract class AuthProviderPlugin extends Plugin {
     protected AuthProviderPlugin(PluginDescriptor descriptor) {
         super(descriptor);
