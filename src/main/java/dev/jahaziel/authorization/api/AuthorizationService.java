@@ -11,7 +11,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
  * Workspace access decisions. Administrators may do anything; owners hold every permission on their
  * workspaces; everyone else needs an explicit grant.
  */
-public interface AuthorizationService {
+public abstract class AuthorizationService {
     /**
      * Checks a workspace permission.
      *
@@ -20,7 +20,7 @@ public interface AuthorizationService {
      * @param workspace the targeted workspace
      * @return true when the action is allowed
      */
-    boolean isAllowed(UserId user, String permission, WorkspaceId workspace);
+    public abstract boolean isAllowed(UserId user, String permission, WorkspaceId workspace);
 
     /**
      * Checks an administrator role.
@@ -28,5 +28,5 @@ public interface AuthorizationService {
      * @param user the acting user
      * @return true when the user holds the administrator role
      */
-    boolean isAdmin(UserId user);
+    public abstract boolean isAdmin(UserId user);
 }
