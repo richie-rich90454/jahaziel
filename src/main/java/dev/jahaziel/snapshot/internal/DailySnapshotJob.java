@@ -9,6 +9,7 @@ import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -16,7 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 /** Daily automatic snapshots of every workspace. Platform-managed, off quota. */
-public final class DailySnapshotJob implements PlatformJob {
+public final class DailySnapshotJob extends PlatformJob {
     private static final DateTimeFormatter TAG =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm").withZone(ZoneOffset.UTC);
 
@@ -39,7 +40,7 @@ public final class DailySnapshotJob implements PlatformJob {
     public void run(JobContext context) {
         String tag = "auto-" + TAG.format(context.firedAt());
         RuntimeException first = null;
-        for (var view : workspaces.describeAll()) {
+        for (WorkspaceView view : workspaces.describeAll()) {
             try {
                 snapshots.create(view.workspace().id(), tag, SnapshotKind.AUTO, "system");
             } catch (RuntimeException failure) {
