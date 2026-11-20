@@ -12,11 +12,13 @@ import dev.jahaziel.node.domain.NodeId;
 import dev.jahaziel.node.persistence.NodeEntity;
 import dev.jahaziel.node.persistence.NodeRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /** Database-backed nodes. */
-public final class NodeServiceImpl implements NodeService {
+public final class NodeServiceImpl extends NodeService {
     private final NodeRepository nodes;
 
     /**
@@ -49,13 +51,24 @@ public final class NodeServiceImpl implements NodeService {
     public Node get(NodeId id) {
         Objects.requireNonNull(id, "id");
         NodeEntity row =
-                nodes.findById(id.value()).orElseThrow(() -> new NodeNotFoundException(id));
+                nodes.findById(id.value())
+                        .orElseThrow(
+                                new Supplier<NodeNotFoundException>() {
+                                    @Override
+                                    public NodeNotFoundException get() {
+                                        return new NodeNotFoundException(id);
+                                    }
+                                });
         return NodeMapper.toDomain(row);
     }
 
     @Override
     public List<Node> list() {
-        return nodes.findAll().stream().map(NodeMapper::toDomain).toList();
+        List<Node> result = new ArrayList<>();
+        for (NodeEntity row : nodes.findAll()) {
+            result.add(NodeMapper.toDomain(row));
+        }
+        return result;
     }
 
     @Override
