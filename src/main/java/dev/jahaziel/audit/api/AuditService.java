@@ -9,7 +9,7 @@ import dev.jahaziel.audit.domain.AuditRecord;
 import java.util.List;
 
 /** Append-only audit log. Every write extends the hash chain. */
-public interface AuditService {
+public abstract class AuditService {
     /**
      * Persists one event extending the hash chain.
      *
@@ -17,7 +17,7 @@ public interface AuditService {
      * @return the stored event with its chain link
      * @throws NullPointerException when the event is null
      */
-    AuditRecord append(AuditRecord event);
+    public abstract AuditRecord append(AuditRecord event);
 
     /**
      * Returns the newest events first.
@@ -26,5 +26,5 @@ public interface AuditService {
      * @return the newest events first
      * @throws IllegalArgumentException when the limit is not positive
      */
-    List<AuditRecord> latest(int limit);
+    public abstract List<AuditRecord> latest(int limit);
 }
