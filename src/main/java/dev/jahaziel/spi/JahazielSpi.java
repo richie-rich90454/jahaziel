@@ -23,7 +23,7 @@ public @interface JahazielSpi {
     /**
      * Returns the stability of the interface.
      *
-     * @return the stability, stable by default
+     * @return the stability name, stable by default
      */
-    Stability stability() default Stability.STABLE;
+    String stability() default "STABLE";
 }
