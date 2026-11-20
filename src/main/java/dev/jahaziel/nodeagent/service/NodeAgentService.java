@@ -22,6 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,7 +36,7 @@ import java.util.stream.Stream;
  * Node agent facade over the backend and storage plugins. Adds auditing, port registration, and
  * snapshot listing around the plugin calls.
  */
-public final class NodeAgentService implements NodeAgentOperations {
+public final class NodeAgentService extends NodeAgentOperations {
     private final NodeBackend backend;
     private final WorkspaceStorage storage;
     private final AuditSpool spool;
@@ -137,20 +139,26 @@ public final class NodeAgentService implements NodeAgentOperations {
             return List.of();
         }
         try (Stream<Path> entries = Files.list(snaps)) {
-            return entries.filter(Files::isDirectory)
-                    .sorted()
-                    .map(
-                            path -> {
-                                String tag = path.getFileName().toString();
-                                UUID id =
-                                        UUID.nameUUIDFromBytes(
-                                                tag.getBytes(StandardCharsets.UTF_8));
-                                return new SnapshotSummary(
-                                        new SnapshotHandle(id, path, modifiedAt(path)),
-                                        tag,
-                                        modifiedAt(path));
-                            })
-                    .toList();
+            List<Path> paths = new ArrayList<>();
+            Iterator<Path> iterator = entries.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (Files.isDirectory(path)) {
+                    paths.add(path);
+                }
+            }
+            Collections.sort(paths);
+            List<SnapshotSummary> result = new ArrayList<>();
+            for (Path path : paths) {
+                String tag = path.getFileName().toString();
+                UUID id = UUID.nameUUIDFromBytes(tag.getBytes(StandardCharsets.UTF_8));
+                result.add(
+                        new SnapshotSummary(
+                                new SnapshotHandle(id, path, modifiedAt(path)),
+                                tag,
+                                modifiedAt(path)));
+            }
+            return result;
         } catch (IOException failure) {
             throw new UncheckedIOException(
                     "cannot list snapshots for " + handle.workspaceId(), failure);
@@ -208,13 +216,13 @@ public final class NodeAgentService implements NodeAgentOperations {
 
     private void audit(UUID workspaceId, String action, Map<String, String> details) {
         StringBuilder json = new StringBuilder("{\"action\":\"").append(escape(action)).append('"');
-        details.forEach(
-                (key, value) ->
-                        json.append(",\"")
-                                .append(escape(key))
-                                .append("\":\"")
-                                .append(escape(value))
-                                .append('"'));
+        for (Map.Entry<String, String> detail : details.entrySet()) {
+            json.append(",\"")
+                    .append(escape(detail.getKey()))
+                    .append("\":\"")
+                    .append(escape(detail.getValue()))
+                    .append('"');
+        }
         json.append('}');
         spool.append(workspaceId, json.toString());
     }
