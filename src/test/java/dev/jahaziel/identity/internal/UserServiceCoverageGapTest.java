@@ -17,6 +17,7 @@ import dev.jahaziel.identity.persistence.UserGroupEntity;
 import dev.jahaziel.identity.persistence.UserGroupRepository;
 import dev.jahaziel.identity.persistence.UserRoleEntity;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
+import dev.jahaziel.spi.UserIdentity;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,9 +28,9 @@ import java.util.UUID;
 class UserServiceCoverageGapTest {
     @Test
     void toAppUserMapsRoleAndGroupNames() {
-        var users = mock(AppUserRepository.class);
-        var roles = mock(UserRoleRepository.class);
-        var groups = mock(UserGroupRepository.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        UserRoleRepository roles = mock(UserRoleRepository.class);
+        UserGroupRepository groups = mock(UserGroupRepository.class);
         UserServiceImpl svc = new UserServiceImpl(users, roles, groups);
         UUID id = UUID.randomUUID();
         AppUserEntity row = new AppUserEntity();
@@ -45,16 +46,16 @@ class UserServiceCoverageGapTest {
         UserGroupEntity group = new UserGroupEntity();
         group.setId(new UserGroupEntity.Id(id, "devs"));
         when(groups.findByIdUserId(id)).thenReturn(List.of(group));
-        var identity = svc.get(new UserId(id));
+        UserIdentity identity = svc.get(new UserId(id));
         assertEquals(List.of("ROLE_ADMIN"), identity.roles());
         assertEquals(List.of("devs"), identity.groups());
     }
 
     @Test
     void updateStatusAcceptsActiveAndRevoked() {
-        var users = mock(AppUserRepository.class);
-        var roles = mock(UserRoleRepository.class);
-        var groups = mock(UserGroupRepository.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        UserRoleRepository roles = mock(UserRoleRepository.class);
+        UserGroupRepository groups = mock(UserGroupRepository.class);
         UserServiceImpl svc = new UserServiceImpl(users, roles, groups);
         UserId id = new UserId(UUID.randomUUID());
         AppUserEntity row = mock(AppUserEntity.class);
