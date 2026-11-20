@@ -12,12 +12,15 @@ import java.util.UUID;
  * plain HTTP; anything terminating TLS in front of it configures {@code https} here. Port zero is
  * the ephemeral convention used by tests: the OS allocates the port at bind time.
  *
- * @param scheme {@code http} or {@code https}
- * @param domain the public domain the gateway routes, for example {@code code.example.com}
- * @param port the public gateway port, or zero for ephemeral
+ * <p>Components: scheme ({@code http} or {@code https}), domain the public domain the gateway
+ * routes, port the public gateway port or zero for ephemeral.
  */
-public record GatewayEndpoint(String scheme, String domain, int port) {
-    public GatewayEndpoint {
+public final class GatewayEndpoint {
+    private final String scheme;
+    private final String domain;
+    private final int port;
+
+    public GatewayEndpoint(String scheme, String domain, int port) {
         if (!"http".equals(scheme) && !"https".equals(scheme)) {
             throw new IllegalArgumentException("scheme must be http or https");
         }
@@ -28,6 +31,33 @@ public record GatewayEndpoint(String scheme, String domain, int port) {
         if (port < 0 || port > 65535) {
             throw new IllegalArgumentException("port must be between 0 and 65535");
         }
+        this.scheme = scheme;
+        this.domain = domain;
+        this.port = port;
+    }
+
+    public String scheme() {
+        return scheme;
+    }
+
+    public String getScheme() {
+        return scheme;
+    }
+
+    public String domain() {
+        return domain;
+    }
+
+    public String getDomain() {
+        return domain;
+    }
+
+    public int port() {
+        return port;
+    }
+
+    public int getPort() {
+        return port;
     }
 
     /**
@@ -79,5 +109,23 @@ public record GatewayEndpoint(String scheme, String domain, int port) {
             return "";
         }
         return ":" + port;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof GatewayEndpoint)) return false;
+        GatewayEndpoint other = (GatewayEndpoint) o;
+        return port == other.port && scheme.equals(other.scheme) && domain.equals(other.domain);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(scheme, domain, port);
+    }
+
+    @Override
+    public String toString() {
+        return "GatewayEndpoint[scheme=" + scheme + ", domain=" + domain + ", port=" + port + "]";
     }
 }
