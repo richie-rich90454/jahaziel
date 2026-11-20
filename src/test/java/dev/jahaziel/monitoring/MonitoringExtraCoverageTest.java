@@ -41,37 +41,81 @@ class MonitoringExtraCoverageTest {
         Instant t = Instant.now();
         assertThrows(
                 NullPointerException.class,
-                () -> new HourlyRollup(null, t, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(null, t, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new HourlyRollup(w, null, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, -1, 0, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, -1, 0, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, -1, 0, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, -1, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, -1, 0, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, -1, 0, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, -1, 0, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, -1, 0, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, 0, -1, 0, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, 0, -1, 0, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, 0, 0, -1, 0, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, 0, 0, -1, 0, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, -1, 0, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, -1, 0, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, 0, -1, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, 0, -1, 0);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, 0, 0, -1));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HourlyRollup(w, t, 0, 0, 0, 0, 0, 0, 0, 0, -1);
+                    }
+                });
         MetricsDto dto = MetricsDto.from(new HourlyRollup(w, t, 1.5f, 2f, 1, 2, 3, 4, 5, 6, 7));
         assertEquals(1L * 1024 * 1024, dto.memoryUsedBytes());
         assertEquals(2L * 1024 * 1024, dto.memoryPeakBytes());
@@ -100,9 +144,27 @@ class MonitoringExtraCoverageTest {
         when(repo.findLatest(any(), any())).thenReturn(List.of(row));
         assertTrue(svc.latest(id).isPresent());
         verify(repo, times(2)).findLatest(any(UUID.class), any(PageRequest.class));
-        assertThrows(NullPointerException.class, () -> svc.record(null));
-        assertThrows(NullPointerException.class, () -> svc.latest(null));
-        assertThrows(NullPointerException.class, () -> new MetricsServiceImpl(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.record(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        svc.latest(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new MetricsServiceImpl(null);
+                    }
+                });
     }
 
     @Test
@@ -120,12 +182,26 @@ class MonitoringExtraCoverageTest {
         assertEquals(Duration.ofSeconds(10), job.period());
         assertEquals(dev.jahaziel.spi.JobScope.CLUSTER, job.scope());
         assertThrows(
-                NullPointerException.class, () -> new ResourceSamplingJob(null, workspaces, clock));
-        assertThrows(
-                NullPointerException.class, () -> new ResourceSamplingJob(metrics, null, clock));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ResourceSamplingJob(null, workspaces, clock);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new ResourceSamplingJob(metrics, workspaces, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ResourceSamplingJob(metrics, null, clock);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new ResourceSamplingJob(metrics, workspaces, null);
+                    }
+                });
     }
 
     @Test
