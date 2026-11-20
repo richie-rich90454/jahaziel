@@ -13,6 +13,7 @@ import dev.jahaziel.cli.CliTestSupport.Output;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
@@ -48,12 +49,16 @@ class CliInitUpgradeTest {
         for (String key : Cli.BASIS_VARS) {
             assertTrue(body.contains(key + "="), key);
         }
-        String secret =
-                body.lines()
-                        .filter(line -> line.startsWith("BASIS_CLIENT_SECRET="))
-                        .map(line -> line.substring("BASIS_CLIENT_SECRET=".length()))
-                        .findFirst()
-                        .orElseThrow();
+        String secret = null;
+        for (String line : body.split("\\R")) {
+            if (line.startsWith("BASIS_CLIENT_SECRET=")) {
+                secret = line.substring("BASIS_CLIENT_SECRET=".length());
+                break;
+            }
+        }
+        if (secret == null) {
+            throw new java.util.NoSuchElementException("BASIS_CLIENT_SECRET missing");
+        }
         assertEquals(64, secret.length());
         assertEquals(secret.toLowerCase(), secret);
         HexFormat.of().parseHex(secret);
@@ -79,7 +84,14 @@ class CliInitUpgradeTest {
         Files.writeString(file, "x", StandardCharsets.UTF_8);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(buffer, true, StandardCharsets.UTF_8);
-        assertThrows(java.io.IOException.class, () -> Cli.init(file, out, out));
+        assertThrows(
+                java.io.IOException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        Cli.init(file, out, out);
+                    }
+                });
     }
 
     @Test
@@ -139,11 +151,17 @@ class CliInitUpgradeTest {
         assertTrue(output.out().contains("upgraded " + Cli.version() + " -> 2.0.0"));
         assertTrue(output.out().contains("backup: "));
         assertEquals("2.0.0", Cli.jarVersion(live));
-        try (var stream = Files.list(jar)) {
-            assertTrue(
-                    stream.anyMatch(
-                            path -> path.getFileName().toString().startsWith("jahaziel.jar.bak-")));
+        boolean hasBackup = false;
+        try (java.util.stream.Stream<Path> stream = Files.list(jar)) {
+            java.util.Iterator<Path> iterator = stream.iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().getFileName().toString().startsWith("jahaziel.jar.bak-")) {
+                    hasBackup = true;
+                    break;
+                }
+            }
         }
+        assertTrue(hasBackup);
     }
 
     @Test
