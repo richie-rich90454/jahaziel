@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Repository for VirtualMachineEntity persistence. */
+/** Spring Data repository for VirtualMachineEntity; interface is required by Spring Data. */
 public interface VirtualMachineRepository extends JpaRepository<VirtualMachineEntity, UUID> {
     /**
      * Finds the machine of a workspace.
