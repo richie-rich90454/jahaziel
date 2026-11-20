@@ -74,7 +74,12 @@ class AuditCollectorCoverageGapTest {
         Files.writeString(file, "x");
         assertThrows(
                 IllegalStateException.class,
-                () -> new AuditCollectorJob(reader, file).run(new JobContext(Instant.now())));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AuditCollectorJob(reader, file).run(new JobContext(Instant.now()));
+                    }
+                });
     }
 
     @Test
@@ -91,7 +96,12 @@ class AuditCollectorCoverageGapTest {
         when(reader.drain(any(), any())).thenThrow(new IllegalArgumentException("bad line"));
         assertThrows(
                 IllegalStateException.class,
-                () -> new AuditCollectorJob(reader, staging).run(new JobContext(Instant.now())));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new AuditCollectorJob(reader, staging).run(new JobContext(Instant.now()));
+                    }
+                });
     }
 
     @Test
