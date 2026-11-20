@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 /** Direct unit tests for the stray-signal decision plus the REH catch path. */
@@ -101,14 +102,21 @@ class DoctorFinalTest {
         Files.writeString(legacyIde.resolve("linux-x64"), "not-a-directory");
         Path tmp = data.resolve("tmp");
         Files.createDirectories(tmp);
-        var checks =
+        List<Doctor.Check> checks =
                 Doctor.run(
                         jar,
                         data,
                         CliTestSupport.freePort(),
                         Cli.parseDotEnv(jar.resolve(".env")),
                         jar.resolve("jahaziel.jar"));
-        assertTrue(checks.stream().noneMatch(check -> check.name().equals("reh")));
+        boolean hasReh = false;
+        for (Doctor.Check check : checks) {
+            if (check.name().equals("reh")) {
+                hasReh = true;
+                break;
+            }
+        }
+        assertTrue(!hasReh);
         assertTrue(Files.isRegularFile(legacyIde.resolve("linux-x64")));
     }
 }
