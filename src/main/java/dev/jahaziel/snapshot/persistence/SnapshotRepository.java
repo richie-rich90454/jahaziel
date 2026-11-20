@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-/** Repository for SnapshotEntity persistence. */
+/** Spring Data repository for SnapshotEntity; interface is required by Spring Data. */
 public interface SnapshotRepository extends JpaRepository<SnapshotEntity, UUID> {
     /**
      * Finds all snapshots of a workspace.
