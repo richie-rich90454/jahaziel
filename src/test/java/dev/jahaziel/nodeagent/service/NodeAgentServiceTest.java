@@ -30,8 +30,10 @@ import org.mockito.ArgumentCaptor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Behavior of {@link NodeAgentService} with stubbed plugins and a real spool. */
 class NodeAgentServiceTest {
@@ -150,11 +152,16 @@ class NodeAgentServiceTest {
 
     private String spoolText() {
         try {
-            return Files.readString(
-                    Files.list(root)
-                            .filter(path -> path.toString().endsWith(".jsonl"))
-                            .findFirst()
-                            .orElseThrow());
+            try (Stream<Path> files = Files.list(root)) {
+                Iterator<Path> iterator = files.iterator();
+                while (iterator.hasNext()) {
+                    Path path = iterator.next();
+                    if (path.toString().endsWith(".jsonl")) {
+                        return Files.readString(path);
+                    }
+                }
+            }
+            throw new java.util.NoSuchElementException("No value present");
         } catch (Exception failure) {
             throw new IllegalStateException(failure);
         }
