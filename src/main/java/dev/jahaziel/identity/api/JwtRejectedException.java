@@ -46,4 +46,8 @@ public final class JwtRejectedException extends RuntimeException {
     public UserId userId() {
         return userId;
     }
+
+    public UserId getUserId() {
+        return userId;
+    }
 }
