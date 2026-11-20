@@ -56,12 +56,26 @@ class PolicyServiceImplTest {
     @Test
     void createRejectsBlanks() {
         assertThrows(
-                IllegalArgumentException.class, () -> service.create(" ", null, "{}", "admin"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create(" ", null, "{}", "admin");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create("workspace", null, " ", "admin"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create("workspace", null, " ", "admin");
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> service.create("workspace", null, "{}", " "));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create("workspace", null, "{}", " ");
+                    }
+                });
     }
 
     @Test
@@ -84,7 +98,13 @@ class PolicyServiceImplTest {
     void getMissingThrowsWithId() {
         when(policies.findById(policyId)).thenReturn(Optional.empty());
         PolicyNotFoundException failure =
-                assertThrows(PolicyNotFoundException.class, () -> service.get(policyId));
+                assertThrows(
+                        PolicyNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                service.get(policyId);
+                            }
+                        });
         assertEquals(policyId, failure.policyId());
     }
 
@@ -111,7 +131,13 @@ class PolicyServiceImplTest {
         List<PolicyDoc> docs = service.listByScope("workspace", null);
         assertEquals(1, docs.size());
         assertEquals(global.getPolicyId(), docs.get(0).id());
-        assertTrue(docs.stream().allMatch(doc -> "workspace".equals(doc.scope())));
+        boolean allWorkspace = true;
+        for (PolicyDoc doc : docs) {
+            if (!"workspace".equals(doc.scope())) {
+                allWorkspace = false;
+            }
+        }
+        assertTrue(allWorkspace);
     }
 
     @Test
@@ -126,7 +152,13 @@ class PolicyServiceImplTest {
     void deleteMissingThrowsAndNeverDeletes() {
         when(policies.findById(policyId)).thenReturn(Optional.empty());
         PolicyNotFoundException failure =
-                assertThrows(PolicyNotFoundException.class, () -> service.delete(policyId));
+                assertThrows(
+                        PolicyNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                service.delete(policyId);
+                            }
+                        });
         assertEquals(policyId, failure.policyId());
         verify(policies, never()).delete(any());
     }
