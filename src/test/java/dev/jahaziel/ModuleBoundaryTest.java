@@ -13,7 +13,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import org.junit.jupiter.api.Test;
 
 /**
- * Module boundaries. A module uses another module's public interface only, never its internals. The
+ * Module boundaries. A module uses another module's public API only, never its internals. The
  * trailing catch-all in the second rule is intentional: internal packages are fenced by the first
  * style of rule per pair, while shared foundations stay usable.
  */
