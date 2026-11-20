@@ -14,7 +14,9 @@ import static org.mockito.Mockito.mockStatic;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -23,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -127,8 +130,15 @@ class JahazielMainCoverageGapTest {
 
     @Test
     void runInterruptedReturnsZero() throws Exception {
-        try (var mocked = mockStatic(JahazielMain.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> JahazielMain.launch(any(), any(), any()))
+        try (MockedStatic<JahazielMain> mocked =
+                mockStatic(JahazielMain.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(
+                            new MockedStatic.Verification() {
+                                @Override
+                                public void apply() throws Throwable {
+                                    JahazielMain.launch(any(), any(), any());
+                                }
+                            })
                     .thenThrow(new InterruptedException("mock"));
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             PrintStream out = new PrintStream(buffer, true, StandardCharsets.UTF_8);
@@ -148,7 +158,14 @@ class JahazielMainCoverageGapTest {
         Map<String, String> kept = JahazielMain.stripBasisVars(fileEnv);
         assertFalse(kept.containsKey("BASIS_AUTH_ISSUER"));
         assertEquals("y", kept.get("KEEP"));
-        assertThrows(UnsupportedOperationException.class, () -> kept.put("Z", "z"));
+        assertThrows(
+                UnsupportedOperationException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        kept.put("Z", "z");
+                    }
+                });
     }
 
     @Test
@@ -283,12 +300,12 @@ class JahazielMainCoverageGapTest {
                     StandardCharsets.UTF_8);
             Path data = home.resolve("data");
             Files.createDirectories(data);
-            try (var channel =
+            try (FileChannel channel =
                             FileChannel.open(
                                     data.resolve(".lock"),
                                     StandardOpenOption.CREATE,
                                     StandardOpenOption.WRITE);
-                    var held = channel.lock()) {
+                    java.nio.channels.FileLock held = channel.lock()) {
                 JahazielMain.Arguments demo =
                         new JahazielMain.Arguments(
                                 data.toString(),
@@ -310,12 +327,12 @@ class JahazielMainCoverageGapTest {
                                 .contains("locked by another instance"));
                 assertTrue(buf.toString(StandardCharsets.UTF_8).contains("demo mode"));
             }
-            try (var channel =
+            try (FileChannel channel =
                             FileChannel.open(
                                     data.resolve(".lock"),
                                     StandardOpenOption.CREATE,
                                     StandardOpenOption.WRITE);
-                    var held = channel.lock()) {
+                    java.nio.channels.FileLock held = channel.lock()) {
                 Files.writeString(
                         home.resolve(".env"),
                         "BASIS_AUTH_ISSUER=https://idp.example.com\n"
@@ -342,12 +359,12 @@ class JahazielMainCoverageGapTest {
                 assertEquals(1, code);
                 assertTrue(buf.toString(StandardCharsets.UTF_8).contains("basis-auth configured"));
             }
-            try (var channel =
+            try (FileChannel channel =
                             FileChannel.open(
                                     data.resolve(".lock"),
                                     StandardOpenOption.CREATE,
                                     StandardOpenOption.WRITE);
-                    var held = channel.lock()) {
+                    java.nio.channels.FileLock held = channel.lock()) {
                 for (String k :
                         List.of(
                                 "BASIS_AUTH_ISSUER",
@@ -389,10 +406,15 @@ class JahazielMainCoverageGapTest {
             } else {
                 System.setProperty("java.io.tmpdir", prevTmp);
             }
-            System.getProperties().stringPropertyNames().stream()
-                    .filter(k -> !before.contains(k))
-                    .toList()
-                    .forEach(System::clearProperty);
+            List<String> added = new ArrayList<>();
+            for (String key : System.getProperties().stringPropertyNames()) {
+                if (!before.contains(key)) {
+                    added.add(key);
+                }
+            }
+            for (String key : added) {
+                System.clearProperty(key);
+            }
         }
     }
 
@@ -453,7 +475,7 @@ class JahazielMainCoverageGapTest {
         try (FileChannel channel =
                         FileChannel.open(
                                 lock, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                var held = channel.lock()) {
+                java.nio.channels.FileLock held = channel.lock()) {
             assertTrue(JahazielMain.tryDataLock(channel) == null);
         }
     }
@@ -507,23 +529,91 @@ class JahazielMainCoverageGapTest {
                 JahazielMain.Arguments.parse(new String[] {"--domain=example.com"}).domain());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--data-dir"}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--data-dir"});
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--port=0"}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--port=0"});
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--port=70000"}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--port=70000"});
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--port=abc"}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--port=abc"});
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--domain=   "}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--domain=   "});
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> JahazielMain.Arguments.parse(new String[] {"--unknown"}));
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        JahazielMain.Arguments.parse(new String[] {"--unknown"});
+                    }
+                });
     }
 
-    private record Output(int code, String text) {}
+    private static final class Output {
+        private final int code;
+        private final String text;
+
+        private Output(int code, String text) {
+            this.code = code;
+            this.text = text;
+        }
+
+        private int code() {
+            return code;
+        }
+
+        private String text() {
+            return text;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Output)) {
+                return false;
+            }
+            Output that = (Output) other;
+            return code == that.code && java.util.Objects.equals(text, that.text);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(code, text);
+        }
+
+        @Override
+        public String toString() {
+            return "Output[code=" + code + ", text=" + text + "]";
+        }
+    }
 }
