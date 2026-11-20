@@ -12,12 +12,12 @@ import dev.jahaziel.spi.AuditSink;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /** Bridges the plugin audit sink onto the platform's hash-chained append-only audit log. */
-public final class AuditSinkAdapter implements AuditSink {
+public final class AuditSinkAdapter extends AuditSink {
     private final AuditService audit;
 
     public AuditSinkAdapter(AuditService audit) {
@@ -44,7 +44,7 @@ public final class AuditSinkAdapter implements AuditSink {
     }
 
     @Override
-    public Stream<AuditEvent> query(AuditQuery query) {
+    public Iterator<AuditEvent> query(AuditQuery query) {
         List<AuditEvent> result = new ArrayList<AuditEvent>();
         List<AuditRecord> records = audit.latest(query.limit());
         for (int index = 0; index < records.size(); index++) {
@@ -77,7 +77,7 @@ public final class AuditSinkAdapter implements AuditSink {
                             record.prevHash(),
                             record.hash()));
         }
-        return result.stream();
+        return result.iterator();
     }
 
     @Override
