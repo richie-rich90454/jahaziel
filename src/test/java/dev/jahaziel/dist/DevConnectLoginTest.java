@@ -31,7 +31,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -92,16 +91,20 @@ class DevConnectLoginTest {
         }
         touchedProperties.clear();
         IDP.close();
+        List<Path> paths = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(TMP)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
+        }
+        paths.sort(Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Best-effort test cleanup.
+            }
         }
     }
 
@@ -138,9 +141,15 @@ class DevConnectLoginTest {
                         .orElseThrow();
         assertEquals("active", user.getStatus());
         assertEquals("fresh@example.com", user.getEmail());
-        assertTrue(
-                context.getBean(UserRoleRepository.class).findByIdUserId(user.getUserId()).stream()
-                        .anyMatch(role -> role.getId().getRole().equals("ROLE_USER")));
+        boolean hasUserRole = false;
+        for (dev.jahaziel.identity.persistence.UserRoleEntity role :
+                context.getBean(UserRoleRepository.class).findByIdUserId(user.getUserId())) {
+            if (role.getId().getRole().equals("ROLE_USER")) {
+                hasUserRole = true;
+                break;
+            }
+        }
+        assertTrue(hasUserRole);
     }
 
     @Test
@@ -224,17 +233,24 @@ class DevConnectLoginTest {
     }
 
     private static String cookies(Response response) {
-        return response.headers().allValues("set-cookie").stream()
-                .map(header -> header.split(";", 2)[0])
-                .collect(Collectors.joining("; "));
+        StringBuilder joined = new StringBuilder();
+        for (String header : response.headers().allValues("set-cookie")) {
+            if (joined.length() > 0) {
+                joined.append("; ");
+            }
+            joined.append(header.split(";", 2)[0]);
+        }
+        return joined.toString();
     }
 
     private static String cookie(Response response, String name) {
-        return response.headers().allValues("set-cookie").stream()
-                .map(header -> header.split(";", 2)[0])
-                .filter(pair -> pair.startsWith(name + "="))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError(name + " cookie missing"));
+        for (String header : response.headers().allValues("set-cookie")) {
+            String pair = header.split(";", 2)[0];
+            if (pair.startsWith(name + "=")) {
+                return pair;
+            }
+        }
+        throw new AssertionError(name + " cookie missing");
     }
 
     private static Response get(String url, String cookie) throws Exception {
@@ -286,5 +302,51 @@ class DevConnectLoginTest {
         }
     }
 
-    private record Response(int status, java.net.http.HttpHeaders headers, String body) {}
+    private static final class Response {
+        private final int status;
+        private final java.net.http.HttpHeaders headers;
+        private final String body;
+
+        private Response(int status, java.net.http.HttpHeaders headers, String body) {
+            this.status = status;
+            this.headers = headers;
+            this.body = body;
+        }
+
+        private int status() {
+            return status;
+        }
+
+        private java.net.http.HttpHeaders headers() {
+            return headers;
+        }
+
+        private String body() {
+            return body;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Response)) {
+                return false;
+            }
+            Response that = (Response) other;
+            return status == that.status
+                    && java.util.Objects.equals(headers, that.headers)
+                    && java.util.Objects.equals(body, that.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(status, headers, body);
+        }
+
+        @Override
+        public String toString() {
+            return "Response[status=" + status + ", headers=" + headers + ", body=" + body + "]";
+        }
+    }
 }
