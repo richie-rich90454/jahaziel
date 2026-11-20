@@ -21,6 +21,7 @@ import dev.jahaziel.identity.api.JwtSession;
 import dev.jahaziel.identity.domain.UserId;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
@@ -57,7 +58,7 @@ class JwtServiceCoverageGapTest {
     @Test
     void issueSigningFailureThrowsState() throws Exception {
         KeyPair kp = keys();
-        JwtServiceImpl s =
+        final JwtServiceImpl s =
                 new JwtServiceImpl(
                         mock(RSAPrivateKey.class),
                         (RSAPublicKey) kp.getPublic(),
@@ -65,12 +66,16 @@ class JwtServiceCoverageGapTest {
                         "jahaziel-code-server");
         assertThrows(
                 IllegalStateException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         s.issue(
                                 new UserId(UUID.randomUUID()),
                                 null,
                                 List.of(),
-                                Duration.ofMinutes(1)));
+                                Duration.ofMinutes(1));
+                    }
+                });
     }
 
     @Test
@@ -86,7 +91,15 @@ class JwtServiceCoverageGapTest {
                         .build();
         SignedJWT foreign = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         foreign.sign(new MACSigner(new byte[32]));
-        assertThrows(JwtRejectedException.class, () -> s.verify(foreign.serialize()));
+        final String serialized = foreign.serialize();
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.verify(serialized);
+                    }
+                });
     }
 
     @Test
@@ -108,7 +121,15 @@ class JwtServiceCoverageGapTest {
         signer.initSign(kp.getPrivate());
         signer.update(input.getBytes(StandardCharsets.US_ASCII));
         String signature = Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign());
-        assertThrows(JwtRejectedException.class, () -> s.verify(input + "." + signature));
+        final String malformed = input + "." + signature;
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.verify(malformed);
+                    }
+                });
     }
 
     @Test
@@ -124,38 +145,68 @@ class JwtServiceCoverageGapTest {
                         .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
         jwt.sign(new RSASSASigner((RSAPrivateKey) kp.getPrivate()));
-        assertThrows(JwtRejectedException.class, () -> s.verify(jwt.serialize()));
+        final String serialized = jwt.serialize();
+        assertThrows(
+                JwtRejectedException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        s.verify(serialized);
+                    }
+                });
     }
 
     @Test
     void pemDecodeFailureThrowsMalformed() throws Exception {
-        Path priv = tmp.resolve("priv.pem");
+        final Path priv = tmp.resolve("priv.pem");
         Files.writeString(priv, "-----BEGIN PRIVATE KEY-----\nA\n-----END PRIVATE KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPrivateKey(priv));
-        Path pub = tmp.resolve("pub.pem");
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        JwtServiceImpl.loadPrivateKey(priv);
+                    }
+                });
+        final Path pub = tmp.resolve("pub.pem");
         Files.writeString(pub, "-----BEGIN PUBLIC KEY-----\nA\n-----END PUBLIC KEY-----\n");
-        assertThrows(IllegalArgumentException.class, () -> JwtServiceImpl.loadPublicKey(pub));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        JwtServiceImpl.loadPublicKey(pub);
+                    }
+                });
     }
 
     @Test
     void ctorRejectsNullAudience() throws Exception {
-        KeyPair kp = keys();
+        final KeyPair kp = keys();
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new JwtServiceImpl(
                                 (RSAPrivateKey) kp.getPrivate(),
                                 (RSAPublicKey) kp.getPublic(),
                                 "i",
-                                null));
+                                null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new JwtServiceImpl(
                                 (RSAPrivateKey) kp.getPrivate(),
                                 (RSAPublicKey) kp.getPublic(),
                                 "i",
-                                ""));
+                                "");
+                    }
+                });
     }
 
     @Test
