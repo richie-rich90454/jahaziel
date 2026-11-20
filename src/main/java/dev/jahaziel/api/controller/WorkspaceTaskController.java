@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,7 +26,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/workspaces/{id}")
 public final class WorkspaceTaskController {
+
     private final WorkspaceTaskService tasks;
+
     private final AuthorizationService auth;
 
     public WorkspaceTaskController(WorkspaceTaskService tasks, AuthorizationService auth) {
@@ -51,15 +54,13 @@ public final class WorkspaceTaskController {
     @GetMapping("/tasks/debug-targets")
     public List<DebugTargetView> debugTargets(@PathVariable UUID id, Principal principal) {
         WorkspaceId workspace = require(principal, id, "read");
-        return tasks.debugTargets(workspace).stream()
-                .map(
-                        target ->
-                                new DebugTargetView(
-                                        target.id(),
-                                        target.taskRunId(),
-                                        target.languageId(),
-                                        target.label()))
-                .toList();
+        List<DebugTargetView> result = new ArrayList<>();
+        for (WorkspaceTaskService.DebugTarget target : tasks.debugTargets(workspace)) {
+            result.add(
+                    new DebugTargetView(
+                            target.id(), target.taskRunId(), target.languageId(), target.label()));
+        }
+        return result;
     }
 
     @PostMapping("/tasks/{taskId}/run")
@@ -108,5 +109,86 @@ public final class WorkspaceTaskController {
     }
 
     /** Browser-visible target metadata intentionally excludes the operating-system process id. */
-    public record DebugTargetView(UUID id, UUID taskRunId, String languageId, String label) {}
+    public static final class DebugTargetView {
+
+        private final UUID id;
+
+        private final UUID taskRunId;
+
+        private final String languageId;
+
+        private final String label;
+
+        public DebugTargetView(UUID id, UUID taskRunId, String languageId, String label) {
+            this.id = id;
+            this.taskRunId = taskRunId;
+            this.languageId = languageId;
+            this.label = label;
+        }
+
+        public UUID id() {
+            return this.id;
+        }
+
+        public UUID getId() {
+            return this.id;
+        }
+
+        public UUID taskRunId() {
+            return this.taskRunId;
+        }
+
+        public UUID getTaskRunId() {
+            return this.taskRunId;
+        }
+
+        public String languageId() {
+            return this.languageId;
+        }
+
+        public String getLanguageId() {
+            return this.languageId;
+        }
+
+        public String label() {
+            return this.label;
+        }
+
+        public String getLabel() {
+            return this.label;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof DebugTargetView)) return false;
+            DebugTargetView other = (DebugTargetView) o;
+            return (java.util.Objects.equals(this.id, other.id))
+                    && java.util.Objects.equals(this.taskRunId, other.taskRunId)
+                    && java.util.Objects.equals(this.languageId, other.languageId)
+                    && java.util.Objects.equals(this.label, other.label);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(this.id, this.taskRunId, this.languageId, this.label);
+        }
+
+        @Override
+        public String toString() {
+            return "DebugTargetView["
+                    + "id="
+                    + this.id
+                    + ", "
+                    + "taskRunId="
+                    + this.taskRunId
+                    + ", "
+                    + "languageId="
+                    + this.languageId
+                    + ", "
+                    + "label="
+                    + this.label
+                    + "]";
+        }
+    }
 }
