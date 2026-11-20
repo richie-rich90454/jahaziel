@@ -60,7 +60,11 @@ class NodeServiceImplTest {
         when(nodes.existsById(nodeId.value())).thenReturn(true);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.register(nodeId, "Primary node", "default", capacity, "sha256:abc"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.register(nodeId, "Primary node", "default", capacity, "sha256:abc");
+                    }
+                });
         verify(nodes, never()).save(any());
     }
 
@@ -71,14 +75,24 @@ class NodeServiceImplTest {
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.register(nodeId, "Primary node", "default", capacity, "sha256:abc"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.register(nodeId, "Primary node", "default", capacity, "sha256:abc");
+                    }
+                });
     }
 
     @Test
     void getMissingThrowsWithId() {
         when(nodes.findById(nodeId.value())).thenReturn(Optional.empty());
         NodeNotFoundException failure =
-                assertThrows(NodeNotFoundException.class, () -> service.get(nodeId));
+                assertThrows(
+                        NodeNotFoundException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                service.get(nodeId);
+                            }
+                        });
         assertEquals(nodeId, failure.nodeId());
     }
 
