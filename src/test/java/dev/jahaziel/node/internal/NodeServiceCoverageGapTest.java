@@ -100,7 +100,13 @@ class NodeServiceCoverageGapTest {
         Node lost = fresh();
         lost.markUnhealthy("gone");
         assertEquals("unhealthy", NodeMapper.toEntity(lost).getState());
-        assertThrows(IllegalArgumentException.class, () -> NodeMapper.stateToString(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeMapper.stateToString(null);
+                    }
+                });
     }
 
     @Test
