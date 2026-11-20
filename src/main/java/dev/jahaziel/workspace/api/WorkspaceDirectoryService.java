@@ -9,7 +9,7 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.nio.file.Path;
 
 /** Server-only workspace directory lookup for process services. */
-public interface WorkspaceDirectoryService {
+public abstract class WorkspaceDirectoryService {
     /** Returns the real, confined home directory for a workspace. */
-    Path home(WorkspaceId workspaceId);
+    public abstract Path home(WorkspaceId workspaceId);
 }
