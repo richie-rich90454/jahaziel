@@ -15,9 +15,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Database-backed policies. */
-public final class PolicyServiceImpl implements PolicyService {
+public final class PolicyServiceImpl extends PolicyService {
     private final PolicyRepository policies;
 
     /**
@@ -55,7 +56,15 @@ public final class PolicyServiceImpl implements PolicyService {
     @Override
     public PolicyDoc get(UUID id) {
         Objects.requireNonNull(id, "id");
-        PolicyEntity row = policies.findById(id).orElseThrow(() -> new PolicyNotFoundException(id));
+        PolicyEntity row =
+                policies.findById(id)
+                        .orElseThrow(
+                                new Supplier<PolicyNotFoundException>() {
+                                    @Override
+                                    public PolicyNotFoundException get() {
+                                        return new PolicyNotFoundException(id);
+                                    }
+                                });
         return PolicyMapper.toDomain(row);
     }
 
@@ -64,16 +73,27 @@ public final class PolicyServiceImpl implements PolicyService {
         if (scope == null || scope.isBlank()) {
             throw new IllegalArgumentException("scope must not be blank");
         }
-        return policies.findAll().stream()
-                .filter(row -> scopeMatch(row, scope, scopeId))
-                .map(PolicyMapper::toDomain)
-                .toList();
+        List<PolicyDoc> result = new java.util.ArrayList<>();
+        for (PolicyEntity row : policies.findAll()) {
+            if (scopeMatch(row, scope, scopeId)) {
+                result.add(PolicyMapper.toDomain(row));
+            }
+        }
+        return result;
     }
 
     @Override
     public void delete(UUID id) {
         Objects.requireNonNull(id, "id");
-        PolicyEntity row = policies.findById(id).orElseThrow(() -> new PolicyNotFoundException(id));
+        PolicyEntity row =
+                policies.findById(id)
+                        .orElseThrow(
+                                new Supplier<PolicyNotFoundException>() {
+                                    @Override
+                                    public PolicyNotFoundException get() {
+                                        return new PolicyNotFoundException(id);
+                                    }
+                                });
         policies.delete(row);
     }
 
