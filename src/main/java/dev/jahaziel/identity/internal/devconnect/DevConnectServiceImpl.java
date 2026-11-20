@@ -40,7 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Database-backed DevConnect login. Transactional, so Spring proxies it. */
-public class DevConnectServiceImpl implements DevConnectService {
+public class DevConnectServiceImpl extends DevConnectService {
     private static final Duration DEFAULT_PLUGIN_TTL = Duration.ofMinutes(15L);
     private static final String ROLE_USER = "ROLE_USER";
     private static final String GRANTOR = "devconnect";
@@ -218,12 +218,11 @@ public class DevConnectServiceImpl implements DevConnectService {
         if (state == null || state.isBlank() || code == null || code.isBlank()) {
             throw new LoginRejectedException("login state or code is missing");
         }
-        OidcPendingEntity row =
-                pending.findById(state)
-                        .orElseThrow(
-                                () ->
-                                        new LoginRejectedException(
-                                                "login state is unknown or already used"));
+        Optional<OidcPendingEntity> pendingRow = pending.findById(state);
+        if (!pendingRow.isPresent()) {
+            throw new LoginRejectedException("login state is unknown or already used");
+        }
+        OidcPendingEntity row = pendingRow.get();
         pending.delete(row);
         if (row.getExpiresAt().isBefore(clock.instant())) {
             throw new LoginRejectedException("login state has expired; start again");
@@ -231,7 +230,7 @@ public class DevConnectServiceImpl implements DevConnectService {
 
         DevConnectClient.Tokens exchanged =
                 client.exchange(code, row.getCodeVerifier(), row.getRedirectUri());
-        var idToken = client.verifyIdToken(exchanged.idToken(), row.getNonce());
+        Jwt idToken = client.verifyIdToken(exchanged.idToken(), row.getNonce());
         DevConnectClient.UserInfo info = client.userinfo(exchanged.accessToken());
         String subject = idToken.getSubject();
         if (subject == null || !subject.equals(info.sub())) {
@@ -322,7 +321,10 @@ public class DevConnectServiceImpl implements DevConnectService {
             dispatcher.endSession(sessionId);
         }
         if (sessionId != null && !sessionId.isBlank()) {
-            sessions.findById(sessionId).ifPresent(sessions::delete);
+            Optional<BffSessionEntity> existing = sessions.findById(sessionId);
+            if (existing.isPresent()) {
+                sessions.delete(existing.get());
+            }
         }
     }
 
@@ -544,10 +546,14 @@ public class DevConnectServiceImpl implements DevConnectService {
         }
         Object amrClaim = idToken.getClaims().get("amr");
         List<String> amr = new java.util.ArrayList<>();
-        if (amrClaim instanceof List<?> list) {
+        if (amrClaim instanceof List<?>) {
+            List<?> list = (List<?>) amrClaim;
             for (Object value : list) if (value != null) amr.add(String.valueOf(value));
-        } else if (amrClaim instanceof String text && !text.isBlank()) {
-            for (String part : text.split("[\\s,]+")) if (!part.isBlank()) amr.add(part);
+        } else if (amrClaim instanceof String) {
+            String text = (String) amrClaim;
+            if (!text.isBlank()) {
+                for (String part : text.split("[\\s,]+")) if (!part.isBlank()) amr.add(part);
+            }
         }
         for (String value : amr) {
             String normalized = value.toLowerCase(java.util.Locale.ROOT);
