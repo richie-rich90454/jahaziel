@@ -11,7 +11,7 @@ import java.util.UUID;
  * Resolves a workspace port to a backend address. The loopback implementation serves single-node
  * development; vsock dialing replaces it once the node-agent channel lands.
  */
-public interface TargetResolver {
+public abstract class TargetResolver {
     /**
      * Resolves the backend serving a workspace port.
      *
@@ -19,5 +19,5 @@ public interface TargetResolver {
      * @param port the workspace port
      * @return the backend address
      */
-    InetSocketAddress resolve(UUID workspaceId, int port);
+    public abstract InetSocketAddress resolve(UUID workspaceId, int port);
 }
