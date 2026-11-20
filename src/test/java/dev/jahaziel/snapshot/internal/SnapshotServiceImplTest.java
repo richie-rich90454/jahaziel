@@ -92,17 +92,29 @@ class SnapshotServiceImplTest {
         when(snapshots.findByWorkspaceId(workspaceId.value())).thenReturn(List.of(existing));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create(workspaceId, "daily", SnapshotKind.MANUAL, "user:x");
+                    }
+                });
     }
 
     @Test
     void createRejectsBadInput() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(workspaceId, "  ", SnapshotKind.MANUAL, "u"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create(workspaceId, "  ", SnapshotKind.MANUAL, "u");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.create(workspaceId, "t", SnapshotKind.MANUAL, "  "));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.create(workspaceId, "t", SnapshotKind.MANUAL, "  ");
+                    }
+                });
     }
 
     @Test
@@ -119,8 +131,20 @@ class SnapshotServiceImplTest {
     void missingSnapshotThrowsWithId() {
         SnapshotId id = new SnapshotId(UUID.randomUUID());
         when(snapshots.findById(id.value())).thenReturn(Optional.empty());
-        assertThrows(SnapshotNotFoundException.class, () -> service.restore(workspaceId, id));
-        assertThrows(SnapshotNotFoundException.class, () -> service.delete(workspaceId, id));
+        assertThrows(
+                SnapshotNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.restore(workspaceId, id);
+                    }
+                });
+        assertThrows(
+                SnapshotNotFoundException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.delete(workspaceId, id);
+                    }
+                });
         verify(storage, never()).restore(any(), any());
     }
 
@@ -145,7 +169,11 @@ class SnapshotServiceImplTest {
 
         assertThrows(
                 SnapshotNotFoundException.class,
-                () -> service.delete(otherWorkspace, new SnapshotId(UUID.randomUUID())));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        service.delete(otherWorkspace, new SnapshotId(UUID.randomUUID()));
+                    }
+                });
         verify(storage, never()).deleteSnapshot(any());
         verify(snapshots, never()).delete(any(SnapshotEntity.class));
     }
