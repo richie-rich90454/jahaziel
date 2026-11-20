@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Clones get a fresh id, a copied subset, and no shared process state. */
-final class WorkspaceCloneServiceTest {
+public final class WorkspaceCloneServiceTest {
     @Test
     void clonesOnlyTheRequestedSubset(@TempDir Path temp) {
         final String data = temp.resolve("data").toString();
@@ -66,7 +66,7 @@ final class WorkspaceCloneServiceTest {
         assertEquals("t", SafetyFixtures.read(SafetyPaths.home(data, created).resolve("t.txt")));
     }
 
-    private static final class FakeWorkspaces implements WorkspaceService {
+    private static final class FakeWorkspaces extends WorkspaceService {
         private final WorkspaceId created;
 
         private FakeWorkspaces(WorkspaceId created) {
