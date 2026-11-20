@@ -124,8 +124,8 @@ public final class WorkspaceMapper {
      * @return the reason or null
      */
     public static String stateReasonOf(WorkspaceState state) {
-        if (state instanceof WorkspaceState.Failed failed) {
-            return failed.reason();
+        if (state instanceof WorkspaceState.Failed) {
+            return ((WorkspaceState.Failed) state).reason();
         }
         return null;
     }
@@ -169,37 +169,42 @@ public final class WorkspaceMapper {
 
     private static void replay(Workspace workspace, String state, Instant at, String reason) {
         switch (state) {
-            case "requested" -> {}
-            case "preparing" -> workspace.prepare();
-            case "booting" -> {
+            case "requested":
+                break;
+            case "preparing":
+                workspace.prepare();
+                break;
+            case "booting":
                 workspace.prepare();
                 workspace.boot();
-            }
-            case "ready" -> {
+                break;
+            case "ready":
                 workspace.prepare();
                 workspace.boot();
                 workspace.markReady();
-            }
-            case "active" -> start(workspace);
-            case "idle" -> {
+                break;
+            case "active":
+                start(workspace);
+                break;
+            case "idle":
                 start(workspace);
                 workspace.markIdle(at);
-            }
-            case "suspended" -> {
+                break;
+            case "suspended":
                 start(workspace);
                 workspace.suspend();
-            }
-            case "destroyed" -> {
+                break;
+            case "destroyed":
                 start(workspace);
                 workspace.destroy();
-            }
-            case "failed" -> {
+                break;
+            case "failed":
                 start(workspace);
                 workspace.fail(reason == null ? "not recorded" : reason);
-            }
-            default ->
-                    throw new IllegalStateException(
-                            "Workspace " + workspace.id() + " has unknown state " + state);
+                break;
+            default:
+                throw new IllegalStateException(
+                        "Workspace " + workspace.id() + " has unknown state " + state);
         }
     }
 
