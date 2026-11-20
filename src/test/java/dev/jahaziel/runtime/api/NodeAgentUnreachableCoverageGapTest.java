@@ -15,11 +15,11 @@ import java.io.IOException;
 class NodeAgentUnreachableCoverageGapTest {
     @Test
     void bothConstructors() {
-        var simple = new NodeAgentUnreachableException("down");
+        NodeAgentUnreachableException simple = new NodeAgentUnreachableException("down");
         assertEquals("down", simple.getMessage());
         assertNull(simple.getCause());
-        var cause = new IOException("conn refused");
-        var chained = new NodeAgentUnreachableException("down", cause);
+        IOException cause = new IOException("conn refused");
+        NodeAgentUnreachableException chained = new NodeAgentUnreachableException("down", cause);
         assertEquals("down", chained.getMessage());
         assertSame(cause, chained.getCause());
     }
