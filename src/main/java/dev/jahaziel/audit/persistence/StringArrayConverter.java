@@ -27,18 +27,28 @@ public final class StringArrayConverter implements AttributeConverter<String[], 
             json.append('"');
             for (char c : attribute[i].toCharArray()) {
                 switch (c) {
-                    case '"' -> json.append("\\\"");
-                    case '\\' -> json.append("\\\\");
-                    case '\n' -> json.append("\\n");
-                    case '\r' -> json.append("\\r");
-                    case '\t' -> json.append("\\t");
-                    default -> {
+                    case '"':
+                        json.append("\\\"");
+                        break;
+                    case '\\':
+                        json.append("\\\\");
+                        break;
+                    case '\n':
+                        json.append("\\n");
+                        break;
+                    case '\r':
+                        json.append("\\r");
+                        break;
+                    case '\t':
+                        json.append("\\t");
+                        break;
+                    default:
                         if (c < 0x20) {
                             json.append(String.format("\\u%04x", (int) c));
                         } else {
                             json.append(c);
                         }
-                    }
+                        break;
                 }
             }
             json.append('"');
@@ -64,19 +74,30 @@ public final class StringArrayConverter implements AttributeConverter<String[], 
             char c = text.charAt(i);
             if (escape) {
                 switch (c) {
-                    case '"' -> current.append('"');
-                    case '\\' -> current.append('\\');
-                    case 'n' -> current.append('\n');
-                    case 'r' -> current.append('\r');
-                    case 't' -> current.append('\t');
-                    case 'u' -> {
+                    case '"':
+                        current.append('"');
+                        break;
+                    case '\\':
+                        current.append('\\');
+                        break;
+                    case 'n':
+                        current.append('\n');
+                        break;
+                    case 'r':
+                        current.append('\r');
+                        break;
+                    case 't':
+                        current.append('\t');
+                        break;
+                    case 'u':
                         if (i + 4 >= text.length() - 1) {
                             throw new IllegalArgumentException("bad unicode escape: " + row);
                         }
                         current.append((char) Integer.parseInt(text.substring(i + 1, i + 5), 16));
                         i += 4;
-                    }
-                    default -> throw new IllegalArgumentException("bad escape: " + row);
+                        break;
+                    default:
+                        throw new IllegalArgumentException("bad escape: " + row);
                 }
                 escape = false;
                 continue;
