@@ -18,13 +18,14 @@ import java.util.UUID;
  * @param updatedAt the last update timestamp
  * @param updatedBy the last updater
  */
-public record PolicyDoc(
-        UUID id,
-        String scope,
-        String scopeId,
-        String policyJson,
-        Instant updatedAt,
-        String updatedBy) {
+public final class PolicyDoc {
+    private final UUID id;
+    private final String scope;
+    private final String scopeId;
+    private final String policyJson;
+    private final Instant updatedAt;
+    private final String updatedBy;
+
     /**
      * Creates the document.
      *
@@ -37,7 +38,13 @@ public record PolicyDoc(
      * @throws NullPointerException when any non-nullable component is null
      * @throws IllegalArgumentException when scope, policyJson, or updatedBy is blank
      */
-    public PolicyDoc {
+    public PolicyDoc(
+            UUID id,
+            String scope,
+            String scopeId,
+            String policyJson,
+            Instant updatedAt,
+            String updatedBy) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(updatedAt, "updatedAt");
         Objects.requireNonNull(updatedBy, "updatedBy");
@@ -50,5 +57,104 @@ public record PolicyDoc(
         if (updatedBy.isBlank()) {
             throw new IllegalArgumentException("updatedBy must not be blank");
         }
+        this.id = id;
+        this.scope = scope;
+        this.scopeId = scopeId;
+        this.policyJson = policyJson;
+        this.updatedAt = updatedAt;
+        this.updatedBy = updatedBy;
+    }
+
+    /** Returns the policy identifier. */
+    public UUID id() {
+        return id;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    /** Returns the policy scope. */
+    public String scope() {
+        return scope;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    /** Returns the scope target id, or null for global scope. */
+    public String scopeId() {
+        return scopeId;
+    }
+
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    /** Returns the policy document as JSON. */
+    public String policyJson() {
+        return policyJson;
+    }
+
+    public String getPolicyJson() {
+        return policyJson;
+    }
+
+    /** Returns the last update timestamp. */
+    public Instant updatedAt() {
+        return updatedAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    /** Returns the last updater. */
+    public String updatedBy() {
+        return updatedBy;
+    }
+
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof PolicyDoc)) {
+            return false;
+        }
+        PolicyDoc that = (PolicyDoc) other;
+        return id.equals(that.id)
+                && scope.equals(that.scope)
+                && Objects.equals(scopeId, that.scopeId)
+                && policyJson.equals(that.policyJson)
+                && updatedAt.equals(that.updatedAt)
+                && updatedBy.equals(that.updatedBy);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, scope, scopeId, policyJson, updatedAt, updatedBy);
+    }
+
+    @Override
+    public String toString() {
+        return "PolicyDoc[id="
+                + id
+                + ", scope="
+                + scope
+                + ", scopeId="
+                + scopeId
+                + ", policyJson="
+                + policyJson
+                + ", updatedAt="
+                + updatedAt
+                + ", updatedBy="
+                + updatedBy
+                + "]";
     }
 }
