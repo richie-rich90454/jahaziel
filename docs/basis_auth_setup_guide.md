@@ -196,7 +196,8 @@ only the short-lived authorization code.
 
 ### 4.1 Configuration
 
-Store at least:
+The canonical setup is lean: eight values, no scope or permission tuning
+required to sign in.
 
 ```text
 BASIS_AUTH_ISSUER=https://auth.example.org
@@ -204,9 +205,23 @@ BASIS_AUTH_CLIENT_ID=example-web
 BASIS_AUTH_CLIENT_SECRET=<secret>
 BASIS_AUTH_RESOURCE=urn:example:api
 BASIS_AUTH_RESOURCE_SECRET=<resource secret>
-BASIS_AUTH_INTERNAL_URL=http://127.0.0.1:3001   # only if calling internal API
+BASIS_AUTH_INTERNAL_URL=http://127.0.0.1:3001   # private listener for webhook/user checks
+BASIS_AUTH_COOKIE_SECRET=<at least 32 random bytes>
+CURRENT_URL_ORIGIN=https://app.example.org
 ```
 
+`CURRENT_URL_ORIGIN` is the public HTTPS origin with no trailing path. It derives
+the two URLs that must be registered in basis-auth:
+
+- redirect URI: `${CURRENT_URL_ORIGIN}/api/auth/basis/callback`
+- backchannel receiver: `${CURRENT_URL_ORIGIN}/api/auth/basis/backchannel`
+
+`BASIS_AUTH_COOKIE_SECRET` is part of the canonical setup; generate it with
+`openssl rand -base64 32`. This application keeps sessions server-side and signs
+tokens with generated keys under `data/keys`, so the value is accepted but is not
+used to encrypt browser cookies. Older deployments may keep the aliases
+`BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_CLIENT_SECRET` and
+`BASIS_RESOURCE`; they are supported but are not the canonical spelling.
 Public clients have no secret. Keep secrets server-side in every case.
 
 ### 4.2 Start login
@@ -713,6 +728,7 @@ into a support request.
 | `14004` | Confidential secret invalid or missing | Use HTTP Basic and the current secret. |
 | `14005` | Client has no organizations | Link an organization. |
 | `14100` | Redirect URI missing or unregistered | Compare character-for-character. |
+| `14408` | Backchannel URL not registered or unverified | Register `${CURRENT_URL_ORIGIN}/api/auth/basis/backchannel` in basis-auth and save it for verification. |
 | `14401` | Scope not allowed | Align resource scopes, client scopes, and request. |
 | `14407` | Resource not registered | Register the audience. |
 | `14429` | Unsupported response type | Send `response_type=code`. |
@@ -752,10 +768,12 @@ this guide in the same change. See `AGENTS.md` for the mandatory rule.
 This application implements the contract above through `BasisAuthPlugin` in
 `dev.jahaziel.identity.auth`. Notes that refine the contract for this codebase:
 
-- **Credential keys.** Canonical names are `BASIS_AUTH_ISSUER`,
+- **Credential keys.** The canonical set is `BASIS_AUTH_ISSUER`,
   `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`,
-  `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`
-  and `BASIS_AUTH_OFFLINE_ACCESS`. The older `BASIS_CLIENT_ID`,
+  `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`,
+  `BASIS_AUTH_COOKIE_SECRET` and `CURRENT_URL_ORIGIN`. Scopes, offline access,
+  admin bootstrap and permission keys are advanced options, not part of the
+  canonical setup. The older `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`,
   `BASIS_CLIENT_SECRET`, `BASIS_RESOURCE` and `BASIS_RESOURCE_SECRET` names remain
   as aliases. Configuration is read at startup; a credential rotation requires a
   restart (there is no hot dual-secret window).
@@ -764,7 +782,8 @@ This application implements the contract above through `BasisAuthPlugin` in
   further use, and revokes the whole token family on reuse. `invalid_grant`
   clears refresh state and requires a new sign-in. The advertised `REFRESH`
   capability is backed by this method.
-- **Backchannel.** `POST /api/auth/backchannel` handles all three event types.
+- **Backchannel.** `POST /api/auth/basis/backchannel` (with
+  `POST /api/auth/backchannel` kept as an alias) handles all three event types.
   `action=test` returns `202` before delivering the HMAC proof asynchronously;
   nonce and challenge must each be 43-character base64url values. The logout
   handler additionally ends local BFF sessions for the resolved `(provider,

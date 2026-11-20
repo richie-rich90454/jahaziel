@@ -16,17 +16,14 @@ provider, not every possible login source.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `BASIS_AUTH_ISSUER` | — | DevConnect IdP issuer URL |
-| `BASIS_REDIRECT_URI` | — | Registered callback URL |
-| `BASIS_AUTH_CLIENT_ID` (legacy `BASIS_CLIENT_ID`) | — | Confidential client id |
-| `BASIS_AUTH_CLIENT_SECRET` (legacy `BASIS_CLIENT_SECRET`) | — | Confidential client secret (`init` generates one); empty means public client |
-| `BASIS_AUTH_RESOURCE` (legacy `BASIS_RESOURCE`) | — | API audience |
-| `BASIS_AUTH_RESOURCE_SECRET` (legacy `BASIS_RESOURCE_SECRET`) | — | Resource secret used for webhook proof and internal API authentication |
-| `BASIS_AUTH_INTERNAL_URL` | — | Base URL for internal API calls (only needed when calling the internal API) |
-| `BASIS_AUTH_SCOPES` | — | Scopes to request from the IdP |
-| `BASIS_AUTH_OFFLINE_ACCESS` | `false` | Request offline access so the IdP issues a refresh token |
-| `BASIS_ADMIN_BOOTSTRAP_EMAIL` | — | Verified email that receives `ROLE_ADMIN` on first verified login |
-| `BASIS_ADMIN_REQUIRED_ACR` | — | ACR value proving MFA for the bootstrapped admin |
+| `BASIS_AUTH_ISSUER` | — | basis-auth issuer URL |
+| `BASIS_AUTH_CLIENT_ID` | — | Confidential client id |
+| `BASIS_AUTH_CLIENT_SECRET` | — | Confidential client secret (`init` generates one); empty means public client |
+| `BASIS_AUTH_RESOURCE` | — | API audience |
+| `BASIS_AUTH_RESOURCE_SECRET` | — | Resource secret used for webhook proof and internal API authentication |
+| `BASIS_AUTH_INTERNAL_URL` | — | Private listener for webhook verification and user-state checks |
+| `BASIS_AUTH_COOKIE_SECRET` | — | At least 32 random bytes; accepted for the canonical setup (sessions are server-side, tokens signed with `data/keys`) |
+| `CURRENT_URL_ORIGIN` | — | Public HTTPS origin, no trailing path; derives the callback and backchannel URLs |
 | `PORT` | `11451` | API port (`--port` overrides) |
 | `JAHAZIEL_GATEWAY_PORT` | `8081` | Legacy standalone gateway socket (`--gateway-port` overrides; off unless enabled) |
 | `JAHAZIEL_DOMAIN` | `localhost` | Public domain for gateway URLs and token issuer (`--domain` overrides; browsers resolve `*.localhost` to loopback, so local runs need no setup; set a real domain with DNS for LAN/server runs) |
@@ -36,12 +33,15 @@ provider, not every possible login source.
 | `JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE` | `/usr/bin/node` | Existing Node.js executable used by explicitly enabled TypeScript and Python language services; Jahaziel never installs it |
 | `JAHAZIEL_SHARE_SECRET` | — | HMAC secret for share links; generated in memory if unset, so revocation and signatures are lost on restart |
 
-basis-auth accepts two spellings for the client/resource credentials: the
-canonical `BASIS_AUTH_*` form used by the [downstream integration guide](../basis_auth_setup_guide.md#41-configuration)
-and the legacy `BASIS_*` form from earlier `.env` files. They are equivalent;
-the legacy aliases remain supported for existing deployments. The dotted
-`basis.*` names are the `.env`/`application.yml` form of the same settings. All
-values are read once at startup.
+basis-auth uses the lean canonical set in the
+[downstream integration guide](../basis_auth_setup_guide.md#41-configuration):
+the eight keys above, with `CURRENT_URL_ORIGIN` deriving
+`/api/auth/basis/callback` and `/api/auth/basis/backchannel`. The old
+`BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_CLIENT_SECRET` and
+`BASIS_RESOURCE` names remain as backward-compatible aliases but are not the
+canonical setup. The dotted `basis.*` names are the `.env`/`application.yml`
+form of the same settings. All values are read once at startup, so a credential
+change requires a restart.
 
 Flags: `--port=N`, `--gateway-port=N` (default `8081`),
 `--domain=HOST`, `--data-dir=PATH`, `--demo`. See the
@@ -70,7 +70,7 @@ Configuration keys are namespaced per provider. Dotted keys come from `.env` or
 
 | Provider | Required | Optional |
 |---|---|---|
-| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_REDIRECT_URI`, `BASIS_AUTH_CLIENT_ID` / `BASIS_CLIENT_ID`, `BASIS_AUTH_RESOURCE` / `BASIS_RESOURCE` | `BASIS_AUTH_CLIENT_SECRET` / `BASIS_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE_SECRET` / `BASIS_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_SCOPES`, `BASIS_AUTH_OFFLINE_ACCESS`, `BASIS_ADMIN_BOOTSTRAP_EMAIL`, `BASIS_ADMIN_REQUIRED_ACR` |
+| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`, `CURRENT_URL_ORIGIN` | `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_COOKIE_SECRET`; legacy `BASIS_REDIRECT_URI` / `BASIS_CLIENT_ID` / `BASIS_CLIENT_SECRET` / `BASIS_RESOURCE` aliases |
 | `microsoft` | `microsoft.client-id` / `MICROSOFT_CLIENT_ID` | `microsoft.client-secret`, `microsoft.redirect-uri`, `microsoft.issuer`, `microsoft.scopes` |
 | `google` | `google.client-id` / `GOOGLE_CLIENT_ID` | `google.client-secret`, `google.redirect-uri`, `google.issuer`, `google.scopes` |
 | `oidc` | `oidc.client-id` / `OIDC_CLIENT_ID` | `oidc.client-secret`, `oidc.redirect-uri`, `oidc.issuer`, `oidc.scopes` |
