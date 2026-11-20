@@ -4,6 +4,9 @@
  */
 package dev.jahaziel.workspace.internal;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import dev.jahaziel.platform.Platforms;
 import dev.jahaziel.platform.spi.ProcessEnvironment;
 import dev.jahaziel.platform.spi.ProcessEnvironments;
@@ -56,7 +59,8 @@ import java.util.concurrent.ConcurrentMap;
 
 /** Runs only command vectors declared in server-managed template manifests. */
 @Service
-public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, ApplicationRunner {
+public final class WorkspaceTaskServiceImpl extends WorkspaceTaskService
+        implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(WorkspaceTaskServiceImpl.class);
     private static final int MAX_OUTPUT_CHARS = 64 * 1024;
     private static final int MAX_TASKS = 4;
@@ -130,10 +134,8 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     @Override
     public void run(ApplicationArguments arguments) {
         Path root = metadataRoot();
-        try (var files = Files.list(root)) {
-            for (Path file :
-                    files.filter(path -> path.getFileName().toString().endsWith(".json"))
-                            .toList()) {
+        try (java.util.stream.Stream<Path> files = Files.list(root)) {
+            for (Path file : jsonFiles(files)) {
                 WorkspaceMetadata metadata = read(file);
                 if ("RUNNING".equals(metadata.setupStatus())) {
                     UUID correlationId =
@@ -246,63 +248,77 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                     correlationId,
                     workspaceId);
             Thread setupThread =
-                    Thread.ofPlatform()
-                            .daemon()
-                            .name("workspace-setup-" + workspaceId.value())
-                            .unstarted(
-                                    () -> {
-                                        StringBuilder output = new StringBuilder();
-                                        try {
-                                            for (List<String> command : commands) {
-                                                if (cancelledSetups.contains(workspaceId.value())) {
-                                                    throw new IllegalStateException(
-                                                            "setup stopped because workspace stopped");
-                                                }
-                                                runAndCapture(workspaceId, command, output);
-                                            }
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    StringBuilder output = new StringBuilder();
+                                    try {
+                                        for (List<String> command : commands) {
                                             if (cancelledSetups.contains(workspaceId.value())) {
                                                 throw new IllegalStateException(
                                                         "setup stopped because workspace stopped");
                                             }
-                                            update(
-                                                    workspaceId,
-                                                    current ->
-                                                            current.withSetup(
-                                                                    "READY",
-                                                                    SecretRedactor.redact(
-                                                                            outputText(output)),
-                                                                    "",
-                                                                    Instant.now()));
-                                            log.info(
-                                                    "workspace setup completed correlationId={} workspaceId={}",
-                                                    correlationId,
-                                                    workspaceId);
-                                        } catch (RuntimeException failure) {
-                                            String error =
-                                                    cancelledSetups.contains(workspaceId.value())
-                                                            ? "setup stopped because workspace stopped"
-                                                            : safeMessage(failure);
-                                            update(
-                                                    workspaceId,
-                                                    current ->
-                                                            current.withSetup(
-                                                                    "FAILED",
-                                                                    SecretRedactor.redact(
-                                                                            outputText(output)),
-                                                                    error,
-                                                                    Instant.now()));
-                                            log.warn(
-                                                    "workspace setup failed correlationId={} workspaceId={} reason={}",
-                                                    correlationId,
-                                                    workspaceId,
-                                                    error);
-                                        } finally {
-                                            activeSetups.remove(workspaceId.value());
-                                            cancelledSetups.remove(workspaceId.value());
-                                            setupThreads.remove(
-                                                    workspaceId.value(), Thread.currentThread());
+                                            runAndCapture(workspaceId, command, output);
                                         }
-                                    });
+                                        if (cancelledSetups.contains(workspaceId.value())) {
+                                            throw new IllegalStateException(
+                                                    "setup stopped because workspace stopped");
+                                        }
+                                        update(
+                                                workspaceId,
+                                                new java.util.function.UnaryOperator<
+                                                        WorkspaceMetadata>() {
+                                                    @Override
+                                                    public WorkspaceMetadata apply(
+                                                            WorkspaceMetadata current) {
+                                                        return current.withSetup(
+                                                                "READY",
+                                                                SecretRedactor.redact(
+                                                                        outputText(output)),
+                                                                "",
+                                                                Instant.now());
+                                                    }
+                                                });
+                                        log.info(
+                                                "workspace setup completed correlationId={} workspaceId={}",
+                                                correlationId,
+                                                workspaceId);
+                                    } catch (RuntimeException failure) {
+                                        String error =
+                                                cancelledSetups.contains(workspaceId.value())
+                                                        ? "setup stopped because workspace stopped"
+                                                        : safeMessage(failure);
+                                        update(
+                                                workspaceId,
+                                                new java.util.function.UnaryOperator<
+                                                        WorkspaceMetadata>() {
+                                                    @Override
+                                                    public WorkspaceMetadata apply(
+                                                            WorkspaceMetadata current) {
+                                                        return current.withSetup(
+                                                                "FAILED",
+                                                                SecretRedactor.redact(
+                                                                        outputText(output)),
+                                                                error,
+                                                                Instant.now());
+                                                    }
+                                                });
+                                        log.warn(
+                                                "workspace setup failed correlationId={} workspaceId={} reason={}",
+                                                correlationId,
+                                                workspaceId,
+                                                error);
+                                    } finally {
+                                        activeSetups.remove(workspaceId.value());
+                                        cancelledSetups.remove(workspaceId.value());
+                                        setupThreads.remove(
+                                                workspaceId.value(), Thread.currentThread());
+                                    }
+                                }
+                            });
+            setupThread.setDaemon(true);
+            setupThread.setName("workspace-setup-" + workspaceId.value());
             setupThreads.put(workspaceId.value(), setupThread);
             setupThread.start();
             return setupStatus(workspaceId);
@@ -322,21 +338,23 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     public List<Task> tasks(WorkspaceId workspaceId) {
         WorkspaceMetadata state = metadataOrNull(workspaceId);
         if (state == null) return List.of();
-        return taskDefinitions(workspaceId, state).stream()
-                .map(definition -> new Task(definition.id(), definition.label(), definition.port()))
-                .toList();
+        List<Task> result = new ArrayList<>();
+        for (TaskDefinition definition : taskDefinitions(workspaceId, state)) {
+            result.add(new Task(definition.id(), definition.label(), definition.port()));
+        }
+        return result;
     }
 
     @Override
     public List<DebugTarget> debugTargets(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
-        return debugTargetIdsByRun.entrySet().stream()
-                .filter(
-                        entry ->
-                                workspaceId.value().equals(taskWorkspacesByRun.get(entry.getKey())))
-                .map(entry -> readyDebugTarget(workspaceId, entry.getKey(), entry.getValue()))
-                .filter(Objects::nonNull)
-                .toList();
+        List<DebugTarget> result = new ArrayList<>();
+        for (Map.Entry<UUID, UUID> entry : debugTargetIdsByRun.entrySet()) {
+            if (!workspaceId.value().equals(taskWorkspacesByRun.get(entry.getKey()))) continue;
+            DebugTarget target = readyDebugTarget(workspaceId, entry.getKey(), entry.getValue());
+            if (target != null) result.add(target);
+        }
+        return result;
     }
 
     @Override
@@ -572,13 +590,14 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         for (String script : List.of("dev", "start", "preview", "serve", "test", "build")) {
             JsonNode value = scripts.get(script);
             if (value == null || !value.isString() || value.asString().isBlank()) continue;
-            if (result.stream()
-                    .anyMatch(
-                            configured ->
-                                    String.join(" ", configured.command())
-                                            .equals(value.asString().strip()))) {
-                continue;
+            boolean duplicate = false;
+            for (TaskDefinition configured : result) {
+                if (String.join(" ", configured.command()).equals(value.asString().strip())) {
+                    duplicate = true;
+                    break;
+                }
             }
+            if (duplicate) continue;
             String id = "discovered-package-" + encodeTaskId(script);
             String label = PACKAGE_SCRIPT_LABELS.get(script) + " (" + manager + ")";
             Integer port =
@@ -625,12 +644,16 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         if (Set.of("dev", "start", "preview", "serve").contains(script)) {
             Integer declared = firstTemplatePort(templateName);
             if (declared != null) return declared;
-            return switch (script) {
-                case "dev" -> 5173;
-                case "preview" -> 4173;
-                case "serve" -> 8080;
-                default -> 3000;
-            };
+            switch (script) {
+                case "dev":
+                    return 5173;
+                case "preview":
+                    return 4173;
+                case "serve":
+                    return 8080;
+                default:
+                    return 3000;
+            }
         }
         return null;
     }
@@ -719,9 +742,10 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
             String label,
             Integer port,
             List<String> command) {
-        if (result.size() >= MAX_DISCOVERED_TASKS
-                || !ids.add(id)
-                || result.stream().anyMatch(existing -> existing.command().equals(command))) return;
+        if (result.size() >= MAX_DISCOVERED_TASKS || !ids.add(id)) return;
+        for (TaskDefinition existing : result) {
+            if (existing.command().equals(command)) return;
+        }
         result.add(new TaskDefinition(id, label, port, List.copyOf(command), null));
     }
 
@@ -741,11 +765,14 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         if (!"READY".equals(state.setupStatus())) {
             throw new IllegalStateException("template setup must finish before running a task");
         }
-        TaskDefinition selected =
-                taskDefinitions(workspaceId, state).stream()
-                        .filter(definition -> definition.id().equals(taskId))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("unknown workspace task"));
+        TaskDefinition selected = null;
+        for (TaskDefinition definition : taskDefinitions(workspaceId, state)) {
+            if (definition.id().equals(taskId)) {
+                selected = definition;
+                break;
+            }
+        }
+        if (selected == null) throw new IllegalArgumentException("unknown workspace task");
         List<String> command = selected.command();
         String label = selected.label();
         Integer previewPort = selected.port();
@@ -792,17 +819,25 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                     workspaceId,
                     taskId);
             Integer selectedDebugPort = debugPort;
-            Thread.ofPlatform()
-                    .daemon()
-                    .name("workspace-task-" + runId)
-                    .start(
-                            () ->
+            final List<String> finalTaskCommand = taskCommand;
+            final Integer finalPreviewPort = previewPort;
+            final Integer finalDebugPort = selectedDebugPort;
+            Thread taskThread =
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
                                     executeTask(
                                             workspaceId,
                                             runId,
-                                            taskCommand,
-                                            previewPort,
-                                            selectedDebugPort));
+                                            finalTaskCommand,
+                                            finalPreviewPort,
+                                            finalDebugPort);
+                                }
+                            });
+            taskThread.setDaemon(true);
+            taskThread.setName("workspace-task-" + runId);
+            taskThread.start();
             return taskRunFor(workspaceId, metadata(workspaceId));
         }
     }
@@ -883,11 +918,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         Process process = processes.remove(runId);
         WorkspaceProcessRegistry.Registration registration = processRegistrations.remove(runId);
         if (process != null) {
-            process.descendants().forEach(ProcessHandle::destroy);
+            java.util.Iterator<ProcessHandle> descendants = process.descendants().iterator();
+            while (descendants.hasNext()) {
+                descendants.next().destroy();
+            }
             process.destroy();
             try {
                 if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) {
-                    process.descendants().forEach(ProcessHandle::destroyForcibly);
+                    java.util.Iterator<ProcessHandle> force = process.descendants().iterator();
+                    while (force.hasNext()) {
+                        force.next().destroyForcibly();
+                    }
                     process.destroyForcibly();
                 }
             } catch (InterruptedException failure) {
@@ -955,14 +996,18 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     @SuppressWarnings("null")
     private static void stopProcessTree(Process process) {
         List<ProcessHandle> descendants = process.descendants().toList();
-        descendants.forEach(ProcessHandle::destroy);
+        for (ProcessHandle descendant : descendants) {
+            descendant.destroy();
+        }
         process.destroy();
         try {
             process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }
-        descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
+        for (ProcessHandle descendant : descendants) {
+            if (descendant.isAlive()) descendant.destroyForcibly();
+        }
         if (process.isAlive()) process.destroyForcibly();
     }
 
@@ -999,15 +1044,24 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 if (registration != null) processRegistrations.put(runId, registration);
             }
             Thread reader =
-                    Thread.ofPlatform()
-                            .daemon()
-                            .name("workspace-task-output-" + runId)
-                            .start(() -> readOutput(running, output, workspaceId, runId));
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    readOutput(running, output, workspaceId, runId);
+                                }
+                            });
+            reader.setDaemon(true);
+            reader.setName("workspace-task-output-" + runId);
+            reader.start();
             boolean ended =
                     process.waitFor(
                             MAX_RUNTIME.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
             if (!ended) {
-                process.descendants().forEach(ProcessHandle::destroy);
+                java.util.Iterator<ProcessHandle> descendants = process.descendants().iterator();
+                while (descendants.hasNext()) {
+                    descendants.next().destroy();
+                }
                 process.destroyForcibly();
                 throw new IllegalStateException("task exceeded the 30 minute runtime limit");
             }
@@ -1020,13 +1074,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
             }
             update(
                     workspaceId,
-                    current ->
-                            current.withTask(
+                    new java.util.function.UnaryOperator<WorkspaceMetadata>() {
+                        @Override
+                        public WorkspaceMetadata apply(WorkspaceMetadata current) {
+                            return current.withTask(
                                     exitCode == 0 ? "SUCCEEDED" : "FAILED",
                                     SecretRedactor.redact(finalOutput),
                                     exitCode,
                                     current.taskStartedAt(),
-                                    Instant.now()));
+                                    Instant.now());
+                        }
+                    });
             log.info(
                     "workspace task completed correlationId={} workspaceId={} exitCode={}",
                     runId,
@@ -1041,13 +1099,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
             }
             update(
                     workspaceId,
-                    current ->
-                            current.withTask(
+                    new java.util.function.UnaryOperator<WorkspaceMetadata>() {
+                        @Override
+                        public WorkspaceMetadata apply(WorkspaceMetadata current) {
+                            return current.withTask(
                                     "FAILED",
                                     SecretRedactor.redact(captured),
                                     exitCode,
                                     current.taskStartedAt(),
-                                    Instant.now()));
+                                    Instant.now());
+                        }
+                    });
             log.warn(
                     "workspace task failed correlationId={} workspaceId={} reason={}",
                     runId,
@@ -1084,10 +1146,16 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 throw new IllegalStateException("setup stopped because workspace stopped");
             }
             Thread reader =
-                    Thread.ofPlatform()
-                            .daemon()
-                            .name("workspace-setup-output-" + process.pid())
-                            .start(() -> readInto(process, output, workspaceId));
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    readInto(process, output, workspaceId);
+                                }
+                            });
+            reader.setDaemon(true);
+            reader.setName("workspace-setup-output-" + process.pid());
+            reader.start();
             if (!process.waitFor(
                     MAX_RUNTIME.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
                 stopProcessTree(process);
@@ -1166,16 +1234,23 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
 
     static List<String> resolveDebugPort(List<String> command, Integer debugPort) {
-        boolean usesDebugPort =
-                command.stream().anyMatch(value -> value.contains(DEBUG_PORT_PLACEHOLDER));
+        boolean usesDebugPort = false;
+        for (String value : command) {
+            if (value.contains(DEBUG_PORT_PLACEHOLDER)) {
+                usesDebugPort = true;
+                break;
+            }
+        }
         if (!usesDebugPort) return command;
         if (debugPort == null || debugPort < 1 || debugPort > 65535) {
             throw new IllegalArgumentException(
                     "template task requires a valid server-assigned debug port");
         }
-        return command.stream()
-                .map(value -> value.replace(DEBUG_PORT_PLACEHOLDER, Integer.toString(debugPort)))
-                .toList();
+        List<String> resolved = new ArrayList<>();
+        for (String value : command) {
+            resolved.add(value.replace(DEBUG_PORT_PLACEHOLDER, Integer.toString(debugPort)));
+        }
+        return resolved;
     }
 
     private static boolean isDebugExecutable(Path commandPath, TaskDebugDefinition debug) {
@@ -1224,13 +1299,17 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         }
         update(
                 workspaceId,
-                current ->
-                        current.withTask(
+                new java.util.function.UnaryOperator<WorkspaceMetadata>() {
+                    @Override
+                    public WorkspaceMetadata apply(WorkspaceMetadata current) {
+                        return current.withTask(
                                 current.taskStatus(),
                                 SecretRedactor.redact(captured),
                                 current.taskExitCode(),
                                 current.taskStartedAt(),
-                                Instant.now()));
+                                Instant.now());
+                    }
+                });
     }
 
     private void readInto(Process process, StringBuilder output, WorkspaceId workspaceId) {
@@ -1262,12 +1341,16 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         String captured = outputText(output);
         update(
                 workspaceId,
-                current ->
-                        current.withSetup(
+                new java.util.function.UnaryOperator<WorkspaceMetadata>() {
+                    @Override
+                    public WorkspaceMetadata apply(WorkspaceMetadata current) {
+                        return current.withSetup(
                                 current.setupStatus(),
                                 SecretRedactor.redact(captured),
                                 current.setupError(),
-                                Instant.now()));
+                                Instant.now());
+                    }
+                });
     }
 
     private static String outputText(StringBuilder output) {
@@ -1299,9 +1382,19 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         return null;
     }
 
+    private static List<Path> jsonFiles(java.util.stream.Stream<Path> files) {
+        List<Path> result = new ArrayList<>();
+        java.util.Iterator<Path> iterator = files.iterator();
+        while (iterator.hasNext()) {
+            Path path = iterator.next();
+            if (path.toString().endsWith(".json")) result.add(path);
+        }
+        return result;
+    }
+
     private List<Path> metadataFiles() {
-        try (var files = Files.list(metadataRoot())) {
-            return files.filter(path -> path.toString().endsWith(".json")).toList();
+        try (java.util.stream.Stream<Path> files = Files.list(metadataRoot())) {
+            return jsonFiles(files);
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
@@ -1323,7 +1416,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 state.taskId(),
                 state.taskLabel(),
                 state.taskStatus(),
-                SecretRedactor.redact(state.taskOutput()),
+                state.taskOutput() == null ? null : SecretRedactor.redact(state.taskOutput()),
                 state.taskExitCode(),
                 state.taskStartedAt(),
                 state.taskFinishedAt(),
@@ -1473,7 +1566,13 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
     }
 
     private Object lock(UUID id) {
-        return locks.computeIfAbsent(id, ignored -> new Object());
+        Object lock = locks.get(id);
+        if (lock == null) {
+            Object created = new Object();
+            Object existing = locks.putIfAbsent(id, created);
+            lock = existing == null ? created : existing;
+        }
+        return lock;
     }
 
     private TaskRun taskRunFor(WorkspaceId workspaceId, WorkspaceMetadata state) {
@@ -1484,7 +1583,7 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 state.taskId(),
                 state.taskLabel(),
                 state.taskStatus(),
-                SecretRedactor.redact(state.taskOutput()),
+                state.taskOutput() == null ? null : SecretRedactor.redact(state.taskOutput()),
                 state.taskExitCode(),
                 state.taskStartedAt(),
                 state.taskFinishedAt());
@@ -1521,14 +1620,140 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
         return process == null ? null : safeExit(process);
     }
 
-    private record TaskDefinition(
-            String id,
-            String label,
-            Integer port,
-            List<String> command,
-            TaskDebugDefinition debug) {}
+    private static final class TaskDefinition {
+        private final String id;
+        private final String label;
+        private final Integer port;
+        private final List<String> command;
+        private final TaskDebugDefinition debug;
 
-    private record TaskDebugDefinition(String language, String executable, String program) {}
+        public TaskDefinition(
+                String id,
+                String label,
+                Integer port,
+                List<String> command,
+                TaskDebugDefinition debug) {
+            this.id = id;
+            this.label = label;
+            this.port = port;
+            this.command = command;
+            this.debug = debug;
+        }
+
+        public String id() {
+            return id;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public Integer port() {
+            return port;
+        }
+
+        public List<String> command() {
+            return command;
+        }
+
+        public TaskDebugDefinition debug() {
+            return debug;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TaskDefinition other = (TaskDefinition) o;
+            return Objects.equals(id, other.id)
+                    && Objects.equals(label, other.label)
+                    && Objects.equals(port, other.port)
+                    && Objects.equals(command, other.command)
+                    && Objects.equals(debug, other.debug);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(id);
+            result = 31 * result + Objects.hashCode(label);
+            result = 31 * result + Objects.hashCode(port);
+            result = 31 * result + Objects.hashCode(command);
+            result = 31 * result + Objects.hashCode(debug);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "TaskDefinition{"
+                    + "id="
+                    + id
+                    + ", label="
+                    + label
+                    + ", port="
+                    + port
+                    + ", command="
+                    + command
+                    + ", debug="
+                    + debug
+                    + '}';
+        }
+    }
+
+    private static final class TaskDebugDefinition {
+        private final String language;
+        private final String executable;
+        private final String program;
+
+        public TaskDebugDefinition(String language, String executable, String program) {
+            this.language = language;
+            this.executable = executable;
+            this.program = program;
+        }
+
+        public String language() {
+            return language;
+        }
+
+        public String executable() {
+            return executable;
+        }
+
+        public String program() {
+            return program;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TaskDebugDefinition other = (TaskDebugDefinition) o;
+            return Objects.equals(language, other.language)
+                    && Objects.equals(executable, other.executable)
+                    && Objects.equals(program, other.program);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(language);
+            result = 31 * result + Objects.hashCode(executable);
+            result = 31 * result + Objects.hashCode(program);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "TaskDebugDefinition{"
+                    + "language="
+                    + language
+                    + ", executable="
+                    + executable
+                    + ", program="
+                    + program
+                    + '}';
+        }
+    }
 
     private static boolean isStarted(WorkspaceState state) {
         return state instanceof WorkspaceState.Ready
@@ -1536,22 +1761,256 @@ public final class WorkspaceTaskServiceImpl implements WorkspaceTaskService, App
                 || state instanceof WorkspaceState.Idle;
     }
 
-    private record WorkspaceMetadata(
-            UUID workspaceId,
-            String templateName,
-            String setupStatus,
-            String setupOutput,
-            String setupError,
-            UUID setupCorrelationId,
-            UUID taskRunId,
-            String taskId,
-            String taskLabel,
-            String taskStatus,
-            String taskOutput,
-            Integer taskExitCode,
-            Instant taskStartedAt,
-            Instant taskFinishedAt,
-            Instant updatedAt) {
+    private static final class WorkspaceMetadata {
+        private final UUID workspaceId;
+        private final String templateName;
+        private final String setupStatus;
+        private final String setupOutput;
+        private final String setupError;
+        private final UUID setupCorrelationId;
+        private final UUID taskRunId;
+        private final String taskId;
+        private final String taskLabel;
+        private final String taskStatus;
+        private final String taskOutput;
+        private final Integer taskExitCode;
+        private final Instant taskStartedAt;
+        private final Instant taskFinishedAt;
+        private final Instant updatedAt;
+
+        @JsonCreator
+        public WorkspaceMetadata(
+                @JsonProperty("workspaceId") UUID workspaceId,
+                @JsonProperty("templateName") String templateName,
+                @JsonProperty("setupStatus") String setupStatus,
+                @JsonProperty("setupOutput") String setupOutput,
+                @JsonProperty("setupError") String setupError,
+                @JsonProperty("setupCorrelationId") UUID setupCorrelationId,
+                @JsonProperty("taskRunId") UUID taskRunId,
+                @JsonProperty("taskId") String taskId,
+                @JsonProperty("taskLabel") String taskLabel,
+                @JsonProperty("taskStatus") String taskStatus,
+                @JsonProperty("taskOutput") String taskOutput,
+                @JsonProperty("taskExitCode") Integer taskExitCode,
+                @JsonProperty("taskStartedAt") Instant taskStartedAt,
+                @JsonProperty("taskFinishedAt") Instant taskFinishedAt,
+                @JsonProperty("updatedAt") Instant updatedAt) {
+            this.workspaceId = workspaceId;
+            this.templateName = templateName;
+            this.setupStatus = setupStatus;
+            this.setupOutput = setupOutput;
+            this.setupError = setupError;
+            this.setupCorrelationId = setupCorrelationId;
+            this.taskRunId = taskRunId;
+            this.taskId = taskId;
+            this.taskLabel = taskLabel;
+            this.taskStatus = taskStatus;
+            this.taskOutput = taskOutput;
+            this.taskExitCode = taskExitCode;
+            this.taskStartedAt = taskStartedAt;
+            this.taskFinishedAt = taskFinishedAt;
+            this.updatedAt = updatedAt;
+        }
+
+        public UUID workspaceId() {
+            return workspaceId;
+        }
+
+        public String templateName() {
+            return templateName;
+        }
+
+        public String setupStatus() {
+            return setupStatus;
+        }
+
+        public String setupOutput() {
+            return setupOutput;
+        }
+
+        public String setupError() {
+            return setupError;
+        }
+
+        public UUID setupCorrelationId() {
+            return setupCorrelationId;
+        }
+
+        public UUID taskRunId() {
+            return taskRunId;
+        }
+
+        public String taskId() {
+            return taskId;
+        }
+
+        public String taskLabel() {
+            return taskLabel;
+        }
+
+        public String taskStatus() {
+            return taskStatus;
+        }
+
+        public String taskOutput() {
+            return taskOutput;
+        }
+
+        public Integer taskExitCode() {
+            return taskExitCode;
+        }
+
+        public Instant taskStartedAt() {
+            return taskStartedAt;
+        }
+
+        public Instant taskFinishedAt() {
+            return taskFinishedAt;
+        }
+
+        public Instant updatedAt() {
+            return updatedAt;
+        }
+
+        public UUID getWorkspaceId() {
+            return workspaceId;
+        }
+
+        public String getTemplateName() {
+            return templateName;
+        }
+
+        public String getSetupStatus() {
+            return setupStatus;
+        }
+
+        public String getSetupOutput() {
+            return setupOutput;
+        }
+
+        public String getSetupError() {
+            return setupError;
+        }
+
+        public UUID getSetupCorrelationId() {
+            return setupCorrelationId;
+        }
+
+        public UUID getTaskRunId() {
+            return taskRunId;
+        }
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        public String getTaskLabel() {
+            return taskLabel;
+        }
+
+        public String getTaskStatus() {
+            return taskStatus;
+        }
+
+        public String getTaskOutput() {
+            return taskOutput;
+        }
+
+        public Integer getTaskExitCode() {
+            return taskExitCode;
+        }
+
+        public Instant getTaskStartedAt() {
+            return taskStartedAt;
+        }
+
+        public Instant getTaskFinishedAt() {
+            return taskFinishedAt;
+        }
+
+        public Instant getUpdatedAt() {
+            return updatedAt;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            WorkspaceMetadata other = (WorkspaceMetadata) o;
+            return Objects.equals(workspaceId, other.workspaceId)
+                    && Objects.equals(templateName, other.templateName)
+                    && Objects.equals(setupStatus, other.setupStatus)
+                    && Objects.equals(setupOutput, other.setupOutput)
+                    && Objects.equals(setupError, other.setupError)
+                    && Objects.equals(setupCorrelationId, other.setupCorrelationId)
+                    && Objects.equals(taskRunId, other.taskRunId)
+                    && Objects.equals(taskId, other.taskId)
+                    && Objects.equals(taskLabel, other.taskLabel)
+                    && Objects.equals(taskStatus, other.taskStatus)
+                    && Objects.equals(taskOutput, other.taskOutput)
+                    && Objects.equals(taskExitCode, other.taskExitCode)
+                    && Objects.equals(taskStartedAt, other.taskStartedAt)
+                    && Objects.equals(taskFinishedAt, other.taskFinishedAt)
+                    && Objects.equals(updatedAt, other.updatedAt);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(workspaceId);
+            result = 31 * result + Objects.hashCode(templateName);
+            result = 31 * result + Objects.hashCode(setupStatus);
+            result = 31 * result + Objects.hashCode(setupOutput);
+            result = 31 * result + Objects.hashCode(setupError);
+            result = 31 * result + Objects.hashCode(setupCorrelationId);
+            result = 31 * result + Objects.hashCode(taskRunId);
+            result = 31 * result + Objects.hashCode(taskId);
+            result = 31 * result + Objects.hashCode(taskLabel);
+            result = 31 * result + Objects.hashCode(taskStatus);
+            result = 31 * result + Objects.hashCode(taskOutput);
+            result = 31 * result + Objects.hashCode(taskExitCode);
+            result = 31 * result + Objects.hashCode(taskStartedAt);
+            result = 31 * result + Objects.hashCode(taskFinishedAt);
+            result = 31 * result + Objects.hashCode(updatedAt);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "WorkspaceMetadata{"
+                    + "workspaceId="
+                    + workspaceId
+                    + ", templateName="
+                    + templateName
+                    + ", setupStatus="
+                    + setupStatus
+                    + ", setupOutput="
+                    + setupOutput
+                    + ", setupError="
+                    + setupError
+                    + ", setupCorrelationId="
+                    + setupCorrelationId
+                    + ", taskRunId="
+                    + taskRunId
+                    + ", taskId="
+                    + taskId
+                    + ", taskLabel="
+                    + taskLabel
+                    + ", taskStatus="
+                    + taskStatus
+                    + ", taskOutput="
+                    + taskOutput
+                    + ", taskExitCode="
+                    + taskExitCode
+                    + ", taskStartedAt="
+                    + taskStartedAt
+                    + ", taskFinishedAt="
+                    + taskFinishedAt
+                    + ", updatedAt="
+                    + updatedAt
+                    + '}';
+        }
+
         static WorkspaceMetadata initial(UUID workspaceId, String template, String setupStatus) {
             Instant now = Instant.now();
             return new WorkspaceMetadata(
