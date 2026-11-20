@@ -11,6 +11,7 @@ import dev.jahaziel.spi.JobContext;
 import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 import dev.jahaziel.workspace.api.WorkspaceService;
+import dev.jahaziel.workspace.api.WorkspaceView;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -22,7 +23,7 @@ import java.util.Objects;
  * Enforces snapshot retention: rolling automatic snapshots, and pre-delete snapshots past their
  * age. Manual snapshots delete only on user request.
  */
-public final class SnapshotRetentionJob implements PlatformJob {
+public final class SnapshotRetentionJob extends PlatformJob {
     private final SnapshotService snapshots;
     private final WorkspaceService workspaces;
     private final int autoRetentionCount;
@@ -60,13 +61,21 @@ public final class SnapshotRetentionJob implements PlatformJob {
     @Override
     public void run(JobContext context) {
         Instant cutoff = Instant.now(clock).minus(Duration.ofDays(preDeleteRetentionDays));
-        for (var view : workspaces.describeAll()) {
+        for (WorkspaceView view : workspaces.describeAll()) {
             List<SnapshotMetadata> all = snapshots.list(view.workspace().id());
-            List<SnapshotMetadata> autos =
-                    all.stream()
-                            .filter(meta -> meta.kind() == SnapshotKind.AUTO)
-                            .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
-                            .toList();
+            List<SnapshotMetadata> autos = new java.util.ArrayList<>();
+            for (SnapshotMetadata meta : all) {
+                if (meta.kind() == SnapshotKind.AUTO) {
+                    autos.add(meta);
+                }
+            }
+            autos.sort(
+                    new java.util.Comparator<SnapshotMetadata>() {
+                        @Override
+                        public int compare(SnapshotMetadata left, SnapshotMetadata right) {
+                            return right.createdAt().compareTo(left.createdAt());
+                        }
+                    });
             for (int i = autoRetentionCount; i < autos.size(); i++) {
                 snapshots.delete(autos.get(i).workspaceId(), autos.get(i).id());
             }
