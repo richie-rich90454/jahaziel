@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.jahaziel.administration.persistence.AdminActionEntity;
 import dev.jahaziel.administration.persistence.AdminActionRepository;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.UserId;
@@ -17,6 +18,7 @@ import dev.jahaziel.workspace.api.WorkspaceService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
@@ -58,9 +60,21 @@ class AdminServiceImplTest {
     @Test
     void blankReasonsAreRejected() {
         assertThrows(
-                IllegalArgumentException.class, () -> service.suspendUser(userId, "  ", adminId));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.suspendUser(userId, "  ", adminId);
+                    }
+                });
         assertThrows(
-                IllegalArgumentException.class, () -> service.unsuspendUser(userId, null, adminId));
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        service.unsuspendUser(userId, null, adminId);
+                    }
+                });
     }
 
     @Test
@@ -72,9 +86,7 @@ class AdminServiceImplTest {
     }
 
     private String savedAction() {
-        var captor =
-                ArgumentCaptor.forClass(
-                        dev.jahaziel.administration.persistence.AdminActionEntity.class);
+        ArgumentCaptor<AdminActionEntity> captor = ArgumentCaptor.forClass(AdminActionEntity.class);
         verify(actions).save(captor.capture());
         return captor.getValue().getAction();
     }
