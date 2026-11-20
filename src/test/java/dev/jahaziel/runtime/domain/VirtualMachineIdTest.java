@@ -30,6 +30,13 @@ class VirtualMachineIdTest {
 
     @Test
     void nullValueIsRejected() {
-        assertThrows(NullPointerException.class, () -> new VirtualMachineId(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new VirtualMachineId(null);
+                    }
+                });
     }
 }
