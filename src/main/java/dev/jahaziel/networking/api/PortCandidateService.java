@@ -6,6 +6,8 @@ package dev.jahaziel.networking.api;
 
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import tools.jackson.databind.annotation.JsonValue;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -76,6 +78,12 @@ public abstract class PortCandidateService {
 
         private Source(String name) {
             this.name = name;
+        }
+
+        /** Serializes the source as its stable name. */
+        @JsonValue
+        public String name() {
+            return name;
         }
 
         @Override
