@@ -54,15 +54,33 @@ class NodeTest {
     void duplicateAssignAndUnknownReleaseThrow() {
         UUID workspace = UUID.randomUUID();
         node.assign(workspace);
-        assertThrows(IllegalArgumentException.class, () -> node.assign(workspace));
-        assertThrows(IllegalArgumentException.class, () -> node.release(UUID.randomUUID()));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.assign(workspace);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.release(UUID.randomUUID());
+                    }
+                });
     }
 
     @Test
     void drainingRefusesPlacements() {
         node.drain();
         assertInstanceOf(NodeState.Draining.class, node.state());
-        assertThrows(IllegalStateException.class, () -> node.assign(UUID.randomUUID()));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.assign(UUID.randomUUID());
+                    }
+                });
     }
 
     @Test
@@ -76,7 +94,13 @@ class NodeTest {
 
     @Test
     void recoverRequiresDegraded() {
-        assertThrows(IllegalStateException.class, node::recover);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.recover();
+                    }
+                });
     }
 
     @Test
@@ -84,19 +108,43 @@ class NodeTest {
         NodeCapacity capacity = new NodeCapacity(14, 49152, 500);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), "  ", "default", capacity, "fp"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), "  ", "default", capacity, "fp");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), "n", "  ", capacity, "fp"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), "n", "  ", capacity, "fp");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new Node(new NodeId("n"), "n", "default", capacity, "  "));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Node(new NodeId("n"), "n", "default", capacity, "  ");
+                    }
+                });
     }
 
     @Test
     void blankReasonsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> node.degrade("  "));
-        assertThrows(IllegalArgumentException.class, () -> node.markUnhealthy("  "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.degrade("  ");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.markUnhealthy("  ");
+                    }
+                });
     }
 
     @Test
@@ -104,8 +152,20 @@ class NodeTest {
         node.markUnhealthy("no heartbeat");
         NodeState.Unhealthy unhealthy = assertInstanceOf(NodeState.Unhealthy.class, node.state());
         assertEquals("no heartbeat", unhealthy.reason());
-        assertThrows(IllegalStateException.class, () -> node.markUnhealthy("again"));
-        assertThrows(IllegalStateException.class, node::drain);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.markUnhealthy("again");
+                    }
+                });
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        node.drain();
+                    }
+                });
         node.recordHeartbeat();
         assertTrue(node.lastHeartbeat().isPresent());
     }
