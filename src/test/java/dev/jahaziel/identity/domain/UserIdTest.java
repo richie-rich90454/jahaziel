@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.UUID;
 
@@ -27,6 +28,13 @@ class UserIdTest {
 
     @Test
     void nullValueIsRejected() {
-        assertThrows(NullPointerException.class, () -> new UserId(null));
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new UserId(null);
+                    }
+                });
     }
 }
