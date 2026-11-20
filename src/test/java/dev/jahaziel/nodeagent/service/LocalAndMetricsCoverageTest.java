@@ -89,17 +89,38 @@ class LocalAndMetricsCoverageTest {
 
     @Test
     void metricsNullRejects() {
-        assertThrows(NullPointerException.class, () -> new NodeMetricsCollector(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeMetricsCollector(null);
+                    }
+                });
         LocalProcessBackend backend =
                 new LocalProcessBackend(new FolderStorage(new NioCommandRunner(), "/tmp"));
-        assertThrows(NullPointerException.class, () -> new LocalProcessBackend(null));
-        assertThrows(NullPointerException.class, () -> backend.start(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new LocalProcessBackend(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        backend.start(null);
+                    }
+                });
         assertThrows(
                 IllegalStateException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         backend.start(
                                 new RuntimeRequest(
-                                        UUID.randomUUID(), 1, 1, 0, 0, 0, 1, 1, List.of("x"))));
+                                        UUID.randomUUID(), 1, 1, 0, 0, 0, 1, 1, List.of("x")));
+                    }
+                });
         RuntimeHandle unknown = new RuntimeHandle(UUID.randomUUID());
         backend.stop(unknown, false);
     }
