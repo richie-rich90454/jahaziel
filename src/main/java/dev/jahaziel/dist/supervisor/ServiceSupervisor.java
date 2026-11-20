@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -104,7 +106,12 @@ public final class ServiceSupervisor {
             return List.of();
         }
         try (Stream<Path> files = Files.list(servicesDir)) {
-            List<Path> all = files.sorted().toList();
+            List<Path> all = new ArrayList<>();
+            Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                all.add(iterator.next());
+            }
+            Collections.sort(all);
             // A unit's schedule lives in its companion .timer file, so fold the intervals in
             // before anything starts: jahaziel-sync-push.service is periodic, not oneshot.
             Map<String, Long> intervals = new HashMap<>();
@@ -116,11 +123,14 @@ public final class ServiceSupervisor {
                             ServiceUnit.timerIntervalSeconds(path));
                 }
             }
-            return all.stream()
-                    .filter(path -> path.getFileName().toString().endsWith(".service"))
-                    .map(ServiceUnit::parse)
-                    .map(unit -> unit.withTimerSeconds(intervals.getOrDefault(unit.name(), 0L)))
-                    .toList();
+            List<ServiceUnit> units = new ArrayList<>();
+            for (Path path : all) {
+                if (path.getFileName().toString().endsWith(".service")) {
+                    ServiceUnit unit = ServiceUnit.parse(path);
+                    units.add(unit.withTimerSeconds(intervals.getOrDefault(unit.name(), 0L)));
+                }
+            }
+            return units;
         } catch (IOException failure) {
             throw new UncheckedIOException("cannot list " + servicesDir, failure);
         }
@@ -139,7 +149,13 @@ public final class ServiceSupervisor {
         Set<String> placed = new LinkedHashSet<>();
         Set<String> visiting = new LinkedHashSet<>();
         List<ServiceUnit> sorted = new ArrayList<>(units);
-        sorted.sort((first, second) -> first.name().compareTo(second.name()));
+        sorted.sort(
+                new java.util.Comparator<ServiceUnit>() {
+                    @Override
+                    public int compare(ServiceUnit first, ServiceUnit second) {
+                        return first.name().compareTo(second.name());
+                    }
+                });
         for (ServiceUnit unit : sorted) {
             visit(unit, byName, visiting, placed, ordered);
         }
@@ -177,7 +193,15 @@ public final class ServiceSupervisor {
     // Package-visible (not private) so tests can drive and stub the blocking loop.
     int run() throws InterruptedException {
         Runtime.getRuntime()
-                .addShutdownHook(new Thread(this::shutdown, "jahaziel-supervisor-stop"));
+                .addShutdownHook(
+                        new Thread(
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        shutdown();
+                                    }
+                                },
+                                "jahaziel-supervisor-stop"));
         try {
             Files.createDirectories(logDir);
         } catch (IOException failure) {
@@ -267,7 +291,9 @@ public final class ServiceSupervisor {
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
-            environment().forEach(builder.environment()::put);
+            for (Map.Entry<String, String> entry : environment().entrySet()) {
+                builder.environment().put(entry.getKey(), entry.getValue());
+            }
             if (unit.workingDirectory() != null) {
                 builder.directory(unit.workingDirectory().toFile());
             }
@@ -287,11 +313,14 @@ public final class ServiceSupervisor {
         }
 
         private boolean shouldRestart(int exit) {
-            return switch (unit.restart()) {
-                case ALWAYS -> true;
-                case ON_FAILURE -> exit != 0;
-                case NO -> false;
-            };
+            ServiceUnit.Restart policy = unit.restart();
+            if (policy == ServiceUnit.Restart.ALWAYS) {
+                return true;
+            }
+            if (policy == ServiceUnit.Restart.ON_FAILURE) {
+                return exit != 0;
+            }
+            return false;
         }
 
         private void stop() {
@@ -324,7 +353,9 @@ public final class ServiceSupervisor {
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
-            environment().forEach(builder.environment()::put);
+            for (Map.Entry<String, String> entry : environment().entrySet()) {
+                builder.environment().put(entry.getKey(), entry.getValue());
+            }
             try {
                 builder.start().waitFor();
             } catch (IOException failure) {
