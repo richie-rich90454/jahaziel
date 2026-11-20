@@ -52,10 +52,20 @@ class WorkspaceTaskServiceImplTest {
                 WorkspaceTaskServiceImpl.resolveDebugPort(command, 43127));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspaceTaskServiceImpl.resolveDebugPort(command, null);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> WorkspaceTaskServiceImpl.resolveDebugPort(command, 0));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        WorkspaceTaskServiceImpl.resolveDebugPort(command, 0);
+                    }
+                });
     }
 
     @Test
@@ -63,9 +73,7 @@ class WorkspaceTaskServiceImplTest {
         Path templates = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 templates.resolve("template.json"),
-                """
-        {"name":"node","runTasks":[{"id":"start","label":"Start server","command":["node","server.js"],"port":3000}]}
-        """);
+                "{\"name\":\"node\",\"runTasks\":[{\"id\":\"start\",\"label\":\"Start server\",\"command\":[\"node\",\"server.js\"],\"port\":3000}]}\n");
         WorkspaceTaskService service =
                 new WorkspaceTaskServiceImpl(
                         temp.resolve("data").toString(),
@@ -89,9 +97,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/python"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"python","languagePacks":["python"]}
-        """);
+                "{\"name\":\"python\",\"languagePacks\":[\"python\"]}\n");
         WorkspaceTaskService service =
                 new WorkspaceTaskServiceImpl(
                         temp.resolve("data").toString(),
@@ -125,9 +131,7 @@ class WorkspaceTaskServiceImplTest {
         Path home = new WorkspaceDirectoryServiceImpl(data.toString()).home(id);
         Files.writeString(
                 home.resolve("package.json"),
-                """
-        {"packageManager":"pnpm@12.14.0","scripts":{"dev":"vite --host 0.0.0.0","test":"vitest run","preinstall":"echo unsafe"},"devDependencies":{"vite":"1.0.0"}}
-        """);
+                "{\"packageManager\":\"pnpm@12.14.0\",\"scripts\":{\"dev\":\"vite --host 0.0.0.0\",\"test\":\"vitest run\",\"preinstall\":\"echo unsafe\"},\"devDependencies\":{\"vite\":\"1.0.0\"}}\n");
         Files.writeString(home.resolve("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 
         List<WorkspaceTaskService.Task> tasks = service.tasks(id);
@@ -142,8 +146,22 @@ class WorkspaceTaskServiceImplTest {
                 tasks.contains(
                         new WorkspaceTaskService.Task(
                                 "discovered-package-dGVzdA", "Run tests (pnpm)", null)));
-        assertFalse(tasks.stream().anyMatch(task -> task.label().contains("unsafe")));
-        assertFalse(tasks.stream().anyMatch(task -> task.id().contains("preinstall")));
+        boolean unsafe = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.label().contains("unsafe")) {
+                unsafe = true;
+                break;
+            }
+        }
+        assertFalse(unsafe);
+        boolean preinstall = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.id().contains("preinstall")) {
+                preinstall = true;
+                break;
+            }
+        }
+        assertFalse(preinstall);
     }
 
     @Test
@@ -169,12 +187,38 @@ class WorkspaceTaskServiceImplTest {
 
         List<WorkspaceTaskService.Task> tasks = service.tasks(id);
 
-        assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Make target: test")));
-        assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Cargo tests")));
-        assertTrue(tasks.stream().anyMatch(task -> task.label().equals("Run Go tests")));
-        assertFalse(
-                tasks.stream()
-                        .anyMatch(task -> task.label().equals("Run Make target: release;rm")));
+        boolean makeTest = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.label().equals("Run Make target: test")) {
+                makeTest = true;
+                break;
+            }
+        }
+        assertTrue(makeTest);
+        boolean cargo = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.label().equals("Run Cargo tests")) {
+                cargo = true;
+                break;
+            }
+        }
+        assertTrue(cargo);
+        boolean go = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.label().equals("Run Go tests")) {
+                go = true;
+                break;
+            }
+        }
+        assertTrue(go);
+        boolean release = false;
+        for (WorkspaceTaskService.Task task : tasks) {
+            if (task.label().equals("Run Make target: release;rm")) {
+                release = true;
+                break;
+            }
+        }
+        assertFalse(release);
     }
 
     @Test
@@ -219,10 +263,14 @@ class WorkspaceTaskServiceImplTest {
                             + "}");
             assertThrows(
                     IllegalArgumentException.class,
-                    () ->
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
                             service.initialize(
                                     new WorkspaceId(UUID.randomUUID()),
-                                    template.getFileName().toString()));
+                                    template.getFileName().toString());
+                        }
+                    });
         }
     }
 
@@ -247,7 +295,12 @@ class WorkspaceTaskServiceImplTest {
                         new WorkspaceDirectoryServiceImpl(temp.resolve("data").toString()));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.initialize(new WorkspaceId(UUID.randomUUID()), "outside"));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.initialize(new WorkspaceId(UUID.randomUUID()), "outside");
+                    }
+                });
     }
 
     @Test
@@ -276,7 +329,12 @@ class WorkspaceTaskServiceImplTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.stopTask(new WorkspaceId(UUID.randomUUID()), runId));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        service.stopTask(new WorkspaceId(UUID.randomUUID()), runId);
+                    }
+                });
         WorkspaceTaskService.TaskRun stopped = service.stopTask(workspace, runId);
 
         assertNotNull(stopped);
@@ -326,9 +384,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","setupSteps":[{"id":"install","command":["not-used"]}]}
-        """);
+                "{\"name\":\"node\",\"setupSteps\":[{\"id\":\"install\",\"command\":[\"not-used\"]}]}\n");
         ObjectMapper json = new ObjectMapper();
         WorkspaceTaskServiceImpl service =
                 new WorkspaceTaskServiceImpl(
@@ -358,9 +414,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","setupSteps":[{"id":"install","command":["missing-jahaziel-setup-command"]}]}
-        """);
+                "{\"name\":\"node\",\"setupSteps\":[{\"id\":\"install\",\"command\":[\"missing-jahaziel-setup-command\"]}]}\n");
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
         WorkspaceService workspaces = mock(WorkspaceService.class);
         when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
@@ -410,9 +464,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","setupSteps":[{"id":"install","command":["not-used"]}]}
-        """);
+                "{\"name\":\"node\",\"setupSteps\":[{\"id\":\"install\",\"command\":[\"not-used\"]}]}\n");
         ObjectMapper json = new ObjectMapper();
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
         WorkspaceService workspaces = mock(WorkspaceService.class);
@@ -459,9 +511,7 @@ class WorkspaceTaskServiceImplTest {
                         .resolve("home/setup-must-not-run");
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","setupSteps":[{"id":"install","command":["/bin/sh","-c","touch setup-must-not-run"]}]}
-        """);
+                "{\"name\":\"node\",\"setupSteps\":[{\"id\":\"install\",\"command\":[\"/bin/sh\",\"-c\",\"touch setup-must-not-run\"]}]}\n");
         ObjectMapper json = new ObjectMapper();
         WorkspaceService workspaces = mock(WorkspaceService.class);
         Workspace stoppedWorkspace = newWorkspace(workspace);
@@ -494,9 +544,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","runTasks":[{"id":"start","label":"Start","command":["echo","must-not-run"]}]}
-        """);
+                "{\"name\":\"node\",\"runTasks\":[{\"id\":\"start\",\"label\":\"Start\",\"command\":[\"echo\",\"must-not-run\"]}]}\n");
         ObjectMapper json = new ObjectMapper();
         WorkspaceService workspaces = mock(WorkspaceService.class);
         WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
@@ -514,7 +562,13 @@ class WorkspaceTaskServiceImplTest {
 
         IllegalStateException stopped =
                 assertThrows(
-                        IllegalStateException.class, () -> service.startTask(workspaceId, "start"));
+                        IllegalStateException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                service.startTask(workspaceId, "start");
+                            }
+                        });
 
         assertEquals("workspace is stopping", stopped.getMessage());
     }
@@ -527,9 +581,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","runTasks":[{"id":"serve","label":"Serve preview","command":["/usr/bin/env"],"port":3000}]}
-        """);
+                "{\"name\":\"node\",\"runTasks\":[{\"id\":\"serve\",\"label\":\"Serve preview\",\"command\":[\"/usr/bin/env\"],\"port\":3000}]}\n");
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
         WorkspaceService workspaces = mock(WorkspaceService.class);
         when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
@@ -567,9 +619,7 @@ class WorkspaceTaskServiceImplTest {
         Path template = Files.createDirectories(temp.resolve("templates/node"));
         Files.writeString(
                 template.resolve("template.json"),
-                """
-        {"name":"node","runTasks":[{"id":"debug","label":"Debug server","command":["/bin/sh","-c","exec sleep 60"],"debug":{"language":"node","executable":"sleep","program":"server.js"}}]}
-        """);
+                "{\"name\":\"node\",\"runTasks\":[{\"id\":\"debug\",\"label\":\"Debug server\",\"command\":[\"/bin/sh\",\"-c\",\"exec sleep 60\"],\"debug\":{\"language\":\"node\",\"executable\":\"sleep\",\"program\":\"server.js\"}}]}\n");
         WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
         WorkspaceService workspaces = mock(WorkspaceService.class);
         when(workspaces.get(workspace)).thenReturn(activeWorkspace(workspace));
@@ -606,7 +656,12 @@ class WorkspaceTaskServiceImplTest {
             assertEquals(home.resolve("server.js").toRealPath().toString(), target.program());
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> service.debugTarget(new WorkspaceId(UUID.randomUUID()), target.id()));
+                    new org.junit.jupiter.api.function.Executable() {
+                        @Override
+                        public void execute() throws Throwable {
+                            service.debugTarget(new WorkspaceId(UUID.randomUUID()), target.id());
+                        }
+                    });
 
             service.stopTask(workspace, run.id());
             assertTrue(service.debugTargets(workspace).isEmpty());
@@ -704,11 +759,10 @@ class WorkspaceTaskServiceImplTest {
     @SuppressWarnings("null")
     private static void awaitProcessExit(long pid) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (System.nanoTime() < deadline
-                && ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent()) {
+        while (System.nanoTime() < deadline && isAlive(pid)) {
             Thread.sleep(10);
         }
-        assertFalse(ProcessHandle.of(pid).filter(ProcessHandle::isAlive).isPresent());
+        assertFalse(isAlive(pid));
     }
 
     private static Workspace activeWorkspace(WorkspaceId id) {
@@ -730,5 +784,10 @@ class WorkspaceTaskServiceImplTest {
                         new VirtualMachineId(UUID.randomUUID()),
                         id,
                         new VirtualMachineConfiguration(2, 2048)));
+    }
+
+    private static boolean isAlive(long pid) {
+        java.util.Optional<ProcessHandle> handle = ProcessHandle.of(pid);
+        return handle.isPresent() && handle.get().isAlive();
     }
 }
