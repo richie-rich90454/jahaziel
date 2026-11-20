@@ -46,8 +46,14 @@ class JwtAuthenticationFilterTest {
         JwtSession session =
                 new JwtSession(userId, Optional.empty(), List.of(), Instant.now().plusSeconds(60));
         when(tokens.verify("good")).thenReturn(session);
-        JwtAuthenticationFilter filter =
-                new JwtAuthenticationFilter(tokens, user -> List.of("ROLE_USER"));
+        JwtAuthenticationFilter.UserLookup lookup =
+                new JwtAuthenticationFilter.UserLookup() {
+                    @Override
+                    public List<String> roles(UserId user) {
+                        return List.of("ROLE_USER");
+                    }
+                };
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, lookup);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer good");
         FilterChain chain = mock(FilterChain.class);
@@ -60,7 +66,14 @@ class JwtAuthenticationFilterTest {
     @Test
     void passesThroughWithoutToken() throws Exception {
         JwtService tokens = mock(JwtService.class);
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, user -> List.of());
+        JwtAuthenticationFilter.UserLookup lookup =
+                new JwtAuthenticationFilter.UserLookup() {
+                    @Override
+                    public List<String> roles(UserId user) {
+                        return List.of();
+                    }
+                };
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, lookup);
         FilterChain chain = mock(FilterChain.class);
         filter.doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), chain);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
@@ -70,7 +83,14 @@ class JwtAuthenticationFilterTest {
     void rejectsInvalidToken() throws Exception {
         JwtService tokens = mock(JwtService.class);
         when(tokens.verify("bad")).thenThrow(new RuntimeException("nope"));
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, user -> List.of());
+        JwtAuthenticationFilter.UserLookup lookup =
+                new JwtAuthenticationFilter.UserLookup() {
+                    @Override
+                    public List<String> roles(UserId user) {
+                        return List.of();
+                    }
+                };
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, lookup);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer bad");
         MockHttpServletResponse response = new MockHttpServletResponse();
