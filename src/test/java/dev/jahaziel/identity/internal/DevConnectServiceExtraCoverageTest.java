@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.api.DevConnectException;
+import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
 import dev.jahaziel.identity.api.LoginRejectedException;
 import dev.jahaziel.identity.domain.UserId;
@@ -28,6 +29,9 @@ import dev.jahaziel.identity.persistence.OidcPendingRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Clock;
@@ -62,10 +66,40 @@ class DevConnectServiceExtraCoverageTest {
                 props, client, pending, sessions, users, roles, tokens, clock);
     }
 
+    private static Answer<Object> firstArgument() {
+        return new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocation) {
+                return invocation.getArgument(0);
+            }
+        };
+    }
+
+    private static Executable complete(
+            final DevConnectServiceImpl s, final String state, final String code) {
+        return new Executable() {
+            @Override
+            public void execute() {
+                s.completeLogin(state, code);
+            }
+        };
+    }
+
+    private static OidcPendingEntity pendingRow(Clock clock) {
+        OidcPendingEntity row = new OidcPendingEntity();
+        row.setState("s");
+        row.setNonce("n");
+        row.setCodeVerifier("v");
+        row.setRedirectUri("https://app/cb");
+        row.setCreatedAt(clock.instant());
+        row.setExpiresAt(clock.instant().plus(Duration.ofMinutes(5)));
+        return row;
+    }
+
     @Test
     void startRequiresConfig() {
         DevConnectProperties empty = new DevConnectProperties();
-        var svc =
+        final DevConnectServiceImpl svc =
                 svc(
                         empty,
                         mock(DevConnectClient.class),
@@ -75,11 +109,20 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         mock(JwtService.class),
                         Clock.systemUTC());
-        assertThrows(DevConnectException.class, svc::startLogin);
-        assertThrows(DevConnectException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(
+                DevConnectException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        svc.startLogin();
+                    }
+                });
+        assertThrows(DevConnectException.class, complete(svc, "s", "c"));
         assertThrows(
                 NullPointerException.class,
-                () ->
+                new Executable() {
+                    @Override
+                    public void execute() {
                         new DevConnectServiceImpl(
                                 null,
                                 mock(DevConnectClient.class),
@@ -88,15 +131,17 @@ class DevConnectServiceExtraCoverageTest {
                                 mock(AppUserRepository.class),
                                 mock(UserRoleRepository.class),
                                 mock(JwtService.class),
-                                Clock.systemUTC()));
+                                Clock.systemUTC());
+                    }
+                });
     }
 
     @Test
     void completeRejectsBlankAndUnknownAndExpired() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var svc =
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        final DevConnectServiceImpl svc =
                 svc(
                         props,
                         mock(DevConnectClient.class),
@@ -106,44 +151,32 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         mock(JwtService.class),
                         clock);
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin(null, "c"));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin(" ", "c"));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", null));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", " "));
+        assertThrows(LoginRejectedException.class, complete(svc, null, "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, " ", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", null));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", " "));
         when(pending.findById("s")).thenReturn(Optional.empty());
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
-        OidcPendingEntity row = new OidcPendingEntity();
-        row.setState("s");
-        row.setNonce("n");
-        row.setCodeVerifier("v");
-        row.setRedirectUri("https://app/cb");
-        row.setCreatedAt(clock.instant());
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
+        OidcPendingEntity row = pendingRow(clock);
         row.setExpiresAt(clock.instant().minus(Duration.ofMinutes(1)));
         when(pending.findById("s")).thenReturn(Optional.of(row));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
     }
 
     @Test
     void completeRejectsSubjectMismatch() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        OidcPendingEntity row = new OidcPendingEntity();
-        row.setState("s");
-        row.setNonce("n");
-        row.setCodeVerifier("v");
-        row.setRedirectUri("https://app/cb");
-        row.setCreatedAt(clock.instant());
-        row.setExpiresAt(clock.instant().plus(Duration.ofMinutes(5)));
-        when(pending.findById("s")).thenReturn(Optional.of(row));
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        when(pending.findById("s")).thenReturn(Optional.of(pendingRow(clock)));
         when(client.exchange("c", "v", "https://app/cb"))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
         Jwt jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn(null);
         when(client.verifyIdToken("id", "n")).thenReturn(jwt);
         when(client.userinfo("acc")).thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N"));
-        var svc =
+        final DevConnectServiceImpl svc =
                 svc(
                         props,
                         client,
@@ -153,26 +186,19 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         mock(JwtService.class),
                         clock);
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
         when(jwt.getSubject()).thenReturn("other");
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
     }
 
     @Test
     void provisionMultipleAccountsRejected() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        var users = mock(AppUserRepository.class);
-        OidcPendingEntity row = new OidcPendingEntity();
-        row.setState("s");
-        row.setNonce("n");
-        row.setCodeVerifier("v");
-        row.setRedirectUri("https://app/cb");
-        row.setCreatedAt(clock.instant());
-        row.setExpiresAt(clock.instant().plus(Duration.ofMinutes(5)));
-        when(pending.findById("s")).thenReturn(Optional.of(row));
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        when(pending.findById("s")).thenReturn(Optional.of(pendingRow(clock)));
         when(client.exchange(any(), any(), any()))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
         Jwt jwt = mock(Jwt.class);
@@ -185,7 +211,7 @@ class DevConnectServiceExtraCoverageTest {
         AppUserEntity b = new AppUserEntity();
         b.setUserId(UUID.randomUUID());
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(a, b));
-        var svc =
+        final DevConnectServiceImpl svc =
                 svc(
                         props,
                         client,
@@ -195,28 +221,21 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         mock(JwtService.class),
                         clock);
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
     }
 
     @Test
     void provisionLinksLegacyAndTouchesLinked() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        var users = mock(AppUserRepository.class);
-        var sessions = mock(BffSessionRepository.class);
-        var tokens = mock(JwtService.class);
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        BffSessionRepository sessions = mock(BffSessionRepository.class);
+        JwtService tokens = mock(JwtService.class);
         when(tokens.issue(any(), any(), any(), any())).thenReturn("tok");
-        when(users.save(any())).thenAnswer(i -> i.getArgument(0));
-        OidcPendingEntity row = new OidcPendingEntity();
-        row.setState("s");
-        row.setNonce("n");
-        row.setCodeVerifier("v");
-        row.setRedirectUri("https://app/cb");
-        row.setCreatedAt(clock.instant());
-        row.setExpiresAt(clock.instant().plus(Duration.ofMinutes(5)));
-        when(pending.findById("s")).thenReturn(Optional.of(row));
+        when(users.save(any())).thenAnswer(firstArgument());
+        when(pending.findById("s")).thenReturn(Optional.of(pendingRow(clock)));
         when(client.exchange(any(), any(), any()))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
         Jwt jwt = mock(Jwt.class);
@@ -228,7 +247,7 @@ class DevConnectServiceExtraCoverageTest {
         linked.setStatus("active");
         linked.setExternalId("sub");
         when(users.findByExternalId("sub")).thenReturn(Optional.of(linked));
-        var svc =
+        DevConnectServiceImpl svc =
                 svc(
                         props,
                         client,
@@ -238,7 +257,7 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         tokens,
                         clock);
-        var result = svc.completeLogin("s", "c");
+        DevConnectService.LoginResult result = svc.completeLogin("s", "c");
         assertEquals(linked.getUserId(), result.userId());
         AppUserEntity legacy = new AppUserEntity();
         legacy.setUserId(UUID.randomUUID());
@@ -246,7 +265,7 @@ class DevConnectServiceExtraCoverageTest {
         legacy.setExternalId(null);
         when(users.findByExternalId("sub")).thenReturn(Optional.empty());
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(legacy));
-        var result2 = svc.completeLogin("s", "c");
+        DevConnectService.LoginResult result2 = svc.completeLogin("s", "c");
         assertEquals(legacy.getUserId(), result2.userId());
         assertEquals("sub", legacy.getExternalId());
         AppUserEntity suspended = new AppUserEntity();
@@ -254,30 +273,23 @@ class DevConnectServiceExtraCoverageTest {
         suspended.setStatus("suspended");
         suspended.setExternalId("sub");
         when(users.findByExternalId("sub")).thenReturn(Optional.of(suspended));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
         AppUserEntity suspendedLegacy = new AppUserEntity();
         suspendedLegacy.setUserId(UUID.randomUUID());
         suspendedLegacy.setStatus("suspended");
         when(users.findByExternalId("sub")).thenReturn(Optional.empty());
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(suspendedLegacy));
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
     }
 
     @Test
     void provisionRejectsDifferentlyLinkedEmail() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var pending = mock(OidcPendingRepository.class);
-        var client = mock(DevConnectClient.class);
-        var users = mock(AppUserRepository.class);
-        OidcPendingEntity row = new OidcPendingEntity();
-        row.setState("s");
-        row.setNonce("n");
-        row.setCodeVerifier("v");
-        row.setRedirectUri("https://app/cb");
-        row.setCreatedAt(clock.instant());
-        row.setExpiresAt(clock.instant().plus(Duration.ofMinutes(5)));
-        when(pending.findById("s")).thenReturn(Optional.of(row));
+        OidcPendingRepository pending = mock(OidcPendingRepository.class);
+        DevConnectClient client = mock(DevConnectClient.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        when(pending.findById("s")).thenReturn(Optional.of(pendingRow(clock)));
         when(client.exchange(any(), any(), any()))
                 .thenReturn(new DevConnectClient.Tokens("id", "acc"));
         Jwt jwt = mock(Jwt.class);
@@ -291,7 +303,7 @@ class DevConnectServiceExtraCoverageTest {
         other.setStatus("active");
         other.setExternalId("sub-old");
         when(users.findByEmailIgnoreCase("e@x.y")).thenReturn(List.of(other));
-        var svc =
+        final DevConnectServiceImpl svc =
                 svc(
                         props,
                         client,
@@ -301,16 +313,16 @@ class DevConnectServiceExtraCoverageTest {
                         mock(UserRoleRepository.class),
                         mock(JwtService.class),
                         clock);
-        assertThrows(LoginRejectedException.class, () -> svc.completeLogin("s", "c"));
+        assertThrows(LoginRejectedException.class, complete(svc, "s", "c"));
     }
 
     @Test
     void activeUserAndLogoutBranches() {
         DevConnectProperties props = configured();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        var sessions = mock(BffSessionRepository.class);
-        var users = mock(AppUserRepository.class);
-        var svc =
+        BffSessionRepository sessions = mock(BffSessionRepository.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        DevConnectServiceImpl svc =
                 svc(
                         props,
                         mock(DevConnectClient.class),
