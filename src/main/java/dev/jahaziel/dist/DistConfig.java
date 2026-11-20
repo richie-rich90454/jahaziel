@@ -180,7 +180,16 @@ public class DistConfig {
 
             @Override
             public void start() {
-                thread = Thread.ofVirtual().name("dist-gateway").start(() -> server.serve(port));
+                thread =
+                        Thread.ofVirtual()
+                                .name("dist-gateway")
+                                .start(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                server.serve(port);
+                                            }
+                                        });
             }
 
             @Override
