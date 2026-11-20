@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** Runs a small fixed set of Git commands against the workspace root. */
 @Service
-public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
+public final class WorkspaceGitServiceImpl extends WorkspaceGitService {
     private static final int MAX_STATUS_BYTES = 1024 * 1024;
     private static final int MAX_DIFF_BYTES = 128 * 1024;
     private static final int MAX_COMMIT_MESSAGE = 512;
@@ -75,12 +75,13 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
         Path root = requireRepository(workspaceId);
         String checkedPath = checkedPath(root, path);
         Status current = status(workspaceId);
-        boolean untracked =
-                current.changes().stream()
-                        .anyMatch(
-                                change ->
-                                        change.path().equals(checkedPath)
-                                                && change.indexStatus().equals("?"));
+        boolean untracked = false;
+        for (Change change : current.changes()) {
+            if (change.path().equals(checkedPath) && change.indexStatus().equals("?")) {
+                untracked = true;
+                break;
+            }
+        }
         if (untracked) {
             String nullDevice =
                     Platforms.detect(null).os() == Platform.Os.WINDOWS ? "NUL" : "/dev/null";
@@ -189,8 +190,13 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
         if (message == null || message.isBlank() || message.length() > MAX_COMMIT_MESSAGE) {
             throw new IllegalArgumentException("commit message must contain 1 to 512 characters");
         }
-        if (message.codePoints().anyMatch(Character::isISOControl)) {
-            throw new IllegalArgumentException("commit message cannot contain control characters");
+        for (int index = 0; index < message.length(); ) {
+            int codePoint = message.codePointAt(index);
+            if (Character.isISOControl(codePoint)) {
+                throw new IllegalArgumentException(
+                        "commit message cannot contain control characters");
+            }
+            index += Character.charCount(codePoint);
         }
         Path root = requireRepository(workspaceId);
         String summary = command(root, List.of("commit", "-m", message.strip()), MAX_STATUS_BYTES);
@@ -310,16 +316,19 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
         AtomicReference<Capture> captured = new AtomicReference<>();
         AtomicReference<IOException> readFailure = new AtomicReference<>();
         Thread reader =
-                Thread.ofPlatform()
-                        .daemon()
-                        .start(
-                                () -> {
-                                    try {
-                                        captured.set(capture(process.getInputStream(), maxBytes));
-                                    } catch (IOException failure) {
-                                        readFailure.set(failure);
-                                    }
-                                });
+                new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    captured.set(capture(process.getInputStream(), maxBytes));
+                                } catch (IOException failure) {
+                                    readFailure.set(failure);
+                                }
+                            }
+                        });
+        reader.setDaemon(true);
+        reader.start();
         try {
             if (!process.waitFor(
                     COMMAND_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
@@ -352,16 +361,22 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
     @SuppressWarnings("null")
     private static void terminateProcessTree(Process process) {
         List<ProcessHandle> descendants = process.descendants().toList();
-        descendants.forEach(ProcessHandle::destroy);
+        for (ProcessHandle descendant : descendants) {
+            descendant.destroy();
+        }
         process.destroy();
         try {
             if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) {
-                descendants.forEach(ProcessHandle::destroyForcibly);
+                for (ProcessHandle descendant : descendants) {
+                    descendant.destroyForcibly();
+                }
                 process.destroyForcibly();
                 process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
             }
         } catch (InterruptedException interrupted) {
-            descendants.forEach(ProcessHandle::destroyForcibly);
+            for (ProcessHandle descendant : descendants) {
+                descendant.destroyForcibly();
+            }
             process.destroyForcibly();
             Thread.currentThread().interrupt();
         }
@@ -395,7 +410,81 @@ public final class WorkspaceGitServiceImpl implements WorkspaceGitService {
         return new Capture(output.toByteArray(), truncated);
     }
 
-    private record Capture(byte[] bytes, boolean truncated) {}
+    private static final class Capture {
+        private final byte[] bytes;
+        private final boolean truncated;
 
-    private record CommandResult(int exitCode, String output) {}
+        public Capture(byte[] bytes, boolean truncated) {
+            this.bytes = bytes;
+            this.truncated = truncated;
+        }
+
+        public byte[] bytes() {
+            return bytes;
+        }
+
+        public boolean truncated() {
+            return truncated;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Capture other = (Capture) o;
+            return Objects.equals(bytes, other.bytes) && truncated == other.truncated;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(bytes);
+            result = 31 * result + (truncated ? 1231 : 1237);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Capture{" + "bytes=" + bytes + ", truncated=" + truncated + '}';
+        }
+    }
+
+    private static final class CommandResult {
+        private final int exitCode;
+        private final String output;
+
+        public CommandResult(int exitCode, String output) {
+            this.exitCode = exitCode;
+            this.output = output;
+        }
+
+        public int exitCode() {
+            return exitCode;
+        }
+
+        public String output() {
+            return output;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            CommandResult other = (CommandResult) o;
+            return exitCode == other.exitCode && Objects.equals(output, other.output);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + (int) exitCode;
+            result = 31 * result + Objects.hashCode(output);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "CommandResult{" + "exitCode=" + exitCode + ", output=" + output + '}';
+        }
+    }
 }
