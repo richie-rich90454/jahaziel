@@ -44,7 +44,14 @@ class AuditSpoolReaderTest {
         Path spool = root.resolve("ws.jsonl");
         Files.writeString(spool, "not json\n");
         UUID workspace = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> reader.drain(workspace, spool));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        reader.drain(workspace, spool);
+                    }
+                });
         verify(audit, never()).append(any());
     }
 
