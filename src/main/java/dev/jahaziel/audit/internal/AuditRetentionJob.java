@@ -24,7 +24,7 @@ import java.util.Objects;
  * Audit retention. Drops monthly partitions fully older than the retention window; the drop itself
  * is logged by the caller as an administrative system event. Never row-deletes.
  */
-public final class AuditRetentionJob implements PlatformJob {
+public final class AuditRetentionJob extends PlatformJob {
     private static final YearMonth FIRST_PARTITION = YearMonth.of(2026, 9);
 
     private final EntityManager entities;
