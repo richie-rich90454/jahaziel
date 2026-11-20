@@ -6,6 +6,7 @@ package dev.jahaziel.nodeagent.storage;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -20,8 +21,14 @@ class Probe3Test {
     void probeStubFires() throws Exception {
         Path file = tmp.resolve("f.txt");
         Files.writeString(file, "x");
-        try (var files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-            files.when(() -> Files.deleteIfExists(Mockito.<Path>any()))
+        try (MockedStatic<Files> files =
+                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            files.when(
+                            new org.mockito.MockedStatic.Verification() {
+                                public void apply() throws Throwable {
+                                    Files.deleteIfExists(Mockito.<Path>any());
+                                }
+                            })
                     .thenThrow(new IOException("locked"));
             try {
                 boolean result = Files.deleteIfExists(file);
