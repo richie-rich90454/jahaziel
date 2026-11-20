@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /** Runs platform jobs on one shared thread. A throwing job is logged, never unscheduled. */
@@ -24,10 +25,13 @@ public final class InProcessScheduler {
     private final List<PlatformJob> jobs = new CopyOnWriteArrayList<>();
     private final ScheduledExecutorService executor =
             Executors.newSingleThreadScheduledExecutor(
-                    runnable -> {
-                        Thread thread = new Thread(runnable, "jahaziel-scheduler");
-                        thread.setDaemon(true);
-                        return thread;
+                    new ThreadFactory() {
+                        @Override
+                        public Thread newThread(Runnable runnable) {
+                            Thread thread = new Thread(runnable, "jahaziel-scheduler");
+                            thread.setDaemon(true);
+                            return thread;
+                        }
                     });
     private boolean started;
 
@@ -48,7 +52,16 @@ public final class InProcessScheduler {
         started = true;
         for (PlatformJob job : jobs) {
             long period = job.period().toMillis();
-            executor.scheduleAtFixedRate(() -> run(job), period, period, TimeUnit.MILLISECONDS);
+            executor.scheduleAtFixedRate(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            InProcessScheduler.run(job);
+                        }
+                    },
+                    period,
+                    period,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
