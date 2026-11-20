@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import dev.jahaziel.identity.domain.UserId;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,12 +45,27 @@ class AppUserTest {
     void nullsAreRejected() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppUser(null, "s", "e", "d", List.of(), List.of(), false));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AppUser(null, "s", "e", "d", List.of(), List.of(), false);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new AppUser(id, "s", "e", "d", null, List.of(), false));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AppUser(id, "s", "e", "d", null, List.of(), false);
+                    }
+                });
         assertThrows(
                 NullPointerException.class,
-                () -> new AppUser(id, "s", "e", "d", List.of(), null, false));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new AppUser(id, "s", "e", "d", List.of(), null, false);
+                    }
+                });
     }
 }
