@@ -10,6 +10,7 @@ import dev.jahaziel.spi.Decision;
 import dev.jahaziel.spi.ExtensionPolicy;
 import dev.jahaziel.spi.ExtensionRequest;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -17,7 +18,7 @@ import java.util.Objects;
  * Evaluates extension installs against stored policies. Most specific scope wins; version
  * constraints match exactly or by prefix before {@code .*}. Deny by default.
  */
-public final class ExtensionDecider implements ExtensionPolicy {
+public final class ExtensionDecider extends ExtensionPolicy {
     private final ExtensionPolicyService policies;
 
     /**
@@ -38,14 +39,13 @@ public final class ExtensionDecider implements ExtensionPolicy {
             {"global", null}
         };
         for (String[] scope : scopes) {
-            List<ExtensionPolicyDoc> candidates =
-                    policies.listByScope(scope[0], scope[1]).stream()
-                            .filter(doc -> doc.extensionId().equals(request.extensionId()))
-                            .filter(
-                                    doc ->
-                                            versionMatches(
-                                                    doc.versionConstraint(), request.version()))
-                            .toList();
+            List<ExtensionPolicyDoc> candidates = new ArrayList<>();
+            for (ExtensionPolicyDoc doc : policies.listByScope(scope[0], scope[1])) {
+                if (doc.extensionId().equals(request.extensionId())
+                        && versionMatches(doc.versionConstraint(), request.version())) {
+                    candidates.add(doc);
+                }
+            }
             if (!candidates.isEmpty()) {
                 return decideScope(candidates);
             }
@@ -64,8 +64,10 @@ public final class ExtensionDecider implements ExtensionPolicy {
                 return Decision.REQUIRE_APPROVAL;
             }
         }
-        if (candidates.stream().anyMatch(doc -> doc.action().equals("allow"))) {
-            return Decision.ALLOW;
+        for (ExtensionPolicyDoc doc : candidates) {
+            if (doc.action().equals("allow")) {
+                return Decision.ALLOW;
+            }
         }
         return Decision.BLOCK;
     }
