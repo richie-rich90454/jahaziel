@@ -20,7 +20,13 @@ class GatewayTokensTest {
         assertEquals("tok", GatewayTokens.bearer(Map.of("authorization", "Bearer   tok  ")));
         assertNull(GatewayTokens.bearer(Map.of("authorization", "Basic abc")));
         assertNull(GatewayTokens.bearer(Map.of()));
-        assertThrows(NullPointerException.class, () -> GatewayTokens.bearer(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        GatewayTokens.bearer(null);
+                    }
+                });
     }
 
     @Test
@@ -30,7 +36,13 @@ class GatewayTokensTest {
         assertNull(GatewayTokens.queryToken("/path"));
         assertNull(GatewayTokens.queryToken("/path?other=1"));
         assertNull(GatewayTokens.queryToken("/path?token"));
-        assertThrows(NullPointerException.class, () -> GatewayTokens.queryToken(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        GatewayTokens.queryToken(null);
+                    }
+                });
     }
 
     @Test
