@@ -33,10 +33,28 @@ class SyncServerCoverageTest {
 
     @Test
     void portRangeAndLifecycle(@TempDir Path root) throws Exception {
-        assertThrows(IllegalArgumentException.class, () -> new SyncServer(65536, root));
-        assertThrows(IllegalArgumentException.class, () -> new SyncServer(-2, root));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SyncServer(65536, root);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SyncServer(-2, root);
+                    }
+                });
         SyncServer fresh = new SyncServer(0, root.resolve("s1"));
-        assertThrows(IllegalStateException.class, fresh::boundPort);
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        fresh.boundPort();
+                    }
+                });
         fresh.stop();
         SyncServer server = new SyncServer(0, root.resolve("s2"));
         server.start();
@@ -450,9 +468,27 @@ class SyncServerCoverageTest {
                         + "=only-one-part\n");
         SyncServer reloaded = new SyncServer(0, state);
         assertEquals(secret, reloaded.secretFor(good));
-        assertThrows(IllegalArgumentException.class, () -> reloaded.secretFor(UUID.randomUUID()));
-        assertThrows(NullPointerException.class, () -> reloaded.secretFor(null));
-        assertThrows(NullPointerException.class, () -> reloaded.deregister(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        reloaded.secretFor(UUID.randomUUID());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        reloaded.secretFor(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        reloaded.deregister(null);
+                    }
+                });
     }
 
     @Test
@@ -468,7 +504,13 @@ class SyncServerCoverageTest {
             try (Session session = open(port, workspace, server.secretFor(workspace))) {
                 session.send(Map.of("op", "bye"));
                 assertEquals(true, session.frame().get("ok"));
-                assertThrows(EOFException.class, session::frame);
+                assertThrows(
+                        EOFException.class,
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                session.frame();
+                            }
+                        });
             }
         } finally {
             server.stop();
