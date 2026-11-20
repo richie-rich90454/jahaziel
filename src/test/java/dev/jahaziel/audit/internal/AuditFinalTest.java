@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Final gap tests: partition postgres detection and unterminated JSON arrays. */
 class AuditFinalTest {
@@ -32,14 +33,63 @@ class AuditFinalTest {
     void converterRejectsUnterminated() {
         StringArrayConverter converter = new StringArrayConverter();
         assertThrows(
-                IllegalArgumentException.class, () -> converter.convertToEntityAttribute("[\"abc"));
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"abc");
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> converter.convertToEntityAttribute("[\"abc\\"));
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        converter.convertToEntityAttribute("[\"abc\\");
+                    }
+                });
         assertEquals(1, converter.convertToEntityAttribute("[\"a\"]").length);
     }
 
-    private record Fixture(PartitionProvisionJob job, EntityManager entities) {}
+    private static final class Fixture {
+        private final PartitionProvisionJob job;
+        private final EntityManager entities;
+
+        Fixture(PartitionProvisionJob job, EntityManager entities) {
+            this.job = job;
+            this.entities = entities;
+        }
+
+        PartitionProvisionJob job() {
+            return job;
+        }
+
+        EntityManager entities() {
+            return entities;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Fixture other = (Fixture) o;
+            return Objects.equals(job, other.job) && Objects.equals(entities, other.entities);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(job, entities);
+        }
+
+        @Override
+        public String toString() {
+            return "Fixture[job=" + job + ", entities=" + entities + "]";
+        }
+    }
 
     private static Fixture fixture(Map<String, Object> properties, Connection connection)
             throws Exception {
