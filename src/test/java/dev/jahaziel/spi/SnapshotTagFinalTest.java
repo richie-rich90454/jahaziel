@@ -11,15 +11,65 @@ import org.junit.jupiter.api.Test;
 
 /** Final gap tests: every operand of the tag guard. */
 class SnapshotTagFinalTest {
+
     @Test
     void rejectsEachBadShape() {
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(null));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("  "));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a..b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a/b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("a\\b"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag(".hidden"));
-        assertThrows(IllegalArgumentException.class, () -> new SnapshotTag("/abs"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag("  ");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag("a..b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag("a/b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag("a\\b");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag(".hidden");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        new SnapshotTag("/abs");
+                    }
+                });
     }
 
     @Test
