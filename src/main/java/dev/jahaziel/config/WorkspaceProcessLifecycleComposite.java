@@ -14,7 +14,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import java.util.Objects;
 
 /** Delegates workspace process shutdown to each interactive process manager. */
-final class WorkspaceProcessLifecycleComposite implements WorkspaceProcessLifecycle {
+final class WorkspaceProcessLifecycleComposite extends WorkspaceProcessLifecycle {
     private final LanguageServerProcessManager languageProcesses;
     private final ObjectProvider<DebugServiceImpl> debugProcesses;
 
