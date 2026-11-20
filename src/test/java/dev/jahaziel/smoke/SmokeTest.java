@@ -31,12 +31,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -55,35 +55,36 @@ class SmokeTest {
     void jarContainsOnlyMaintainedWorkbenchAssets(@TempDir Path tmp) throws Exception {
         Path jarPath = copyJarTo(tmp);
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            Set<String> entries =
-                    jar.stream().map(entry -> entry.getName()).collect(Collectors.toSet());
+            Set<String> entries = new java.util.HashSet<>();
+            java.util.Enumeration<java.util.jar.JarEntry> jarEntries = jar.entries();
+            while (jarEntries.hasMoreElements()) {
+                entries.add(jarEntries.nextElement().getName());
+            }
             assertTrue(entries.contains("BOOT-INF/classes/static/index.html"));
-            assertTrue(
-                    entries.stream()
-                            .anyMatch(
-                                    name ->
-                                            name.matches(
-                                                    "BOOT-INF/classes/static/assets/editor-[^/]+\\.js")));
+            boolean hasEditorAsset = false;
+            int indexAssetCount = 0;
+            boolean hasForbiddenAsset = false;
+            for (String name : entries) {
+                if (name.matches("BOOT-INF/classes/static/assets/editor-[^/]+\\.js")) {
+                    hasEditorAsset = true;
+                }
+                if (name.matches("BOOT-INF/classes/static/assets/index-[^/]+\\.js")) {
+                    indexAssetCount++;
+                }
+                if (name.contains("code-server")
+                        || name.contains("clangd")
+                        || name.contains("rust-analyzer")
+                        || name.contains("gopls")
+                        || name.contains("jdtls")
+                        || name.contains("node_modules")) {
+                    hasForbiddenAsset = true;
+                }
+            }
+            assertTrue(hasEditorAsset);
             assertFalse(entries.contains("BOOT-INF/classes/static/app.js"));
             assertFalse(entries.contains("BOOT-INF/classes/static/styles.css"));
-            assertEquals(
-                    1,
-                    entries.stream()
-                            .filter(
-                                    name ->
-                                            name.matches(
-                                                    "BOOT-INF/classes/static/assets/index-[^/]+\\.js"))
-                            .count());
-            assertFalse(
-                    entries.stream()
-                            .anyMatch(
-                                    name ->
-                                            name.contains("code-server")
-                                                    || name.contains("clangd")
-                                                    || name.contains("rust-analyzer")
-                                                    || name.contains("gopls")
-                                                    || name.contains("jdtls")
-                                                    || name.contains("node_modules")));
+            assertEquals(1, indexAssetCount);
+            assertFalse(hasForbiddenAsset);
         }
     }
 
@@ -156,7 +157,15 @@ class SmokeTest {
                         "--demo",
                         "--port=" + port);
         ProcessBuilder serverBuilder = new ProcessBuilder(serverCommand).directory(work.toFile());
-        serverBuilder.environment().keySet().removeIf(key -> key.startsWith("BASIS_"));
+        java.util.List<String> basisKeys = new java.util.ArrayList<>();
+        for (String key : serverBuilder.environment().keySet()) {
+            if (key.startsWith("BASIS_")) {
+                basisKeys.add(key);
+            }
+        }
+        for (String key : basisKeys) {
+            serverBuilder.environment().remove(key);
+        }
         serverBuilder.environment().put("PORT", String.valueOf(port));
         serverBuilder.redirectOutput(work.resolve("server.log").toFile());
         serverBuilder.redirectErrorStream(true);
@@ -170,10 +179,14 @@ class SmokeTest {
                     "boot must create data/jahaziel.db");
 
             try (Stream<Path> entries = Files.list(work)) {
-                Set<String> names =
-                        entries.map(path -> path.getFileName().toString())
-                                .filter(name -> !name.equals("server.log"))
-                                .collect(Collectors.toSet());
+                Set<String> names = new java.util.HashSet<>();
+                java.util.Iterator<Path> entryIterator = entries.iterator();
+                while (entryIterator.hasNext()) {
+                    String name = entryIterator.next().getFileName().toString();
+                    if (!name.equals("server.log")) {
+                        names.add(name);
+                    }
+                }
                 assertEquals(
                         Set.of("jahaziel.jar", ".env", "data"),
                         names,
@@ -278,7 +291,9 @@ class SmokeTest {
             HttpClient http, String url, Map<String, String> headers) throws Exception {
         HttpRequest.Builder request =
                 HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET();
-        headers.forEach(request::header);
+        for (java.util.Map.Entry<String, String> header : headers.entrySet()) {
+            request.header(header.getKey(), header.getValue());
+        }
         return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 
@@ -286,19 +301,17 @@ class SmokeTest {
         long self = ProcessHandle.current().pid();
         String needle = jar.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
         List<Long> strays = new ArrayList<>();
-        ProcessHandle.allProcesses()
-                .filter(process -> process.pid() != self)
-                .forEach(
-                        process ->
-                                process.info()
-                                        .commandLine()
-                                        .ifPresent(
-                                                cmd -> {
-                                                    if (cmd.toLowerCase(Locale.ROOT)
-                                                            .contains(needle)) {
-                                                        strays.add(process.pid());
-                                                    }
-                                                }));
+        java.util.Iterator<ProcessHandle> processes = ProcessHandle.allProcesses().iterator();
+        while (processes.hasNext()) {
+            ProcessHandle process = processes.next();
+            if (process.pid() == self) {
+                continue;
+            }
+            java.util.Optional<String> command = process.info().commandLine();
+            if (command.isPresent() && command.get().toLowerCase(Locale.ROOT).contains(needle)) {
+                strays.add(process.pid());
+            }
+        }
         assertTrue(strays.isEmpty(), "orphan java processes hold " + jar + ": " + strays);
     }
 
@@ -338,7 +351,53 @@ class SmokeTest {
         return dest;
     }
 
-    private record Run(int code, String out, String err) {}
+    private static final class Run {
+        private final int code;
+        private final String out;
+        private final String err;
+
+        Run(int code, String out, String err) {
+            this.code = code;
+            this.out = out;
+            this.err = err;
+        }
+
+        int code() {
+            return code;
+        }
+
+        String out() {
+            return out;
+        }
+
+        String err() {
+            return err;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Run other = (Run) o;
+            return code == other.code
+                    && Objects.equals(out, other.out)
+                    && Objects.equals(err, other.err);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(code, out, err);
+        }
+
+        @Override
+        public String toString() {
+            return "Run[code=" + code + ", out=" + out + ", err=" + err + "]";
+        }
+    }
 
     private static Run exec(
             Path work, List<String> command, Map<String, String> env, long timeoutSeconds)
@@ -350,8 +409,8 @@ class SmokeTest {
         Process process = builder.start();
         String out;
         String err;
-        try (var outThread = stream(process.getInputStream());
-                var errThread = stream(process.getErrorStream())) {
+        try (Reader outThread = stream(process.getInputStream());
+                Reader errThread = stream(process.getErrorStream())) {
             boolean done = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!done) {
                 process.destroyForcibly();
@@ -391,7 +450,23 @@ class SmokeTest {
         }
     }
 
-    private record Reader(ByteCollector collector, Thread thread) implements AutoCloseable {
+    private static final class Reader implements AutoCloseable {
+        private final ByteCollector collector;
+        private final Thread thread;
+
+        Reader(ByteCollector collector, Thread thread) {
+            this.collector = collector;
+            this.thread = thread;
+        }
+
+        ByteCollector collector() {
+            return collector;
+        }
+
+        Thread thread() {
+            return thread;
+        }
+
         String read() throws InterruptedException {
             thread.join(10_000);
             return collector.text();
@@ -400,6 +475,29 @@ class SmokeTest {
         @Override
         public void close() {
             thread.interrupt();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Reader other = (Reader) o;
+            return Objects.equals(collector, other.collector)
+                    && Objects.equals(thread, other.thread);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(collector, thread);
+        }
+
+        @Override
+        public String toString() {
+            return "Reader[collector=" + collector + ", thread=" + thread + "]";
         }
     }
 }
