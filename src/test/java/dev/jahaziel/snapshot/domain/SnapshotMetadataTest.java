@@ -35,12 +35,25 @@ class SnapshotMetadataTest {
         Path path = Path.of("/snaps/t");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> SnapshotMetadata.manual(workspace, "  ", "user:x", path));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotMetadata.manual(workspace, "  ", "user:x", path);
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> SnapshotMetadata.manual(workspace, "t", "  ", path));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotMetadata.manual(workspace, "t", "  ", path);
+                    }
+                });
         assertThrows(
-                NullPointerException.class, () -> SnapshotMetadata.manual(null, "t", "u", path));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotMetadata.manual(null, "t", "u", path);
+                    }
+                });
         SnapshotMetadata metadata = SnapshotMetadata.manual(workspace, "t", "u", path);
         assertTrue(metadata.logicalBytes() == 0 && metadata.physicalBytes() == 0);
     }
