@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.UUID;
 
-/** Repository for ResourceMetricEntity persistence. */
+/** Spring Data repository for ResourceMetricEntity; interface is required by Spring Data. */
 public interface ResourceMetricRepository
         extends JpaRepository<ResourceMetricEntity, ResourceMetricEntity.Id> {
     /**
