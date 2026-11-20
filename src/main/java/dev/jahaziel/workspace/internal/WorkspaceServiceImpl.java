@@ -26,12 +26,14 @@ import dev.jahaziel.workspace.persistence.WorkspaceEntity;
 import dev.jahaziel.workspace.persistence.WorkspaceRepository;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Database-backed workspaces. Paths follow the node-agent jail layout deterministically. */
-public final class WorkspaceServiceImpl implements WorkspaceService {
+public final class WorkspaceServiceImpl extends WorkspaceService {
     private static final StorageUsage UNKNOWN_USAGE = new StorageUsage(0, 0, 0, 0);
 
     private final WorkspaceRepository workspaces;
@@ -90,11 +92,10 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
             throw new IllegalArgumentException("memoryMib must be positive");
         }
         Objects.requireNonNull(nodeId, "nodeId");
-        boolean nameTaken =
-                workspaces.findByOwnerUserId(owner.value()).stream()
-                        .anyMatch(row -> row.getName().equals(name));
-        if (nameTaken) {
-            throw new IllegalArgumentException("workspace name already exists: " + name);
+        for (WorkspaceEntity candidate : workspaces.findByOwnerUserId(owner.value())) {
+            if (candidate.getName().equals(name)) {
+                throw new IllegalArgumentException("workspace name already exists: " + name);
+            }
         }
         WorkspaceId workspaceId = new WorkspaceId(UUID.randomUUID());
         VirtualMachine machine =
@@ -130,12 +131,20 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public List<WorkspaceView> describeByOwner(UserId owner) {
-        return workspaces.findByOwnerUserId(owner.value()).stream().map(this::viewOf).toList();
+        List<WorkspaceView> result = new ArrayList<>();
+        for (WorkspaceEntity row : workspaces.findByOwnerUserId(owner.value())) {
+            result.add(viewOf(row));
+        }
+        return result;
     }
 
     @Override
     public List<WorkspaceView> describeAll() {
-        return workspaces.findAll().stream().map(this::viewOf).toList();
+        List<WorkspaceView> result = new ArrayList<>();
+        for (WorkspaceEntity row : workspaces.findAll()) {
+            result.add(viewOf(row));
+        }
+        return result;
     }
 
     @Override
@@ -171,9 +180,11 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     private WorkspaceEntity rowOf(WorkspaceId id) {
-        return workspaces
-                .findById(id.value())
-                .orElseThrow(() -> new WorkspaceNotFoundException(id));
+        Optional<WorkspaceEntity> found = workspaces.findById(id.value());
+        if (!found.isPresent()) {
+            throw new WorkspaceNotFoundException(id);
+        }
+        return found.get();
     }
 
     private WorkspaceView viewOf(WorkspaceEntity row) {
@@ -185,13 +196,11 @@ public final class WorkspaceServiceImpl implements WorkspaceService {
     private Workspace assemble(WorkspaceEntity row) {
         WorkspaceId id = new WorkspaceId(row.getWorkspaceId());
         List<WorkspaceAclEntity> grants = acl.findByIdWorkspaceId(id.value());
-        VirtualMachineEntity machineRow =
-                machines.findByWorkspaceId(id.value())
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Workspace " + id + " has no machine row"));
-        return WorkspaceMapper.toDomain(row, grants, machineRow, List.of());
+        Optional<VirtualMachineEntity> machineRow = machines.findByWorkspaceId(id.value());
+        if (!machineRow.isPresent()) {
+            throw new IllegalStateException("Workspace " + id + " has no machine row");
+        }
+        return WorkspaceMapper.toDomain(row, grants, machineRow.get(), List.of());
     }
 
     private static void checkName(String name) {
