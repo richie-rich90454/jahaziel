@@ -17,21 +17,67 @@ import java.util.UUID;
 class JailerCoverageTest {
     @Test
     void constructorRejectsBlanks() {
-        assertThrows(IllegalArgumentException.class, () -> new Jailer(null, "/f", "/j"));
-        assertThrows(IllegalArgumentException.class, () -> new Jailer("  ", "/f", "/j"));
-        assertThrows(IllegalArgumentException.class, () -> new Jailer("/jailer", null, "/j"));
-        assertThrows(IllegalArgumentException.class, () -> new Jailer("/jailer", "", "/j"));
-        assertThrows(IllegalArgumentException.class, () -> new Jailer("/jailer", "/f", null));
-        assertThrows(IllegalArgumentException.class, () -> new Jailer("/jailer", "/f", " "));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer(null, "/f", "/j");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer("  ", "/f", "/j");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer("/jailer", null, "/j");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer("/jailer", "", "/j");
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer("/jailer", "/f", null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new Jailer("/jailer", "/f", " ");
+                    }
+                });
     }
 
     @Test
     void jailCommandRejectsNulls() {
         Jailer jailer = new Jailer("/jailer", "/firecracker", "/jail");
-        assertThrows(NullPointerException.class, () -> jailer.jailCommand(null, 1, 1, "/ns"));
         assertThrows(
                 NullPointerException.class,
-                () -> jailer.jailCommand(UUID.randomUUID(), 1, 1, null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        jailer.jailCommand(null, 1, 1, "/ns");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        jailer.jailCommand(UUID.randomUUID(), 1, 1, null);
+                    }
+                });
     }
 
     @Test
@@ -39,7 +85,11 @@ class JailerCoverageTest {
         Jailer jailer = new Jailer("/no-such-jailer-xyz", "/no-such-fc-xyz", "/jail");
         assertThrows(
                 IllegalStateException.class,
-                () -> jailer.start(UUID.randomUUID(), 100001, 100001, "/var/run/netns/x"));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        jailer.start(UUID.randomUUID(), 100001, 100001, "/var/run/netns/x");
+                    }
+                });
     }
 
     @Test
