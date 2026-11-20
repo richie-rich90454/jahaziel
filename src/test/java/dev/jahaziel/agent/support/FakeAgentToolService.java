@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Test double for the managed OpenCode tool. It keeps every directory under its data root. */
-public final class FakeAgentToolService implements AgentToolService {
+public final class FakeAgentToolService extends AgentToolService {
     private final Path dataRoot;
     private String status = "INSTALLED";
     private int prepared;
