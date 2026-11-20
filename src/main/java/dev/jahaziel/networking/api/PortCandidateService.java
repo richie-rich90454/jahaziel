@@ -71,6 +71,7 @@ public abstract class PortCandidateService {
     }
 
     /** Process categories that may own a suggested listener. */
+    @JsonSerialize(using = ToStringSerializer.class)
     public static final class Source {
         public static final Source TASK = new Source("TASK");
         public static final Source TERMINAL = new Source("TERMINAL");
@@ -81,8 +82,7 @@ public abstract class PortCandidateService {
             this.name = name;
         }
 
-        /** Serializes the source as its stable name. */
-        @JsonSerialize(using = ToStringSerializer.class)
+        /** Returns the stable source name. */
         public String name() {
             return name;
         }
