@@ -45,7 +45,14 @@ class AuditMapperCoverageGapTest {
                         Map.of("k", "v"),
                         Optional.empty(),
                         "h1");
-        assertThrows(IllegalArgumentException.class, () -> AuditMapper.toEntity(record, failing));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        AuditMapper.toEntity(record, failing);
+                    }
+                });
     }
 
     @Test
