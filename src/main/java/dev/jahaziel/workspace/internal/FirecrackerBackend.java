@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +26,7 @@ import java.util.concurrent.ConcurrentMap;
  * Experimental Firecracker process backend. It is retained for separate verification and is not
  * selectable in the single-server release. It does not provide a verified isolated workspace.
  */
-public final class FirecrackerBackend implements NodeBackend {
+public final class FirecrackerBackend extends NodeBackend {
     private static final String BINARY = "/usr/bin/firecracker";
 
     private final Path workspacesDir;
@@ -91,7 +92,10 @@ public final class FirecrackerBackend implements NodeBackend {
         if (process == null) {
             return;
         }
-        process.descendants().forEach(descendant -> descendant.destroy());
+        Iterator<ProcessHandle> descendants = process.descendants().iterator();
+        while (descendants.hasNext()) {
+            descendants.next().destroy();
+        }
         if (graceful) {
             process.destroy();
         } else {
