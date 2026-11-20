@@ -23,21 +23,111 @@ class NioCoverageTest {
 
     @Test
     void shapeBranches() {
-        assertThrows(StorageException.class, () -> runner.run(List.of("mkdir", "-p")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("rm", "-p", "x")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("mkdir", "-x", "y")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("rm", "x")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("rm", "-rf", "a", "extra")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("mv", "a")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("mv", "a", "b", "c")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("cp", "-a", "a")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("cp", "-x", "a", "b")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("cp", "a", "b", "c", "d")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("chmod", "-R", "u+w")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("chmod", "-x", "u+w", "x")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("du", "-sb")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("du", "-x", "y")));
-        assertThrows(StorageException.class, () -> runner.run(List.of("du", "-sb", "a", "b")));
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("mkdir", "-p"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("rm", "-p", "x"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("mkdir", "-x", "y"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("rm", "x"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("rm", "-rf", "a", "extra"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("mv", "a"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("mv", "a", "b", "c"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("cp", "-a", "a"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("cp", "-x", "a", "b"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("cp", "a", "b", "c", "d"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("chmod", "-R", "u+w"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("chmod", "-x", "u+w", "x"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("du", "-sb"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("du", "-x", "y"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("du", "-sb", "a", "b"));
+                    }
+                });
     }
 
     @Test
@@ -46,19 +136,27 @@ class NioCoverageTest {
         Files.writeString(file, "x");
         Path child = file.resolve("child");
         assertThrows(
-                StorageException.class, () -> runner.run(List.of("mkdir", "-p", child.toString())));
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("mkdir", "-p", child.toString()));
+                    }
+                });
     }
 
     @Test
     void moveMissingSourceFails() {
         assertThrows(
                 StorageException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         runner.run(
                                 List.of(
                                         "mv",
                                         root.resolve("absent").toString(),
-                                        root.resolve("out").toString())));
+                                        root.resolve("out").toString()));
+                    }
+                });
     }
 
     @Test
@@ -89,7 +187,11 @@ class NioCoverageTest {
         Path dest = file.resolve("child");
         assertThrows(
                 StorageException.class,
-                () -> runner.run(List.of("cp", "-a", src + "/.", dest.toString())));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        runner.run(List.of("cp", "-a", src + "/.", dest.toString()));
+                    }
+                });
     }
 
     @Test
