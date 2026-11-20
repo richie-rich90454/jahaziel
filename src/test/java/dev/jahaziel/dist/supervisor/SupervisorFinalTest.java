@@ -11,7 +11,10 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -103,7 +106,8 @@ class SupervisorFinalTest {
         Path services = tmp.resolve("svc");
         Files.createDirectories(services);
         write(services, "a.service", "[Service]\nExecStart=/bin/true\n");
-        try (var ignored = Mockito.mockConstruction(ServiceSupervisor.class)) {
+        try (MockedConstruction<ServiceSupervisor> ignored =
+                Mockito.mockConstruction(ServiceSupervisor.class)) {
             assertEquals(0, ServiceSupervisor.supervise(services, tmp.resolve("logs"), nullOut()));
         }
     }
@@ -119,13 +123,17 @@ class SupervisorFinalTest {
         Thread runner =
                 Thread.ofVirtual()
                         .start(
-                                () -> {
-                                    try {
-                                        Method run = supervisor.getClass().getDeclaredMethod("run");
-                                        run.setAccessible(true);
-                                        result.set(run.invoke(supervisor));
-                                    } catch (Exception failure) {
-                                        result.set(failure);
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            Method method =
+                                                    supervisor.getClass().getDeclaredMethod("run");
+                                            method.setAccessible(true);
+                                            result.set(method.invoke(supervisor));
+                                        } catch (Exception failure) {
+                                            result.set(failure);
+                                        }
                                     }
                                 });
         Thread.sleep(1500);
@@ -150,13 +158,17 @@ class SupervisorFinalTest {
         Thread runner =
                 Thread.ofVirtual()
                         .start(
-                                () -> {
-                                    try {
-                                        Method run = supervisor.getClass().getDeclaredMethod("run");
-                                        run.setAccessible(true);
-                                        result.set(run.invoke(supervisor));
-                                    } catch (Exception failure) {
-                                        result.set(failure);
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            Method method =
+                                                    supervisor.getClass().getDeclaredMethod("run");
+                                            method.setAccessible(true);
+                                            result.set(method.invoke(supervisor));
+                                        } catch (Exception failure) {
+                                            result.set(failure);
+                                        }
                                     }
                                 });
         Thread.sleep(1500);
@@ -178,13 +190,17 @@ class SupervisorFinalTest {
         Thread runner =
                 Thread.ofVirtual()
                         .start(
-                                () -> {
-                                    try {
-                                        Method run = supervisor.getClass().getDeclaredMethod("run");
-                                        run.setAccessible(true);
-                                        result.set(run.invoke(supervisor));
-                                    } catch (Exception failure) {
-                                        result.set(failure);
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            Method method =
+                                                    supervisor.getClass().getDeclaredMethod("run");
+                                            method.setAccessible(true);
+                                            result.set(method.invoke(supervisor));
+                                        } catch (Exception failure) {
+                                            result.set(failure);
+                                        }
                                     }
                                 });
         Thread.sleep(2500);
@@ -211,12 +227,15 @@ class SupervisorFinalTest {
         Thread starter =
                 Thread.ofPlatform()
                         .start(
-                                () -> {
-                                    try {
-                                        invoke(service, "start");
-                                        done.set(Boolean.TRUE);
-                                    } catch (Exception failure) {
-                                        done.set(failure);
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            invoke(service, "start");
+                                            done.set(Boolean.TRUE);
+                                        } catch (Exception failure) {
+                                            done.set(failure);
+                                        }
                                     }
                                 });
         long end = System.currentTimeMillis() + 10_000;
@@ -242,16 +261,22 @@ class SupervisorFinalTest {
         Object service = newService(supervisor, unit);
         Process proc = mock(Process.class);
         when(proc.waitFor()).thenThrow(new InterruptedException());
-        try (var constructors =
+        try (MockedConstruction<ProcessBuilder> constructors =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, context) -> {
-                            when(mock.start()).thenReturn(proc);
-                            when(mock.redirectErrorStream(Mockito.anyBoolean())).thenReturn(mock);
-                            when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
-                                    .thenReturn(mock);
-                            when(mock.directory(Mockito.any())).thenReturn(mock);
-                            when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(
+                                    ProcessBuilder mock, MockedConstruction.Context context)
+                                    throws Throwable {
+                                when(mock.start()).thenReturn(proc);
+                                when(mock.redirectErrorStream(Mockito.anyBoolean()))
+                                        .thenReturn(mock);
+                                when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
+                                        .thenReturn(mock);
+                                when(mock.directory(Mockito.any())).thenReturn(mock);
+                                when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             invokeAs(service, "runHooks", new Class<?>[] {List.class}, List.of("hook-cmd"));
             assertTrue(Thread.currentThread().isInterrupted());
@@ -315,20 +340,29 @@ class SupervisorFinalTest {
         Process proc = mock(Process.class);
         when(proc.waitFor())
                 .thenAnswer(
-                        inv -> {
-                            setWanted(service, false);
-                            return 5;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) throws Throwable {
+                                setWanted(service, false);
+                                return 5;
+                            }
                         });
-        try (var constructors =
+        try (MockedConstruction<ProcessBuilder> constructors =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, context) -> {
-                            when(mock.start()).thenReturn(proc);
-                            when(mock.redirectErrorStream(Mockito.anyBoolean())).thenReturn(mock);
-                            when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
-                                    .thenReturn(mock);
-                            when(mock.directory(Mockito.any())).thenReturn(mock);
-                            when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(
+                                    ProcessBuilder mock, MockedConstruction.Context context)
+                                    throws Throwable {
+                                when(mock.start()).thenReturn(proc);
+                                when(mock.redirectErrorStream(Mockito.anyBoolean()))
+                                        .thenReturn(mock);
+                                when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
+                                        .thenReturn(mock);
+                                when(mock.directory(Mockito.any())).thenReturn(mock);
+                                when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             setWanted(service, true);
             invoke(service, "run");
@@ -350,22 +384,31 @@ class SupervisorFinalTest {
         Process proc = mock(Process.class);
         when(proc.waitFor())
                 .thenAnswer(
-                        inv -> {
-                            Field down = supervisor.getClass().getDeclaredField("shuttingDown");
-                            down.setAccessible(true);
-                            down.setBoolean(supervisor, true);
-                            return 0;
+                        new Answer<Object>() {
+                            @Override
+                            public Object answer(InvocationOnMock inv) throws Throwable {
+                                Field down = supervisor.getClass().getDeclaredField("shuttingDown");
+                                down.setAccessible(true);
+                                down.setBoolean(supervisor, true);
+                                return 0;
+                            }
                         });
-        try (var constructors =
+        try (MockedConstruction<ProcessBuilder> constructors =
                 Mockito.mockConstruction(
                         ProcessBuilder.class,
-                        (mock, context) -> {
-                            when(mock.start()).thenReturn(proc);
-                            when(mock.redirectErrorStream(Mockito.anyBoolean())).thenReturn(mock);
-                            when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
-                                    .thenReturn(mock);
-                            when(mock.directory(Mockito.any())).thenReturn(mock);
-                            when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                        new MockedConstruction.MockInitializer<ProcessBuilder>() {
+                            @Override
+                            public void prepare(
+                                    ProcessBuilder mock, MockedConstruction.Context context)
+                                    throws Throwable {
+                                when(mock.start()).thenReturn(proc);
+                                when(mock.redirectErrorStream(Mockito.anyBoolean()))
+                                        .thenReturn(mock);
+                                when(mock.redirectOutput(Mockito.<ProcessBuilder.Redirect>any()))
+                                        .thenReturn(mock);
+                                when(mock.directory(Mockito.any())).thenReturn(mock);
+                                when(mock.environment()).thenReturn(new java.util.HashMap<>());
+                            }
                         })) {
             setWanted(service, true);
             invoke(service, "run");
@@ -579,7 +622,14 @@ class SupervisorFinalTest {
         assertTrue(prefix.contains("--no-new-privs"));
         assertTrue(prefix.contains("--reuid=alice"));
         assertTrue(prefix.contains("--regid=staff"));
-        assertTrue(prefix.stream().anyMatch(part -> part.startsWith("--rlimit-nofile=")));
+        boolean hasRlimit = false;
+        for (String part : prefix) {
+            if (part.startsWith("--rlimit-nofile=")) {
+                hasRlimit = true;
+                break;
+            }
+        }
+        assertTrue(hasRlimit);
         String script = ServiceSupervisor.sandboxScript(guarded);
         assertTrue(script.contains("remount,ro"));
         assertTrue(script.contains("tmpfs"));
