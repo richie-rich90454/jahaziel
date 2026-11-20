@@ -54,7 +54,13 @@ class SnapshotMapperTest {
         assertEquals("auto", SnapshotKinds.toString(SnapshotKind.AUTO));
         assertEquals("pre-delete", SnapshotKinds.toString(SnapshotKind.PRE_DELETE));
         assertEquals(SnapshotKind.MANUAL, SnapshotKinds.fromString("manual"));
-        assertThrows(IllegalStateException.class, () -> SnapshotKinds.fromString("bogus"));
+        assertThrows(
+                IllegalStateException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        SnapshotKinds.fromString("bogus");
+                    }
+                });
     }
 
     @Test
