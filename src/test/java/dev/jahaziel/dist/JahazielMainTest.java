@@ -22,7 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -160,10 +162,7 @@ class JahazielMainTest {
             } else {
                 System.setProperty("server.address", priorAddress);
             }
-            System.getProperties().stringPropertyNames().stream()
-                    .filter(key -> !before.contains(key))
-                    .toList()
-                    .forEach(System::clearProperty);
+            clearNewProperties(before);
         }
     }
 
@@ -212,10 +211,7 @@ class JahazielMainTest {
             } else {
                 System.setProperty("java.io.tmpdir", previousTmpdir);
             }
-            System.getProperties().stringPropertyNames().stream()
-                    .filter(key -> !before.contains(key))
-                    .toList()
-                    .forEach(System::clearProperty);
+            clearNewProperties(before);
             deleteBestEffort(home);
         }
     }
@@ -232,12 +228,12 @@ class JahazielMainTest {
             Files.writeString(home.resolve(".env"), "# test\n", StandardCharsets.UTF_8);
             Path data = home.resolve("data");
             Files.createDirectories(data);
-            try (var channel =
+            try (FileChannel channel =
                             FileChannel.open(
                                     data.resolve(".lock"),
                                     StandardOpenOption.CREATE,
                                     StandardOpenOption.WRITE);
-                    var held = channel.lock()) {
+                    java.nio.channels.FileLock held = channel.lock()) {
                 JahazielMain.Arguments parsed =
                         new JahazielMain.Arguments(
                                 data.toString(),
@@ -265,11 +261,20 @@ class JahazielMainTest {
             } else {
                 System.setProperty("java.io.tmpdir", previousTmpdir);
             }
-            System.getProperties().stringPropertyNames().stream()
-                    .filter(key -> !before.contains(key))
-                    .toList()
-                    .forEach(System::clearProperty);
+            clearNewProperties(before);
             deleteBestEffort(home);
+        }
+    }
+
+    private static void clearNewProperties(Set<String> before) {
+        List<String> added = new ArrayList<>();
+        for (String key : System.getProperties().stringPropertyNames()) {
+            if (!before.contains(key)) {
+                added.add(key);
+            }
+        }
+        for (String key : added) {
+            System.clearProperty(key);
         }
     }
 
@@ -280,18 +285,22 @@ class JahazielMainTest {
     }
 
     private static void deleteBestEffort(Path root) {
+        List<Path> paths = new ArrayList<>();
         try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
-            walk.sorted(java.util.Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Windows may still hold the boot log; the OS reclaims temp.
-                                }
-                            });
+            java.util.Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
         } catch (Exception ignored) {
             // Best-effort test cleanup.
+        }
+        paths.sort(java.util.Comparator.reverseOrder());
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception ignored) {
+                // Windows may still hold the boot log; the OS reclaims temp.
+            }
         }
     }
 
@@ -302,5 +311,43 @@ class JahazielMainTest {
         return new Output(code, buffer.toString(StandardCharsets.UTF_8));
     }
 
-    private record Output(int code, String text) {}
+    private static final class Output {
+        private final int code;
+        private final String text;
+
+        private Output(int code, String text) {
+            this.code = code;
+            this.text = text;
+        }
+
+        private int code() {
+            return code;
+        }
+
+        private String text() {
+            return text;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof Output)) {
+                return false;
+            }
+            Output that = (Output) other;
+            return code == that.code && java.util.Objects.equals(text, that.text);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(code, text);
+        }
+
+        @Override
+        public String toString() {
+            return "Output[code=" + code + ", text=" + text + "]";
+        }
+    }
 }
