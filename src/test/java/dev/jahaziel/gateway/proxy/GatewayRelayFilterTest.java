@@ -200,29 +200,32 @@ class GatewayRelayFilterTest {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        try (Socket peer = backend.accept()) {
-                                            InputStream in = peer.getInputStream();
-                                            ByteArrayOutputStream head =
-                                                    new ByteArrayOutputStream();
-                                            int current;
-                                            while ((current = in.read()) >= 0) {
-                                                head.write(current);
-                                                byte[] bytes = head.toByteArray();
-                                                int size = bytes.length;
-                                                if (size >= 4
-                                                        && bytes[size - 4] == '\r'
-                                                        && bytes[size - 3] == '\n'
-                                                        && bytes[size - 2] == '\r'
-                                                        && bytes[size - 1] == '\n') {
-                                                    break;
+                                    new Runnable() {
+                                        public void run() {
+                                            try (Socket peer = backend.accept()) {
+                                                InputStream in = peer.getInputStream();
+                                                ByteArrayOutputStream head =
+                                                        new ByteArrayOutputStream();
+                                                int current;
+                                                while ((current = in.read()) >= 0) {
+                                                    head.write(current);
+                                                    byte[] bytes = head.toByteArray();
+                                                    int size = bytes.length;
+                                                    if (size >= 4
+                                                            && bytes[size - 4] == '\r'
+                                                            && bytes[size - 3] == '\n'
+                                                            && bytes[size - 2] == '\r'
+                                                            && bytes[size - 1] == '\n') {
+                                                        break;
+                                                    }
                                                 }
+                                                OutputStream peerOut = peer.getOutputStream();
+                                                peerOut.write(
+                                                        response.getBytes(
+                                                                StandardCharsets.US_ASCII));
+                                                peerOut.flush();
+                                            } catch (IOException done) {
                                             }
-                                            OutputStream peerOut = peer.getOutputStream();
-                                            peerOut.write(
-                                                    response.getBytes(StandardCharsets.US_ASCII));
-                                            peerOut.flush();
-                                        } catch (IOException done) {
                                         }
                                     });
             int backendPort = backend.getLocalPort();
@@ -274,7 +277,11 @@ class GatewayRelayFilterTest {
             GatewayRelayFilter relay = filter(tokens, directory, targets);
             assertThrows(
                     IOException.class,
-                    () -> relay.doFilter(request, response, mock(FilterChain.class)));
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            relay.doFilter(request, response, mock(FilterChain.class));
+                        }
+                    });
         } finally {
             backend.stop();
         }
@@ -366,37 +373,46 @@ class GatewayRelayFilterTest {
             Thread backend =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        try (Socket client = listener.accept()) {
-                                            client.setSoTimeout(5000);
-                                            OutputStream out = client.getOutputStream();
-                                            out.write(
-                                                    ("HTTP/1.1 200 OK\r\n"
-                                                                    + "Content-Type: application/javascript; charset=utf-8\r\n"
-                                                                    + "Transfer-Encoding: chunked\r\n\r\n")
-                                                            .getBytes(StandardCharsets.US_ASCII));
-                                            int half = body.length() / 2;
-                                            for (String part :
-                                                    new String[] {
-                                                        body.substring(0, half),
-                                                        body.substring(half)
-                                                    }) {
-                                                byte[] bytes =
-                                                        part.getBytes(StandardCharsets.UTF_8);
+                                    new Runnable() {
+                                        public void run() {
+                                            try (Socket client = listener.accept()) {
+                                                client.setSoTimeout(5000);
+                                                OutputStream out = client.getOutputStream();
                                                 out.write(
-                                                        (Integer.toHexString(bytes.length) + "\r\n")
+                                                        ("HTTP/1.1 200 OK\r\n"
+                                                                        + "Content-Type: application/javascript; charset=utf-8\r\n"
+                                                                        + "Transfer-Encoding: chunked\r\n\r\n")
                                                                 .getBytes(
                                                                         StandardCharsets.US_ASCII));
-                                                out.write(bytes);
+                                                int half = body.length() / 2;
+                                                for (String part :
+                                                        new String[] {
+                                                            body.substring(0, half),
+                                                            body.substring(half)
+                                                        }) {
+                                                    byte[] bytes =
+                                                            part.getBytes(StandardCharsets.UTF_8);
+                                                    out.write(
+                                                            (Integer.toHexString(bytes.length)
+                                                                            + "\r\n")
+                                                                    .getBytes(
+                                                                            StandardCharsets
+                                                                                    .US_ASCII));
+                                                    out.write(bytes);
+                                                    out.write(
+                                                            "\r\n"
+                                                                    .getBytes(
+                                                                            StandardCharsets
+                                                                                    .US_ASCII));
+                                                }
                                                 out.write(
-                                                        "\r\n".getBytes(StandardCharsets.US_ASCII));
+                                                        "0\r\n\r\n"
+                                                                .getBytes(
+                                                                        StandardCharsets.US_ASCII));
+                                                out.flush();
+                                            } catch (IOException closed) {
+                                                // the client hung up
                                             }
-                                            out.write(
-                                                    "0\r\n\r\n"
-                                                            .getBytes(StandardCharsets.US_ASCII));
-                                            out.flush();
-                                        } catch (IOException closed) {
-                                            // the client hung up
                                         }
                                     });
             UUID user = UUID.randomUUID();
@@ -620,19 +636,30 @@ class GatewayRelayFilterTest {
         assertEquals(List.of("a", "b"), parsed.headers().get("x-multi"));
         assertThrows(
                 GatewayServer.HttpFailure.class,
-                () -> GatewayRelayFilter.readBackendHead(new ByteArrayInputStream(new byte[0])));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        GatewayRelayFilter.readBackendHead(new ByteArrayInputStream(new byte[0]));
+                    }
+                });
         assertThrows(
                 GatewayServer.HttpFailure.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         GatewayRelayFilter.readBackendHead(
                                 new ByteArrayInputStream(
                                         "GARBAGE\r\nNoColonHere\r\n\r\n"
-                                                .getBytes(StandardCharsets.US_ASCII))));
+                                                .getBytes(StandardCharsets.US_ASCII)));
+                    }
+                });
         byte[] huge = new byte[70 * 1024];
         java.util.Arrays.fill(huge, (byte) 'x');
         assertThrows(
                 GatewayServer.HttpFailure.class,
-                () -> GatewayRelayFilter.readBackendHead(new ByteArrayInputStream(huge)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        GatewayRelayFilter.readBackendHead(new ByteArrayInputStream(huge));
+                    }
+                });
     }
 
     @Test
@@ -646,36 +673,39 @@ class GatewayRelayFilterTest {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        try (Socket peer = backend.accept()) {
-                                            InputStream in = peer.getInputStream();
-                                            ByteArrayOutputStream head =
-                                                    new ByteArrayOutputStream();
-                                            int current;
-                                            while ((current = in.read()) >= 0) {
-                                                head.write(current);
-                                                byte[] bytes = head.toByteArray();
-                                                int size = bytes.length;
-                                                if (size >= 4
-                                                        && bytes[size - 4] == '\r'
-                                                        && bytes[size - 3] == '\n'
-                                                        && bytes[size - 2] == '\r'
-                                                        && bytes[size - 1] == '\n') {
-                                                    break;
+                                    new Runnable() {
+                                        public void run() {
+                                            try (Socket peer = backend.accept()) {
+                                                InputStream in = peer.getInputStream();
+                                                ByteArrayOutputStream head =
+                                                        new ByteArrayOutputStream();
+                                                int current;
+                                                while ((current = in.read()) >= 0) {
+                                                    head.write(current);
+                                                    byte[] bytes = head.toByteArray();
+                                                    int size = bytes.length;
+                                                    if (size >= 4
+                                                            && bytes[size - 4] == '\r'
+                                                            && bytes[size - 3] == '\n'
+                                                            && bytes[size - 2] == '\r'
+                                                            && bytes[size - 1] == '\n') {
+                                                        break;
+                                                    }
                                                 }
+                                                headReceived.countDown();
+                                                OutputStream peerOut = peer.getOutputStream();
+                                                peerOut.write(
+                                                        "HTTP/1.1 101 Switching\r\n\r\n"
+                                                                .getBytes(
+                                                                        StandardCharsets.US_ASCII));
+                                                peerOut.flush();
+                                                byte[] three = in.readNBytes(3);
+                                                if (new String(three, StandardCharsets.US_ASCII)
+                                                        .equals("ABC")) {
+                                                    abcReceived.countDown();
+                                                }
+                                            } catch (IOException done) {
                                             }
-                                            headReceived.countDown();
-                                            OutputStream peerOut = peer.getOutputStream();
-                                            peerOut.write(
-                                                    "HTTP/1.1 101 Switching\r\n\r\n"
-                                                            .getBytes(StandardCharsets.US_ASCII));
-                                            peerOut.flush();
-                                            byte[] three = in.readNBytes(3);
-                                            if (new String(three, StandardCharsets.US_ASCII)
-                                                    .equals("ABC")) {
-                                                abcReceived.countDown();
-                                            }
-                                        } catch (IOException done) {
                                         }
                                     });
             int backendPort = backend.getLocalPort();
@@ -683,7 +713,12 @@ class GatewayRelayFilterTest {
                     new GatewayRelayFilter.RelayState(
                             new InetSocketAddress(LOOPBACK, backendPort),
                             rawRequest,
-                            GatewayRelayFilter::connect);
+                            new GatewayRelayFilter.SocketFactory() {
+                                public java.net.Socket connect(java.net.InetSocketAddress address)
+                                        throws java.io.IOException {
+                                    return GatewayRelayFilter.connect(address);
+                                }
+                            });
             GatewayRelayFilter.RelayUpgrade.pending().set(state);
             try {
                 WebConnection connection = mock(WebConnection.class);
@@ -748,7 +783,11 @@ class GatewayRelayFilterTest {
         GatewayRelayFilter.RelayUpgrade.pending().remove();
         assertThrows(
                 IllegalStateException.class,
-                () -> new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class)));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class));
+                    }
+                });
     }
 
     @Test
@@ -761,12 +800,21 @@ class GatewayRelayFilterTest {
                 new GatewayRelayFilter.RelayState(
                         new InetSocketAddress(LOOPBACK, dead),
                         "GET / HTTP/1.1\r\n\r\n",
-                        GatewayRelayFilter::connect);
+                        new GatewayRelayFilter.SocketFactory() {
+                            public java.net.Socket connect(java.net.InetSocketAddress address)
+                                    throws java.io.IOException {
+                                return GatewayRelayFilter.connect(address);
+                            }
+                        });
         GatewayRelayFilter.RelayUpgrade.pending().set(state);
         try {
             assertThrows(
                     java.io.UncheckedIOException.class,
-                    () -> new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class)));
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class));
+                        }
+                    });
         } finally {
             GatewayRelayFilter.RelayUpgrade.pending().remove();
         }
@@ -779,24 +827,35 @@ class GatewayRelayFilterTest {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        try (Socket peer = backend.accept()) {
-                                            peer.getInputStream().read();
-                                        } catch (IOException ignored) {
+                                    new Runnable() {
+                                        public void run() {
+                                            try (Socket peer = backend.accept()) {
+                                                peer.getInputStream().read();
+                                            } catch (IOException ignored) {
+                                            }
                                         }
                                     });
             GatewayRelayFilter.RelayState state =
                     new GatewayRelayFilter.RelayState(
                             new InetSocketAddress(LOOPBACK, backend.getLocalPort()),
                             "GET / HTTP/1.1\r\n\r\n",
-                            GatewayRelayFilter::connect);
+                            new GatewayRelayFilter.SocketFactory() {
+                                public java.net.Socket connect(java.net.InetSocketAddress address)
+                                        throws java.io.IOException {
+                                    return GatewayRelayFilter.connect(address);
+                                }
+                            });
             GatewayRelayFilter.RelayUpgrade.pending().set(state);
             try {
                 WebConnection connection = mock(WebConnection.class);
                 when(connection.getInputStream()).thenThrow(new IOException("broken"));
                 assertThrows(
                         IllegalStateException.class,
-                        () -> new GatewayRelayFilter.RelayUpgrade().init(connection));
+                        new org.junit.jupiter.api.function.Executable() {
+                            public void execute() throws Throwable {
+                                new GatewayRelayFilter.RelayUpgrade().init(connection);
+                            }
+                        });
             } finally {
                 GatewayRelayFilter.RelayUpgrade.pending().remove();
                 acceptor.join(TimeUnit.SECONDS.toMillis(10));
@@ -810,14 +869,21 @@ class GatewayRelayFilterTest {
                 new GatewayRelayFilter.RelayState(
                         new InetSocketAddress(LOOPBACK, 9),
                         "GET / HTTP/1.1\r\n\r\n",
-                        backend -> {
-                            throw new IOException("refused");
+                        new GatewayRelayFilter.SocketFactory() {
+                            public java.net.Socket connect(java.net.InetSocketAddress address)
+                                    throws java.io.IOException {
+                                throw new IOException("refused");
+                            }
                         });
         GatewayRelayFilter.RelayUpgrade.pending().set(state);
         try {
             assertThrows(
                     java.io.UncheckedIOException.class,
-                    () -> new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class)));
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class));
+                        }
+                    });
         } finally {
             GatewayRelayFilter.RelayUpgrade.pending().remove();
         }
@@ -843,12 +909,20 @@ class GatewayRelayFilterTest {
                 new GatewayRelayFilter.RelayState(
                         new InetSocketAddress(LOOPBACK, 9),
                         "GET / HTTP/1.1\r\n\r\n",
-                        backend -> fake);
+                        new GatewayRelayFilter.SocketFactory() {
+                            public java.net.Socket connect(java.net.InetSocketAddress address) {
+                                return fake;
+                            }
+                        });
         GatewayRelayFilter.RelayUpgrade.pending().set(state);
         try {
             assertThrows(
                     java.io.UncheckedIOException.class,
-                    () -> new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class)));
+                    new org.junit.jupiter.api.function.Executable() {
+                        public void execute() throws Throwable {
+                            new GatewayRelayFilter.RelayUpgrade().init(mock(WebConnection.class));
+                        }
+                    });
         } finally {
             GatewayRelayFilter.RelayUpgrade.pending().remove();
         }
@@ -883,29 +957,32 @@ class GatewayRelayFilterTest {
             Thread acceptor =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        try (Socket peer = backend.accept()) {
-                                            InputStream in = peer.getInputStream();
-                                            ByteArrayOutputStream head =
-                                                    new ByteArrayOutputStream();
-                                            int current;
-                                            while ((current = in.read()) >= 0) {
-                                                head.write(current);
-                                                byte[] bytes = head.toByteArray();
-                                                int size = bytes.length;
-                                                if (size >= 4
-                                                        && bytes[size - 4] == '\r'
-                                                        && bytes[size - 3] == '\n'
-                                                        && bytes[size - 2] == '\r'
-                                                        && bytes[size - 1] == '\n') {
-                                                    break;
+                                    new Runnable() {
+                                        public void run() {
+                                            try (Socket peer = backend.accept()) {
+                                                InputStream in = peer.getInputStream();
+                                                ByteArrayOutputStream head =
+                                                        new ByteArrayOutputStream();
+                                                int current;
+                                                while ((current = in.read()) >= 0) {
+                                                    head.write(current);
+                                                    byte[] bytes = head.toByteArray();
+                                                    int size = bytes.length;
+                                                    if (size >= 4
+                                                            && bytes[size - 4] == '\r'
+                                                            && bytes[size - 3] == '\n'
+                                                            && bytes[size - 2] == '\r'
+                                                            && bytes[size - 1] == '\n') {
+                                                        break;
+                                                    }
                                                 }
+                                                OutputStream peerOut = peer.getOutputStream();
+                                                peerOut.write(
+                                                        response.getBytes(
+                                                                StandardCharsets.US_ASCII));
+                                                peerOut.flush();
+                                            } catch (IOException done) {
                                             }
-                                            OutputStream peerOut = peer.getOutputStream();
-                                            peerOut.write(
-                                                    response.getBytes(StandardCharsets.US_ASCII));
-                                            peerOut.flush();
-                                        } catch (IOException done) {
                                         }
                                     });
             int backendPort = backend.getLocalPort();

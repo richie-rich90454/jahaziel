@@ -95,11 +95,13 @@ public final class GatewayRelayFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (!(request instanceof HttpServletRequest httpRequest
-                && response instanceof HttpServletResponse httpResponse)) {
+        if (!(request instanceof HttpServletRequest)
+                || !(response instanceof HttpServletResponse)) {
             chain.doFilter(request, response);
             return;
         }
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
         ParsedHost route;
         try {
             route = hosts.parse(httpRequest.getServerName());
@@ -134,7 +136,13 @@ public final class GatewayRelayFilter implements Filter {
         UUID workspaceId =
                 directory
                         .lookup(route.userSlug(), route.port())
-                        .orElseThrow(() -> new GatewayServer.HttpFailure(404, "no such route"));
+                        .orElseThrow(
+                                new java.util.function.Supplier<GatewayServer.HttpFailure>() {
+                                    @Override
+                                    public GatewayServer.HttpFailure get() {
+                                        return new GatewayServer.HttpFailure(404, "no such route");
+                                    }
+                                });
         if (!session.workspaceId().equals(workspaceId)) {
             throw new GatewayServer.HttpFailure(403, "session workspace mismatch");
         }
@@ -153,7 +161,13 @@ public final class GatewayRelayFilter implements Filter {
                             new RelayState(
                                     backend,
                                     rawRequest(request, forwardTarget),
-                                    GatewayRelayFilter::connect));
+                                    new SocketFactory() {
+                                        @Override
+                                        public Socket connect(InetSocketAddress address)
+                                                throws IOException {
+                                            return GatewayRelayFilter.connect(address);
+                                        }
+                                    }));
             try {
                 request.upgrade(RelayUpgrade.class);
             } finally {
@@ -332,9 +346,11 @@ public final class GatewayRelayFilter implements Filter {
     }
 
     static boolean needsRefresh(String rawToken) {
-        return expiresAt(rawToken)
-                .map(expiry -> !expiry.isAfter(Instant.now().plus(REFRESH_WITHIN)))
-                .orElse(false);
+        Optional<Instant> expiry = expiresAt(rawToken);
+        if (!expiry.isPresent()) {
+            return false;
+        }
+        return !expiry.get().isAfter(Instant.now().plus(REFRESH_WITHIN));
     }
 
     static Optional<Instant> expiresAt(String token) {
@@ -385,7 +401,7 @@ public final class GatewayRelayFilter implements Filter {
 
     static Map<String, String> lowercaseHeaders(HttpServletRequest request) {
         Map<String, String> headers = new LinkedHashMap<>();
-        var names = request.getHeaderNames();
+        java.util.Enumeration<String> names = request.getHeaderNames();
         while (names.hasMoreElements()) {
             String name = names.nextElement();
             headers.put(name.toLowerCase(java.util.Locale.ROOT), request.getHeader(name));
@@ -401,7 +417,7 @@ public final class GatewayRelayFilter implements Filter {
                 .append(' ')
                 .append(request.getProtocol())
                 .append("\r\n");
-        var names = request.getHeaderNames();
+        java.util.Enumeration<String> names = request.getHeaderNames();
         while (names.hasMoreElements()) {
             String name = names.nextElement();
             if (name.equalsIgnoreCase("connection")
@@ -414,7 +430,42 @@ public final class GatewayRelayFilter implements Filter {
         return head + "\r\n";
     }
 
-    record BackendHead(int status, Map<String, List<String>> headers) {}
+    /** Parsed backend response head. */
+    static final class BackendHead {
+        private final int status;
+        private final Map<String, List<String>> headers;
+
+        BackendHead(int status, Map<String, List<String>> headers) {
+            this.status = status;
+            this.headers = headers;
+        }
+
+        int status() {
+            return status;
+        }
+
+        Map<String, List<String>> headers() {
+            return headers;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof BackendHead)) return false;
+            BackendHead other = (BackendHead) o;
+            return status == other.status && headers.equals(other.headers);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(status, headers);
+        }
+
+        @Override
+        public String toString() {
+            return "BackendHead[status=" + status + ", headers=" + headers + "]";
+        }
+    }
 
     static BackendHead readBackendHead(InputStream in) throws IOException {
         ByteArrayOutputStream raw = new ByteArrayOutputStream();
@@ -453,20 +504,60 @@ public final class GatewayRelayFilter implements Filter {
         for (int i = 1; i < lines.size(); i++) {
             int colon = lines.get(i).indexOf(':');
             if (colon > 0) {
-                headers.computeIfAbsent(
-                                lines.get(i).substring(0, colon).strip().toLowerCase(),
-                                key -> new ArrayList<>())
-                        .add(lines.get(i).substring(colon + 1).strip());
+                String headerName = lines.get(i).substring(0, colon).strip().toLowerCase();
+                List<String> values = headers.get(headerName);
+                if (values == null) {
+                    values = new ArrayList<>();
+                    headers.put(headerName, values);
+                }
+                values.add(lines.get(i).substring(colon + 1).strip());
             }
         }
         return new BackendHead(status, headers);
     }
 
     /** Carries the backend connection across the container upgrade boundary. */
-    record RelayState(InetSocketAddress backend, String requestHead, SocketFactory sockets) {}
+    static final class RelayState {
+        private final InetSocketAddress backend;
+        private final String requestHead;
+        private final SocketFactory sockets;
+
+        RelayState(InetSocketAddress backend, String requestHead, SocketFactory sockets) {
+            this.backend = backend;
+            this.requestHead = requestHead;
+            this.sockets = sockets;
+        }
+
+        InetSocketAddress backend() {
+            return backend;
+        }
+
+        String requestHead() {
+            return requestHead;
+        }
+
+        SocketFactory sockets() {
+            return sockets;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof RelayState)) return false;
+            RelayState other = (RelayState) o;
+            return backend.equals(other.backend)
+                    && requestHead.equals(other.requestHead)
+                    && sockets.equals(other.sockets);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(backend, requestHead, sockets);
+        }
+    }
 
     /** Opens backend sockets; substituted in tests for deterministic failures. */
-    interface SocketFactory {
+    abstract static class SocketFactory {
         /**
          * Connects to a backend.
          *
@@ -474,7 +565,7 @@ public final class GatewayRelayFilter implements Filter {
          * @return the connected socket
          * @throws IOException when unreachable
          */
-        Socket connect(InetSocketAddress backend) throws IOException;
+        public abstract Socket connect(InetSocketAddress backend) throws IOException;
     }
 
     /**
@@ -516,8 +607,22 @@ public final class GatewayRelayFilter implements Filter {
                 closeQuietly(upstream);
                 throw new IllegalStateException("upgrade connection broken", broken);
             }
-            Thread.ofVirtual().start(() -> relayQuietly(backendIn, clientOut, upstream));
-            Thread.ofVirtual().start(() -> relayQuietly(clientIn, backendOut, upstream));
+            Thread.ofVirtual()
+                    .start(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    relayQuietly(backendIn, clientOut, upstream);
+                                }
+                            });
+            Thread.ofVirtual()
+                    .start(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    relayQuietly(clientIn, backendOut, upstream);
+                                }
+                            });
         }
 
         @Override
