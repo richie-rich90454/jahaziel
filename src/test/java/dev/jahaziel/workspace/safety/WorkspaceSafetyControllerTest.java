@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Controller checks authorization and exposes the contracted safety endpoints. */
-final class WorkspaceSafetyControllerTest {
+public final class WorkspaceSafetyControllerTest {
     @Test
     void controllerIsAnnotatedRestController() {
         assertTrue(WorkspaceSafetyController.class.isAnnotationPresent(RestController.class));
@@ -162,7 +162,7 @@ final class WorkspaceSafetyControllerTest {
         }
     }
 
-    private static final class EmptySnapshots implements SnapshotService {
+    private static final class EmptySnapshots extends SnapshotService {
         @Override
         public SnapshotMetadata create(WorkspaceId id, String tag, SnapshotKind kind, String by) {
             return null;
@@ -180,7 +180,7 @@ final class WorkspaceSafetyControllerTest {
         public void delete(WorkspaceId id, SnapshotId snapshotId) {}
     }
 
-    private static final class MinimalWorkspaces implements WorkspaceService {
+    private static final class MinimalWorkspaces extends WorkspaceService {
         @Override
         public Workspace create(UserId owner, String name, int cpus, long memory, NodeId node) {
             WorkspaceId id = new WorkspaceId(UUID.randomUUID());
