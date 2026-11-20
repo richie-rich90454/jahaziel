@@ -26,7 +26,12 @@ public class DemoModeWebServerConfiguration {
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE)
     public WebServerFactoryCustomizer<ConfigurableWebServerFactory> demoModeLoopbackCustomizer() {
-        return factory -> factory.setAddress(ipv4Loopback());
+        return new WebServerFactoryCustomizer<ConfigurableWebServerFactory>() {
+            @Override
+            public void customize(ConfigurableWebServerFactory factory) {
+                factory.setAddress(ipv4Loopback());
+            }
+        };
     }
 
     private static InetAddress ipv4Loopback() {
