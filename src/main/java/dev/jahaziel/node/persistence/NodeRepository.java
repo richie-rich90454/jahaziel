@@ -6,5 +6,5 @@ package dev.jahaziel.node.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/** Repository for NodeEntity persistence. */
+/** Spring Data repository for NodeEntity; interface is required by Spring Data. */
 public interface NodeRepository extends JpaRepository<NodeEntity, String> {}
