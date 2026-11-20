@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-/** Repository for WorkspaceEntity persistence. */
+/** Spring Data repository for WorkspaceEntity; interface is required by Spring Data. */
 public interface WorkspaceRepository extends JpaRepository<WorkspaceEntity, UUID> {
     /**
      * Finds all workspaces of an owner.
