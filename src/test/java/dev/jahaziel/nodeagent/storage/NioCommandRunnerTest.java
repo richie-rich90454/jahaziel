@@ -15,7 +15,10 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -33,16 +36,20 @@ class NioCommandRunnerTest {
     @AfterEach
     void tearDown() throws Exception {
         try (Stream<Path> walk = Files.walk(root)) {
-            walk.sorted(Comparator.reverseOrder())
-                    .forEach(
-                            path -> {
-                                try {
-                                    path.toFile().setWritable(true, false);
-                                    Files.deleteIfExists(path);
-                                } catch (Exception ignored) {
-                                    // Best-effort test cleanup.
-                                }
-                            });
+            List<Path> paths = new ArrayList<>();
+            Iterator<Path> iterator = walk.iterator();
+            while (iterator.hasNext()) {
+                paths.add(iterator.next());
+            }
+            Collections.sort(paths, Comparator.reverseOrder());
+            for (Path path : paths) {
+                try {
+                    path.toFile().setWritable(true, false);
+                    Files.deleteIfExists(path);
+                } catch (Exception ignored) {
+                    // Best-effort test cleanup.
+                }
+            }
         }
     }
 
@@ -88,12 +95,34 @@ class NioCommandRunnerTest {
 
     @Test
     void rejectsUnknownShapes() {
-        assertThrows(StorageException.class, () -> commands.run(List.of("rm", "x")));
         assertThrows(
                 StorageException.class,
-                () -> commands.run(List.of("chmod", "-R", "u+x", root.toString())));
-        assertThrows(NullPointerException.class, () -> commands.run(null));
-        assertThrows(NullPointerException.class, () -> commands.exists(null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        commands.run(List.of("rm", "x"));
+                    }
+                });
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        commands.run(List.of("chmod", "-R", "u+x", root.toString()));
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        commands.run(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        commands.exists(null);
+                    }
+                });
     }
 
     @Test
