@@ -17,16 +17,25 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** Behavior of {@link InMemoryDomainEventBus}. */
 class InMemoryDomainEventBusTest {
+
     private final Instant at = Instant.now();
 
     @Test
     void deliversToExactTypeSubscribers() {
         InMemoryDomainEventBus bus = new InMemoryDomainEventBus();
         List<WorkspaceDeletedEvent> received = new ArrayList<>();
-        bus.subscribe(WorkspaceDeletedEvent.class, received::add);
+        bus.subscribe(
+                WorkspaceDeletedEvent.class,
+                new Consumer<WorkspaceDeletedEvent>() {
+                    @Override
+                    public void accept(WorkspaceDeletedEvent event) {
+                        received.add(event);
+                    }
+                });
         WorkspaceDeletedEvent event = new WorkspaceDeletedEvent(UUID.randomUUID(), at);
         bus.publish(event);
         assertEquals(List.of(event), received);
@@ -36,7 +45,14 @@ class InMemoryDomainEventBusTest {
     void deliversSubtypesToBaseSubscribers() {
         InMemoryDomainEventBus bus = new InMemoryDomainEventBus();
         List<DomainEvent> received = new ArrayList<>();
-        bus.subscribe(DomainEvent.class, received::add);
+        bus.subscribe(
+                DomainEvent.class,
+                new Consumer<DomainEvent>() {
+                    @Override
+                    public void accept(DomainEvent event) {
+                        received.add(event);
+                    }
+                });
         NodeRegisteredEvent event = new NodeRegisteredEvent("node-a", at);
         bus.publish(event);
         assertEquals(List.of(event), received);
@@ -46,7 +62,14 @@ class InMemoryDomainEventBusTest {
     void ignoresUnrelatedSubscribers() {
         InMemoryDomainEventBus bus = new InMemoryDomainEventBus();
         List<NodeRegisteredEvent> received = new ArrayList<>();
-        bus.subscribe(NodeRegisteredEvent.class, received::add);
+        bus.subscribe(
+                NodeRegisteredEvent.class,
+                new Consumer<NodeRegisteredEvent>() {
+                    @Override
+                    public void accept(NodeRegisteredEvent event) {
+                        received.add(event);
+                    }
+                });
         bus.publish(new WorkspaceDeletedEvent(UUID.randomUUID(), at));
         assertEquals(List.of(), received);
     }
@@ -54,8 +77,21 @@ class InMemoryDomainEventBusTest {
     @Test
     void nullsAreRejected() {
         InMemoryDomainEventBus bus = new InMemoryDomainEventBus();
-        assertThrows(NullPointerException.class, () -> bus.publish(null));
         assertThrows(
-                NullPointerException.class, () -> bus.subscribe(WorkspaceDeletedEvent.class, null));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        bus.publish(null);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        bus.subscribe(WorkspaceDeletedEvent.class, null);
+                    }
+                });
     }
 }
