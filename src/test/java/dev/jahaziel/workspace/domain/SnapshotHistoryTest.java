@@ -32,6 +32,13 @@ class SnapshotHistoryTest {
 
     @Test
     void nullSnapshotIsRejected() {
-        assertThrows(NullPointerException.class, () -> new SnapshotHistory().record(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new SnapshotHistory().record(null);
+                    }
+                });
     }
 }
