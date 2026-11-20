@@ -79,12 +79,15 @@ class FolderStorageTest {
         when(commands.run(any())).thenReturn("9999\t/home");
         assertThrows(
                 StorageException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         storage.prepare(
                                 workspaceId,
                                 ownerId,
                                 new ImageRef("base-image:2026.09"),
-                                new QuotaBytes(100)));
+                                new QuotaBytes(100));
+                    }
+                });
     }
 
     @Test
@@ -161,7 +164,7 @@ class FolderStorageTest {
         WorkspaceHandle handle = handle();
         when(commands.exists(any())).thenReturn(true);
         when(commands.run(any())).thenReturn("4096\t/x");
-        var usage = storage.usage(handle);
+        dev.jahaziel.spi.StorageUsage usage = storage.usage(handle);
         assertEquals(4096, usage.logicalBytes());
         assertEquals(4096, usage.physicalBytes());
         assertEquals(4096, usage.snapshotBytes());
@@ -172,7 +175,7 @@ class FolderStorageTest {
         WorkspaceHandle handle = handle();
         when(commands.exists(any())).thenReturn(false);
         when(commands.run(any())).thenReturn("4096\t/x");
-        var usage = storage.usage(handle);
+        dev.jahaziel.spi.StorageUsage usage = storage.usage(handle);
         assertEquals(4096, usage.logicalBytes());
         assertEquals(0, usage.snapshotBytes());
         verify(commands, org.mockito.Mockito.times(1)).run(org.mockito.ArgumentMatchers.anyList());
@@ -180,8 +183,20 @@ class FolderStorageTest {
 
     @Test
     void duNoiseThrows() {
-        assertThrows(StorageException.class, () -> FolderStorage.parseDu("nothing here"));
-        assertThrows(NullPointerException.class, () -> storage.usage(null));
+        assertThrows(
+                StorageException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        FolderStorage.parseDu("nothing here");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        storage.usage(null);
+                    }
+                });
     }
 
     private Path homePath() {
