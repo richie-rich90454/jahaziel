@@ -20,11 +20,41 @@ import java.util.UUID;
 class ValueCoverageTest {
     @Test
     void hostSampleRejectsNegatives() {
-        assertThrows(IllegalArgumentException.class, () -> new HostSample(-1, 0, 0, 0, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new HostSample(0, -1, 0, 0, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new HostSample(0, 0, -1, 0, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new HostSample(0, 0, 0, -1, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new HostSample(0, 0, 0, 0, -1, 0, 0, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostSample(-1, 0, 0, 0, 0, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostSample(0, -1, 0, 0, 0, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostSample(0, 0, -1, 0, 0, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostSample(0, 0, 0, -1, 0, 0, 0, 0);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new HostSample(0, 0, 0, 0, -1, 0, 0, 0);
+                    }
+                });
         HostSample ok = new HostSample(10, 100, 200, 300, 400, 1, 2, 3);
         assertEquals(10, ok.cpuUsagePercent());
         assertEquals(100, ok.memoryUsedBytes());
@@ -37,14 +67,33 @@ class ValueCoverageTest {
     void snapshotSummaryValidatesAndDelegates() {
         SnapshotHandle handle = new SnapshotHandle(UUID.randomUUID(), Path.of("/s"), Instant.now());
         assertThrows(
-                NullPointerException.class, () -> new SnapshotSummary(null, "t", Instant.now()));
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotSummary(null, "t", Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotSummary(handle, null, Instant.now()));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotSummary(handle, null, Instant.now());
+                    }
+                });
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SnapshotSummary(handle, "  ", Instant.now()));
-        assertThrows(NullPointerException.class, () -> new SnapshotSummary(handle, "t", null));
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotSummary(handle, "  ", Instant.now());
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new SnapshotSummary(handle, "t", null);
+                    }
+                });
         SnapshotSummary summary = new SnapshotSummary(handle, "daily", Instant.now());
         assertEquals(handle.snapshotPath(), summary.snapshotPath());
         assertEquals(handle.snapshotId(), summary.snapshotId());
