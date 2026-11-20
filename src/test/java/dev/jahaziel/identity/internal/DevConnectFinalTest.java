@@ -16,6 +16,9 @@ import dev.jahaziel.identity.internal.devconnect.DevConnectProperties;
 import dev.jahaziel.identity.internal.devconnect.DiscoveryDocument;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
@@ -27,6 +30,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
 /** Final gap tests: empty bodies, the decoder race, and the audience validator. */
@@ -51,9 +55,23 @@ class DevConnectFinalTest {
 
     @Test
     void readRejectsNullAndBlankBodies() {
-        DevConnectClient client = client();
-        assertThrows(DevConnectException.class, () -> read(client, null));
-        assertThrows(DevConnectException.class, () -> read(client, "  "));
+        final DevConnectClient client = client();
+        assertThrows(
+                DevConnectException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        read(client, null);
+                    }
+                });
+        assertThrows(
+                DevConnectException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        read(client, "  ");
+                    }
+                });
     }
 
     @Test
@@ -90,30 +108,35 @@ class DevConnectFinalTest {
 
     @Test
     void decoderSkipsRebuildInsideLock() throws Exception {
-        DevConnectClient client = client();
+        final DevConnectClient client = client();
         setDecoder(client, mock(JwtDecoder.class), null);
         int threads = 4;
-        int rounds = 25;
+        final int rounds = 25;
         CountDownLatch ready = new CountDownLatch(threads);
-        CountDownLatch go = new CountDownLatch(1);
-        List<Object> results = java.util.Collections.synchronizedList(new ArrayList<>());
+        final CountDownLatch go = new CountDownLatch(1);
+        final List<Object> results =
+                java.util.Collections.synchronizedList(new ArrayList<Object>());
         List<Thread> workers = new ArrayList<>();
         for (int t = 0; t < threads; t++) {
             Thread worker =
                     Thread.ofVirtual()
                             .start(
-                                    () -> {
-                                        ready.countDown();
-                                        try {
-                                            go.await(15, java.util.concurrent.TimeUnit.SECONDS);
-                                            for (int i = 0; i < rounds; i++) {
-                                                results.add(
-                                                        decoderFor(
-                                                                client,
-                                                                document("https://idp.test/jwks")));
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ready.countDown();
+                                            try {
+                                                go.await(15, java.util.concurrent.TimeUnit.SECONDS);
+                                                for (int i = 0; i < rounds; i++) {
+                                                    results.add(
+                                                            decoderFor(
+                                                                    client,
+                                                                    document(
+                                                                            "https://idp.test/jwks")));
+                                                }
+                                            } catch (Exception failure) {
+                                                throw new AssertionError(failure);
                                             }
-                                        } catch (Exception failure) {
-                                            throw new AssertionError(failure);
                                         }
                                     });
             workers.add(worker);
@@ -124,7 +147,9 @@ class DevConnectFinalTest {
             worker.join(30_000);
         }
         assertEquals(threads * rounds, results.size());
-        assertTrue(results.stream().allMatch(java.util.Objects::nonNull));
+        for (int index = 0; index < results.size(); index++) {
+            assertTrue(Objects.nonNull(results.get(index)));
+        }
     }
 
     @Test
@@ -134,28 +159,25 @@ class DevConnectFinalTest {
         JwtDecoder built = (JwtDecoder) decoderFor(client, document("https://idp.test/jwks"));
         Field validatorField = built.getClass().getDeclaredField("jwtValidator");
         validatorField.setAccessible(true);
-        var validator =
-                (org.springframework.security.oauth2.core.OAuth2TokenValidator<
-                                org.springframework.security.oauth2.jwt.Jwt>)
-                        validatorField.get(built);
-        org.springframework.security.oauth2.jwt.Jwt noAud =
-                new org.springframework.security.oauth2.jwt.Jwt(
+        OAuth2TokenValidator<Jwt> validator = (OAuth2TokenValidator<Jwt>) validatorField.get(built);
+        Jwt noAud =
+                new Jwt(
                         "t",
                         java.time.Instant.now(),
                         java.time.Instant.now().plusSeconds(60),
                         Map.of("alg", "none"),
                         Map.of("sub", "x", "iss", "https://idp.test"));
         assertTrue(validator.validate(noAud).hasErrors());
-        org.springframework.security.oauth2.jwt.Jwt wrongAud =
-                new org.springframework.security.oauth2.jwt.Jwt(
+        Jwt wrongAud =
+                new Jwt(
                         "t",
                         java.time.Instant.now(),
                         java.time.Instant.now().plusSeconds(60),
                         Map.of("alg", "none"),
                         Map.of("sub", "x", "iss", "https://idp.test", "aud", List.of("other")));
         assertTrue(validator.validate(wrongAud).hasErrors());
-        org.springframework.security.oauth2.jwt.Jwt rightAud =
-                new org.springframework.security.oauth2.jwt.Jwt(
+        Jwt rightAud =
+                new Jwt(
                         "t",
                         java.time.Instant.now(),
                         java.time.Instant.now().plusSeconds(60),
