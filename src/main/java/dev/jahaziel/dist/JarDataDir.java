@@ -109,11 +109,11 @@ public final class JarDataDir {
         try {
             // ApplicationHome understands every launcher URL: plain file:, Spring Boot 3's
             // jar:file:...!/BOOT-INF/classes!/, and Spring Boot 4's jar:nested: scheme.
-            var source =
+            java.io.File source =
                     new org.springframework.boot.system.ApplicationHome(JarDataDir.class)
                             .getSource();
             if (source != null && source.getName().endsWith(".jar")) {
-                var parent = source.getAbsoluteFile().getParentFile();
+                java.io.File parent = source.getAbsoluteFile().getParentFile();
                 if (parent != null) {
                     return parent.getPath();
                 }
