@@ -25,6 +25,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 class WorkspaceHomeMigrationTest {
@@ -98,7 +99,12 @@ class WorkspaceHomeMigrationTest {
         UncheckedIOException failure =
                 assertThrows(
                         UncheckedIOException.class,
-                        () -> fixture.migration().run(new DefaultApplicationArguments()));
+                        new org.junit.jupiter.api.function.Executable() {
+                            @Override
+                            public void execute() throws Throwable {
+                                fixture.migration().run(new DefaultApplicationArguments());
+                            }
+                        });
 
         assertTrue(failure.getCause().getMessage().contains("resolve it, then retry startup"));
         assertEquals(
@@ -142,10 +148,83 @@ class WorkspaceHomeMigrationTest {
                                 new dev.jahaziel.workspace.domain.WorkspaceId(workspaceId))));
     }
 
-    private record Fixture(
-            WorkspaceHomeMigration migration,
-            VirtualMachineRepository machines,
-            VirtualMachineEntity machine,
-            Path legacyHome,
-            Path workspaceHome) {}
+    private static final class Fixture {
+        private final WorkspaceHomeMigration migration;
+        private final VirtualMachineRepository machines;
+        private final VirtualMachineEntity machine;
+        private final Path legacyHome;
+        private final Path workspaceHome;
+
+        public Fixture(
+                WorkspaceHomeMigration migration,
+                VirtualMachineRepository machines,
+                VirtualMachineEntity machine,
+                Path legacyHome,
+                Path workspaceHome) {
+            this.migration = migration;
+            this.machines = machines;
+            this.machine = machine;
+            this.legacyHome = legacyHome;
+            this.workspaceHome = workspaceHome;
+        }
+
+        public WorkspaceHomeMigration migration() {
+            return migration;
+        }
+
+        public VirtualMachineRepository machines() {
+            return machines;
+        }
+
+        public VirtualMachineEntity machine() {
+            return machine;
+        }
+
+        public Path legacyHome() {
+            return legacyHome;
+        }
+
+        public Path workspaceHome() {
+            return workspaceHome;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Fixture other = (Fixture) o;
+            return Objects.equals(migration, other.migration)
+                    && Objects.equals(machines, other.machines)
+                    && Objects.equals(machine, other.machine)
+                    && Objects.equals(legacyHome, other.legacyHome)
+                    && Objects.equals(workspaceHome, other.workspaceHome);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(migration);
+            result = 31 * result + Objects.hashCode(machines);
+            result = 31 * result + Objects.hashCode(machine);
+            result = 31 * result + Objects.hashCode(legacyHome);
+            result = 31 * result + Objects.hashCode(workspaceHome);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Fixture{"
+                    + "migration="
+                    + migration
+                    + ", machines="
+                    + machines
+                    + ", machine="
+                    + machine
+                    + ", legacyHome="
+                    + legacyHome
+                    + ", workspaceHome="
+                    + workspaceHome
+                    + '}';
+        }
+    }
 }
