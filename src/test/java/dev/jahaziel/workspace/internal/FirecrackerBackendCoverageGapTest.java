@@ -63,20 +63,44 @@ class FirecrackerBackendCoverageGapTest {
 
     @Test
     void ctorAndName(@TempDir Path root) {
-        assertThrows(NullPointerException.class, () -> new FirecrackerBackend(null));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        new FirecrackerBackend(null);
+                    }
+                });
         assertEquals("firecracker", new FirecrackerBackend(root).name());
     }
 
     @Test
     void kvmAvailableBranches() {
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                            Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                        files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(false);
-                        assertFalse(FirecrackerBackend.kvmAvailable());
-                        files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(true);
-                        assertTrue(FirecrackerBackend.kvmAvailable());
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(Path.of("/dev/kvm"));
+                                                }
+                                            })
+                                    .thenReturn(false);
+                            assertFalse(FirecrackerBackend.kvmAvailable());
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(Path.of("/dev/kvm"));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            assertTrue(FirecrackerBackend.kvmAvailable());
+                        }
                     }
                 });
     }
@@ -85,16 +109,36 @@ class FirecrackerBackendCoverageGapTest {
     void prepareRequiresKvm(@TempDir Path root) {
         FirecrackerBackend backend = new FirecrackerBackend(root);
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                            Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                        files.when(() -> Files.exists(Path.of("/dev/kvm"))).thenReturn(false);
-                        assertThrows(
-                                IllegalStateException.class,
-                                () -> backend.prepare(prepareFor(UUID.randomUUID())));
-                        assertThrows(
-                                IllegalStateException.class,
-                                () -> backend.start(runtimeFor(UUID.randomUUID())));
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(Path.of("/dev/kvm"));
+                                                }
+                                            })
+                                    .thenReturn(false);
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    new org.junit.jupiter.api.function.Executable() {
+                                        @Override
+                                        public void execute() throws Throwable {
+                                            backend.prepare(prepareFor(UUID.randomUUID()));
+                                        }
+                                    });
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    new org.junit.jupiter.api.function.Executable() {
+                                        @Override
+                                        public void execute() throws Throwable {
+                                            backend.start(runtimeFor(UUID.randomUUID()));
+                                        }
+                                    });
+                        }
                     }
                 });
     }
@@ -102,19 +146,40 @@ class FirecrackerBackendCoverageGapTest {
     @Test
     void prepareSuccessAndIoFailure(@TempDir Path root) {
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                            Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                        files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
-                        FirecrackerBackend backend = new FirecrackerBackend(root);
-                        UUID id = UUID.randomUUID();
-                        WorkspaceHandle handle = backend.prepare(prepareFor(id));
-                        assertEquals(id, handle.workspaceId());
-                        files.when(() -> Files.createDirectories(any(Path.class)))
-                                .thenThrow(new IOException("boom"));
-                        assertThrows(
-                                UncheckedIOException.class,
-                                () -> backend.prepare(prepareFor(UUID.randomUUID())));
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            FirecrackerBackend backend = new FirecrackerBackend(root);
+                            UUID id = UUID.randomUUID();
+                            WorkspaceHandle handle = backend.prepare(prepareFor(id));
+                            assertEquals(id, handle.workspaceId());
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.createDirectories(any(Path.class));
+                                                }
+                                            })
+                                    .thenThrow(new IOException("boom"));
+                            assertThrows(
+                                    UncheckedIOException.class,
+                                    new org.junit.jupiter.api.function.Executable() {
+                                        @Override
+                                        public void execute() throws Throwable {
+                                            backend.prepare(prepareFor(UUID.randomUUID()));
+                                        }
+                                    });
+                        }
                     }
                 });
     }
@@ -122,15 +187,37 @@ class FirecrackerBackendCoverageGapTest {
     @Test
     void startRequiresBinary(@TempDir Path root) {
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                            Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                        files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
-                        files.when(() -> Files.isExecutable(any(Path.class))).thenReturn(false);
-                        FirecrackerBackend backend = new FirecrackerBackend(root);
-                        assertThrows(
-                                IllegalStateException.class,
-                                () -> backend.start(runtimeFor(UUID.randomUUID())));
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.isExecutable(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(false);
+                            FirecrackerBackend backend = new FirecrackerBackend(root);
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    new org.junit.jupiter.api.function.Executable() {
+                                        @Override
+                                        public void execute() throws Throwable {
+                                            backend.start(runtimeFor(UUID.randomUUID()));
+                                        }
+                                    });
+                        }
                     }
                 });
     }
@@ -138,57 +225,105 @@ class FirecrackerBackendCoverageGapTest {
     @Test
     void startSuccessAndIoFailure(@TempDir Path root) {
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                            Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
-                        files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
-                        files.when(() -> Files.isExecutable(any(Path.class))).thenReturn(true);
-                        FirecrackerBackend backend = new FirecrackerBackend(root);
-                        UUID id = UUID.randomUUID();
-                        Process fake = mock(Process.class);
-                        try (MockedConstruction<ProcessBuilder> ignored =
-                                Mockito.mockConstruction(
-                                        ProcessBuilder.class,
-                                        (mock, ctx) -> {
-                                            try {
-                                                when(mock.directory(any(File.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.redirectOutput(
-                                                                any(ProcessBuilder.Redirect.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.redirectError(
-                                                                any(ProcessBuilder.Redirect.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.start()).thenReturn(fake);
-                                            } catch (IOException e) {
-                                                throw new RuntimeException(e);
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.isExecutable(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            FirecrackerBackend backend = new FirecrackerBackend(root);
+                            UUID id = UUID.randomUUID();
+                            Process fake = mock(Process.class);
+                            try (MockedConstruction<ProcessBuilder> ignored =
+                                    Mockito.mockConstruction(
+                                            ProcessBuilder.class,
+                                            new org.mockito.MockedConstruction.MockInitializer<
+                                                    ProcessBuilder>() {
+                                                @Override
+                                                public void prepare(
+                                                        ProcessBuilder mock,
+                                                        org.mockito.MockedConstruction.Context
+                                                                ctx) {
+                                                    try {
+                                                        when(mock.directory(any(File.class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.redirectOutput(
+                                                                        any(
+                                                                                ProcessBuilder
+                                                                                        .Redirect
+                                                                                        .class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.redirectError(
+                                                                        any(
+                                                                                ProcessBuilder
+                                                                                        .Redirect
+                                                                                        .class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.start()).thenReturn(fake);
+                                                    } catch (IOException e) {
+                                                        throw new RuntimeException(e);
+                                                    }
+                                                }
+                                            })) {
+                                backend.prepare(prepareFor(id));
+                                assertEquals(id, backend.start(runtimeFor(id)).value());
+                            }
+                            try (MockedConstruction<ProcessBuilder> ignored =
+                                    Mockito.mockConstruction(
+                                            ProcessBuilder.class,
+                                            new org.mockito.MockedConstruction.MockInitializer<
+                                                    ProcessBuilder>() {
+                                                @Override
+                                                public void prepare(
+                                                        ProcessBuilder mock,
+                                                        org.mockito.MockedConstruction.Context
+                                                                ctx) {
+                                                    try {
+                                                        when(mock.directory(any(File.class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.redirectOutput(
+                                                                        any(
+                                                                                ProcessBuilder
+                                                                                        .Redirect
+                                                                                        .class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.redirectError(
+                                                                        any(
+                                                                                ProcessBuilder
+                                                                                        .Redirect
+                                                                                        .class)))
+                                                                .thenReturn(mock);
+                                                        when(mock.start())
+                                                                .thenThrow(new IOException("boom"));
+                                                    } catch (IOException e) {
+                                                        throw new RuntimeException(e);
+                                                    }
+                                                }
+                                            })) {
+                                assertThrows(
+                                        UncheckedIOException.class,
+                                        new org.junit.jupiter.api.function.Executable() {
+                                            @Override
+                                            public void execute() throws Throwable {
+                                                backend.start(runtimeFor(id));
                                             }
-                                        })) {
-                            backend.prepare(prepareFor(id));
-                            assertEquals(id, backend.start(runtimeFor(id)).value());
-                        }
-                        try (MockedConstruction<ProcessBuilder> ignored =
-                                Mockito.mockConstruction(
-                                        ProcessBuilder.class,
-                                        (mock, ctx) -> {
-                                            try {
-                                                when(mock.directory(any(File.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.redirectOutput(
-                                                                any(ProcessBuilder.Redirect.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.redirectError(
-                                                                any(ProcessBuilder.Redirect.class)))
-                                                        .thenReturn(mock);
-                                                when(mock.start())
-                                                        .thenThrow(new IOException("boom"));
-                                            } catch (IOException e) {
-                                                throw new RuntimeException(e);
-                                            }
-                                        })) {
-                            assertThrows(
-                                    UncheckedIOException.class,
-                                    () -> backend.start(runtimeFor(id)));
+                                        });
+                            }
                         }
                     }
                 });
@@ -200,71 +335,133 @@ class FirecrackerBackendCoverageGapTest {
         UUID id = UUID.randomUUID();
         backend.stop(new RuntimeHandle(id), true);
         Process fake = mock(Process.class);
-        when(fake.descendants()).thenAnswer(inv -> java.util.stream.Stream.empty());
+        when(fake.descendants())
+                .thenAnswer(
+                        new org.mockito.stubbing.Answer<Object>() {
+                            @Override
+                            public Object answer(org.mockito.invocation.InvocationOnMock inv)
+                                    throws Throwable {
+                                return java.util.stream.Stream.empty();
+                            }
+                        });
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                                    Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
-                            MockedConstruction<ProcessBuilder> ignored =
-                                    Mockito.mockConstruction(
-                                            ProcessBuilder.class,
-                                            (mock, ctx) -> {
-                                                try {
-                                                    when(mock.directory(any(File.class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.redirectOutput(
-                                                                    any(
-                                                                            ProcessBuilder.Redirect
-                                                                                    .class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.redirectError(
-                                                                    any(
-                                                                            ProcessBuilder.Redirect
-                                                                                    .class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.start()).thenReturn(fake);
-                                                } catch (IOException e) {
-                                                    throw new RuntimeException(e);
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                        Mockito.mockStatic(
+                                                Files.class, Mockito.CALLS_REAL_METHODS);
+                                MockedConstruction<ProcessBuilder> ignored =
+                                        Mockito.mockConstruction(
+                                                ProcessBuilder.class,
+                                                new org.mockito.MockedConstruction.MockInitializer<
+                                                        ProcessBuilder>() {
+                                                    @Override
+                                                    public void prepare(
+                                                            ProcessBuilder mock,
+                                                            org.mockito.MockedConstruction.Context
+                                                                    ctx) {
+                                                        try {
+                                                            when(mock.directory(any(File.class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.redirectOutput(
+                                                                            any(
+                                                                                    ProcessBuilder
+                                                                                            .Redirect
+                                                                                            .class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.redirectError(
+                                                                            any(
+                                                                                    ProcessBuilder
+                                                                                            .Redirect
+                                                                                            .class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.start()).thenReturn(fake);
+                                                        } catch (IOException e) {
+                                                            throw new RuntimeException(e);
+                                                        }
+                                                    }
+                                                })) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(any(Path.class));
                                                 }
-                                            })) {
-                        files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
-                        files.when(() -> Files.isExecutable(any(Path.class))).thenReturn(true);
-                        backend.prepare(prepareFor(id));
-                        backend.start(runtimeFor(id));
+                                            })
+                                    .thenReturn(true);
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.isExecutable(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            backend.prepare(prepareFor(id));
+                            backend.start(runtimeFor(id));
+                        }
                     }
                 });
         backend.stop(new RuntimeHandle(id), true);
         Mockito.verify(fake).destroy();
         withLinux(
-                () -> {
-                    try (MockedStatic<Files> files =
-                                    Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
-                            MockedConstruction<ProcessBuilder> ignored =
-                                    Mockito.mockConstruction(
-                                            ProcessBuilder.class,
-                                            (mock, ctx) -> {
-                                                try {
-                                                    when(mock.directory(any(File.class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.redirectOutput(
-                                                                    any(
-                                                                            ProcessBuilder.Redirect
-                                                                                    .class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.redirectError(
-                                                                    any(
-                                                                            ProcessBuilder.Redirect
-                                                                                    .class)))
-                                                            .thenReturn(mock);
-                                                    when(mock.start()).thenReturn(fake);
-                                                } catch (IOException e) {
-                                                    throw new RuntimeException(e);
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try (MockedStatic<Files> files =
+                                        Mockito.mockStatic(
+                                                Files.class, Mockito.CALLS_REAL_METHODS);
+                                MockedConstruction<ProcessBuilder> ignored =
+                                        Mockito.mockConstruction(
+                                                ProcessBuilder.class,
+                                                new org.mockito.MockedConstruction.MockInitializer<
+                                                        ProcessBuilder>() {
+                                                    @Override
+                                                    public void prepare(
+                                                            ProcessBuilder mock,
+                                                            org.mockito.MockedConstruction.Context
+                                                                    ctx) {
+                                                        try {
+                                                            when(mock.directory(any(File.class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.redirectOutput(
+                                                                            any(
+                                                                                    ProcessBuilder
+                                                                                            .Redirect
+                                                                                            .class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.redirectError(
+                                                                            any(
+                                                                                    ProcessBuilder
+                                                                                            .Redirect
+                                                                                            .class)))
+                                                                    .thenReturn(mock);
+                                                            when(mock.start()).thenReturn(fake);
+                                                        } catch (IOException e) {
+                                                            throw new RuntimeException(e);
+                                                        }
+                                                    }
+                                                })) {
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.exists(any(Path.class));
                                                 }
-                                            })) {
-                        files.when(() -> Files.exists(any(Path.class))).thenReturn(true);
-                        files.when(() -> Files.isExecutable(any(Path.class))).thenReturn(true);
-                        backend.prepare(prepareFor(id));
-                        backend.start(runtimeFor(id));
+                                            })
+                                    .thenReturn(true);
+                            files.when(
+                                            new org.mockito.MockedStatic.Verification() {
+                                                @Override
+                                                public void apply() throws Throwable {
+                                                    Files.isExecutable(any(Path.class));
+                                                }
+                                            })
+                                    .thenReturn(true);
+                            backend.prepare(prepareFor(id));
+                            backend.start(runtimeFor(id));
+                        }
                     }
                 });
         backend.stop(new RuntimeHandle(id), false);
