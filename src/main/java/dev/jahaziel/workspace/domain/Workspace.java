@@ -55,8 +55,16 @@ public final class Workspace {
         return id;
     }
 
+    public WorkspaceId getId() {
+        return id;
+    }
+
     /** Returns the owning user. */
     public UserId owner() {
+        return owner;
+    }
+
+    public UserId getOwner() {
         return owner;
     }
 
@@ -65,8 +73,16 @@ public final class Workspace {
         return name;
     }
 
+    public String getName() {
+        return name;
+    }
+
     /** Returns the current state. */
     public WorkspaceState state() {
+        return state;
+    }
+
+    public WorkspaceState getState() {
         return state;
     }
 
@@ -75,8 +91,16 @@ public final class Workspace {
         return quota;
     }
 
+    public WorkspaceQuota getQuota() {
+        return quota;
+    }
+
     /** Returns the virtual machine. */
     public VirtualMachine vm() {
+        return vm;
+    }
+
+    public VirtualMachine getVm() {
         return vm;
     }
 
@@ -85,8 +109,16 @@ public final class Workspace {
         return acl;
     }
 
+    public AccessControlList getAcl() {
+        return acl;
+    }
+
     /** Returns the resource policy. */
     public ResourcePolicy policy() {
+        return policy;
+    }
+
+    public ResourcePolicy getPolicy() {
         return policy;
     }
 
