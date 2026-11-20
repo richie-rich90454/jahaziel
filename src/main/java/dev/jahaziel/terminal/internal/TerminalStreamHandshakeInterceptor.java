@@ -8,6 +8,7 @@ import dev.jahaziel.authorization.api.AuthorizationService;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.security.api.BrowserOrigin;
 import dev.jahaziel.terminal.api.TerminalService;
+import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 
 import org.springframework.http.server.ServerHttpRequest;
@@ -51,7 +52,7 @@ public final class TerminalStreamHandshakeInterceptor implements HandshakeInterc
         try {
             String[] segments = request.getURI().getPath().split("/");
             UUID sessionUuid = UUID.fromString(segments[segments.length - 2]);
-            var session = terminals.get(new TerminalSessionId(sessionUuid));
+            TerminalSession session = terminals.get(new TerminalSessionId(sessionUuid));
             UserId actor = new UserId(UUID.fromString(request.getPrincipal().getName()));
             if (!authorization.isAllowed(actor, "write", session.workspaceId())) {
                 return false;
