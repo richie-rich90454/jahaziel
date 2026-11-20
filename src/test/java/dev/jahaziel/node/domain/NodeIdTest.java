@@ -24,7 +24,19 @@ class NodeIdTest {
 
     @Test
     void blankValuesAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new NodeId("  "));
-        assertThrows(NullPointerException.class, () -> new NodeId(null));
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeId("  ");
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        new NodeId(null);
+                    }
+                });
     }
 }
