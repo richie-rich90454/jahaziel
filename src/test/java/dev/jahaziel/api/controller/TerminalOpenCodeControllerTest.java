@@ -30,12 +30,25 @@ import java.util.List;
 import java.util.UUID;
 
 class TerminalOpenCodeControllerTest {
+
     private final TerminalService terminals = mock(TerminalService.class);
+
     private final AuthorizationService authorization = mock(AuthorizationService.class);
+
     private final AgentToolService tools = mock(AgentToolService.class);
+
     private final UserId user = new UserId(UUID.randomUUID());
+
     private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
-    private final Principal principal = () -> user.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return user.value().toString();
+                }
+            };
+
     private final TerminalController controller =
             new TerminalController(terminals, authorization, tools);
 
@@ -51,9 +64,8 @@ class TerminalOpenCodeControllerTest {
                 new TerminalSession(
                         new TerminalSessionId(UUID.randomUUID()), workspace, user, 30, 120);
         when(terminals.open(workspace, user, 30, 120)).thenReturn(session);
-
-        var result = controller.openOpenCode(workspace.value(), 30, 120, principal);
-
+        dev.jahaziel.api.dto.TerminalSessionDto result =
+                controller.openOpenCode(workspace.value(), 30, 120, principal);
         assertEquals(session.id().value(), result.sessionId());
         verify(terminals).write(session.id(), "opencode\r");
     }
@@ -61,22 +73,28 @@ class TerminalOpenCodeControllerTest {
     @Test
     void refusesToLaunchWhenTheUserHasNotInstalledOpenCode() {
         when(tools.catalog(user)).thenReturn(List.of(status("NOT_INSTALLED")));
-
         assertThrows(
                 AgentToolNotInstalledException.class,
-                () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
+                new org.junit.jupiter.api.function.Executable() {
 
+                    public void execute() {
+                        controller.openOpenCode(workspace.value(), 30, 120, principal);
+                    }
+                });
         verify(terminals, never()).open(workspace, user, 30, 120);
     }
 
     @Test
     void checksWorkspaceAuthorizationBeforeReadingTheUserToolCatalog() {
         when(authorization.isAllowed(user, "write", workspace)).thenReturn(false);
-
         assertThrows(
                 AccessDeniedException.class,
-                () -> controller.openOpenCode(workspace.value(), 30, 120, principal));
+                new org.junit.jupiter.api.function.Executable() {
 
+                    public void execute() {
+                        controller.openOpenCode(workspace.value(), 30, 120, principal);
+                    }
+                });
         verify(tools, never()).catalog(user);
         verify(terminals, never()).open(workspace, user, 30, 120);
     }
