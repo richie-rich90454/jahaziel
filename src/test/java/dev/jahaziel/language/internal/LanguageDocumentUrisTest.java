@@ -43,23 +43,32 @@ class LanguageDocumentUrisTest {
 
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageDocumentUris.toFilePath(
                                 "jahaziel://workspace/" + workspace.value() + "/%2e%2e/secret",
                                 workspace,
-                                root));
+                                root);
+                    }
+                });
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageDocumentUris.toFilePath(
                                 "jahaziel://workspace/" + UUID.randomUUID() + "/src/Main.rs",
                                 workspace,
-                                root));
+                                root);
+                    }
+                });
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageDocumentUris.toFilePath(
-                                root.resolve("src/Main.rs").toUri().toString(), workspace, root));
+                                root.resolve("src/Main.rs").toUri().toString(), workspace, root);
+                    }
+                });
     }
 
     @Test
@@ -75,10 +84,13 @@ class LanguageDocumentUrisTest {
 
         assertThrows(
                 IOException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
                         LanguageDocumentUris.toFilePath(
                                 "jahaziel://workspace/" + workspace.value() + "/linked/secret.rs",
                                 workspace,
-                                root));
+                                root);
+                    }
+                });
     }
 }
