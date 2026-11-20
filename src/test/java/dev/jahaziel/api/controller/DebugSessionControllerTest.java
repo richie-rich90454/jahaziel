@@ -25,36 +25,51 @@ import java.util.List;
 import java.util.UUID;
 
 class DebugSessionControllerTest {
+
     private final DebugService debug = mock(DebugService.class);
+
     private final AuthorizationService authorization = mock(AuthorizationService.class);
+
     private final DebugSessionController controller =
             new DebugSessionController(debug, authorization);
+
     private final UserId owner = new UserId(UUID.randomUUID());
+
     private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
+
     private final UUID sessionId = UUID.randomUUID();
-    private final Principal principal = () -> owner.value().toString();
+
+    private final Principal principal =
+            new java.security.Principal() {
+
+                public String getName() {
+                    return owner.value().toString();
+                }
+            };
 
     @Test
     void listsAuthorizedWorkspaceSessionsWithReadPermission() {
         List<DebugService.Session> sessions = List.of(session());
         when(authorization.isAllowed(owner, "read", workspace)).thenReturn(true);
         when(debug.list(workspace)).thenReturn(sessions);
-
         assertEquals(sessions, controller.list(workspace.value(), principal));
     }
 
     @Test
     void rejectsDebuggerCreationWithoutWorkspaceWritePermission() {
         when(authorization.isAllowed(owner, "write", workspace)).thenReturn(false);
-
         assertThrows(
                 AccessDeniedException.class,
-                () ->
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
                         controller.start(
                                 workspace.value(),
                                 new DebugService.StartRequest(
                                         "node", "src/main.js", null, List.of(), ".", false),
-                                principal));
+                                principal);
+                    }
+                });
         verify(debug, never())
                 .start(
                         workspace,
@@ -68,7 +83,6 @@ class DebugSessionControllerTest {
         DebugService.AttachRequest request = new DebugService.AttachRequest(targetId);
         when(authorization.isAllowed(owner, "write", workspace)).thenReturn(true);
         when(debug.attachToTarget(workspace, request)).thenReturn(session());
-
         assertEquals(sessionId, controller.attach(workspace.value(), request, principal).id());
         verify(debug).attachToTarget(workspace, request);
     }
@@ -77,10 +91,14 @@ class DebugSessionControllerTest {
     void rejectsAttachWithoutWorkspaceWritePermission() {
         DebugService.AttachRequest request = new DebugService.AttachRequest(UUID.randomUUID());
         when(authorization.isAllowed(owner, "write", workspace)).thenReturn(false);
-
         assertThrows(
                 AccessDeniedException.class,
-                () -> controller.attach(workspace.value(), request, principal));
+                new org.junit.jupiter.api.function.Executable() {
+
+                    public void execute() {
+                        controller.attach(workspace.value(), request, principal);
+                    }
+                });
         verify(debug, never()).attachToTarget(workspace, request);
     }
 
@@ -88,7 +106,6 @@ class DebugSessionControllerTest {
     void stopsOnlyAWorkspaceAuthorizedByWritePermission() {
         when(authorization.isAllowed(owner, "write", workspace)).thenReturn(true);
         when(debug.stop(workspace, sessionId)).thenReturn(session());
-
         assertEquals(sessionId, controller.stop(workspace.value(), sessionId, principal).id());
         verify(debug).stop(workspace, sessionId);
     }
