@@ -15,6 +15,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,11 +58,12 @@ public final class AuditSpoolReader {
         } catch (Exception failure) {
             throw new IllegalArgumentException("unreadable spool file: " + spoolFile, failure);
         }
-        List<AuditRecord> records =
-                lines.stream()
-                        .filter(line -> !line.isBlank())
-                        .map(line -> toRecord(workspaceId, line))
-                        .toList();
+        List<AuditRecord> records = new ArrayList<>();
+        for (String line : lines) {
+            if (!line.isBlank()) {
+                records.add(toRecord(workspaceId, line));
+            }
+        }
         for (AuditRecord record : records) {
             audit.append(record);
         }
@@ -81,7 +84,15 @@ public final class AuditSpoolReader {
      */
     public static List<Path> spooled(Path stagingDir) {
         try (Stream<Path> files = Files.list(stagingDir)) {
-            return files.filter(path -> path.toString().endsWith(".jsonl")).toList();
+            List<Path> result = new ArrayList<>();
+            Iterator<Path> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                Path path = iterator.next();
+                if (path.toString().endsWith(".jsonl")) {
+                    result.add(path);
+                }
+            }
+            return result;
         } catch (Exception failure) {
             throw new IllegalArgumentException("unreadable staging dir: " + stagingDir, failure);
         }
