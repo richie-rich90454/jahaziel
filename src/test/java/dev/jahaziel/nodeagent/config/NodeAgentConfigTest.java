@@ -31,7 +31,19 @@ class NodeAgentConfigTest {
 
     @Test
     void missingSectionsAndKeysThrow() {
-        assertThrows(NullPointerException.class, () -> NodeAgentConfig.load(null));
-        assertThrows(IllegalArgumentException.class, () -> NodeAgentConfig.load(Map.of()));
+        assertThrows(
+                NullPointerException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(null);
+                    }
+                });
+        assertThrows(
+                IllegalArgumentException.class,
+                new org.junit.jupiter.api.function.Executable() {
+                    public void execute() throws Throwable {
+                        NodeAgentConfig.load(Map.of());
+                    }
+                });
     }
 }
