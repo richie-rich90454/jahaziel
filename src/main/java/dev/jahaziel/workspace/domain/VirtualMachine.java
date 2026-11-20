@@ -35,8 +35,16 @@ public final class VirtualMachine {
         return id;
     }
 
+    public VirtualMachineId getId() {
+        return id;
+    }
+
     /** Returns the workspace. */
     public WorkspaceId workspaceId() {
+        return workspaceId;
+    }
+
+    public WorkspaceId getWorkspaceId() {
         return workspaceId;
     }
 
@@ -45,8 +53,16 @@ public final class VirtualMachine {
         return config;
     }
 
+    public VirtualMachineConfiguration getConfig() {
+        return config;
+    }
+
     /** Returns the current state. */
     public VirtualMachineState state() {
+        return state;
+    }
+
+    public VirtualMachineState getState() {
         return state;
     }
 
@@ -84,6 +100,10 @@ public final class VirtualMachine {
 
     /** Returns the latest resource sample. */
     public RuntimeMetrics metrics() {
+        return metrics;
+    }
+
+    public RuntimeMetrics getMetrics() {
         return metrics;
     }
 
