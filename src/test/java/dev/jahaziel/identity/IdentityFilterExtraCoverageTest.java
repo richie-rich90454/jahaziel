@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.api.JwtSession;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.domain.DemoIdentity;
 import dev.jahaziel.identity.domain.UserId;
@@ -21,16 +22,20 @@ import dev.jahaziel.identity.internal.BffAuthenticationFilter;
 import dev.jahaziel.identity.internal.JwtAuthenticationFilter;
 import dev.jahaziel.identity.internal.SecurityConfig;
 import dev.jahaziel.identity.internal.devconnect.DevConnectProperties;
+import dev.jahaziel.spi.UserIdentity;
 
 import jakarta.servlet.FilterChain;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,12 +60,11 @@ class IdentityFilterExtraCoverageTest {
         when(dev.enabled()).thenReturn(true);
         BffAuthenticationFilter on = new BffAuthenticationFilter(dev, tokens, users);
         UserId u = new UserId(UUID.randomUUID());
-        var sess = mock(dev.jahaziel.identity.api.JwtSession.class);
+        JwtSession sess = mock(JwtSession.class);
         when(sess.user()).thenReturn(u);
         when(tokens.verify("good")).thenReturn(sess);
         when(users.isActive(u)).thenReturn(true);
-        var appUser =
-                new dev.jahaziel.spi.UserIdentity("sub", "e", "N", List.of("ROLE_USER"), List.of());
+        UserIdentity appUser = new UserIdentity("sub", "e", "N", List.of("ROLE_USER"), List.of());
         when(users.get(u)).thenReturn(appUser);
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.setCookies(new jakarta.servlet.http.Cookie(DevConnectService.TOKEN_COOKIE, "good"));
@@ -104,7 +108,13 @@ class IdentityFilterExtraCoverageTest {
         authHeader.addHeader("Authorization", "Bearer x");
         on.doFilter(authHeader, new MockHttpServletResponse(), mock(FilterChain.class));
         assertThrows(
-                NullPointerException.class, () -> new BffAuthenticationFilter(null, tokens, users));
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new BffAuthenticationFilter(null, tokens, users);
+                    }
+                });
     }
 
     @Test
@@ -116,7 +126,7 @@ class IdentityFilterExtraCoverageTest {
         FilterChain chain = mock(FilterChain.class);
 
         filter.doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), chain);
-        var demo = SecurityContextHolder.getContext().getAuthentication();
+        Authentication demo = SecurityContextHolder.getContext().getAuthentication();
         assertEquals(DemoIdentity.USER_ID.value().toString(), demo.getName());
         assertTrue(demo.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
@@ -132,18 +142,45 @@ class IdentityFilterExtraCoverageTest {
         assertEquals(
                 new UserId(UUID.fromString("123e4567-e89b-12d3-a456-426614174000")),
                 JwtAuthenticationFilter.userId("123e4567-e89b-12d3-a456-426614174000"));
-        assertThrows(IllegalArgumentException.class, () -> JwtAuthenticationFilter.userId("nope"));
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        JwtAuthenticationFilter.userId("nope");
+                    }
+                });
         JwtService tokens = mock(JwtService.class);
-        JwtAuthenticationFilter f = new JwtAuthenticationFilter(tokens, u -> List.of());
+        JwtAuthenticationFilter.UserLookup lookup =
+                new JwtAuthenticationFilter.UserLookup() {
+                    @Override
+                    public List<String> roles(UserId user) {
+                        return List.of();
+                    }
+                };
+        JwtAuthenticationFilter f = new JwtAuthenticationFilter(tokens, lookup);
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.addHeader("Authorization", "Basic abc");
         FilterChain chain = mock(FilterChain.class);
         f.doFilter(req, new MockHttpServletResponse(), chain);
         verify(chain).doFilter(any(), any());
+        final JwtAuthenticationFilter.UserLookup roles = lookup;
         assertThrows(
                 NullPointerException.class,
-                () -> new JwtAuthenticationFilter(null, u -> List.of()));
-        assertThrows(NullPointerException.class, () -> new JwtAuthenticationFilter(tokens, null));
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new JwtAuthenticationFilter(null, roles);
+                    }
+                });
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new JwtAuthenticationFilter(tokens, null);
+                    }
+                });
     }
 
     @Test
@@ -165,7 +202,7 @@ class IdentityFilterExtraCoverageTest {
             }
         }
         SecurityConfig cfg = new SecurityConfig(tokens, users, dev, false);
-        var m =
+        Method m =
                 SecurityConfig.class.getDeclaredMethod(
                         "acceptsHtml", jakarta.servlet.http.HttpServletRequest.class);
         m.setAccessible(true);
@@ -177,7 +214,7 @@ class IdentityFilterExtraCoverageTest {
         assertEquals(false, m.invoke(null, json));
         MockHttpServletRequest none = new MockHttpServletRequest();
         assertEquals(false, m.invoke(null, none));
-        var a =
+        Method a =
                 SecurityConfig.class.getDeclaredMethod(
                         "authorization", jakarta.servlet.http.HttpServletRequest.class);
         a.setAccessible(true);
@@ -188,7 +225,7 @@ class IdentityFilterExtraCoverageTest {
         basic.addHeader("Authorization", "Basic x");
         assertEquals(null, a.invoke(null, basic));
         assertEquals(null, a.invoke(null, new MockHttpServletRequest()));
-        var entry =
+        Method entry =
                 SecurityConfig.class.getDeclaredMethod(
                         "onUnauthenticated",
                         jakarta.servlet.http.HttpServletRequest.class,
@@ -212,7 +249,14 @@ class IdentityFilterExtraCoverageTest {
                 jsonResp,
                 new org.springframework.security.core.AuthenticationException("x") {});
         assertEquals(401, jsonResp.getStatus());
-        assertThrows(NullPointerException.class, () -> new SecurityConfig(null, users, dev, false));
+        assertThrows(
+                NullPointerException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        new SecurityConfig(null, users, dev, false);
+                    }
+                });
     }
 
     @Test
