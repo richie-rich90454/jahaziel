@@ -113,6 +113,15 @@ an available cross-architecture language pack. C/C++ diagnostics on arm64 are
 deferred until a small app-managed artifact can be pinned without depending on
 a distro-specific package or downloading the full LLVM distribution.
 
+## Automated gate results
+
+CI runs **1943 unit tests (16 skipped) plus 5 smoke tests** against the packaged
+jar and the Playwright E2E suite (**60 passed / 1 skipped**) on Linux. The
+Windows x64 deployment leg was previously broken: the extensionless `mvnw`
+wrapper checked out with CRLF and could not run under `bash`. `.gitattributes`
+now pins it to LF, so that leg runs again. These automated results do not
+satisfy the manual iPad or live-host gates below.
+
 ## Results
 
 | Date | Commit SHA | Artifact SHA-256 prefix | Native host | Result | Signed off by |

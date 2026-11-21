@@ -16,7 +16,9 @@ happens on the **next start**, when the previous jar is saved under
 ## Get the candidate jar
 
 - **Jar upload**: obtain the packaged `jahaziel.jar` and its `SHA256SUMS`
-  from the Linux CI artifact and upload both beside the live jar. Keep the
+  sidecar from the Linux CI artifact and upload both beside the live jar. The
+  sidecar is generated from that exact jar and has one line in coreutils format,
+  `<sha256>  jahaziel.jar`, so the digest matches the uploaded file. Keep the
   manifest next to the jar so `update` verifies it automatically.
 - **Repo clone**: clone the repository at the pinned commit and build with
   the repo-local toolchain (no global installs):
@@ -88,9 +90,9 @@ release-verified; see [acceptance](./acceptance.md).
 ## Bug report collection
 
 - `java -jar jahaziel.jar support-bundle` (or `ops support-bundle`) writes
-  `<jar>/data/support/support-<stamp>.zip`, verified and with secrets
-  redacted. It contains a sanitized `config.txt`, `health.json`,
-  `audit-tail.txt`, rotated logs, and `manifest.sha256`.
+  `<jar dir>/jahaziel-support-<stamp>.zip` beside the jar, prints its path and
+  SHA-256, and redacts secrets. It contains `.env.redacted`, `doctor.txt`,
+  `version.txt`, and `logs/*` (each log under 50 MB).
 - `java -jar jahaziel.jar logs [--follow] [--level=LEVEL]` tails
   `data/logs/control-plane.log`; include the lines around the failure.
 - Include the error code, correlation id, and timestamp for each failure;

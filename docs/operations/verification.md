@@ -22,7 +22,7 @@ global installs are needed.
 
 | Check | Command | Current result |
 |---|---|---|
-| Maven build and tests | `./mvnw -B verify -Psmoke` | 1942 tests, all passing |
+| Maven build and tests | `./mvnw -B verify -Psmoke` | 1943 unit tests (16 skipped) + 5 smoke tests, all passing |
 | Workbench E2E | `pnpm --dir web test:e2e` | 60 passed / 1 skipped (Playwright against the stub, including the iPad viewport/touch matrix) |
 | License and format | Maven license/format goals and `pnpm --dir web run format:check` | clean |
 | CI workflows | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml), [deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml) | all three green |

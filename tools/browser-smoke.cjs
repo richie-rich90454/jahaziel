@@ -2,7 +2,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { spawn, execFileSync } = require("node:child_process");
+const { spawn, spawnSync, execFileSync } = require("node:child_process");
 const { createHash, createSign, generateKeyPairSync } = require("node:crypto");
 const fs = require("node:fs");
 const { createServer } = require("node:http");
@@ -30,6 +30,8 @@ let identityProvider = null;
 const smokeClientId = "jahaziel-browser-smoke";
 const smokeClientSecret = "browser-smoke-secret";
 const smokeResource = "jahaziel-api";
+const IS_WINDOWS = process.platform === "win32";
+const REMOVE_RETRY_CODES = new Set(["EACCES", "EPERM", "EBUSY", "ENOTEMPTY", "EEXIST"]);
 
 function logServer(chunk) {
   serverLogs.push(chunk.toString());
@@ -205,7 +207,7 @@ function launchServer(port, identity) {
   const child = spawn(
     "java",
     [`-Djava.io.tmpdir=${dataTemp}`, "-jar", jarPath, `--port=${port}`],
-    { cwd: scratchRoot, env, detached: true, stdio: ["ignore", "pipe", "pipe"] },
+    { cwd: scratchRoot, env, detached: true, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
   );
   child.stdout.on("data", logServer);
   child.stderr.on("data", logServer);
@@ -235,8 +237,33 @@ async function waitForHealth(port, child) {
   throw new Error(`health did not become UP (${last}):\n${serverLogs.join("")}`);
 }
 
+function taskKillTree(child) {
+  try {
+    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 15_000,
+    });
+  } catch { /* process already gone */ }
+}
+
+async function waitForExit(child, timeout) {
+  const deadline = Date.now() + timeout;
+  while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
+    await delay(50);
+  }
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
 async function stopServer(child) {
   if (!child || child.exitCode !== null) return;
+  if (IS_WINDOWS) {
+    taskKillTree(child);
+    if (!(await waitForExit(child, 5_000))) {
+      taskKillTree(child);
+      await waitForExit(child, 5_000);
+    }
+    return;
+  }
   try {
     process.kill(-child.pid, "SIGTERM");
   } catch (failure) {
@@ -258,6 +285,17 @@ async function stopServer(child) {
 
 async function crashServer(child) {
   if (!child || child.exitCode !== null) throw new Error("cannot verify recovery without a running server");
+  if (IS_WINDOWS) {
+    taskKillTree(child);
+    if (!(await waitForExit(child, 5_000))) {
+      taskKillTree(child);
+      await waitForExit(child, 5_000);
+    }
+    if (child.exitCode === null && child.signalCode === null) {
+      throw new Error("server did not exit after forced termination");
+    }
+    return;
+  }
   try {
     process.kill(-child.pid, "SIGKILL");
   } catch (failure) {
@@ -679,7 +717,6 @@ process.stdin.on("data", (chunk) => {
       .some((option) => option.value === targetId),
     pythonTarget.id,
   );
-  console.error("ATTACH DIAG:", "debugState=", await page.locator("#debug-state").textContent(), "sessions=", JSON.stringify(await (await page.request.get(`${origin}/api/v1/workspaces/${workspaceId}/debug-sessions`)).json()), "options=", await page.locator("#debug-attach-target option").allTextContents());
   await page.locator("#debug-attach-target").selectOption(pythonTarget.id);
   await page.locator("#debug-attach").click();
   await waitForText(page, "#debug-state", "^RUNNING$", 15_000);
@@ -863,6 +900,21 @@ run()
     if (fs.existsSync(scratchRoot)
         && path.dirname(scratchRoot) === scratchBase
         && path.basename(scratchRoot).startsWith("run-")) {
-      fs.rmSync(scratchRoot, { recursive: true, force: true });
+      let last;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          fs.rmSync(scratchRoot, { recursive: true, force: true });
+          if (fs.existsSync(scratchRoot)) {
+            throw Object.assign(new Error("scratch dir still present"), { code: "ENOTEMPTY" });
+          }
+          return;
+        } catch (failure) {
+          last = failure;
+          if (!REMOVE_RETRY_CODES.has(failure.code) || attempt === 4) break;
+          await delay(100 * (attempt + 1));
+        }
+      }
+      console.error(`browser smoke: could not remove scratch ${scratchRoot}: ${last.message}`);
+      process.exitCode = 1;
     }
   });

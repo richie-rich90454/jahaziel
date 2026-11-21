@@ -34,7 +34,7 @@ java -jar jahaziel.jar restore /path/to/jahaziel-backup-<stamp>.tar.gz
 `restore` extracts over the install directory and does not remove files
 that are absent from the archive, so the hold step keeps the restore
 clean. See the complete stop/hold/restore/start sequence in
-[single-server.md §9](../deployment/single-server.md#9-back-up-and-restore).
+[single-server.md "Back up and restore"](../deployment/single-server.md#back-up-and-restore).
 
 Manual alternative: stop the jar, copy `./data/` and `.env` to backup
 storage, start the jar, and confirm `/actuator/health` returns 200.

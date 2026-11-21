@@ -14,3 +14,6 @@
 *.service text eol=lf
 Caddyfile text eol=lf
 *.xml text eol=lf
+# bash executes the extensionless wrapper on Windows, so it must check out as LF.
+mvnw text eol=lf
+mvnw.cmd text eol=crlf

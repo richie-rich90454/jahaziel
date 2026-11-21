@@ -18,22 +18,26 @@ sufficient for release: every gate below must be signed off.
 
 The packaged jar is built and verified on five targets. Linux runs the full
 `verify` lifecycle (format, license, ArchUnit, tests, packaging, and a
-packaged-jar browser smoke); macOS and Windows run the frontend format check
-and the Maven test suite. Native architecture is asserted directly (`x86_64`
-and `aarch64`); emulation does not satisfy the arm64 target.
+packaged-jar browser smoke) plus the real Playwright E2E suite; macOS and
+Windows run the frontend format check and the Maven test suite. Native
+architecture is asserted directly (`x86_64` and `aarch64`); emulation does not
+satisfy the arm64 target. The Windows x64 leg was broken because the
+extensionless `mvnw` wrapper checked out with CRLF and could not run under
+`bash`; `.gitattributes` now pins it to LF and the leg runs again. Workflow
+actions are pinned to immutable commit SHAs rather than floating tags.
 
 | Target | Runner | Verification | Result |
 |---|---|---|---|
-| Linux x64 | ubuntu-26.04 (`x86_64`) | [`./mvnw -B verify -Psmoke`](../../.github/workflows/linux.yml) and `node tools/browser-smoke.cjs target/jahaziel.jar` | Passing |
+| Linux x64 | ubuntu-26.04 (`x86_64`) | [`./mvnw -B verify -Psmoke`](../../.github/workflows/linux.yml), `pnpm --dir web exec playwright test`, and `node tools/browser-smoke.cjs target/jahaziel.jar` | Passing |
 | Linux arm64 | ubuntu-26.04-arm (`aarch64`) | same as x64, on a native arm64 runner | Passing |
 | macOS arm64 | macos-15 | `pnpm --dir web run format:check` and `./mvnw -B test -Dfmt.skip=true -Dlicense.skip=true` ([cross-platform.yml](../../.github/workflows/cross-platform.yml)) | Passing |
 | macOS x64 | macos-15-intel | same as macOS arm64 | Passing |
-| Windows x64 | windows-2025 | `pnpm --dir web run format:check` and `mvnw.cmd -B test -Dfmt.skip=true -Dlicense.skip=true` | Passing |
+| Windows x64 | windows-2025 | `pnpm --dir web run format:check` and `mvnw.cmd -B test -Dfmt.skip=true -Dlicense.skip=true`; the deployment leg's bash `./mvnw` is fixed by `.gitattributes` | Passing |
 
 Recorded counts for the current green run:
 
-- Maven: **1942 tests**, all passing (`./mvnw -B verify -Psmoke`).
-- E2E: **60 passed / 1 skipped** (`pnpm --dir web test:e2e`, Playwright against the stub, including the iPad viewport/touch matrix).
+- Maven: **1943 unit tests (16 skipped) + 5 smoke tests**, all passing (`./mvnw -B verify -Psmoke`).
+- E2E: **60 passed / 1 skipped** (`pnpm --dir web exec playwright test`, Playwright against the stub, including the iPad viewport/touch matrix; now run by Linux CI).
 - License and format checks: **clean** (Maven license/format goals and `pnpm --dir web run format:check`).
 
 ### Gate 2 — Automated deployment walkthrough: Passing
@@ -76,7 +80,7 @@ project task, and a working path-based preview. No real-host results are recorde
 
 | Gate | Evidence | Status | Owner | Date |
 |---|---|---|---|---|
-| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 1942 tests, E2E 60 passed / 1 skipped, license/format clean | Passing | CI | — |
+| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 1943 unit tests (16 skipped) + 5 smoke, E2E 60 passed / 1 skipped, license/format clean, Windows bash wrapper fixed | Passing | CI | — |
 | Automated deployment walkthrough on Ubuntu x64/arm64, macOS x64/arm64, Windows x64 | [deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml), 19 checks per host | Passing | CI | — |
 | Physical iPad browser matrix | Real-device results (none recorded) | Open | — | — |
 | Live host deployment with IdP MFA | Real-host results (none recorded) | Open | — | — |
