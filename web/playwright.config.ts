@@ -39,8 +39,8 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  // Eight workers race the shared in-memory stub under CI-like load; four is stable.
-  workers: 4,
+  // More workers race the shared in-memory stub and produce intermittent hidden-editor flakes.
+  workers: 2,
   retries: 0,
   reporter: [["list"]],
   outputDir: path.join(os.tmpdir(), "jahaziel-e2e-results"),

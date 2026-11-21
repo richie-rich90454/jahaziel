@@ -662,7 +662,31 @@ button:active:not(:disabled) {
 }
 
 .workbench-panel-nav {
-    display: none;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 5px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+    padding: 5px 8px;
+    background: var(--color-base-100);
+    scrollbar-width: none;
+}
+.workbench-panel-nav button {
+    min-width: 72px;
+    min-height: 44px;
+    flex: 1 0 auto;
+    border: 1px solid transparent;
+    padding: 0 12px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    touch-action: manipulation;
+}
+.workbench-panel-nav button[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
 }
 .panel-more-group {
     display: contents;
@@ -2085,8 +2109,7 @@ button:active:not(:disabled) {
     }
 }
 
-/* Touch tablets keep the panel strip at every width; mouse desktops above the
-   narrow breakpoint keep quick open as the only panel switcher. */
+/* Touch and narrow layouts keep the same panel strip with touch-sized controls. */
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
     .workbench-panel-nav {
         display: flex;
