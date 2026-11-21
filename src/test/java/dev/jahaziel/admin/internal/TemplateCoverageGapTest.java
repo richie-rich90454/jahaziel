@@ -462,7 +462,9 @@ class TemplateCoverageGapTest {
         when(workspaces.describe(firstId)).thenReturn(viewOf(first));
         when(workspaces.describe(secondId)).thenReturn(viewOf(second));
         when(dtos.forUser(any(), any())).thenReturn(mock(WorkspaceDto.class));
-        when(ports.lookup(owner.value(), 8080)).thenReturn(Optional.empty(), Optional.of(firstId));
+        when(ports.lookup(owner.value(), 8080))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(firstId));
 
         controller.apply(
                 "web", new TemplateController.ApplyRequest("first"), principal(owner.value()));

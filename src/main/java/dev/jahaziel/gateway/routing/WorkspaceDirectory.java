@@ -144,14 +144,6 @@ public final class WorkspaceDirectory extends RouteRegistry {
             this.port = port;
         }
 
-        String userSlug() {
-            return userSlug;
-        }
-
-        int port() {
-            return port;
-        }
-
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
