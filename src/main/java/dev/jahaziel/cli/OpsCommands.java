@@ -14,12 +14,10 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -29,8 +27,6 @@ import java.util.UUID;
 
 /** CLI verbs that delegate to the operational and data-tool services. */
 final class OpsCommands {
-    private static final String AUDIT_FILE = "audit/audit.jsonl";
-
     private OpsCommands() {}
 
     /**
@@ -105,7 +101,8 @@ final class OpsCommands {
         Map<String, String> health = new LinkedHashMap<String, String>();
         health.put("version", Cli.version());
         health.put("offline", Boolean.toString(Cli.isOffline()));
-        Path bundle = service.createBundle(config, health, new ArrayList<String>());
+        List<String> auditTail = new AuditQueryService().auditTail(data, 50);
+        Path bundle = service.createBundle(config, health, auditTail);
         out.println(
                 "jahaziel: support bundle: "
                         + bundle
@@ -166,7 +163,8 @@ final class OpsCommands {
             return 2;
         }
         AuditQueryService service = new AuditQueryService();
-        List<AuditQueryService.AuditEntry> entries = readAudit(data.resolve(AUDIT_FILE));
+        List<AuditQueryService.AuditEntry> entries = service.readDatabase(data);
+        AuditQueryService.ChainStatus chain = service.verifyChain(entries, "genesis");
         AuditQueryService.AuditFilter filter = new AuditQueryService.AuditFilter();
         String actor = Cli.flag(args, "--actor");
         String action = Cli.flag(args, "--action");
@@ -182,7 +180,6 @@ final class OpsCommands {
         } else {
             out.print(service.toCsv(found));
         }
-        AuditQueryService.ChainStatus chain = service.verifyChain(found);
         out.println("# chain=" + (chain.valid() ? "intact" : "broken") + " - " + chain.detail());
         return 0;
     }
@@ -193,9 +190,12 @@ final class OpsCommands {
             return 2;
         }
         GdprService service = new GdprService(data);
-        List<AuditQueryService.AuditEntry> audits =
-                forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
-        Path archive = service.exportUser(userId, new LinkedHashMap<String, String>(), audits);
+        // GdprService resolves the profile and audits from the real stores when these are empty.
+        Path archive =
+                service.exportUser(
+                        userId,
+                        new LinkedHashMap<String, String>(),
+                        new ArrayList<AuditQueryService.AuditEntry>());
         out.println("jahaziel: GDPR export: " + archive + " (userId=" + userId + ")");
         return 0;
     }
@@ -212,9 +212,9 @@ final class OpsCommands {
             return 2;
         }
         GdprService service = new GdprService(data);
-        List<AuditQueryService.AuditEntry> audits =
-                forActor(readAudit(data.resolve(AUDIT_FILE)), userId);
-        String pseudonym = service.deleteUser(userId, confirmation, audits);
+        String pseudonym =
+                service.deleteUser(
+                        userId, confirmation, new ArrayList<AuditQueryService.AuditEntry>());
         out.println("jahaziel: deleted " + userId + " (retained as " + pseudonym + ")");
         return 0;
     }
@@ -271,97 +271,6 @@ final class OpsCommands {
             }
         }
         return 0;
-    }
-
-    private static List<AuditQueryService.AuditEntry> readAudit(Path file) {
-        List<AuditQueryService.AuditEntry> entries = new ArrayList<AuditQueryService.AuditEntry>();
-        if (!Files.isRegularFile(file)) {
-            return entries;
-        }
-        List<String> lines = new ArrayList<String>();
-        try {
-            String[] parts =
-                    new String(Files.readAllBytes(file), StandardCharsets.UTF_8).split("\\R", -1);
-            for (int i = 0; i < parts.length; i++) {
-                lines.add(parts[i]);
-            }
-        } catch (IOException failure) {
-            return entries;
-        }
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
-            if (line.isEmpty() || line.charAt(0) != '{') {
-                continue;
-            }
-            String eventId = field(line, "eventId");
-            String timestamp = field(line, "timestamp");
-            String actor = field(line, "actor");
-            String action = field(line, "action");
-            String workspace = field(line, "workspace");
-            String result = field(line, "result");
-            String details = field(line, "details");
-            String prevHash = field(line, "prevHash");
-            String hash = field(line, "hash");
-            Instant when = Instant.EPOCH;
-            if (timestamp != null && !timestamp.isEmpty()) {
-                try {
-                    when = Instant.parse(timestamp);
-                } catch (RuntimeException invalid) {
-                    when = Instant.EPOCH;
-                }
-            }
-            entries.add(
-                    new AuditQueryService.AuditEntry(
-                            text(eventId),
-                            when,
-                            text(actor),
-                            text(action),
-                            text(workspace),
-                            text(result),
-                            text(details),
-                            text(prevHash),
-                            text(hash)));
-        }
-        return entries;
-    }
-
-    private static List<AuditQueryService.AuditEntry> forActor(
-            List<AuditQueryService.AuditEntry> entries, String actor) {
-        List<AuditQueryService.AuditEntry> out = new ArrayList<AuditQueryService.AuditEntry>();
-        for (int i = 0; i < entries.size(); i++) {
-            AuditQueryService.AuditEntry entry = entries.get(i);
-            if (actor.equals(entry.actor())) {
-                out.add(entry);
-            }
-        }
-        return out;
-    }
-
-    private static String field(String line, String key) {
-        String needle = "\"" + key + "\":\"";
-        int start = line.indexOf(needle);
-        if (start < 0) {
-            return null;
-        }
-        int from = start + needle.length();
-        StringBuilder value = new StringBuilder();
-        for (int i = from; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (c == '\\' && i + 1 < line.length()) {
-                char next = line.charAt(i + 1);
-                value.append(next == 'n' ? '\n' : next);
-                i++;
-            } else if (c == '"') {
-                break;
-            } else {
-                value.append(c);
-            }
-        }
-        return value.toString();
-    }
-
-    private static String text(String value) {
-        return value == null ? "" : value;
     }
 
     private static boolean simpleId(String value) {

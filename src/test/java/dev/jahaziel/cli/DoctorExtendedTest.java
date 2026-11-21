@@ -75,6 +75,26 @@ class DoctorExtendedTest {
     }
 
     @Test
+    void idpCheckAcceptsCanonicalClientCredentials() throws Exception {
+        Path jar = Files.createDirectories(root.resolve("jar"));
+        Path data = Files.createDirectories(jar.resolve("data"));
+        Map<String, String> canonical =
+                Map.of(
+                        "BASIS_AUTH_ISSUER", "https://idp.example.com",
+                        "BASIS_AUTH_CLIENT_ID", "jahaziel",
+                        "BASIS_AUTH_CLIENT_SECRET", "a-real-secret");
+        Doctor.Check idp = find(run(jar, data, canonical), "idp");
+        assertTrue(idp.ok(), idp.detail());
+
+        Map<String, String> legacy =
+                Map.of(
+                        "BASIS_AUTH_ISSUER", "https://idp.example.com",
+                        "BASIS_CLIENT_ID", "jahaziel",
+                        "BASIS_CLIENT_SECRET", "a-real-secret");
+        assertTrue(find(run(jar, data, legacy), "idp").ok());
+    }
+
+    @Test
     void extendedRunAddsEightChecks() throws Exception {
         Map<String, String> env = green();
         Path jar = root.resolve("jar");
@@ -132,7 +152,7 @@ class DoctorExtendedTest {
         Path jar = root.resolve("jar");
         Path data = jar.resolve("data");
         Map<String, String> bad = new java.util.HashMap<String, String>(env);
-        bad.put("JAHAZIEL_IDP_ISSUER", "http://not-https.example");
+        bad.put("BASIS_AUTH_ISSUER", "http://not-https.example");
         bad.put("JAHAZIEL_IDP_CLIENT_SECRET", "change_me");
 
         Doctor.Check check = find(run(jar, data, bad), "idp");

@@ -23,6 +23,23 @@ import java.util.Locale;
 public final class OpsFiles {
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
+    private static final String[] SECRET_NAMES =
+            new String[] {
+                "BASIS_AUTH_ISSUER",
+                "BASIS_AUTH_CLIENT_ID",
+                "BASIS_AUTH_CLIENT_SECRET",
+                "BASIS_AUTH_RESOURCE",
+                "BASIS_AUTH_RESOURCE_SECRET",
+                "BASIS_AUTH_INTERNAL_URL",
+                "BASIS_AUTH_COOKIE_SECRET",
+                "CURRENT_URL_ORIGIN",
+                "MICROSOFT_TENANT_ID",
+                "MICROSOFT_CLIENT_ID",
+                "MICROSOFT_CLIENT_SECRET",
+                "MICROSOFT_WEBHOOK_STATE",
+                "MICROSOFT_WEBHOOK_ID"
+            };
+
     private OpsFiles() {}
 
     /** Creates a directory and its parents, failing fast on I/O errors. */
@@ -88,6 +105,29 @@ public final class OpsFiles {
         }
     }
 
+    /** Writes UTF-8 text via a sibling temp file, then moves it into place atomically. */
+    public static void writeTextAtomic(Path file, String text) {
+        Path temp = file.resolveSibling(file.getFileName().toString() + ".tmp");
+        try {
+            if (file.getParent() != null) {
+                Files.createDirectories(file.getParent());
+            }
+            Files.write(temp, text.getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(
+                        temp,
+                        file,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException failure) {
+            deleteIfPresent(temp);
+            throw new IllegalStateException("cannot write " + file, failure);
+        }
+    }
+
     /** Returns true when candidate resolves inside root. */
     public static boolean contained(Path root, Path candidate) {
         Path base = root.toAbsolutePath().normalize();
@@ -127,6 +167,11 @@ public final class OpsFiles {
     public static boolean isSecretKey(String key) {
         if (key == null) {
             return false;
+        }
+        for (int i = 0; i < SECRET_NAMES.length; i++) {
+            if (SECRET_NAMES[i].equalsIgnoreCase(key)) {
+                return true;
+            }
         }
         String lower = key.toLowerCase(Locale.ROOT);
         String[] markers =

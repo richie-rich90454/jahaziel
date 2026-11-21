@@ -88,7 +88,7 @@ public final class UpdateService {
      * message describes the actions that would be taken.
      *
      * @param candidate the jar to stage
-     * @param sumsFile an explicit SHA256SUMS file, or null to use the sibling file
+     * @param sumsFile an external SHA256SUMS file; required, never generated from the candidate
      * @param version an explicit version, or null to read the jar manifest
      * @param dryRun when true, only report the plan
      * @return the staging result
@@ -104,56 +104,54 @@ public final class UpdateService {
             chosen = Cli.jarVersion(candidate);
         }
         chosen = safeVersion(chosen);
-        Path sums = sumsFile;
-        if (sums == null) {
-            Path sibling = candidate.resolveSibling(SUMS);
-            if (Files.isRegularFile(sibling)) {
-                sums = sibling;
-            }
-        }
         Path stageDir = updateRoot.resolve(chosen);
+        boolean sumsOk = sumsFile != null && verify(candidate, sumsFile);
         if (dryRun) {
             return new StageResult(
-                    true,
+                    sumsOk,
                     "dry-run: would stage "
                             + candidate
                             + " as "
                             + chosen
                             + " in "
                             + stageDir
-                            + (sums == null
-                                    ? " (generating " + SUMS + ")"
-                                    : " (verifying " + sums + ")")
+                            + (sumsFile == null
+                                    ? " (missing required " + SUMS + ")"
+                                    : " (verifying " + sumsFile + ")")
                             + "; swap runs on next start",
+                    chosen);
+        }
+        if (sumsFile == null) {
+            return new StageResult(
+                    false,
+                    "update requires an external " + SUMS + " manifest (--sums <file>)",
+                    chosen);
+        }
+        if (!sumsOk) {
+            return new StageResult(
+                    false,
+                    "checksum verification failed for " + candidate + " against " + sumsFile,
                     chosen);
         }
         Files.createDirectories(stageDir);
         Path staged = stageDir.resolve(JAR_NAME);
         Files.copy(candidate, staged, StandardCopyOption.REPLACE_EXISTING);
-        if (sums != null) {
-            if (!verify(staged, sums)) {
-                deleteQuietly(staged);
-                return new StageResult(
-                        false,
-                        "checksum verification failed for " + candidate + " against " + sums,
-                        chosen);
-            }
-            Files.copy(sums, stageDir.resolve(SUMS), StandardCopyOption.REPLACE_EXISTING);
-        } else {
-            writeGeneratedSums(staged, stageDir.resolve(SUMS));
-        }
+        // Normalize the external manifest to the canonical jar name so applyPending() verifies the
+        // staged artifact without trusting a self-generated digest.
+        writeManifest(stageDir.resolve(SUMS), sha256(candidate), JAR_NAME);
         writeMarker(PENDING, chosen);
         return new StageResult(
                 true, "staged " + chosen + " in " + stageDir + "; swap runs on next start", chosen);
     }
 
     /**
-     * Returns true when the jar matches an entry in a SHA256SUMS file. The manifest may name the
-     * jar {@code jahaziel.jar} or use the candidate's own file name.
+     * Returns true when the jar matches an entry in a SHA256SUMS file that names the artifact. An
+     * entry with a matching digest but a different file name is ignored, so a checksum copied from
+     * another artifact cannot authorize this one.
      *
      * @param jar the jar to check
      * @param sums the SHA256SUMS file
-     * @return true when a matching digest is found
+     * @return true when a matching digest for this artifact is found
      */
     public boolean verify(Path jar, Path sums) {
         if (jar == null
@@ -163,6 +161,7 @@ public final class UpdateService {
             return false;
         }
         String expected = sha256(jar);
+        String jarName = jar.getFileName().toString();
         List<String> lines = readLines(sums);
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i).trim();
@@ -176,7 +175,12 @@ public final class UpdateService {
             if (split < 0) {
                 continue;
             }
-            if (line.substring(0, split).trim().equalsIgnoreCase(expected)) {
+            String digest = line.substring(0, split).trim();
+            String name = Path.of(line.substring(split).trim()).getFileName().toString();
+            if (!jarName.equals(name) && !JAR_NAME.equals(name)) {
+                continue;
+            }
+            if (digest.equalsIgnoreCase(expected)) {
                 return true;
             }
         }
@@ -334,9 +338,12 @@ public final class UpdateService {
         return lines;
     }
 
-    private void writeGeneratedSums(Path staged, Path sumsFile) throws IOException {
-        String body = sha256(staged) + "  " + JAR_NAME + "\n";
-        Files.write(sumsFile, body.getBytes(StandardCharsets.UTF_8));
+    private static void writeManifest(Path sumsFile, String digest, String name) {
+        try {
+            Files.writeString(sumsFile, digest + "  " + name + "\n", StandardCharsets.UTF_8);
+        } catch (IOException failure) {
+            throw new IllegalStateException("cannot write " + SUMS, failure);
+        }
     }
 
     private void writeMarker(String name, String value) {

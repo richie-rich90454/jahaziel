@@ -125,16 +125,14 @@ class AuditJobsCoverageGapTest {
     }
 
     @Test
-    void retentionFallsBackToConnectionCheck() throws Exception {
+    void retentionFailsClosedWithoutDialect() throws Exception {
         EntityManager entities = mock(EntityManager.class);
         EntityManagerFactory factory = mock(EntityManagerFactory.class);
         when(factory.getProperties()).thenReturn(Map.of());
         when(entities.getEntityManagerFactory()).thenReturn(factory);
         when(entities.unwrap(Connection.class)).thenReturn(null);
-        Query query = mock(Query.class);
-        when(entities.createNativeQuery(anyString())).thenReturn(query);
         new AuditRetentionJob(entities, 30, clock).run(new JobContext(Instant.now()));
-        verify(entities, times(3)).createNativeQuery(anyString());
+        verify(entities, never()).createNativeQuery(anyString());
     }
 
     @Test
@@ -159,49 +157,44 @@ class AuditJobsCoverageGapTest {
         EntityManager other = mock(EntityManager.class);
         when(other.getEntityManagerFactory()).thenReturn(factory);
         when(other.unwrap(Connection.class)).thenReturn(sqlite);
+        when(other.createNativeQuery(anyString())).thenReturn(query);
         new AuditRetentionJob(other, 30, clock).run(new JobContext(Instant.now()));
-        verify(other, never()).createNativeQuery(anyString());
+        verify(other, times(3)).createNativeQuery(anyString());
     }
 
     @Test
-    void retentionFactoryFailureFallsThrough() {
+    void retentionFactoryFailureFailsClosed() {
         EntityManager entities = mock(EntityManager.class);
         when(entities.getEntityManagerFactory()).thenThrow(new RuntimeException("gone"));
-        Query query = mock(Query.class);
-        when(entities.createNativeQuery(anyString())).thenReturn(query);
         try {
             when(entities.unwrap(Connection.class)).thenReturn(null);
         } catch (Exception ignored) {
             // Stubbing only.
         }
         new AuditRetentionJob(entities, 30, clock).run(new JobContext(Instant.now()));
-        verify(entities, times(3)).createNativeQuery(anyString());
+        verify(entities, never()).createNativeQuery(anyString());
     }
 
     @Test
-    void retentionUnwrapFailureKeepsLegacyBehavior() throws Exception {
+    void retentionUnwrapFailureFailsClosed() throws Exception {
         EntityManager entities = mock(EntityManager.class);
         EntityManagerFactory factory = mock(EntityManagerFactory.class);
         when(factory.getProperties()).thenReturn(Map.of());
         when(entities.getEntityManagerFactory()).thenReturn(factory);
         when(entities.unwrap(Connection.class)).thenThrow(new RuntimeException("gone"));
-        Query query = mock(Query.class);
-        when(entities.createNativeQuery(anyString())).thenReturn(query);
         new AuditRetentionJob(entities, 30, clock).run(new JobContext(Instant.now()));
-        verify(entities, times(3)).createNativeQuery(anyString());
+        verify(entities, never()).createNativeQuery(anyString());
     }
 
     @Test
-    void provisionFallsBackToConnectionCheck() throws Exception {
+    void provisionFailsClosedWithoutDialect() throws Exception {
         EntityManager entities = mock(EntityManager.class);
         EntityManagerFactory factory = mock(EntityManagerFactory.class);
         when(factory.getProperties()).thenReturn(Map.of());
         when(entities.getEntityManagerFactory()).thenReturn(factory);
         when(entities.unwrap(Connection.class)).thenReturn(null);
-        Query query = mock(Query.class);
-        when(entities.createNativeQuery(anyString())).thenReturn(query);
         new PartitionProvisionJob(entities, 1, clock).run(new JobContext(Instant.now()));
-        verify(entities, times(3)).createNativeQuery(anyString());
+        verify(entities, never()).createNativeQuery(anyString());
         Connection sqlite = mock(Connection.class);
         DatabaseMetaData liteMeta = mock(DatabaseMetaData.class);
         when(liteMeta.getURL()).thenReturn("jdbc:sqlite:file:mem");
@@ -214,21 +207,18 @@ class AuditJobsCoverageGapTest {
     }
 
     @Test
-    void provisionFactoryAndUnwrapFailuresKeepLegacy() {
+    void provisionFactoryAndUnwrapFailuresFailClosed() {
         EntityManager broken = mock(EntityManager.class);
         when(broken.getEntityManagerFactory()).thenThrow(new RuntimeException("gone"));
-        Query query = mock(Query.class);
-        when(broken.createNativeQuery(anyString())).thenReturn(query);
         new PartitionProvisionJob(broken, 1, clock).run(new JobContext(Instant.now()));
-        verify(broken, times(3)).createNativeQuery(anyString());
+        verify(broken, never()).createNativeQuery(anyString());
         EntityManager failing = mock(EntityManager.class);
         EntityManagerFactory factory = mock(EntityManagerFactory.class);
         when(factory.getProperties()).thenReturn(Map.of());
         when(failing.getEntityManagerFactory()).thenReturn(factory);
         when(failing.unwrap(Connection.class)).thenThrow(new RuntimeException("gone"));
-        when(failing.createNativeQuery(anyString())).thenReturn(query);
         new PartitionProvisionJob(failing, 1, clock).run(new JobContext(Instant.now()));
-        verify(failing, times(3)).createNativeQuery(anyString());
+        verify(failing, never()).createNativeQuery(anyString());
     }
 
     @Test

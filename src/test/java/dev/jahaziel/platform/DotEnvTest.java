@@ -40,6 +40,19 @@ class DotEnvTest {
     }
 
     @Test
+    void stripsUtf8BomBeforeFirstKey() throws Exception {
+        Path file = tmp.resolve("bom.env");
+        byte[] body = "BASIS_CLIENT_ID=jahaziel\n".getBytes(StandardCharsets.UTF_8);
+        byte[] withBom = new byte[body.length + 3];
+        withBom[0] = (byte) 0xEF;
+        withBom[1] = (byte) 0xBB;
+        withBom[2] = (byte) 0xBF;
+        System.arraycopy(body, 0, withBom, 3, body.length);
+        Files.write(file, withBom);
+        assertEquals("jahaziel", DotEnv.parse(file).get("BASIS_CLIENT_ID"));
+    }
+
+    @Test
     void missingFileIsEmpty() {
         assertTrue(DotEnv.parse(tmp.resolve("no-such.env")).isEmpty());
     }

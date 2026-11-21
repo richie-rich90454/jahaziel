@@ -82,7 +82,9 @@ public final class InProcessScheduler {
     private static void run(PlatformJob job) {
         try {
             job.run(JobContext.now());
-        } catch (RuntimeException failure) {
+        } catch (Throwable failure) {
+            // Catching Errors here keeps the single scheduler thread alive: a throwable that
+            // escaped would cancel the periodic future and silently stop every later job.
             log.error("Scheduled job failed", failure);
         }
     }

@@ -85,6 +85,15 @@ class AuditQueryServiceTest {
     }
 
     @Test
+    void emptySourceIsNotAnIntactChain() {
+        AuditQueryService service = new AuditQueryService();
+        AuditQueryService.ChainStatus empty =
+                service.verifyChain(new ArrayList<AuditQueryService.AuditEntry>());
+        assertFalse(empty.valid());
+        assertTrue(empty.detail().contains("cannot be verified"));
+    }
+
+    @Test
     void verifiesAndDetectsBrokenChain() {
         AuditQueryService service = new AuditQueryService();
         List<AuditQueryService.AuditEntry> entries = chain();

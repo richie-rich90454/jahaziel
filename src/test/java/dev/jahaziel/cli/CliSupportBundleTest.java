@@ -46,7 +46,10 @@ class CliSupportBundleTest {
                         + "PORT=11451\n");
         Path logs = jar.resolve("data").resolve("logs");
         Files.createDirectories(logs);
-        Files.writeString(logs.resolve("app.log"), "hello logs", StandardCharsets.UTF_8);
+        Files.writeString(
+                logs.resolve("app.log"),
+                "hello logs\nAuthorization: Bearer abc.def.ghi\nMY_TOKEN=secret\n",
+                StandardCharsets.UTF_8);
         Output output = CliTestSupport.dispatch("support-bundle");
         assertEquals(0, output.code());
         assertTrue(output.out().contains("jahaziel: support bundle: "));
@@ -64,7 +67,12 @@ class CliSupportBundleTest {
         assertTrue(version.contains("java " + Runtime.version()));
         assertTrue(version.contains(System.getProperty("os.name")));
         assertTrue(version.contains(System.getProperty("os.arch")));
-        assertEquals("hello logs", CliTestSupport.zipEntry(zip, "logs/app.log"));
+        String bundledLog = CliTestSupport.zipEntry(zip, "logs/app.log");
+        assertTrue(bundledLog.contains("hello logs"));
+        assertTrue(!bundledLog.contains("abc.def.ghi"));
+        assertTrue(!bundledLog.contains("secret"));
+        assertTrue(bundledLog.contains("[REDACTED]"));
+        assertTrue(CliTestSupport.zipHas(zip, "audit-tail.txt"));
     }
 
     @Test

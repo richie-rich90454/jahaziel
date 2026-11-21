@@ -138,9 +138,21 @@ class CliCoverageGapTest {
         Path src = jar.resolve("onlyenv");
         Files.createDirectories(src);
         Files.writeString(src.resolve(".env"), "A=1\n", StandardCharsets.UTF_8);
+        Files.writeString(
+                src.resolve(".backup-manifest.sha256"),
+                "# sha256 manifest v1\n" + Cli.sha256(src.resolve(".env")) + "  .env\n",
+                StandardCharsets.UTF_8);
         Path archive = jar.resolve("onlyenv.tar.gz");
         CliTestSupport.runTar(
-                List.of("tar", "-czf", archive.toString(), "-C", src.toString(), ".env"), jar);
+                List.of(
+                        "tar",
+                        "-czf",
+                        archive.toString(),
+                        "-C",
+                        src.toString(),
+                        ".env",
+                        ".backup-manifest.sha256"),
+                jar);
         Path fresh = Files.createDirectory(jar.resolve("fresh-env"));
         String prev = System.getProperty("user.dir");
         System.setProperty("user.dir", fresh.toString());
@@ -158,9 +170,23 @@ class CliCoverageGapTest {
         Path src = jar.resolve("onlydata");
         Files.createDirectories(src.resolve("data"));
         Files.writeString(src.resolve("data").resolve("k.txt"), "v", StandardCharsets.UTF_8);
+        Files.writeString(
+                src.resolve(".backup-manifest.sha256"),
+                "# sha256 manifest v1\n"
+                        + Cli.sha256(src.resolve("data").resolve("k.txt"))
+                        + "  data/k.txt\n",
+                StandardCharsets.UTF_8);
         Path archive = jar.resolve("onlydata.tar.gz");
         CliTestSupport.runTar(
-                List.of("tar", "-czf", archive.toString(), "-C", src.toString(), "data"), jar);
+                List.of(
+                        "tar",
+                        "-czf",
+                        archive.toString(),
+                        "-C",
+                        src.toString(),
+                        "data",
+                        ".backup-manifest.sha256"),
+                jar);
         Path fresh = Files.createDirectory(jar.resolve("fresh-data"));
         String prev = System.getProperty("user.dir");
         System.setProperty("user.dir", fresh.toString());

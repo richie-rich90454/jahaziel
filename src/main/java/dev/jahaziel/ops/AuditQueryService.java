@@ -4,7 +4,15 @@
  */
 package dev.jahaziel.ops;
 
-import java.nio.charset.StandardCharsets;
+import dev.jahaziel.audit.domain.AuditChain;
+
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +28,9 @@ public final class AuditQueryService {
         private final String workspace;
         private final String result;
         private final String details;
+        private final String sourceIp;
+        private final String actorType;
+        private final String targetType;
         private final String prevHash;
 
         private final String hash;
@@ -35,17 +46,8 @@ public final class AuditQueryService {
                 String details,
                 String prevHash) {
             this(
-                    eventId,
-                    timestamp,
-                    actor,
-                    action,
-                    workspace,
-                    result,
-                    details,
-                    prevHash,
-                    computeHash(
-                            eventId, timestamp, actor, action, workspace, result, details,
-                            prevHash));
+                    eventId, timestamp, actor, action, workspace, result, details, prevHash, "", "",
+                    "");
         }
 
         /** Creates an entry with an explicit hash, used when verifying stored records. */
@@ -59,6 +61,64 @@ public final class AuditQueryService {
                 String details,
                 String prevHash,
                 String hash) {
+            this(
+                    eventId, timestamp, actor, action, workspace, result, details, prevHash, "", "",
+                    "", hash);
+        }
+
+        /** Creates an entry with every chain-bearing field and computes its hash. */
+        public AuditEntry(
+                String eventId,
+                Instant timestamp,
+                String actor,
+                String action,
+                String workspace,
+                String result,
+                String details,
+                String prevHash,
+                String sourceIp,
+                String actorType,
+                String targetType) {
+            this(
+                    eventId,
+                    timestamp,
+                    actor,
+                    action,
+                    workspace,
+                    result,
+                    details,
+                    prevHash,
+                    sourceIp,
+                    actorType,
+                    targetType,
+                    computeHash(
+                            eventId,
+                            timestamp,
+                            actor,
+                            action,
+                            workspace,
+                            result,
+                            details,
+                            prevHash,
+                            sourceIp,
+                            actorType,
+                            targetType));
+        }
+
+        /** Creates an entry with an explicit hash, used when verifying stored records. */
+        public AuditEntry(
+                String eventId,
+                Instant timestamp,
+                String actor,
+                String action,
+                String workspace,
+                String result,
+                String details,
+                String prevHash,
+                String sourceIp,
+                String actorType,
+                String targetType,
+                String hash) {
             this.eventId = eventId;
             this.timestamp = timestamp;
             this.actor = actor;
@@ -66,6 +126,9 @@ public final class AuditQueryService {
             this.workspace = workspace;
             this.result = result;
             this.details = details;
+            this.sourceIp = sourceIp;
+            this.actorType = actorType;
+            this.targetType = targetType;
             this.prevHash = prevHash;
             this.hash = hash;
         }
@@ -105,6 +168,21 @@ public final class AuditQueryService {
             return details;
         }
 
+        /** Returns the source address. */
+        public String sourceIp() {
+            return sourceIp;
+        }
+
+        /** Returns the actor type. */
+        public String actorType() {
+            return actorType;
+        }
+
+        /** Returns the target type. */
+        public String targetType() {
+            return targetType;
+        }
+
         /** Returns the previous hash. */
         public String prevHash() {
             return prevHash;
@@ -118,7 +196,17 @@ public final class AuditQueryService {
         /** Recomputes the hash from this entry's canonical fields. */
         public String computeHash() {
             return computeHash(
-                    eventId, timestamp, actor, action, workspace, result, details, prevHash);
+                    eventId,
+                    timestamp,
+                    actor,
+                    action,
+                    workspace,
+                    result,
+                    details,
+                    prevHash,
+                    sourceIp,
+                    actorType,
+                    targetType);
         }
 
         private static String computeHash(
@@ -129,24 +217,22 @@ public final class AuditQueryService {
                 String workspace,
                 String result,
                 String details,
-                String prevHash) {
-            String canonical =
-                    value(eventId)
-                            + "\u001f"
-                            + value(timestamp)
-                            + "\u001f"
-                            + value(actor)
-                            + "\u001f"
-                            + value(action)
-                            + "\u001f"
-                            + value(workspace)
-                            + "\u001f"
-                            + value(result)
-                            + "\u001f"
-                            + value(details)
-                            + "\u001f"
-                            + value(prevHash);
-            return OpsFiles.sha256(canonical.getBytes(StandardCharsets.UTF_8));
+                String prevHash,
+                String sourceIp,
+                String actorType,
+                String targetType) {
+            return AuditChain.hash(
+                    eventId,
+                    value(timestamp),
+                    actor,
+                    actorType,
+                    action,
+                    workspace,
+                    targetType,
+                    result,
+                    details,
+                    sourceIp,
+                    prevHash);
         }
 
         private static String value(Object object) {
@@ -325,22 +411,107 @@ public final class AuditQueryService {
 
     /** Walks the chain, checking each stored hash and its link to the predecessor. */
     public ChainStatus verifyChain(List<AuditEntry> entries) {
+        return verifyChain(entries, "");
+    }
+
+    /**
+     * Walks the chain with an explicit genesis value. Database-backed chains use {@link
+     * AuditChain#GENESIS} for the first link.
+     */
+    public ChainStatus verifyChain(List<AuditEntry> entries, String genesis) {
         if (entries == null || entries.isEmpty()) {
-            return new ChainStatus(true, -1, "empty chain");
+            return new ChainStatus(false, -1, "no audit events - chain cannot be verified");
         }
-        String previous = "";
+        String previous = genesis == null ? "" : genesis;
         for (int i = 0; i < entries.size(); i++) {
             AuditEntry entry = entries.get(i);
-            String expectedPrev = previous;
-            if (entry.prevHash() == null || !entry.prevHash().equals(expectedPrev)) {
+            if (entry.prevHash() == null || !entry.prevHash().equals(previous)) {
                 return new ChainStatus(false, i, "prev-hash mismatch at index " + i);
             }
-            if (entry.hash() == null || !entry.hash().equals(entry.computeHash())) {
+            if (entry.hash() == null || !entry.hash().equalsIgnoreCase(entry.computeHash())) {
                 return new ChainStatus(false, i, "hash mismatch at index " + i);
             }
             previous = entry.hash();
         }
         return new ChainStatus(true, -1, "chain intact");
+    }
+
+    /**
+     * Reads the audit_event table that the running server actually writes. Returns entries oldest
+     * first so a chain walk sees the real predecessor links. Missing tables yield an empty list.
+     *
+     * @param dataDir the jar data directory
+     * @return the stored events, oldest first
+     */
+    public List<AuditEntry> readDatabase(Path dataDir) {
+        List<AuditEntry> out = new ArrayList<AuditEntry>();
+        Path db = dataDir.resolve("jahaziel.db");
+        if (!java.nio.file.Files.isRegularFile(db)) {
+            return out;
+        }
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException ignored) {
+            // JDBC 4 drivers register through the service loader.
+        }
+        String sql =
+                "SELECT event_id, timestamp, actor, actor_type, action, target, target_type,"
+                        + " outcome, source_ip, details, prev_hash, hash FROM audit_event"
+                        + " ORDER BY timestamp ASC";
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db);
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet rows = statement.executeQuery()) {
+            while (rows.next()) {
+                String prev = rows.getString("prev_hash");
+                if (prev == null || prev.isEmpty()) {
+                    prev = AuditChain.GENESIS;
+                }
+                Timestamp stamp = rows.getTimestamp("timestamp");
+                Instant when = stamp == null ? Instant.EPOCH : stamp.toInstant();
+                out.add(
+                        new AuditEntry(
+                                rows.getString("event_id"),
+                                when,
+                                text(rows.getString("actor")),
+                                text(rows.getString("action")),
+                                text(rows.getString("target")),
+                                text(rows.getString("outcome")),
+                                text(rows.getString("details")),
+                                prev,
+                                text(rows.getString("source_ip")),
+                                text(rows.getString("actor_type")),
+                                text(rows.getString("target_type")),
+                                text(rows.getString("hash"))));
+            }
+        } catch (SQLException missing) {
+            return new ArrayList<AuditEntry>();
+        }
+        return out;
+    }
+
+    /** Returns recent stored audit lines for a support bundle, newest first. */
+    public List<String> auditTail(Path dataDir, int limit) {
+        List<AuditEntry> entries = readDatabase(dataDir);
+        List<String> lines = new ArrayList<String>();
+        int from = Math.max(0, entries.size() - Math.max(1, limit));
+        for (int i = entries.size() - 1; i >= from; i--) {
+            AuditEntry entry = entries.get(i);
+            lines.add(
+                    entry.timestamp()
+                            + " "
+                            + entry.actor()
+                            + " "
+                            + entry.action()
+                            + " "
+                            + entry.result()
+                            + " "
+                            + entry.details());
+        }
+        return lines;
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value;
     }
 
     private static String cell(String value) {

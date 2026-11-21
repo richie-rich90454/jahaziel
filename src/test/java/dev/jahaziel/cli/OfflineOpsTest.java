@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -158,12 +159,19 @@ class OfflineOpsTest {
     }
 
     private void writeAudit() throws Exception {
-        Path audit = Files.createDirectories(jar.resolve("data/audit"));
-        String line =
-                "{\"eventId\":\"evt-1\",\"timestamp\":\"2026-01-01T00:00:00Z\","
-                        + "\"actor\":\"alice\",\"action\":\"login\",\"workspace\":\"\","
-                        + "\"result\":\"success\",\"details\":\"ok\",\"prevHash\":\"\","
-                        + "\"hash\":\"deadbeef\"}";
-        Files.write(audit.resolve("audit.jsonl"), line.getBytes(StandardCharsets.UTF_8));
+        // Production writes audit_event in SQLite; ops audit query must read that source.
+        Class.forName("org.sqlite.JDBC");
+        Path db = jar.resolve("data").resolve("jahaziel.db");
+        try (java.sql.Connection c = DriverManager.getConnection("jdbc:sqlite:" + db);
+                java.sql.Statement s = c.createStatement()) {
+            s.execute(
+                    "CREATE TABLE IF NOT EXISTS audit_event (event_id TEXT, timestamp TEXT,"
+                            + " actor TEXT, actor_type TEXT, action TEXT, target TEXT,"
+                            + " target_type TEXT, outcome TEXT, source_ip TEXT, details TEXT,"
+                            + " prev_hash TEXT, hash TEXT)");
+            s.execute(
+                    "INSERT INTO audit_event VALUES ('evt-1', '2026-01-01 00:00:00', 'alice',"
+                            + " 'USER', 'login', '', '', 'SUCCESS', '', 'ok', '', 'deadbeef')");
+        }
     }
 }

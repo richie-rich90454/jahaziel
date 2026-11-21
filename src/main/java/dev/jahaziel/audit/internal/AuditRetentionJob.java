@@ -9,11 +9,14 @@ import dev.jahaziel.spi.JobScope;
 import dev.jahaziel.spi.PlatformJob;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -21,11 +24,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Audit retention. Drops monthly partitions fully older than the retention window; the drop itself
- * is logged by the caller as an administrative system event. Never row-deletes.
+ * Audit retention. Postgres drops monthly partitions older than the window; SQLite deletes old rows
+ * in bounded batches by timestamp. Unknown dialects fail closed. The drop is logged by the caller
+ * as an administrative system event.
  */
 public final class AuditRetentionJob extends PlatformJob {
     private static final YearMonth FIRST_PARTITION = YearMonth.of(2026, 9);
+    private static final int BATCH = 500;
+    private static final String[] TABLES = {"audit_event", "audit_terminal", "audit_process"};
 
     private final EntityManager entities;
     private final int retentionDays;
@@ -34,8 +40,8 @@ public final class AuditRetentionJob extends PlatformJob {
     /**
      * Creates the job.
      *
-     * @param entities the JPA entity manager for partition DDL
-     * @param retentionDays how long partitions survive
+     * @param entities the JPA entity manager for retention DDL/DML
+     * @param retentionDays how long records survive
      * @param clock the clock
      */
     public AuditRetentionJob(EntityManager entities, int retentionDays, Clock clock) {
@@ -50,11 +56,37 @@ public final class AuditRetentionJob extends PlatformJob {
     @Override
     @Transactional
     public void run(JobContext context) {
-        if (!postgres()) {
-            return;
+        AuditDialect.Kind kind = AuditDialect.of(entities);
+        if (kind == AuditDialect.Kind.POSTGRES) {
+            for (String partition : expiredPartitions()) {
+                entities.createNativeQuery("DROP TABLE IF EXISTS " + partition).executeUpdate();
+            }
+        } else if (kind == AuditDialect.Kind.SQLITE) {
+            Instant cutoff =
+                    LocalDate.now(clock)
+                            .minusDays(retentionDays)
+                            .atStartOfDay(java.time.ZoneOffset.UTC)
+                            .toInstant();
+            for (int i = 0; i < TABLES.length; i++) {
+                deleteExpired(TABLES[i], cutoff);
+            }
         }
-        for (String partition : expiredPartitions()) {
-            entities.createNativeQuery("DROP TABLE IF EXISTS " + partition).executeUpdate();
+    }
+
+    private void deleteExpired(String table, Instant cutoff) {
+        String sql =
+                "DELETE FROM "
+                        + table
+                        + " WHERE rowid IN (SELECT rowid FROM "
+                        + table
+                        + " WHERE timestamp < ?1 LIMIT ?2)";
+        while (true) {
+            Query query = entities.createNativeQuery(sql);
+            query.setParameter(1, Timestamp.from(cutoff));
+            query.setParameter(2, BATCH);
+            if (query.executeUpdate() == 0) {
+                return;
+            }
         }
     }
 
@@ -85,31 +117,5 @@ public final class AuditRetentionJob extends PlatformJob {
     @Override
     public JobScope scope() {
         return JobScope.CLUSTER;
-    }
-
-    /**
-     * Returns whether the database partitions audit tables. Only Postgres does; SQLite keeps plain
-     * tables. Unknown environments keep the legacy behavior so existing tests and deployments are
-     * unaffected.
-     *
-     * @return true when partition DDL may run
-     */
-    private boolean postgres() {
-        try {
-            Object dialect =
-                    entities.getEntityManagerFactory().getProperties().get("hibernate.dialect");
-            if (dialect != null) {
-                return dialect.toString().toLowerCase(java.util.Locale.ROOT).contains("postgres");
-            }
-        } catch (RuntimeException ignored) {
-            // Fall through to the connection check below.
-        }
-        try {
-            java.sql.Connection connection = entities.unwrap(java.sql.Connection.class);
-            return connection == null
-                    || connection.getMetaData().getURL().startsWith("jdbc:postgresql:");
-        } catch (Exception ignored) {
-            return true;
-        }
     }
 }

@@ -176,18 +176,26 @@ class UpdateServiceTest {
     }
 
     @Test
-    void generatedSumsWhenNoneSupplied() throws Exception {
+    void externalSumsRequired() throws Exception {
         Path jar = Files.createDirectories(root.resolve("jar"));
         Path data = jar.resolve("data");
         Path candidate = root.resolve("candidate.jar");
         CliTestSupport.makeJar(candidate, "5.0.0");
         UpdateService service = new UpdateService(jar, data);
 
-        assertTrue(service.stage(candidate, null, null, false).ok());
-        Path stage = data.resolve(UpdateService.UPDATE_DIR).resolve("5.0.0");
-        assertTrue(
-                service.verify(
-                        stage.resolve(UpdateService.JAR_NAME), stage.resolve(UpdateService.SUMS)));
+        UpdateService.StageResult result = service.stage(candidate, null, null, false);
+        assertFalse(result.ok());
+        assertTrue(result.message().contains("external SHA256SUMS"));
+        assertNull(service.pendingVersion());
+    }
+
+    @Test
+    void manifestMustNameTheArtifact() throws Exception {
+        Path candidate = root.resolve("candidate.jar");
+        CliTestSupport.makeJar(candidate, "7.0.0");
+        Path wrongName = sums(candidate, Cli.sha256(candidate), "other.jar");
+        UpdateService service = new UpdateService(root, root.resolve("data"));
+        assertFalse(service.verify(candidate, wrongName));
     }
 
     @Test

@@ -12,11 +12,14 @@ import dev.jahaziel.spi.Outcome;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +29,8 @@ import java.util.stream.Stream;
 
 /**
  * Drains node spool files into the audit log. Spool lines carry guest actions; the reader stamps
- * identifiers, timestamps, and the workspace link the guest cannot forge.
+ * identifiers, timestamps, and the workspace link the guest cannot forge. Event ids are derived
+ * from the workspace, line number and line content so a retried drain is idempotent.
  */
 public final class AuditSpoolReader {
     private final AuditService audit;
@@ -43,7 +47,8 @@ public final class AuditSpoolReader {
 
     /**
      * Drains one spool file, deleting it afterwards. Every line is validated before anything is
-     * appended, so a malformed line fails the whole file without ingesting duplicates on retry.
+     * appended, so a malformed line fails the whole file without ingesting duplicates on retry. Raw
+     * spool lines are never logged; only the offending line number is reported.
      *
      * @param workspaceId the workspace the file belongs to
      * @param spoolFile the spooled JSON lines file
@@ -59,9 +64,9 @@ public final class AuditSpoolReader {
             throw new IllegalArgumentException("unreadable spool file: " + spoolFile, failure);
         }
         List<AuditRecord> records = new ArrayList<>();
-        for (String line : lines) {
-            if (!line.isBlank()) {
-                records.add(toRecord(workspaceId, line));
+        for (int i = 0; i < lines.size(); i++) {
+            if (!lines.get(i).isBlank()) {
+                records.add(toRecord(workspaceId, lines.get(i), i + 1));
             }
         }
         for (AuditRecord record : records) {
@@ -98,35 +103,125 @@ public final class AuditSpoolReader {
         }
     }
 
-    private AuditRecord toRecord(UUID workspaceId, String line) {
+    private AuditRecord toRecord(UUID workspaceId, String line, int lineNumber) {
         JsonNode json;
         try {
             json = mapper.readTree(line);
         } catch (Exception failure) {
-            throw new IllegalArgumentException("malformed spool line: " + line, failure);
+            throw new IllegalArgumentException(
+                    "malformed spool line " + lineNumber + " in " + workspaceId, failure);
         }
-        String action = text(json, "action");
+        if (json == null || !json.isObject()) {
+            throw new IllegalArgumentException("spool line " + lineNumber + " is not an object");
+        }
+        String action = text(json, "action", lineNumber);
+        UUID eventId = deterministicId(workspaceId, lineNumber, line);
+        Instant timestamp = instant(json, lineNumber);
+        String actor = optionalText(json, "actor", "guest:" + workspaceId);
+        ActorType actorType = actorType(json);
+        String target = optionalText(json, "target", workspaceId.toString());
+        String targetType = optionalText(json, "targetType", "workspace");
+        Outcome outcome = outcome(json);
+        Optional<String> sourceIp = optional(json, "sourceIp");
+        Optional<String> sourceNode = optional(json, "sourceNode");
+        Map<String, String> details = details(json, lineNumber);
         return new AuditRecord(
-                UUID.randomUUID(),
-                Instant.now(),
-                "guest:" + workspaceId,
-                ActorType.NODE,
+                eventId,
+                timestamp,
+                actor,
+                actorType,
                 action,
-                Optional.of(workspaceId.toString()),
-                Optional.of("workspace"),
-                Outcome.SUCCESS,
-                Optional.empty(),
-                Optional.empty(),
-                Map.of(),
+                Optional.of(target),
+                Optional.of(targetType),
+                outcome,
+                sourceIp,
+                sourceNode,
+                details,
                 Optional.empty(),
                 "");
     }
 
-    private static String text(JsonNode json, String field) {
+    private static UUID deterministicId(UUID workspaceId, int lineNumber, String line) {
+        String key = workspaceId + "\u001f" + lineNumber + "\u001f" + line.strip();
+        return UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Instant instant(JsonNode json, int lineNumber) {
+        String value = optionalText(json, "timestamp", "");
+        if (value.isEmpty()) {
+            return Instant.now();
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException invalid) {
+            throw new IllegalArgumentException(
+                    "bad timestamp on spool line " + lineNumber, invalid);
+        }
+    }
+
+    private static String text(JsonNode json, String field, int lineNumber) {
         JsonNode node = json.get(field);
         if (node == null || !node.isString()) {
-            throw new IllegalArgumentException("spool line misses string field: " + field);
+            throw new IllegalArgumentException(
+                    "spool line " + lineNumber + " misses string field: " + field);
         }
         return node.asString();
+    }
+
+    private static String optionalText(JsonNode json, String field, String fallback) {
+        JsonNode node = json.get(field);
+        return node != null && node.isString() && !node.asString().isEmpty()
+                ? node.asString()
+                : fallback;
+    }
+
+    private static Optional<String> optional(JsonNode json, String field) {
+        JsonNode node = json.get(field);
+        return node != null && node.isString() && !node.asString().isEmpty()
+                ? Optional.of(node.asString())
+                : Optional.empty();
+    }
+
+    private static ActorType actorType(JsonNode json) {
+        JsonNode node = json.get("actorType");
+        if (node != null && node.isString()) {
+            try {
+                return ActorType.valueOf(node.asString());
+            } catch (IllegalArgumentException unknown) {
+                return ActorType.NODE;
+            }
+        }
+        return ActorType.NODE;
+    }
+
+    private static Outcome outcome(JsonNode json) {
+        JsonNode node = json.get("outcome");
+        if (node != null && node.isString()) {
+            try {
+                return Outcome.valueOf(node.asString());
+            } catch (IllegalArgumentException unknown) {
+                return Outcome.SUCCESS;
+            }
+        }
+        return Outcome.SUCCESS;
+    }
+
+    private static Map<String, String> details(JsonNode json, int lineNumber) {
+        JsonNode node = json.get("details");
+        if (node == null) {
+            return Map.of();
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException(
+                    "spool line " + lineNumber + " has non-object details");
+        }
+        Map<String, String> values = new LinkedHashMap<String, String>();
+        Iterator<String> names = node.propertyNames().iterator();
+        while (names.hasNext()) {
+            String name = names.next();
+            JsonNode value = node.get(name);
+            values.put(name, value == null ? "" : value.asString());
+        }
+        return Map.copyOf(values);
     }
 }

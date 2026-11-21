@@ -43,7 +43,7 @@ public final class RateLimiter {
      * @param window the window length
      * @return an allowed decision or a 429 decision
      */
-    public LimitDecision tryAcquire(String key, int limit, Duration window) {
+    public synchronized LimitDecision tryAcquire(String key, int limit, Duration window) {
         if (key == null || limit <= 0 || window == null || window.isZero() || window.isNegative()) {
             throw new IllegalArgumentException("invalid rate-limit parameters");
         }
@@ -69,13 +69,13 @@ public final class RateLimiter {
     }
 
     /** Returns the request count in the current window for a key. */
-    public int count(String key) {
+    public synchronized int count(String key) {
         Window state = windows.get(key);
         return state == null ? 0 : state.count;
     }
 
     /** Clears all windows. */
-    public void reset() {
+    public synchronized void reset() {
         windows.clear();
     }
 }

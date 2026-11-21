@@ -157,6 +157,56 @@ public final class ConfigValidationService {
         }
     }
 
+    /**
+     * Bean-style startup hook: validates the live environment and the pinned catalog under this
+     * service's data directory. Integration point: the bootstrap (JahazielMain, owned by another
+     * agent) should call {@code new ConfigValidationService(dataDir).validateAtStartup()} after it
+     * resolves the data directory and before it starts the web stack.
+     */
+    public void validateAtStartup() {
+        Map<String, String> env = System.getenv();
+        Path catalogDir = dataDir.resolve("catalog");
+        Map<String, String> catalog = new java.util.LinkedHashMap<String, String>();
+        Path pinned = catalogDir.resolve("pinned.sha256");
+        if (Files.isRegularFile(pinned)) {
+            try {
+                for (String raw :
+                        Files.readString(pinned, StandardCharsets.UTF_8).split("\\R", -1)) {
+                    String line = raw.trim();
+                    int equals = line.indexOf('=');
+                    if (!line.isEmpty() && !line.startsWith("#") && equals > 0) {
+                        catalog.put(
+                                line.substring(0, equals).trim(),
+                                line.substring(equals + 1).trim());
+                    }
+                }
+            } catch (IOException unreadable) {
+                catalog.clear();
+            }
+        }
+        IdpConfig idp =
+                new IdpConfig(
+                        first(env, "BASIS_AUTH_ISSUER"),
+                        first(env, "BASIS_AUTH_CLIENT_ID", "BASIS_CLIENT_ID"),
+                        first(env, "BASIS_AUTH_CLIENT_SECRET", "BASIS_CLIENT_SECRET"));
+        validate(
+                System.getProperty("os.name", ""),
+                System.getProperty("os.arch", ""),
+                catalog,
+                catalogDir,
+                idp);
+    }
+
+    private static String first(Map<String, String> env, String... keys) {
+        for (int i = 0; i < keys.length; i++) {
+            String value = env.get(keys[i]);
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
     private static void checkPlatform(String osName, String osArch, List<Issue> issues) {
         String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
         String arch = osArch == null ? "" : osArch.toLowerCase(Locale.ROOT);

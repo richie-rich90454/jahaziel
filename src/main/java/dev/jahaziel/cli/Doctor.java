@@ -211,13 +211,21 @@ public final class Doctor {
                 fileEnv == null ? Collections.<String, String>emptyMap() : fileEnv;
         ConfigValidationService.IdpConfig idp =
                 new ConfigValidationService.IdpConfig(
-                        firstValue(env, "JAHAZIEL_IDP_ISSUER", "BASIS_AUTH_ISSUER"),
-                        firstValue(env, "JAHAZIEL_IDP_CLIENT_ID", "BASIS_CLIENT_ID"),
-                        firstValue(env, "JAHAZIEL_IDP_CLIENT_SECRET", "BASIS_CLIENT_SECRET"));
+                        firstOf(env, "BASIS_AUTH_ISSUER", "JAHAZIEL_IDP_ISSUER"),
+                        firstOf(
+                                env,
+                                "BASIS_AUTH_CLIENT_ID",
+                                "JAHAZIEL_IDP_CLIENT_ID",
+                                "BASIS_CLIENT_ID"),
+                        firstOf(
+                                env,
+                                "BASIS_AUTH_CLIENT_SECRET",
+                                "JAHAZIEL_IDP_CLIENT_SECRET",
+                                "BASIS_CLIENT_SECRET"));
         return new ConfigValidationService(root)
                 .check(
                         System.getProperty("os.name", "Linux"),
-                        System.getProperty("os.arch", "amd64"),
+                        System.getProperty("os.arch", "unknown"),
                         catalog,
                         catalogDir,
                         idp);
@@ -251,12 +259,14 @@ public final class Doctor {
         return catalog;
     }
 
-    private static String firstValue(Map<String, String> env, String primary, String fallback) {
-        String value = env.get(primary);
-        if (value == null || value.trim().isEmpty()) {
-            value = env.get(fallback);
+    private static String firstOf(Map<String, String> env, String... keys) {
+        for (int i = 0; i < keys.length; i++) {
+            String value = env.get(keys[i]);
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
         }
-        return value == null ? "" : value.trim();
+        return "";
     }
 
     private static Check issueCheck(

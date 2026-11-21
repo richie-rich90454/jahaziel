@@ -99,6 +99,20 @@ class CliParsingTest {
     }
 
     @Test
+    void parseDotEnvDelegatesToDotEnvIncludingBomHandling() throws Exception {
+        Path file = tmp.resolve("bom.env");
+        byte[] body = "BASIS_CLIENT_SECRET=\"s3cret # kept\"\n".getBytes(StandardCharsets.UTF_8);
+        byte[] withBom = new byte[body.length + 3];
+        withBom[0] = (byte) 0xEF;
+        withBom[1] = (byte) 0xBB;
+        withBom[2] = (byte) 0xBF;
+        System.arraycopy(body, 0, withBom, 3, body.length);
+        Files.write(file, withBom);
+        assertEquals("s3cret # kept", Cli.parseDotEnv(file).get("BASIS_CLIENT_SECRET"));
+        assertTrue(Cli.malformedLines(file).isEmpty());
+    }
+
+    @Test
     void parseDotEnvFullMix() throws Exception {
         Path file = tmp.resolve(".env");
         String body =
@@ -175,6 +189,7 @@ class CliParsingTest {
                         "MY_PASSWORD", "p",
                         "MY_TOKEN", "t",
                         "OTHER_SECRET", "x",
+                        "MICROSOFT_WEBHOOK_STATE", "state-value",
                         "basis_resource", "urn",
                         "NORMAL", "keep",
                         "PORT", "11451");
@@ -184,6 +199,7 @@ class CliParsingTest {
         assertTrue(redacted.contains("MY_PASSWORD=***\n"));
         assertTrue(redacted.contains("MY_TOKEN=***\n"));
         assertTrue(redacted.contains("OTHER_SECRET=***\n"));
+        assertTrue(redacted.contains("MICROSOFT_WEBHOOK_STATE=***\n"));
         assertTrue(redacted.contains("basis_resource=***\n"));
         assertTrue(redacted.contains("NORMAL=keep\n"));
         assertTrue(redacted.contains("PORT=11451\n"));

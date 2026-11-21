@@ -167,7 +167,7 @@ public final class ApprovalQueue {
     }
 
     /** Submits a request; it remains pending until approved. */
-    public String submit(
+    public synchronized String submit(
             String type, String requester, String target, Map<String, String> payload) {
         if (type == null
                 || type.trim().isEmpty()
@@ -191,22 +191,22 @@ public final class ApprovalQueue {
     }
 
     /** Approves a pending request. */
-    public void approve(String id, String approver) {
+    public synchronized void approve(String id, String approver) {
         decide(id, approver, APPROVED, "");
     }
 
     /** Rejects a pending request with a reason. */
-    public void reject(String id, String approver, String reason) {
+    public synchronized void reject(String id, String approver, String reason) {
         decide(id, approver, REJECTED, reason == null ? "" : reason);
     }
 
     /** Returns all requests. */
-    public List<ApprovalRequest> requests() {
+    public synchronized List<ApprovalRequest> requests() {
         return new ArrayList<ApprovalRequest>(requests);
     }
 
     /** Returns pending requests. */
-    public List<ApprovalRequest> pending() {
+    public synchronized List<ApprovalRequest> pending() {
         List<ApprovalRequest> out = new ArrayList<ApprovalRequest>();
         for (int i = 0; i < requests.size(); i++) {
             if (PENDING.equals(requests.get(i).status())) {
@@ -217,12 +217,12 @@ public final class ApprovalQueue {
     }
 
     /** Returns recorded decisions. */
-    public List<Decision> decisions() {
+    public synchronized List<Decision> decisions() {
         return new ArrayList<Decision>(decisions);
     }
 
     /** Returns a request by id, or null. */
-    public ApprovalRequest find(String id) {
+    public synchronized ApprovalRequest find(String id) {
         for (int i = 0; i < requests.size(); i++) {
             if (requests.get(i).id().equals(id)) {
                 return requests.get(i);
@@ -235,7 +235,7 @@ public final class ApprovalQueue {
      * Returns whether a matching request has been approved. This is the gate callers use before
      * applying catalog, template, share or role changes.
      */
-    public boolean isApproved(String type, String target) {
+    public synchronized boolean isApproved(String type, String target) {
         for (int i = 0; i < requests.size(); i++) {
             ApprovalRequest request = requests.get(i);
             if (APPROVED.equals(request.status())
@@ -247,7 +247,7 @@ public final class ApprovalQueue {
         return false;
     }
 
-    private void decide(String id, String approver, String status, String reason) {
+    private synchronized void decide(String id, String approver, String status, String reason) {
         if (approver == null || approver.trim().isEmpty()) {
             throw new IllegalArgumentException("approver must not be blank");
         }
@@ -284,7 +284,7 @@ public final class ApprovalQueue {
             }
             out.append('\n');
         }
-        OpsFiles.writeText(queueFile, out.toString());
+        OpsFiles.writeTextAtomic(queueFile, out.toString());
     }
 
     private void load() {

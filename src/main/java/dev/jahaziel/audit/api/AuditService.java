@@ -27,4 +27,12 @@ public abstract class AuditService {
      * @throws IllegalArgumentException when the limit is not positive
      */
     public abstract List<AuditRecord> latest(int limit);
+
+    /**
+     * Re-derives and verifies the hash chain of the newest events.
+     *
+     * @param limit the maximum number of newest events to verify
+     * @return true only when the chain is consistent and non-empty
+     */
+    public abstract boolean verifyChain(int limit);
 }

@@ -99,6 +99,10 @@ public final class DotEnv {
         }
         try {
             String text = Files.readString(file, StandardCharsets.UTF_8);
+            // A UTF-8 BOM would otherwise attach itself to the first key.
+            if (!text.isEmpty() && text.charAt(0) == '\uFEFF') {
+                text = text.substring(1);
+            }
             Map<String, String> values = new LinkedHashMap<>();
             for (String raw : text.split("\r?\n")) {
                 String line = raw.trim();

@@ -76,6 +76,74 @@ class CliBackupRestoreTest {
     }
 
     @Test
+    void backupWithoutSecretsExcludesAllKeyAndIdentityStores() throws Exception {
+        CliTestSupport.writeEnv(jar, CliTestSupport.validEnv());
+        Path data = jar.resolve("data");
+        String[] secretFiles = {
+            "keys/jwt.key",
+            "identity/basis-auth-store.json",
+            "oidc/google-store.json",
+            "local/users.json"
+        };
+        for (int i = 0; i < secretFiles.length; i++) {
+            Path file = data.resolve(secretFiles[i]);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, "secret", StandardCharsets.UTF_8);
+        }
+        Files.writeString(data.resolve("note.txt"), "keep", StandardCharsets.UTF_8);
+        assertEquals(0, CliTestSupport.dispatch("backup", "--no-secrets").code());
+        Path archive = findBackup();
+        Process list =
+                new ProcessBuilder("tar", "-tzf", archive.toString())
+                        .redirectErrorStream(true)
+                        .start();
+        String entries = new String(list.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(0, list.waitFor());
+        assertTrue(entries.contains("data/note.txt"));
+        assertTrue(entries.contains(".backup-manifest.sha256"));
+        for (int i = 0; i < secretFiles.length; i++) {
+            assertTrue(!entries.contains("data/" + secretFiles[i]), "leaked " + secretFiles[i]);
+        }
+        assertTrue(!entries.contains(".env"));
+    }
+
+    @Test
+    void restoreRefusesTamperedChecksumManifest() throws Exception {
+        CliTestSupport.writeEnv(jar, CliTestSupport.validEnv());
+        Path data = jar.resolve("data");
+        Files.createDirectories(data);
+        Files.writeString(data.resolve("keep.txt"), "v", StandardCharsets.UTF_8);
+        assertEquals(0, CliTestSupport.dispatch("backup").code());
+        Path archive = findBackup();
+        Path exploded = Files.createDirectory(jar.resolve("exploded"));
+        CliTestSupport.runTar(
+                List.of("tar", "-xzf", archive.toString(), "-C", exploded.toString()), jar);
+        Files.writeString(exploded.resolve(".backup-manifest.sha256"), "# sha256 manifest v1\n");
+        Path tampered = jar.resolve("tampered.tar.gz");
+        CliTestSupport.runTar(
+                List.of(
+                        "tar",
+                        "-czf",
+                        tampered.toString(),
+                        "-C",
+                        exploded.toString(),
+                        ".env",
+                        "data",
+                        ".backup-manifest.sha256"),
+                jar);
+        Path fresh = Files.createDirectory(jar.resolve("fresh"));
+        System.setProperty("user.dir", fresh.toString());
+        try {
+            Output output = CliTestSupport.dispatch("restore", tampered.toString());
+            assertEquals(1, output.code());
+            assertTrue(output.err().contains("checksum verification failed"));
+            assertTrue(!Files.exists(fresh.resolve("data").resolve("keep.txt")));
+        } finally {
+            System.setProperty("user.dir", jar.toString());
+        }
+    }
+
+    @Test
     void backupTarFailure() throws Exception {
         DateTimeFormatter stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
         LocalDateTime now = LocalDateTime.now();

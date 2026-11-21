@@ -5,6 +5,7 @@
 package dev.jahaziel.audit.internal;
 
 import dev.jahaziel.audit.api.AuditService;
+import dev.jahaziel.audit.domain.AuditChain;
 import dev.jahaziel.audit.domain.AuditRecord;
 import dev.jahaziel.audit.persistence.AuditEventEntity;
 import dev.jahaziel.audit.persistence.AuditEventRepository;
@@ -13,20 +14,14 @@ import org.springframework.data.domain.PageRequest;
 
 import tools.jackson.databind.ObjectMapper;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Database-backed audit log with a hash chain. Chain contract: each hash is lowercase hex SHA-256
- * over the UTF-8 string {@code prevHash|eventId|timestamp|actor|action|target|outcome}, where
- * {@code prevHash} is the previous hash or {@code genesis}, {@code target} is empty when absent,
- * and the remaining fields render with {@code toString} ({@code name} for the outcome).
+ * Database-backed audit log with a hash chain. The canonical fields and digest live in {@link
+ * AuditChain} so writers and verifiers agree on the same contract.
  */
 public final class AuditServiceImpl extends AuditService {
     private final AuditEventRepository events;
@@ -82,23 +77,29 @@ public final class AuditServiceImpl extends AuditService {
         return result;
     }
 
+    /**
+     * Re-derives every stored hash from its fields and links. Empty logs are never reported intact.
+     *
+     * @param limit the maximum number of newest events to verify
+     * @return true only when the chain is consistent
+     */
+    @Override
+    public boolean verifyChain(int limit) {
+        return AuditChain.verify(latest(limit));
+    }
+
     private static String chainHash(String prevHash, AuditRecord event) {
-        String payload =
-                String.join(
-                        "|",
-                        prevHash,
-                        event.eventId().toString(),
-                        event.timestamp().toString(),
-                        event.actor(),
-                        event.action(),
-                        event.target().orElse(""),
-                        event.outcome().name());
-        try {
-            MessageDigest sha = MessageDigest.getInstance("SHA-256");
-            byte[] digest = sha.digest(payload.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 unavailable", e);
-        }
+        return AuditChain.hash(
+                event.eventId().toString(),
+                event.timestamp().toString(),
+                event.actor(),
+                event.actorType().name(),
+                event.action(),
+                event.target().orElse(""),
+                event.targetType().orElse(""),
+                event.outcome().name(),
+                AuditChain.detailsJson(event),
+                event.sourceIp().orElse(""),
+                prevHash);
     }
 }

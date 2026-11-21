@@ -69,6 +69,40 @@ class InProcessSchedulerTest {
     }
 
     @Test
+    void errorInJobDoesNotKillTheSchedulerThread() throws Exception {
+        InProcessScheduler scheduler = new InProcessScheduler();
+        CountDownLatch second = new CountDownLatch(1);
+        int[] runs = {0};
+        scheduler.register(
+                new PlatformJob() {
+                    @Override
+                    public void run(JobContext context) {
+                        runs[0]++;
+                        if (runs[0] == 1) {
+                            throw new AssertionError("fatal job body");
+                        }
+                        second.countDown();
+                    }
+
+                    @Override
+                    public Duration period() {
+                        return Duration.ofMillis(20);
+                    }
+
+                    @Override
+                    public JobScope scope() {
+                        return JobScope.CLUSTER;
+                    }
+                });
+        scheduler.start();
+        try {
+            assertTrue(second.await(5, TimeUnit.SECONDS));
+        } finally {
+            scheduler.stop();
+        }
+    }
+
+    @Test
     void throwingJobsStayScheduled() throws Exception {
         InProcessScheduler scheduler = new InProcessScheduler();
         CountDownLatch second = new CountDownLatch(1);

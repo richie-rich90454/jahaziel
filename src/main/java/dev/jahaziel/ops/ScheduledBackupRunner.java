@@ -12,6 +12,9 @@ import java.util.concurrent.TimeUnit;
 
 /** Runs automatic backups on a fixed interval with a single daemon thread. */
 public final class ScheduledBackupRunner implements Runnable {
+    /** Number of most recent automatic backups retained after each successful run. */
+    private static final int RETAINED_BACKUPS = 7;
+
     private final ScheduledBackupService backups;
     private final Path sourceDir;
     private final OpsWebhookListener webhooks;
@@ -64,6 +67,7 @@ public final class ScheduledBackupRunner implements Runnable {
     public void runOnce() {
         try {
             Path archive = backups.backup(sourceDir);
+            backups.applyRetention(RETAINED_BACKUPS);
             if (webhooks != null) {
                 webhooks.backupSucceeded(archive);
             }

@@ -6,7 +6,9 @@ package dev.jahaziel.audit.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,6 +34,7 @@ class AuditPartitionJobTest {
     @Test
     void retentionDropsExpiredPartitions() {
         EntityManager entities = mock(EntityManager.class);
+        stubPostgres(entities);
         Query query = mock(Query.class);
         when(entities.createNativeQuery(anyString())).thenReturn(query);
         AuditRetentionJob job = new AuditRetentionJob(entities, 30, clock);
@@ -45,6 +48,7 @@ class AuditPartitionJobTest {
     @Test
     void provisionCreatesComingMonths() {
         EntityManager entities = mock(EntityManager.class);
+        stubPostgres(entities);
         Query query = mock(Query.class);
         when(entities.createNativeQuery(anyString())).thenReturn(query);
         PartitionProvisionJob job = new PartitionProvisionJob(entities, 3, clock);
@@ -59,7 +63,7 @@ class AuditPartitionJobTest {
     }
 
     @Test
-    void retentionSkipsNonPostgres() {
+    void retentionUsesBatchedDeleteOnSqlite() {
         EntityManager entities = mock(EntityManager.class);
         EntityManagerFactory factory = mock(EntityManagerFactory.class);
         when(factory.getProperties())
@@ -68,8 +72,28 @@ class AuditPartitionJobTest {
                                 "hibernate.dialect",
                                 "org.hibernate.community.dialect.SQLiteDialect"));
         when(entities.getEntityManagerFactory()).thenReturn(factory);
+        Query query = mock(Query.class);
+        when(entities.createNativeQuery(anyString())).thenReturn(query);
         new AuditRetentionJob(entities, 30, clock).run(new JobContext(Instant.now()));
-        verify(entities, times(0)).createNativeQuery(anyString());
+        verify(entities, times(3)).createNativeQuery(argThatStartsWithDelete());
+        verify(query, times(3)).setParameter(eq(1), any(java.sql.Timestamp.class));
+    }
+
+    private static void stubPostgres(EntityManager entities) {
+        EntityManagerFactory factory = mock(EntityManagerFactory.class);
+        when(factory.getProperties())
+                .thenReturn(Map.of("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect"));
+        when(entities.getEntityManagerFactory()).thenReturn(factory);
+    }
+
+    private static String argThatStartsWithDelete() {
+        return org.mockito.ArgumentMatchers.argThat(
+                new org.mockito.ArgumentMatcher<String>() {
+                    @Override
+                    public boolean matches(String sql) {
+                        return sql.startsWith("DELETE FROM audit_");
+                    }
+                });
     }
 
     @Test

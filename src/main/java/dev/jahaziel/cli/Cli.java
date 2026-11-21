@@ -4,6 +4,9 @@
  */
 package dev.jahaziel.cli;
 
+import dev.jahaziel.ops.AuditQueryService;
+import dev.jahaziel.ops.ChecksumManifest;
+import dev.jahaziel.ops.OpsFiles;
 import dev.jahaziel.platform.DotEnv;
 import dev.jahaziel.platform.Platforms;
 
@@ -338,12 +341,20 @@ public final class Cli {
         List<String> command = new ArrayList<>(List.of("tar", "-czf", dest.toString()));
         if (!secrets) {
             command.add("--exclude=.env");
-            command.add("--exclude=data/keys/jwt.key");
+            // Encryption keys and every encrypted/credential identity store are secrets too.
+            command.add("--exclude=data/keys/*");
+            command.add("--exclude=data/identity/*");
+            command.add("--exclude=data/oidc/*");
+            command.add("--exclude=data/local/*");
         }
         command.add("-C");
         command.add(jar.toString());
         command.addAll(sources);
+        Path manifest = jar.resolve(".backup-manifest.sha256");
+        writeBackupManifest(jar, sources, secrets, manifest);
+        command.add(manifest.getFileName().toString());
         int exit = exec(command, jar, out);
+        OpsFiles.deleteIfPresent(manifest);
         if (exit != 0) {
             Files.deleteIfExists(dest);
             err.println("jahaziel: tar failed (is tar on PATH?)");
@@ -435,6 +446,26 @@ public final class Cli {
             err.println("jahaziel: extraction failed");
             return 1;
         }
+        String manifestName = ".backup-manifest.sha256";
+        if (!entries.contains(manifestName)) {
+            err.println("jahaziel: archive has no checksum manifest, refusing");
+            return 1;
+        }
+        Path staging = Files.createTempDirectory(jar, "restore-verify-");
+        try {
+            int verifyExit =
+                    exec(
+                            List.of("tar", "-xzf", archive.toString(), "-C", staging.toString()),
+                            staging,
+                            new PrintStream(java.io.OutputStream.nullOutputStream()));
+            if (verifyExit != 0
+                    || !ChecksumManifest.verify(staging, staging.resolve(manifestName))) {
+                err.println("jahaziel: archive checksum verification failed, refusing");
+                return 1;
+            }
+        } finally {
+            OpsFiles.deleteTree(staging, staging);
+        }
         exit = exec(List.of("tar", "-xzf", archive.toString(), "-C", jar.toString()), jar, out);
         if (exit != 0) {
             err.println("jahaziel: extraction failed");
@@ -453,6 +484,7 @@ public final class Cli {
         }
         String normalized = entry.endsWith("/") ? entry.substring(0, entry.length() - 1) : entry;
         if (!normalized.equals(".env")
+                && !normalized.equals(".backup-manifest.sha256")
                 && !normalized.equals("data")
                 && !normalized.startsWith("data/")) {
             return false;
@@ -521,10 +553,19 @@ public final class Cli {
                 Doctor.run(
                         jar, data, port(args, merge(fileEnv, System.getenv())), fileEnv, jarFile()),
                 new PrintStream(doctors, true, StandardCharsets.UTF_8));
+        List<String> auditTail = new AuditQueryService().auditTail(data, 50);
+        StringBuilder auditText = new StringBuilder();
+        for (int i = 0; i < auditTail.size(); i++) {
+            auditText.append(auditTail.get(i)).append('\n');
+        }
         try (java.util.zip.ZipOutputStream zip =
                 new java.util.zip.ZipOutputStream(Files.newOutputStream(dest))) {
             entry(zip, ".env.redacted", redact(fileEnv).getBytes(StandardCharsets.UTF_8));
             entry(zip, "doctor.txt", doctors.toByteArray());
+            entry(
+                    zip,
+                    "audit-tail.txt",
+                    OpsFiles.sanitizeText(auditText.toString()).getBytes(StandardCharsets.UTF_8));
             entry(
                     zip,
                     "version.txt",
@@ -546,7 +587,15 @@ public final class Cli {
                     while (iterator.hasNext()) {
                         Path file = iterator.next();
                         if (Files.isRegularFile(file) && Files.size(file) < 50_000_000L) {
-                            entry(zip, "logs/" + file.getFileName(), Files.readAllBytes(file));
+                            String sanitized =
+                                    OpsFiles.sanitizeText(
+                                            new String(
+                                                    Files.readAllBytes(file),
+                                                    StandardCharsets.UTF_8));
+                            entry(
+                                    zip,
+                                    "logs/" + file.getFileName(),
+                                    sanitized.getBytes(StandardCharsets.UTF_8));
                         }
                     }
                 }
@@ -603,12 +652,14 @@ public final class Cli {
                 + "Commands:\n"
                 + "  init                  Write .env (BASIS_* placeholders + random secret), mkdir data/\n"
                 + "  doctor                Pre-boot checks, one line each; exit 0 when all pass\n"
-                + "  update --to <jar>     Stage and verify a jar update (--dry-run, --sums, --version)\n"
+                + "  update --to <jar>     Stage a jar update (requires --sums <SHA256SUMS>, --dry-run,\n"
+                + "                        --version)\n"
                 + "  update --status       Show staged and applied updates\n"
                 + "  update --rollback     Restore the jar kept before the last applied update\n"
                 + "  upgrade --to <jar>    Replace jahaziel.jar offline (backs up the current jar)\n"
                 + "  upgrade --check       Print the running version\n"
-                + "  backup [--no-secrets] Write jahaziel-backup-<stamp>.tar.gz with .env + data/\n"
+                + "  backup [--no-secrets] Write .env + data/ snapshot; --no-secrets drops .env,\n"
+                + "                        data/keys/*, data/identity/*, data/oidc/*, data/local/*\n"
                 + "  restore <file>        Extract a backup tar.gz into this directory\n"
                 + "  logs [--follow] [--level=LEVEL]  Tail data/logs/control-plane.log\n"
                 + "  support-bundle        Write jahaziel-support-<stamp>.zip (secrets redacted)\n"
@@ -742,35 +793,11 @@ public final class Cli {
         return jarDir().resolve("jahaziel.jar");
     }
 
-    /** Minimal .env parser: CRLF/LF, # comments, export prefix, single/double quotes. */
+    /** Parses .env through DotEnv so boot and CLI agree on quoting and inline comments. */
     static Map<String, String> parseDotEnv(Path file) {
-        if (!Files.isRegularFile(file)) {
-            return Map.of();
-        }
         try {
-            Map<String, String> values = new LinkedHashMap<>();
-            for (String raw : Files.readString(file, StandardCharsets.UTF_8).split("\r?\n")) {
-                String line = raw.strip();
-                if (line.isEmpty() || line.startsWith("#") || !line.contains("=")) {
-                    continue;
-                }
-                if (line.startsWith("export ")) {
-                    line = line.substring("export ".length()).strip();
-                }
-                int equals = line.indexOf('=');
-                String key = line.substring(0, equals).strip();
-                if (key.isEmpty() || key.contains(" ") || key.contains("\t")) {
-                    continue;
-                }
-                String value = line.substring(equals + 1).strip();
-                int hash = value.indexOf(" #");
-                if (hash >= 0 && !value.startsWith("\"") && !value.startsWith("'")) {
-                    value = value.substring(0, hash);
-                }
-                values.put(key, unquote(value.strip()));
-            }
-            return Collections.unmodifiableMap(values);
-        } catch (IOException unreadable) {
+            return DotEnv.parse(file);
+        } catch (java.io.UncheckedIOException unreadable) {
             return Map.of();
         }
     }
@@ -779,7 +806,11 @@ public final class Cli {
     static List<String> malformedLines(Path file) {
         try {
             List<String> bad = new ArrayList<>();
-            for (String raw : Files.readString(file, StandardCharsets.UTF_8).split("\r?\n")) {
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            if (!text.isEmpty() && text.charAt(0) == '\uFEFF') {
+                text = text.substring(1);
+            }
+            for (String raw : text.split("\r?\n")) {
                 String line = raw.strip();
                 if (line.isEmpty() || line.startsWith("#")) {
                     continue;
@@ -809,6 +840,7 @@ public final class Cli {
                     upper.contains("SECRET")
                             || upper.contains("PASSWORD")
                             || upper.contains("TOKEN")
+                            || upper.equals("MICROSOFT_WEBHOOK_STATE")
                             || upper.startsWith("BASIS_");
             redacted.append(key).append('=').append(secret ? "***" : value).append('\n');
         }
@@ -872,6 +904,45 @@ public final class Cli {
         return 0;
     }
 
+    private static void writeBackupManifest(
+            Path jar, List<String> sources, boolean secrets, Path manifest) throws IOException {
+        List<String> names = new ArrayList<String>();
+        for (int s = 0; s < sources.size(); s++) {
+            Path root = jar.resolve(sources.get(s));
+            if (Files.isRegularFile(root)) {
+                names.add(sources.get(s));
+            } else if (Files.isDirectory(root)) {
+                try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+                    java.util.Iterator<Path> iterator = walk.iterator();
+                    while (iterator.hasNext()) {
+                        Path file = iterator.next();
+                        if (Files.isRegularFile(file)) {
+                            names.add(jar.relativize(file).toString().replace('\\', '/'));
+                        }
+                    }
+                }
+            }
+        }
+        Collections.sort(names);
+        StringBuilder out = new StringBuilder("# sha256 manifest v1\n");
+        for (int i = 0; i < names.size(); i++) {
+            String name = names.get(i);
+            if (!secrets && backupExcluded(name)) {
+                continue;
+            }
+            out.append(sha256(jar.resolve(name))).append("  ").append(name).append('\n');
+        }
+        Files.writeString(manifest, out.toString(), StandardCharsets.UTF_8);
+    }
+
+    private static boolean backupExcluded(String name) {
+        return name.equals(".env")
+                || name.startsWith("data/keys/")
+                || name.startsWith("data/identity/")
+                || name.startsWith("data/oidc/")
+                || name.startsWith("data/local/");
+    }
+
     private static void entry(java.util.zip.ZipOutputStream zip, String name, byte[] body)
             throws IOException {
         zip.putNextEntry(new java.util.zip.ZipEntry(name));
@@ -897,14 +968,5 @@ public final class Cli {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted", interrupted);
         }
-    }
-
-    private static String unquote(String value) {
-        if (value.length() >= 2
-                && ((value.startsWith("\"") && value.endsWith("\""))
-                        || (value.startsWith("'") && value.endsWith("'")))) {
-            return value.substring(1, value.length() - 1);
-        }
-        return value;
     }
 }

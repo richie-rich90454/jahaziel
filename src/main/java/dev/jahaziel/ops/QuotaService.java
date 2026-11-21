@@ -48,7 +48,7 @@ public final class QuotaService {
      * Reserves capacity, returning a 403 decision when the limit would be exceeded. Nothing is
      * consumed on a rejected reservation.
      */
-    public LimitDecision reserve(
+    public synchronized LimitDecision reserve(
             String scope, String id, String resource, long amount, long limit) {
         if (scope == null || id == null || resource == null || amount < 0 || limit < 0) {
             throw new IllegalArgumentException("invalid quota reservation");
@@ -74,7 +74,7 @@ public final class QuotaService {
     }
 
     /** Releases previously reserved capacity, never below zero. */
-    public void release(String scope, String id, String resource, long amount) {
+    public synchronized void release(String scope, String id, String resource, long amount) {
         String key = key(scope, id, resource);
         long used = usage.containsKey(key) ? usage.get(key).longValue() : 0L;
         long left = Math.max(0L, used - Math.max(0L, amount));
@@ -82,13 +82,13 @@ public final class QuotaService {
     }
 
     /** Returns the currently used amount for a scope, id and resource. */
-    public long usage(String scope, String id, String resource) {
+    public synchronized long usage(String scope, String id, String resource) {
         Long used = usage.get(key(scope, id, resource));
         return used == null ? 0L : used.longValue();
     }
 
     /** Clears all recorded usage. */
-    public void reset() {
+    public synchronized void reset() {
         usage.clear();
     }
 

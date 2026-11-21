@@ -136,7 +136,7 @@ public final class OutboundWebhooks {
     }
 
     /** Persists an event in the outbox for later delivery. */
-    public Path enqueue(WebhookEvent event) {
+    public synchronized Path enqueue(WebhookEvent event) {
         if (event == null || event.id() == null || !event.id().matches("[A-Za-z0-9._-]+")) {
             throw new IllegalArgumentException("event id must be a simple identifier");
         }
@@ -178,7 +178,7 @@ public final class OutboundWebhooks {
      * @param backoff the base backoff between attempts
      * @return the delivery counts
      */
-    public DeliveryReport deliverAll(
+    public synchronized DeliveryReport deliverAll(
             WebhookTransport transport, int maxAttempts, Duration backoff) {
         if (transport == null || maxAttempts < 1 || backoff == null) {
             throw new IllegalArgumentException("invalid delivery parameters");
@@ -221,7 +221,7 @@ public final class OutboundWebhooks {
     }
 
     /** Returns the number of events currently awaiting delivery. */
-    public int pendingCount() {
+    public synchronized int pendingCount() {
         int count = 0;
         List<Path> files = OpsFiles.listFiles(outboxDir);
         for (int i = 0; i < files.size(); i++) {

@@ -82,7 +82,8 @@ public final class AuditMapper {
 
     private static String writeDetails(Map<String, String> details, ObjectMapper mapper) {
         try {
-            return mapper.writeValueAsString(details);
+            // Sorted keys keep the serialized detail string stable for the hash chain.
+            return mapper.writeValueAsString(new java.util.TreeMap<String, String>(details));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("Audit details cannot be serialized", e);
         }
