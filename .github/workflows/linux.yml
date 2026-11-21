@@ -61,6 +61,11 @@ jobs:
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
         with:
           version: 12.14.0
+      - name: Audit dependency lockfiles
+        shell: bash
+        run: |
+          pnpm --dir web audit --audit-level=high
+          pnpm --dir docs audit --audit-level=high
       - name: Build browser workbench
         working-directory: web
         run: |
