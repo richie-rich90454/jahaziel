@@ -82,7 +82,8 @@ public final class BasisMetadata {
                         required(node, "issuer", url),
                         required(node, "authorization_endpoint", url),
                         required(node, "token_endpoint", url),
-                        required(node, "jwks_uri", url));
+                        required(node, "jwks_uri", url),
+                        optional(node, "userinfo_endpoint", config.issuer() + "/oauth/userinfo"));
         if (!config.issuer().equals(loaded.issuer())) {
             throw new BasisException("basis-auth discovery issuer does not match configuration");
         }
@@ -129,6 +130,13 @@ public final class BasisMetadata {
         return System.currentTimeMillis() - fetchedAt < TTL_MILLIS;
     }
 
+    private static String optional(JsonNode node, String field, String fallback) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() || value.asString().length() == 0
+                ? fallback
+                : value.asString();
+    }
+
     private static String required(JsonNode node, String field, String url) {
         JsonNode value = node == null ? null : node.get(field);
         if (value == null || value.isNull() || value.asString().length() == 0) {
@@ -143,13 +151,19 @@ public final class BasisMetadata {
         private final String authorizationEndpoint;
         private final String tokenEndpoint;
         private final String jwksUri;
+        private final String userinfoEndpoint;
 
         private Discovery(
-                String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
+                String issuer,
+                String authorizationEndpoint,
+                String tokenEndpoint,
+                String jwksUri,
+                String userinfoEndpoint) {
             this.issuer = issuer;
             this.authorizationEndpoint = authorizationEndpoint;
             this.tokenEndpoint = tokenEndpoint;
             this.jwksUri = jwksUri;
+            this.userinfoEndpoint = userinfoEndpoint;
         }
 
         public String issuer() {
@@ -166,6 +180,10 @@ public final class BasisMetadata {
 
         public String jwksUri() {
             return jwksUri;
+        }
+
+        public String userinfoEndpoint() {
+            return userinfoEndpoint;
         }
     }
 }

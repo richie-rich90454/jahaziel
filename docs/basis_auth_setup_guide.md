@@ -236,7 +236,7 @@ Public clients have no secret. Keep secrets server-side in every case.
 ```text
 client_id=example-web
 response_type=code
-redirect_uri=https://app.example.org/oauth/callback
+redirect_uri=https://app.example.org/api/auth/basis/callback
 scope=openid profile email offline_access projects.read
 resource=urn:example:api
 state=<random>
@@ -766,10 +766,9 @@ this guide in the same change. See `AGENTS.md` for the mandatory rule.
 ## 13. Implemented integration notes
 
 This application implements the contract above through `BasisAuthPlugin` in
-`dev.jahaziel.identity.auth` when `AUTH_PROVIDERS=basis-auth` is set. With no
-`AUTH_PROVIDERS` setting the built-in DevConnect OIDC flow handles browser login
-using the same canonical keys; the backchannel receiver and resource-token
-filter still run. Notes that refine the contract for this codebase:
+`dev.jahaziel.identity.auth`. When the canonical keys are present, the plugin is
+the default browser-login path; `AUTH_PROVIDERS` can still override the order or
+select other providers. Notes that refine the contract for this codebase:
 
 - **Credential keys.** The canonical set is `BASIS_AUTH_ISSUER`,
   `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`,
@@ -784,9 +783,9 @@ filter still run. Notes that refine the contract for this codebase:
   with HTTP Basic client authentication, persists the replacement before any
   further use, and revokes the whole token family on reuse. `invalid_grant`
   clears refresh state. The advertised `REFRESH` capability is backed by this
-  method. Requires `BASIS_AUTH_OFFLINE_ACCESS=true` and the plugin login path;
-  a token-family revocation does not by itself delete the browser BFF session,
-  so pair it with backchannel logout for immediate sign-out.
+  method. It requires `BASIS_AUTH_OFFLINE_ACCESS=true` to obtain a refresh
+  token; a token-family revocation does not by itself delete the browser BFF
+  session, so pair it with backchannel logout for immediate sign-out.
 - **Backchannel.** `POST /api/auth/basis/backchannel` (with
   `POST /api/auth/backchannel` kept as an alias) handles all three event types.
   `action=test` returns `202` before delivering the HMAC proof asynchronously;

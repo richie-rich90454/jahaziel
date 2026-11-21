@@ -137,7 +137,7 @@ class DevConnectLoginTest {
 
         AppUserEntity user =
                 context.getBean(AppUserRepository.class)
-                        .findByExternalId("fresh-sub")
+                        .findByExternalId("basis-auth:fresh-sub")
                         .orElseThrow();
         assertEquals("active", user.getStatus());
         assertEquals("fresh@example.com", user.getEmail());
@@ -187,7 +187,7 @@ class DevConnectLoginTest {
         assertEquals(200, get(base() + "/api/v1/me", cookie).status());
 
         AppUserRepository users = context.getBean(AppUserRepository.class);
-        AppUserEntity user = users.findByExternalId("suspended-sub").orElseThrow();
+        AppUserEntity user = users.findByExternalId("basis-auth:suspended-sub").orElseThrow();
         user.setStatus("suspended");
         users.save(user);
 
@@ -197,15 +197,19 @@ class DevConnectLoginTest {
     }
 
     @Test
-    void aDifferentSubjectOnALinkedEmailIsRefused() throws Exception {
+    void aDifferentSubjectOnTheSameEmailGetsASeparateAccount() throws Exception {
         IDP.identity("join-sub-one", "join@example.com", "Join One");
-        String cookie = login();
-        assertEquals(200, get(base() + "/api/v1/me", cookie).status());
+        String first = login();
+        assertEquals(200, get(base() + "/api/v1/me", first).status());
 
         IDP.identity("join-sub-two", "join@example.com", "Join Two");
-        Response rejected = loginFlow();
-        assertEquals(403, rejected.status(), rejected.body());
-        assertTrue(rejected.body().contains("LOGIN_REJECTED"), rejected.body());
+        String second = login();
+        assertEquals(200, get(base() + "/api/v1/me", second).status());
+
+        AppUserRepository users = context.getBean(AppUserRepository.class);
+        AppUserEntity one = users.findByExternalId("basis-auth:join-sub-one").orElseThrow();
+        AppUserEntity two = users.findByExternalId("basis-auth:join-sub-two").orElseThrow();
+        assertEquals(false, one.getUserId().equals(two.getUserId()));
     }
 
     private static String login() throws Exception {

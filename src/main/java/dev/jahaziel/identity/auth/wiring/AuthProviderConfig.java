@@ -41,13 +41,27 @@ public final class AuthProviderConfig {
                 }
             }
         }
+        if (names.isEmpty() && context != null && basisConfigured(context)) {
+            // A fully configured basis-auth client activates the contract-compliant plugin path.
+            names.add("basis-auth");
+        }
         return new AuthProviderConfig(names, context);
     }
 
+    private static boolean basisConfigured(PluginContext context) {
+        return present(context.setting("basis.auth-issuer"))
+                && present(context.setting("basis.client-id"))
+                && present(context.setting("basis.resource"));
+    }
+
+    private static boolean present(String value) {
+        return value != null && value.trim().length() > 0;
+    }
+
     /**
-     * Reads only the configured order. With no explicit {@code auth.providers} setting this stays
-     * empty so the existing DevConnect flow remains the fallback; a registered-but-unconfigured
-     * provider must never silently become the active login path.
+     * Reads the configured order. With no explicit {@code auth.providers} setting, a fully
+     * configured basis-auth client becomes the login path so the contract's PKCE, refresh and
+     * backchannel behavior applies; otherwise the built-in DevConnect flow stays the fallback.
      */
     public static AuthProviderConfig fromSettings(
             PluginContext context, AuthPluginRegistry registry) {

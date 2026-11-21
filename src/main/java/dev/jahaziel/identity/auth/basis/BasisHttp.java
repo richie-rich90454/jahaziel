@@ -40,9 +40,17 @@ public final class BasisHttp {
     }
 
     public String get(String url, Duration timeout) {
-        HttpRequest request =
-                HttpRequest.newBuilder(URI.create(url)).timeout(timeout).GET().build();
-        return send(request, url);
+        return get(url, null, timeout);
+    }
+
+    /** GET with an optional Authorization header, used by the UserInfo profile lookup. */
+    public String get(String url, String authorization, Duration timeout) {
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder(URI.create(url)).timeout(timeout).GET();
+        if (authorization != null) {
+            builder.header("Authorization", authorization);
+        }
+        return send(builder.build(), url);
     }
 
     public String postForm(String url, String body, String authorization, Duration timeout) {

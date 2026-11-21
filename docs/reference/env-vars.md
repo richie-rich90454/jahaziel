@@ -62,9 +62,10 @@ sections 10.4/10.5 of the downstream guide.
 
 ## Other login providers
 
-`AUTH_PROVIDERS` (dotted form `auth.providers`) selects which providers are
-enabled. Each plugin reads only the keys it needs; configure the provider you
-actually use.
+`AUTH_PROVIDERS` (dotted form `auth.providers`) selects and orders the enabled
+providers. With no explicit value, a fully configured basis-auth client becomes
+the login path; otherwise the built-in DevConnect OIDC flow is the fallback.
+Each plugin reads only the keys it needs.
 
 | Provider | Variables |
 |---|---|

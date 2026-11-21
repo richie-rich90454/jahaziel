@@ -123,14 +123,44 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
         AuthIdentity derived = verifier.identity(verified);
         String sessionId = Pkce.random();
         Map<String, String> claims = new HashMap<String, String>(derived.claims());
+        String email = derived.email();
+        String displayName = derived.displayName();
+        boolean emailVerified = derived.emailVerified();
+        String access = tokens.get("access_token");
+        if (access != null && access.length() > 0) {
+            try {
+                String body =
+                        http.get(
+                                metadata.discovery().userinfoEndpoint(),
+                                "Bearer " + access,
+                                Duration.ofSeconds(60));
+                JsonNode profile = mapper.readTree(body);
+                String profileEmail = text(profile, "email");
+                String profileName = text(profile, "name");
+                if (email == null || email.length() == 0) email = profileEmail;
+                if (displayName == null || displayName.length() == 0) displayName = profileName;
+                if (profileEmail != null && profileEmail.length() > 0) {
+                    claims.put("email", profileEmail);
+                }
+                if (profileName != null && profileName.length() > 0) {
+                    claims.put("name", profileName);
+                }
+                JsonNode verifiedFlag = profile == null ? null : profile.get("email_verified");
+                if (verifiedFlag != null && verifiedFlag.isBoolean()) {
+                    emailVerified = verifiedFlag.asBoolean();
+                }
+            } catch (Exception unavailable) {
+                // UserInfo is optional profile enrichment; verified ID token claims stand.
+            }
+        }
         claims.put("session_id", sessionId);
         AuthIdentity identity =
                 new AuthIdentity(
                         derived.provider(),
                         derived.subject(),
-                        derived.email(),
-                        derived.displayName(),
-                        derived.emailVerified(),
+                        email,
+                        displayName,
+                        emailVerified,
                         derived.mfaAssured(),
                         claims);
         store.putSession(sessionId, identity);
