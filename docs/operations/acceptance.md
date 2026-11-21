@@ -20,9 +20,9 @@ the real-iPad acceptance gate below.
 
 ## Candidate under test
 
-- Commit SHA: TO BE FILLED AFTER FINAL COMMIT
+- Commit SHA: `6de60d84739d3f5ce1d76c4cfdc616cd4e83fe82`
 - Artifact: `target/jahaziel.jar`
-- Artifact SHA-256: `06c49a684fbe0f33220147312ca454ae8c92c8240ea6ef9b5a478c657fc84fb9` (from the local build; re-verify after the final build)
+- Artifact SHA-256: `724dfcfc1980eec729d3e04bde0f10b757f9d197d25b662f8d95276a4af4c630` (local `target/jahaziel.jar`; CI re-verifies its own artifact)
 - Workbench bundle size: recorded by CI
 - Server target: Linux x64 / Linux arm64
 
