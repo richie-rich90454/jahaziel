@@ -52,7 +52,7 @@ final class BasisResourceFilterTest {
         BasisHttp http = new BasisHttp(client);
         store = new BasisStore(config);
         BasisInternalClient subjects =
-                new BasisInternalClient(stub.url(), RESOURCE, RESOURCE_SECRET, http, client);
+                new BasisInternalClient(stub.url(), RESOURCE, RESOURCE_SECRET, client);
         TokenVerifier verifier =
                 new TokenVerifier(config, new BasisMetadata(config, http), store, subjects);
         filter =

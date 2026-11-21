@@ -86,8 +86,9 @@ public final class CommentService {
         CommentReply reply =
                 new CommentReply(UUID.randomUUID().toString(), commentId, author, body, nowMillis);
         store.putReply(reply);
-        audit.record(
-                workspaceId, author, "comment.reply", commentId, new HashMap<String, String>());
+        Map<String, String> details = new HashMap<String, String>();
+        details.put("path", comment.path());
+        audit.record(workspaceId, author, "comment.reply", commentId, details);
         return reply;
     }
 

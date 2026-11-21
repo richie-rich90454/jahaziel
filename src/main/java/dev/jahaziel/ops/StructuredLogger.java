@@ -13,7 +13,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -83,6 +83,9 @@ public final class StructuredLogger {
     }
 
     private String render(String level, String event, Map<String, String> fields) {
+        if (fields == null) {
+            fields = new HashMap<String, String>();
+        }
         StringBuilder out = new StringBuilder();
         out.append("{\"ts\":\"")
                 .append(OpsFiles.jsonEscape(Instant.now(clock).toString()))
@@ -94,7 +97,7 @@ public final class StructuredLogger {
                 .append(OpsFiles.jsonEscape(event == null ? "" : event))
                 .append('"');
         out.append(",\"fields\":{");
-        List<String> keys = fields == null ? new ArrayList<String>() : OpsFiles.sortedKeys(fields);
+        List<String> keys = OpsFiles.sortedKeys(fields);
         boolean first = true;
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);

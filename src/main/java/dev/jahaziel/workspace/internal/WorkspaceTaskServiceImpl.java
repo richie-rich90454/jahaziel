@@ -912,7 +912,6 @@ public final class WorkspaceTaskServiceImpl extends WorkspaceTaskService
         }
     }
 
-    @SuppressWarnings("null")
     private void closeTask(UUID runId, String reason) {
         cancelledRuns.add(runId);
         Process process = processes.remove(runId);
@@ -993,7 +992,6 @@ public final class WorkspaceTaskServiceImpl extends WorkspaceTaskService
         }
     }
 
-    @SuppressWarnings("null")
     private static void stopProcessTree(Process process) {
         List<ProcessHandle> descendants = process.descendants().toList();
         for (ProcessHandle descendant : descendants) {
@@ -1011,7 +1009,6 @@ public final class WorkspaceTaskServiceImpl extends WorkspaceTaskService
         if (process.isAlive()) process.destroyForcibly();
     }
 
-    @SuppressWarnings("null")
     private void executeTask(
             WorkspaceId workspaceId,
             UUID runId,
@@ -1872,62 +1869,77 @@ public final class WorkspaceTaskServiceImpl extends WorkspaceTaskService
             return updatedAt;
         }
 
+        @JsonProperty("workspaceId")
         public UUID getWorkspaceId() {
             return workspaceId;
         }
 
+        @JsonProperty("templateName")
         public String getTemplateName() {
             return templateName;
         }
 
+        @JsonProperty("setupStatus")
         public String getSetupStatus() {
             return setupStatus;
         }
 
+        @JsonProperty("setupOutput")
         public String getSetupOutput() {
             return setupOutput;
         }
 
+        @JsonProperty("setupError")
         public String getSetupError() {
             return setupError;
         }
 
+        @JsonProperty("setupCorrelationId")
         public UUID getSetupCorrelationId() {
             return setupCorrelationId;
         }
 
+        @JsonProperty("taskRunId")
         public UUID getTaskRunId() {
             return taskRunId;
         }
 
+        @JsonProperty("taskId")
         public String getTaskId() {
             return taskId;
         }
 
+        @JsonProperty("taskLabel")
         public String getTaskLabel() {
             return taskLabel;
         }
 
+        @JsonProperty("taskStatus")
         public String getTaskStatus() {
             return taskStatus;
         }
 
+        @JsonProperty("taskOutput")
         public String getTaskOutput() {
             return taskOutput;
         }
 
+        @JsonProperty("taskExitCode")
         public Integer getTaskExitCode() {
             return taskExitCode;
         }
 
+        @JsonProperty("taskStartedAt")
         public Instant getTaskStartedAt() {
             return taskStartedAt;
         }
 
+        @JsonProperty("taskFinishedAt")
         public Instant getTaskFinishedAt() {
             return taskFinishedAt;
         }
 
+        @JsonProperty("updatedAt")
         public Instant getUpdatedAt() {
             return updatedAt;
         }

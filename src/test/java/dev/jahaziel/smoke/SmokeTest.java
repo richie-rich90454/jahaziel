@@ -468,8 +468,8 @@ class SmokeTest {
         }
 
         String read() throws InterruptedException {
-            thread.join(10_000);
-            return collector.text();
+            thread().join(10_000);
+            return collector().text();
         }
 
         @Override

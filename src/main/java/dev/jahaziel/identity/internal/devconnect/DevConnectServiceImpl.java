@@ -297,7 +297,7 @@ public class DevConnectServiceImpl extends DevConnectService {
         Instant now = clock.instant();
         TimedIdentity cached = pluginIdentities.get(sessionId);
         if (cached != null) {
-            if (!cached.expiresAt().isAfter(now)) {
+            if (cached.expired(now)) {
                 pluginIdentities.remove(sessionId);
                 return null;
             }
@@ -638,20 +638,20 @@ public class DevConnectServiceImpl extends DevConnectService {
     private static final class TimedIdentity {
         private final AuthIdentity identity;
         private final Instant issuedAt;
-        private final Instant expiresAt;
+        private final Duration lifetime;
 
         private TimedIdentity(AuthIdentity identity, Instant issuedAt, Duration lifetime) {
             this.identity = identity;
             this.issuedAt = issuedAt;
-            this.expiresAt = issuedAt.plus(lifetime);
+            this.lifetime = lifetime;
         }
 
         private AuthIdentity identity() {
             return identity;
         }
 
-        private Instant expiresAt() {
-            return expiresAt;
+        private boolean expired(Instant now) {
+            return !issuedAt.plus(lifetime).isAfter(now);
         }
     }
 }

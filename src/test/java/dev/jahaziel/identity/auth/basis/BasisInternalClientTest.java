@@ -26,7 +26,7 @@ final class BasisInternalClientTest {
     void setUp() throws Exception {
         stub = BasisInternalStub.start();
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-        client = new BasisInternalClient(stub.url(), AUDIENCE, SECRET, new BasisHttp(http), http);
+        client = new BasisInternalClient(stub.url(), AUDIENCE, SECRET, http);
     }
 
     @AfterEach
@@ -69,8 +69,7 @@ final class BasisInternalClientTest {
     @Test
     void missingConfigurationFailsClosed() {
         HttpClient http = HttpClient.newHttpClient();
-        BasisInternalClient missing =
-                new BasisInternalClient(null, AUDIENCE, null, new BasisHttp(http), http);
+        BasisInternalClient missing = new BasisInternalClient(null, AUDIENCE, null, http);
         assertThrows(BasisException.class, new MissingVerify(missing));
     }
 

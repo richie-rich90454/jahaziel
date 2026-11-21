@@ -147,4 +147,11 @@ class AuditFinalTest {
     void runUsesPostgresDialect() throws Exception {
         fixture(dialect("org.hibernate.dialect.PostgreSQLDialect"), null).job().run(null);
     }
+
+    @Test
+    void fixtureExposesItsEntityManager() throws Exception {
+        Connection connection = connection("jdbc:postgresql://db:5432/j");
+        Fixture result = fixture(new HashMap<>(), connection);
+        assertEquals(connection, result.entities().unwrap(Connection.class));
+    }
 }

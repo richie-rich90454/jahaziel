@@ -358,7 +358,6 @@ public final class WorkspaceGitServiceImpl extends WorkspaceGitService {
         }
     }
 
-    @SuppressWarnings("null")
     private static void terminateProcessTree(Process process) {
         List<ProcessHandle> descendants = process.descendants().toList();
         for (ProcessHandle descendant : descendants) {

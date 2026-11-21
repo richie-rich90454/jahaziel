@@ -177,6 +177,13 @@ final class MockBasisAuth implements AutoCloseable {
             json(exchange, 400, "{\"error\":\"invalid_grant\",\"error_description\":\"pkce\"}");
             return;
         }
+        if (!pending.redirectUri().equals(form.get("redirect_uri"))) {
+            json(
+                    exchange,
+                    400,
+                    "{\"error\":\"invalid_grant\",\"error_description\":\"redirect_uri\"}");
+            return;
+        }
         String accessToken = UUID.randomUUID().toString();
         accessTokens.put(accessToken, pending.identity());
         json(

@@ -44,7 +44,7 @@ public class BasisResourceFilterConfig {
         Object stored = context.service(BasisAuthPlugin.SERVICE_STORE);
         BasisStore store =
                 stored instanceof BasisStore ? (BasisStore) stored : new BasisStore(config);
-        BasisInternalClient subjects = new BasisInternalClient(config, http, client);
+        BasisInternalClient subjects = new BasisInternalClient(config, client);
         TokenVerifier verifier = new TokenVerifier(config, metadata, store, subjects);
         BasisResourceFilter filter =
                 new BasisResourceFilter(

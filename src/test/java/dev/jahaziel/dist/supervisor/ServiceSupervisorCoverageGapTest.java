@@ -120,7 +120,6 @@ class ServiceSupervisorCoverageGapTest {
     }
 
     @Test
-    @SuppressWarnings("null")
     void orderedCycleSelfAndDiamond(@TempDir Path dir) throws IOException {
         ServiceUnit a =
                 ServiceUnit.parse(

@@ -161,7 +161,6 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
         }
     }
 
-    @SuppressWarnings("null")
     public void closeAll() {
         List<ProcessSession> closing;
         synchronized (sessions) {
@@ -539,7 +538,6 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
         }
 
         @Override
-        @SuppressWarnings("null")
         public void close() {
             if (closed) {
                 return;

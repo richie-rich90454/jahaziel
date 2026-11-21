@@ -46,7 +46,6 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
     }
 
     @Override
-    @SuppressWarnings("null")
     public void run(ApplicationArguments arguments) {
         Map<UUID, WorkspaceEntity> byId = new HashMap<>();
         for (WorkspaceEntity workspace : workspaces.findAll()) {
@@ -154,7 +153,6 @@ public final class WorkspaceHomeMigration implements ApplicationRunner {
         }
     }
 
-    @SuppressWarnings("null")
     private static void mergeLegacyTree(Path source, Path destination) throws IOException {
         Path normalizedDestination = destination.toAbsolutePath().normalize();
         try (Stream<Path> paths = Files.walk(source)) {

@@ -86,7 +86,7 @@ abstract class E2eBase {
     static void e2eProperties(DynamicPropertyRegistry registry) {
         registry.add(
                 "jahaziel.dist.enabled",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "true";
@@ -94,7 +94,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.dist.gateway-enabled",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "true";
@@ -102,7 +102,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.dist.gateway-port",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return String.valueOf(GATEWAY_PORT);
@@ -110,7 +110,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.dist.domain",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return DOMAIN;
@@ -118,7 +118,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.datasource.url",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "jdbc:sqlite:"
@@ -128,7 +128,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.datasource.driver-class-name",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "org.sqlite.JDBC";
@@ -136,7 +136,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.jpa.properties.hibernate.dialect",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "org.hibernate.community.dialect.SQLiteDialect";
@@ -144,7 +144,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.jpa.hibernate.ddl-auto",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "update";
@@ -152,7 +152,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.flyway.enabled",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "false";
@@ -162,7 +162,7 @@ abstract class E2eBase {
         // minute; keep production rate limiting enabled but raise the test ceiling.
         registry.add(
                 "jahaziel.ops.rate-limit-per-minute",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "100000";
@@ -170,7 +170,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.datasource.hikari.maximum-pool-size",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "1";
@@ -178,7 +178,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.datasource.hikari.minimum-idle",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "1";
@@ -186,7 +186,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.autoconfigure.exclude",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration,"
@@ -195,7 +195,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "DB_USER",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "";
@@ -203,7 +203,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "DB_PASSWORD",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "";
@@ -211,7 +211,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.storage.root",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX;
@@ -219,7 +219,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.data-dir",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX;
@@ -227,7 +227,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.templates.dir",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/templates";
@@ -235,7 +235,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.plugins.dir",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/plugins";
@@ -243,7 +243,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.ide.dir",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/ide";
@@ -251,7 +251,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.domain",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return DOMAIN;
@@ -259,7 +259,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.jwt.private-key-file",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/keys/jwt.key";
@@ -267,7 +267,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.jwt.public-key-file",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/keys/jwt.pub";
@@ -275,7 +275,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "jahaziel.jwt.issuer",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "https://" + DOMAIN;
@@ -283,7 +283,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "logging.file.name",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return ROOT_POSIX + "/logs/control-plane.log";
@@ -291,7 +291,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "server.shutdown",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "graceful";
@@ -299,7 +299,7 @@ abstract class E2eBase {
                 });
         registry.add(
                 "spring.lifecycle.timeout-per-shutdown-phase",
-                new java.util.function.Supplier() {
+                new java.util.function.Supplier<Object>() {
                     @Override
                     public Object get() {
                         return "20s";

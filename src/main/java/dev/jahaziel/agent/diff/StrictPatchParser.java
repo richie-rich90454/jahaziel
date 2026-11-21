@@ -161,13 +161,13 @@ public final class StrictPatchParser {
             if (!oldPath.startsWith("a/")) {
                 throw new AgentException("old patch path must use the a/ prefix");
             }
-            relative = store.requireRelativePath(oldPath.substring(2));
+            relative = AgentStore.requireRelativePath(oldPath.substring(2));
         }
         if (!newNull) {
             if (!newPath.startsWith("b/")) {
                 throw new AgentException("new patch path must use the b/ prefix");
             }
-            String candidate = store.requireRelativePath(newPath.substring(2));
+            String candidate = AgentStore.requireRelativePath(newPath.substring(2));
             if (relative == null) {
                 relative = candidate;
             } else if (!relative.equals(candidate)) {

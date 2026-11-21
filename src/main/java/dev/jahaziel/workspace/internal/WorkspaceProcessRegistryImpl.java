@@ -118,7 +118,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
     }
 
     @Override
-    @SuppressWarnings("null")
     public List<TrackedProcess> trackedProcessTree(WorkspaceId workspaceId, Set<Kind> kinds) {
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(kinds, "kinds");
@@ -465,7 +464,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
         }
     }
 
-    @SuppressWarnings("null")
     private static boolean terminate(ProcessHandle handle, long sessionId) {
         Map<Long, ProcessHandle> processes = new LinkedHashMap<>();
         java.util.Iterator<ProcessHandle> descendants = handle.descendants().iterator();
@@ -500,7 +498,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
         return true;
     }
 
-    @SuppressWarnings("null")
     private static void awaitExit(List<ProcessHandle> processes, Duration duration) {
         long deadline = System.nanoTime() + duration.toNanos();
         while (System.nanoTime() < deadline) {
@@ -539,7 +536,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
         return ProcessEnvironments.forOs(Platforms.detect(null).os()).processRoot();
     }
 
-    @SuppressWarnings("null")
     private static List<ProcessHandle> processesInSession(long sessionId) {
         Path proc = procRoot();
         if (proc == null || !Files.isDirectory(proc)) return List.of();
@@ -575,7 +571,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
         return result;
     }
 
-    @SuppressWarnings("null")
     private static boolean terminateSession(long sessionId) {
         if (!isLinux() || sessionId <= 0) return true;
         List<ProcessHandle> session = processesInSession(sessionId);
@@ -618,7 +613,6 @@ public final class WorkspaceProcessRegistryImpl extends WorkspaceProcessRegistry
     }
 
     @PreDestroy
-    @SuppressWarnings("null")
     public void closeAll() {
         for (LiveRegistration registration : live.values()) {
             registration.stop();

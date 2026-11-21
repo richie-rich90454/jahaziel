@@ -6,6 +6,7 @@ package dev.jahaziel.spi;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingSupplier;
@@ -23,6 +24,7 @@ class AuditSinkDiscoveryTest {
                             public Integer get() {
                                 int n = 0;
                                 for (AuditSink provider : ServiceLoader.load(AuditSink.class)) {
+                                    assertNotNull(provider);
                                     n++;
                                 }
                                 return n;

@@ -49,7 +49,7 @@ final class TokenVerifierResourceTest {
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         BasisHttp http = new BasisHttp(client);
         store = new BasisStore(config);
-        subjects = new BasisInternalClient(stub.url(), RESOURCE, RESOURCE_SECRET, http, client);
+        subjects = new BasisInternalClient(stub.url(), RESOURCE, RESOURCE_SECRET, client);
         verifier = new TokenVerifier(config, new BasisMetadata(config, http), store, subjects);
     }
 

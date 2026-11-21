@@ -1237,7 +1237,6 @@ public final class LanguagePackServiceImpl extends LanguagePackService {
         }
     }
 
-    @SuppressWarnings("null")
     private static void stopBuildProcess(Process process) {
         java.util.Iterator<ProcessHandle> descendants = process.descendants().iterator();
         while (descendants.hasNext()) {
@@ -1269,7 +1268,6 @@ public final class LanguagePackServiceImpl extends LanguagePackService {
         }
     }
 
-    @SuppressWarnings("null")
     private Set<String> readSelections(WorkspaceId workspaceId) {
         Path file = selectionFile(workspaceId);
         try {
@@ -1371,7 +1369,6 @@ public final class LanguagePackServiceImpl extends LanguagePackService {
         return selected;
     }
 
-    @SuppressWarnings("null")
     private Pack view(Definition definition, boolean installed, boolean selected) {
         String architecture = architecture();
         Asset asset = definition.assets().get(architecture);

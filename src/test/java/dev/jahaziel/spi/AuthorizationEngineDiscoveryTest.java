@@ -6,6 +6,7 @@ package dev.jahaziel.spi;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingSupplier;
@@ -24,6 +25,7 @@ class AuthorizationEngineDiscoveryTest {
                                 int n = 0;
                                 for (AuthorizationEngine provider :
                                         ServiceLoader.load(AuthorizationEngine.class)) {
+                                    assertNotNull(provider);
                                     n++;
                                 }
                                 return n;

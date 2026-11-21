@@ -92,7 +92,7 @@ class TerminalExtraCoverageTest {
                 (ConcurrentHashMap<TerminalSessionId, Object>) f.get(s);
         Class<?> stateClass =
                 Class.forName("dev.jahaziel.terminal.internal.TerminalServiceImpl$State");
-        java.lang.reflect.Constructor stateConstructor =
+        java.lang.reflect.Constructor<?> stateConstructor =
                 stateClass.getDeclaredConstructor(TerminalSession.class);
         stateConstructor.setAccessible(true);
         WorkspaceId w = new WorkspaceId(UUID.randomUUID());

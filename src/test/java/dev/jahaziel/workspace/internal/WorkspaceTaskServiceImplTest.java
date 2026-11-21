@@ -756,7 +756,6 @@ class WorkspaceTaskServiceImplTest {
         assertTrue(service.setupStatus(workspace).output().contains(expected));
     }
 
-    @SuppressWarnings("null")
     private static void awaitProcessExit(long pid) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (System.nanoTime() < deadline && isAlive(pid)) {

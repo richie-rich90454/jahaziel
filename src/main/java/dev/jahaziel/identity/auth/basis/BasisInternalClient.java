@@ -22,24 +22,18 @@ public final class BasisInternalClient {
     private final String internalUrl;
     private final String audience;
     private final String resourceSecret;
-    private final BasisHttp http;
     private final HttpClient client;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public BasisInternalClient(BasisConfig config, BasisHttp http, HttpClient client) {
-        this(config.internalUrl(), config.resource(), config.resourceSecret(), http, client);
+    public BasisInternalClient(BasisConfig config, HttpClient client) {
+        this(config.internalUrl(), config.resource(), config.resourceSecret(), client);
     }
 
     public BasisInternalClient(
-            String internalUrl,
-            String audience,
-            String resourceSecret,
-            BasisHttp http,
-            HttpClient client) {
+            String internalUrl, String audience, String resourceSecret, HttpClient client) {
         this.internalUrl = internalUrl;
         this.audience = audience;
         this.resourceSecret = resourceSecret;
-        this.http = http;
         this.client = client;
     }
 
@@ -54,14 +48,14 @@ public final class BasisInternalClient {
                 || resourceSecret.length() == 0) {
             throw new BasisException("basis-auth internal API is not configured");
         }
-        String url = internalUrl + "/internal/users/" + http.encode(subject);
+        String url = internalUrl + "/internal/users/" + BasisHttp.encode(subject);
         String body;
         try {
             HttpRequest request =
                     HttpRequest.newBuilder(URI.create(url))
                             .timeout(TIMEOUT)
                             .header("Authorization", "Bearer " + resourceSecret)
-                            .header("X-Basis-Resource", http.encode(audience))
+                            .header("X-Basis-Resource", BasisHttp.encode(audience))
                             .GET()
                             .build();
             HttpResponse<String> response =

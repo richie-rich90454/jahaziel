@@ -98,6 +98,9 @@ class LanguagePackServiceImplTest {
             }
         }
 
+        if (x64 == null) {
+            throw new AssertionError("go pack missing from catalog");
+        }
         assertEquals("gopls-v0.24.0-go1.27.3", x64.version());
         assertEquals(67_000_000, x64.downloadBytes());
         assertEquals(List.of("aarch64", "x86_64"), x64.supportedArchitectures());
@@ -114,6 +117,9 @@ class LanguagePackServiceImplTest {
                 arm64 = pack;
                 break;
             }
+        }
+        if (arm64 == null) {
+            throw new AssertionError("go pack missing from catalog after arch switch");
         }
         assertEquals(64_000_000, arm64.downloadBytes());
         assertEquals(

@@ -214,8 +214,11 @@
         <targetPath>static</targetPath>
       </resource>
     </resources>
-    <!-- m2e lifecycle mapping: the antrun executions below are intentional build steps and
-      must not be reported as uncovered by the IDE. -->
+    <!-- m2e lifecycle mapping. Both antrun:run executions are CLI-only cleanup/setup:
+      they delete target/classes and target/test-classes output (including IDE-managed
+      static/compiled files) and create surefire's sqlite-native dir. Running them under
+      m2e would delete the IDE's own output, so ignoring them in the IDE is the only safe
+      option; Maven CLI behavior is unchanged. -->
     <pluginManagement>
       <plugins>
         <plugin>

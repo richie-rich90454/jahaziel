@@ -99,11 +99,11 @@ final class TemplateSeeds {
             writeMarkers(templatesDir, name, bundledVersion, sha256(Files.readAllBytes(target)));
             return;
         }
-        if (!isNewer(bundledVersion, stored.version)) {
+        if (!isNewer(bundledVersion, stored.version())) {
             return;
         }
         String currentHash = sha256(Files.readAllBytes(target));
-        if (!currentHash.equals(stored.hash)) {
+        if (!currentHash.equals(stored.hash())) {
             log.warn(
                     "template {} has local changes; skipping upgrade to bundled version {}",
                     name,
