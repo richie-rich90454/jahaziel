@@ -65,7 +65,6 @@ export async function renderWorkspaces(): Promise<void> {
     const { body: workspaces } = await api<Workspace[]>("/api/v1/me/workspaces");
     setState("workspaces", workspaces);
     byId("empty-workspaces").hidden = workspaces.length !== 0;
-    byId("workspace-count").textContent = String(workspaces.length).padStart(2, "0");
 }
 
 export async function createWorkspace(event: SubmitEvent): Promise<void> {

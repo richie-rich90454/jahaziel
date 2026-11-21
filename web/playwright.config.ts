@@ -39,7 +39,9 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // Eight workers race the shared in-memory stub under CI-like load; four is stable.
+  workers: 4,
+  retries: 0,
   reporter: [["list"]],
   outputDir: path.join(os.tmpdir(), "jahaziel-e2e-results"),
   globalTeardown: "./tests/e2e/global-teardown.cjs",

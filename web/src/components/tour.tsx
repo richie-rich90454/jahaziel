@@ -19,7 +19,7 @@ export function tourMarkup(): string {
         <p id="tour-body"></p>
         <div class="tour-actions">
           <button id="tour-skip" class="button button-quiet" type="button"></button>
-          <button id="tour-next" class="button btn btn-primary" type="button"></button>
+          <button id="tour-next" class="button button-primary" type="button"></button>
         </div>
       </div>
     </div>

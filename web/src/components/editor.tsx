@@ -13,7 +13,8 @@ import {
     useServerVersion,
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, byId, effect, on } from "../lib/dom";
-import { t } from "../lib/i18n";
+import { subscribeLocale, t } from "../lib/i18n";
+import { icon } from "../lib/icons";
 import { state, toast } from "../lib/store";
 
 export function editorMarkup(): string {
@@ -23,17 +24,17 @@ export function editorMarkup(): string {
       <div class="editor-controls">
         <span id="save-state" class="save-state"></span>
         <button id="markdown-toggle" class="button button-quiet" type="button" hidden>${t("markdown.split")}</button>
-        <button id="save-file" class="button btn button-save" type="button" disabled>${t("common.save")} <kbd>Ctrl S</kbd></button>
+        <button id="save-file" class="button button-save" type="button" disabled><span data-i18n="common.save">${t("common.save")}</span> <kbd>Ctrl S</kbd></button>
       </div>
     </div>
-    <div class="editor-location"><span class="location-root">workspace</span><span>/</span><span id="active-file">No file selected</span></div>
+    <div class="editor-location"><span class="location-root">workspace</span><span>/</span><span id="active-file"></span></div>
     <div id="save-conflict-actions" class="save-conflict-actions" hidden>
-      <span>The server file changed after you opened it.</span>
-      <button id="use-server-version" type="button">Use server version</button>
-      <button id="keep-local-version" type="button">Keep my edits</button>
+      <span data-i18n="editor.conflict">${t("editor.conflict")}</span>
+      <button id="use-server-version" type="button"><span data-i18n="editor.useServer">${t("editor.useServer")}</span></button>
+      <button id="keep-local-version" type="button"><span data-i18n="editor.keepLocal">${t("editor.keepLocal")}</span></button>
     </div>
     <div class="editor-surface-wrap">
-      <div id="editor-empty" class="editor-empty"><div class="empty-mark">⌘</div><p>Choose a file to begin.</p><span>Changes save directly to your Linux workspace.</span></div>
+      <div id="editor-empty" class="editor-empty"><div class="empty-mark">${icon("files")}</div><p data-i18n="editor.emptyTitle">${t("editor.emptyTitle")}</p><span data-i18n="editor.emptyCopy">${t("editor.emptyCopy")}</span></div>
       <div id="editor-surface" class="editor-surface"></div>
       <aside id="markdown-preview" class="markdown-preview" aria-label="${t("markdown.preview")}" hidden>
         <div class="markdown-preview-heading">${t("markdown.preview")}</div>
@@ -46,10 +47,9 @@ export function editorMarkup(): string {
 export function bindEditor(): void {
     bindMarkdownPreview();
     const tabs = byId("editor-tabs");
-    effect(() => {
-        const openDocuments = state.tabs;
+    const renderTabs = (): void => {
         tabs.replaceChildren(
-            ...openDocuments.map((tab) => {
+            ...state.tabs.map((tab) => {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.className = `editor-tab${tab.path === state.activePath ? " active" : ""}`;
@@ -61,15 +61,15 @@ export function bindEditor(): void {
                 if (tab.dirty) {
                     const dirty = document.createElement("span");
                     dirty.className = "tab-dirty";
-                    dirty.setAttribute("aria-label", "Unsaved changes");
+                    dirty.setAttribute("aria-label", t("editor.unsaved"));
                     button.append(dirty);
                 }
                 on(button, "click", () => activateDocument(tab.path));
                 const close = document.createElement("span");
                 close.className = "tab-close";
-                close.textContent = "×";
+                close.innerHTML = icon("close");
                 close.setAttribute("role", "button");
-                close.setAttribute("aria-label", `Close ${tab.path}`);
+                close.setAttribute("aria-label", t("editor.closeTab", { path: tab.path }));
                 on(close, "click", (event) => {
                     event.stopPropagation();
                     closeTab(tab.path);
@@ -78,7 +78,9 @@ export function bindEditor(): void {
                 return button;
             }),
         );
-    });
+    };
+    effect(renderTabs);
+    subscribeLocale(renderTabs);
 
     const saveState = byId("save-state");
     effect(() => {

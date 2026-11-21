@@ -42,7 +42,7 @@ function panel(name: string, title: string, body: string): string {
       <div class="service-head">
         <h2>${title}</h2>
         <span id="tools-${name}-state" class="service-status" role="status"></span>
-        <button id="tools-${name}-refresh" class="button btn svc-button" type="button">Refresh</button>
+        <button id="tools-${name}-refresh" class="button svc-button" type="button">Refresh</button>
       </div>
       ${unavailable}
       <p id="tools-${name}-result" class="service-result" role="status"></p>
@@ -56,15 +56,15 @@ export function workspaceToolsMarkup(): string {
             "history",
             "Workspace history",
             `<div class="svc-row">
-               <button id="history-undo" class="button btn svc-button" type="button" disabled>Undo</button>
-               <button id="history-redo" class="button btn svc-button" type="button" disabled>Redo</button>
+               <button id="history-undo" class="button svc-button" type="button" disabled>Undo</button>
+               <button id="history-redo" class="button svc-button" type="button" disabled>Redo</button>
              </div>
              <ul id="history-list" class="svc-list"></ul>`,
         ),
         panel(
             "trash",
             "Trash",
-            `<div class="svc-row"><button id="trash-empty" class="button btn svc-button" type="button">Empty trash</button></div>
+            `<div class="svc-row"><button id="trash-empty" class="button svc-button" type="button">Empty trash</button></div>
              <ul id="trash-list" class="svc-list"></ul>`,
         ),
         panel(
@@ -72,7 +72,7 @@ export function workspaceToolsMarkup(): string {
             "Workspace diff",
             `<div class="svc-row">
                <label class="svc-field"><span>Snapshot</span><select id="diff-snapshot"></select></label>
-               <button id="diff-restore-tree" class="button btn svc-button" type="button">Restore whole tree</button>
+               <button id="diff-restore-tree" class="button svc-button" type="button">Restore whole tree</button>
              </div>
              <ul id="diff-rows" class="svc-list"></ul>`,
         ),
@@ -81,7 +81,7 @@ export function workspaceToolsMarkup(): string {
             "Clone workspace",
             `<div class="svc-row"><label class="svc-field"><span>Name</span><input id="clone-name" type="text" maxlength="64" /></label></div>
              <div class="svc-row"><label class="svc-field svc-field-wide"><span>Files to include (optional, comma separated)</span><input id="clone-paths" type="text" maxlength="2048" /></label></div>
-             <button id="clone-submit" class="button btn btn-primary svc-button" type="button">Clone</button>`,
+             <button id="clone-submit" class="button button-primary svc-button" type="button">Clone</button>`,
         ),
         panel(
             "config",
@@ -89,8 +89,8 @@ export function workspaceToolsMarkup(): string {
             `<label class="svc-field svc-field-wide"><span>Configuration (JSON)</span><textarea id="config-editor" rows="16" spellcheck="false"></textarea></label>
              <p id="config-error" class="svc-meta" role="alert"></p>
              <div class="svc-row">
-               <button id="config-validate" class="button btn svc-button" type="button">Validate</button>
-               <button id="config-save" class="button btn btn-primary svc-button" type="button">Save</button>
+               <button id="config-validate" class="button svc-button" type="button">Validate</button>
+               <button id="config-save" class="button button-primary svc-button" type="button">Save</button>
              </div>
              <p id="config-restart" class="svc-meta" hidden>Restart required for changes to take effect.</p>
              <pre id="config-diff" class="svc-output"></pre>`,
@@ -108,7 +108,7 @@ export function watchBannerMarkup(): string {
     return `
     <div id="watch-banner" class="watch-banner" role="status" hidden>
       <span id="watch-message">External change detected.</span>
-      <button id="watch-reload" class="button btn" type="button">Reload from server</button>
+      <button id="watch-reload" class="button" type="button">Reload from server</button>
       <button id="watch-keep" class="button button-quiet" type="button">Keep my edits</button>
     </div>`;
 }

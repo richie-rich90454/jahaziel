@@ -14,6 +14,7 @@ import {
 } from "./lib/controller";
 import { byId, effect, on } from "./lib/dom";
 import { getLocale, LOCALE_LABELS, LOCALES, setLocale, subscribeLocale, t } from "./lib/i18n";
+import { icon } from "./lib/icons";
 import { getTheme, setTheme, subscribeTheme, THEMES, THEME_LABELS } from "./lib/theme";
 import { state, toast } from "./lib/store";
 import { editorMarkup, bindEditor } from "./components/editor";
@@ -52,7 +53,7 @@ export function App(): HTMLElement {
       <div id="user-badge" class="user-badge" hidden>
         <span class="user-presence"></span><span id="user-name"></span><span id="user-email" class="user-email"></span>
       </div>
-      <a id="login-link" class="login-link" href="/api/login" hidden>${t("bar.signIn")} <span aria-hidden="true">↗</span></a>
+      <a id="login-link" class="login-link" href="/api/login" hidden><span data-i18n="bar.signIn">${t("bar.signIn")}</span> ${icon("external")}</a>
     </header>
 
     ${homeMarkup()}
@@ -60,26 +61,14 @@ export function App(): HTMLElement {
     <main id="workbench-page" class="page page-workbench" hidden>
       <div class="toasts" id="workbench-toasts" aria-live="polite"></div>
       <div class="workbench-bar">
-        <button id="back-home" class="icon-button back-button" type="button" aria-label="${t("bar.back")}">←</button>
-        <div class="breadcrumb"><span>${t("bar.workspaces")}</span><b>/</b><strong id="workbench-title">Workspace</strong></div>
+        <button id="back-home" class="icon-button back-button" type="button" data-i18n-aria="bar.back" aria-label="${t("bar.back")}">${icon("back")}</button>
+        <div class="breadcrumb"><span>${t("bar.workspaces")}</span><b>/</b><strong id="workbench-title"></strong></div>
         <span id="workbench-state" class="status status-requested">requested</span>
-        <button id="bar-history-undo" class="icon-button history-control" type="button" title="Undo workspace change" aria-label="Undo workspace change" disabled>↶</button>
-        <button id="bar-history-redo" class="icon-button history-control" type="button" title="Redo workspace change" aria-label="Redo workspace change" disabled>↷</button>
+        <button id="bar-history-undo" class="icon-button history-control" type="button" data-i18n-title="bar.undo" data-i18n-aria="bar.undo" title="${t("bar.undo")}" aria-label="${t("bar.undo")}" disabled>${icon("undo")}</button>
+        <button id="bar-history-redo" class="icon-button history-control" type="button" data-i18n-title="bar.redo" data-i18n-aria="bar.redo" title="${t("bar.redo")}" aria-label="${t("bar.redo")}" disabled>${icon("redo")}</button>
         <div class="bar-spacer"></div>
         <div id="preview-links" class="preview-links"></div>
-        <label class="tools-control" for="tools-select">
-          <span class="sr-only">${t("bar.tools")}</span>
-          <select id="tools-select" aria-label="${t("bar.tools")}">
-            <option value="files">${t("nav.files")}</option>
-            <option value="history">${t("panel.history")}</option>
-            <option value="trash">${t("panel.trash")}</option>
-            <option value="diff">${t("panel.diff")}</option>
-            <option value="clone">${t("panel.clone")}</option>
-            <option value="config">${t("panel.config")}</option>
-            <option value="flags">${t("panel.flags")}</option>
-          </select>
-        </label>
-        <button id="bar-clone" class="button btn bar-clone" type="button" title="Clone this workspace">Clone</button>
+        <button id="bar-clone" class="button bar-clone" type="button" data-i18n-title="bar.cloneTitle" title="${t("bar.cloneTitle")}"><span data-i18n="bar.clone">${t("bar.clone")}</span></button>
         <label class="theme-control" for="theme-select">
           <span class="sr-only">${t("bar.theme")}</span>
           <select id="theme-select" aria-label="${t("bar.theme")}">
@@ -88,30 +77,33 @@ export function App(): HTMLElement {
             ).join("")}
           </select>
         </label>
-        <button id="refresh-preview-ports" class="button btn preview-refresh" type="button" title="${t("bar.checkPorts")}">${t("bar.checkPorts")}</button>
-        <button id="runtime-toggle" class="button btn" type="button">${t("bar.startWorkspace")}</button>
+        <button id="refresh-preview-ports" class="button preview-refresh" type="button" data-i18n-title="bar.checkPorts" title="${t("bar.checkPorts")}">${t("bar.checkPorts")}</button>
+        <button id="runtime-toggle" class="button" type="button">${t("bar.startWorkspace")}</button>
       </div>
       ${watchBannerMarkup()}
-      <nav class="workbench-panel-nav" aria-label="Workspace panels">
-        <button type="button" data-panel="files" aria-pressed="true">${t("nav.files")}</button>
-        <button type="button" data-panel="editor" aria-pressed="false">${t("nav.editor")}</button>
-        <button type="button" data-panel="run" aria-pressed="false">${t("nav.run")}</button>
-        <button type="button" data-panel="languages" aria-pressed="false">${t("nav.languages")}</button>
-        <button type="button" data-panel="debug" aria-pressed="false">${t("nav.debug")}</button>
-        <button type="button" data-panel="git" aria-pressed="false">${t("nav.git")}</button>
-        <button type="button" data-panel="terminal" aria-pressed="false">${t("nav.terminal")}</button>
-        <button type="button" data-panel="preview" aria-pressed="false">${t("nav.preview")}</button>
-        <button type="button" data-panel="collaboration" aria-pressed="false">${t("panel.collaboration")}</button>
-        <button type="button" data-panel="agent" aria-pressed="false">${t("panel.agent")}</button>
-        <button type="button" data-panel="data" aria-pressed="false">${t("panel.data")}</button>
-        <button type="button" data-panel="club" aria-pressed="false">${t("panel.club")}</button>
-        <button type="button" data-panel="ops" aria-pressed="false">${t("panel.ops")}</button>
-        <button type="button" data-panel="history" aria-pressed="false">${t("panel.history")}</button>
-        <button type="button" data-panel="trash" aria-pressed="false">${t("panel.trash")}</button>
-        <button type="button" data-panel="diff" aria-pressed="false">${t("panel.diff")}</button>
-        <button type="button" data-panel="clone" aria-pressed="false">${t("panel.clone")}</button>
-        <button type="button" data-panel="config" aria-pressed="false">${t("panel.config")}</button>
-        <button type="button" data-panel="flags" aria-pressed="false">${t("panel.flags")}</button>
+      <nav class="workbench-panel-nav" aria-label="${t("nav.panels")}" data-i18n-aria="nav.panels">
+        <button type="button" data-panel="files" aria-pressed="true"><span data-i18n="nav.files">${t("nav.files")}</span></button>
+        <button type="button" data-panel="editor" aria-pressed="false"><span data-i18n="nav.editor">${t("nav.editor")}</span></button>
+        <button type="button" data-panel="run" aria-pressed="false"><span data-i18n="nav.run">${t("nav.run")}</span></button>
+        <button type="button" data-panel="languages" aria-pressed="false"><span data-i18n="nav.languages">${t("nav.languages")}</span></button>
+        <button type="button" data-panel="debug" aria-pressed="false"><span data-i18n="nav.debug">${t("nav.debug")}</span></button>
+        <button type="button" data-panel="git" aria-pressed="false"><span data-i18n="nav.git">${t("nav.git")}</span></button>
+        <button type="button" data-panel="terminal" aria-pressed="false"><span data-i18n="nav.terminal">${t("nav.terminal")}</span></button>
+        <button type="button" data-panel="preview" aria-pressed="false"><span data-i18n="nav.preview">${t("nav.preview")}</span></button>
+        <button type="button" class="panel-more-toggle" id="panel-more" aria-expanded="false" aria-controls="panel-more-group"><span data-i18n="nav.more">${t("nav.more")}</span></button>
+        <div id="panel-more-group" class="panel-more-group" hidden>
+          <button type="button" data-panel="collaboration" aria-pressed="false"><span data-i18n="panel.collaboration">${t("panel.collaboration")}</span></button>
+          <button type="button" data-panel="agent" aria-pressed="false"><span data-i18n="panel.agent">${t("panel.agent")}</span></button>
+          <button type="button" data-panel="data" aria-pressed="false"><span data-i18n="panel.data">${t("panel.data")}</span></button>
+          <button type="button" data-panel="club" aria-pressed="false"><span data-i18n="panel.club">${t("panel.club")}</span></button>
+          <button type="button" data-panel="ops" aria-pressed="false"><span data-i18n="panel.ops">${t("panel.ops")}</span></button>
+          <button type="button" data-panel="history" aria-pressed="false"><span data-i18n="panel.history">${t("panel.history")}</span></button>
+          <button type="button" data-panel="trash" aria-pressed="false"><span data-i18n="panel.trash">${t("panel.trash")}</span></button>
+          <button type="button" data-panel="diff" aria-pressed="false"><span data-i18n="panel.diff">${t("panel.diff")}</span></button>
+          <button type="button" data-panel="clone" aria-pressed="false"><span data-i18n="panel.clone">${t("panel.clone")}</span></button>
+          <button type="button" data-panel="config" aria-pressed="false"><span data-i18n="panel.config">${t("panel.config")}</span></button>
+          <button type="button" data-panel="flags" aria-pressed="false"><span data-i18n="panel.flags">${t("panel.flags")}</span></button>
+        </div>
       </nav>
       <div class="workbench-layout">
         ${sidebarMarkup()}
@@ -121,7 +113,7 @@ export function App(): HTMLElement {
           ${previewMarkup()}
           ${servicePanelsMarkup()}
           ${workspaceToolsMarkup()}
-          <footer class="statusbar"><span>Jahaziel</span><span id="status-language">Plain text</span><span>UTF-8</span><span>Linux</span></footer>
+          <footer class="statusbar"><span>Jahaziel</span><span id="status-language"></span></footer>
         </section>
       </div>
     </main>
@@ -144,33 +136,6 @@ function bindAppearanceControls(): void {
     });
     subscribeLocale(() => {
         localeSelect.value = getLocale();
-        const labels: Record<string, string> = {
-            files: "nav.files",
-            editor: "nav.editor",
-            run: "nav.run",
-            languages: "nav.languages",
-            debug: "nav.debug",
-            git: "nav.git",
-            terminal: "nav.terminal",
-            preview: "nav.preview",
-            collaboration: "panel.collaboration",
-            agent: "panel.agent",
-            data: "panel.data",
-            club: "panel.club",
-            ops: "panel.ops",
-            history: "panel.history",
-            trash: "panel.trash",
-            diff: "panel.diff",
-            clone: "panel.clone",
-            config: "panel.config",
-            flags: "panel.flags",
-        };
-        for (const button of Array.from(
-            document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"),
-        )) {
-            const key = labels[button.dataset.panel ?? ""];
-            if (key) button.textContent = t(key);
-        }
         byId("back-home").setAttribute("aria-label", t("bar.back"));
         const localeLabel = t("bar.language");
         localeSelect.setAttribute("aria-label", localeLabel);
@@ -197,6 +162,32 @@ export function bindApp(): void {
     )) {
         on(button, "click", () => setPanel(button.dataset.panel as typeof state.activePanel));
     }
+    const moreToggle = byId<HTMLButtonElement>("panel-more");
+    const moreGroup = byId("panel-more-group");
+    on(moreToggle, "click", () => {
+        const expanded = moreToggle.getAttribute("aria-expanded") === "true";
+        moreToggle.setAttribute("aria-expanded", String(!expanded));
+        moreGroup.hidden = expanded;
+    });
+    const advancedPanels = new Set([
+        "collaboration",
+        "agent",
+        "data",
+        "club",
+        "ops",
+        "history",
+        "trash",
+        "diff",
+        "clone",
+        "config",
+        "flags",
+    ]);
+    effect(() => {
+        if (advancedPanels.has(state.activePanel)) {
+            moreGroup.hidden = false;
+            moreToggle.setAttribute("aria-expanded", "true");
+        }
+    });
     on(byId("back-home"), "click", () => backToWorkspaces());
     on(byId("runtime-toggle"), "click", () => {
         void toggleWorkspace().catch((failure) => toast(errorText(failure), "error"));
@@ -216,16 +207,11 @@ export function bindApp(): void {
         byId<HTMLButtonElement>("bar-history-redo").disabled =
             !state.historyCanRedo || state.historyUnavailable;
         byId<HTMLButtonElement>("bar-history-undo").title = state.historyUnavailable
-            ? "Unavailable on this host"
-            : "Undo workspace change";
+            ? t("bar.unavailable")
+            : t("bar.undo");
         byId<HTMLButtonElement>("bar-history-redo").title = state.historyUnavailable
-            ? "Unavailable on this host"
-            : "Redo workspace change";
-    });
-    const toolsSelect = byId<HTMLSelectElement>("tools-select");
-    on(toolsSelect, "change", () => setPanel(toolsSelect.value as typeof state.activePanel));
-    effect(() => {
-        toolsSelect.value = state.activePanel;
+            ? t("bar.unavailable")
+            : t("bar.redo");
     });
     effect(() => {
         byId("workbench-title").textContent = state.workbenchTitle;

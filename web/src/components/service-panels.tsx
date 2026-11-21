@@ -67,7 +67,7 @@ function field(id: string, label: string, type = "text", value = ""): string {
 }
 
 function button(id: string, label: string): string {
-    return `<button id="${id}" class="button btn svc-button" type="button">${label}</button>`;
+    return `<button id="${id}" class="button svc-button" type="button">${label}</button>`;
 }
 
 function area(id: string, label: string, rows = 4): string {

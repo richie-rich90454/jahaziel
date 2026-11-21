@@ -5,7 +5,8 @@
 
 import { errorText } from "../lib/api";
 import { bindDisabled, byId, effect, html, on } from "../lib/dom";
-import { t } from "../lib/i18n";
+import { subscribeLocale, t } from "../lib/i18n";
+import { icon } from "../lib/icons";
 import { toast } from "../lib/store";
 import {
     createWorkspace,
@@ -40,7 +41,9 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
 
     const actions = card.querySelector<HTMLElement>(".workspace-actions")!;
     const open = html`
-        <button type="button" class="button btn btn-primary">${t("home.openWorkspace")}</button>
+        <button type="button" class="button button-primary">
+            <span data-i18n="home.openWorkspace">${t("home.openWorkspace")}</span>
+        </button>
     `;
     on(open, "click", () => {
         void openWorkspace(workspace);
@@ -48,7 +51,7 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
     actions.append(open);
     const clone = html`
         <button type="button" class="button button-quiet workspace-clone">
-            ${t("home.clone")}
+            <span data-i18n="home.clone">${t("home.clone")}</span>
         </button>
     `;
     on(clone, "click", () => {
@@ -57,7 +60,9 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
     actions.append(clone);
     if (["requested", "suspended", "failed"].includes(workspace.state)) {
         const start = html`
-            <button type="button" class="button button-quiet">${t("home.start")}</button>
+            <button type="button" class="button button-quiet">
+                <span data-i18n="home.start">${t("home.start")}</span>
+            </button>
         `;
         on(start, "click", () => {
             void startWorkspaceFromCard(workspace);
@@ -65,7 +70,9 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
         actions.append(start);
     } else if (["ready", "active", "idle"].includes(workspace.state)) {
         const stop = html`
-            <button type="button" class="button button-quiet">${t("common.stop")}</button>
+            <button type="button" class="button button-quiet">
+                <span data-i18n="common.stop">${t("common.stop")}</span>
+            </button>
         `;
         on(stop, "click", () => {
             void stopWorkspaceFromCard(workspace);
@@ -88,7 +95,7 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
                 <a target="_blank" rel="noreferrer"></a>
             ` as HTMLAnchorElement;
             link.href = port.url;
-            link.textContent = `Preview :${port.port} ↗`;
+            link.innerHTML = `${t("home.previewLink", { port: port.port })} ${icon("external")}`;
             previews.append(link);
         }
         card.append(previews);
@@ -101,62 +108,52 @@ export function homeMarkup(): string {
     <main id="home-page" class="page page-home">
       <div class="toasts" id="toasts" aria-live="polite"></div>
       <section class="home-intro">
-        <div>
-          <p class="eyebrow">${t("home.eyebrow")}</p>
-          <h1>${t("home.title")}<br /><em>${t("home.titleEm")}</em></h1>
-          <p class="intro-copy">${t("home.intro")}</p>
-        </div>
-        <div class="intro-stamp" aria-hidden="true"><span>Linux</span><b>↗</b><span>Remote</span><i></i><span>Ready</span></div>
+        <h1><span data-i18n="home.title">${t("home.title")}</span><br /><em data-i18n="home.titleEm">${t("home.titleEm")}</em></h1>
+        <p class="intro-copy" data-i18n="home.intro">${t("home.intro")}</p>
       </section>
       <section class="workspace-section" aria-labelledby="workspace-heading">
         <div class="section-heading">
-          <div>
-            <p class="eyebrow">${t("home.projectSpaces")}</p>
-            <h2 id="workspace-heading">${t("bar.workspaces")} <span id="workspace-count" class="count-mark">00</span></h2>
-          </div>
-          <div id="loading-state" class="loading-state">Connecting…</div>
+          <h2 id="workspace-heading" data-i18n="bar.workspaces">${t("bar.workspaces")}</h2>
+          <div id="loading-state" class="loading-state"></div>
         </div>
         <ul id="workspace-list" class="workspace-list"></ul>
         <div id="empty-workspaces" class="empty-state" hidden>
-          <div class="empty-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-          <h3>${t("home.emptyTitle")}</h3>
-          <p>${t("home.emptyCopy")}</p>
+          <h3 data-i18n="home.emptyTitle">${t("home.emptyTitle")}</h3>
+          <p data-i18n="home.emptyCopy">${t("home.emptyCopy")}</p>
         </div>
       </section>
       <section class="create-section" aria-labelledby="create-heading">
         <div class="create-copy">
-          <p class="eyebrow">${t("home.createCopy")}</p>
-          <h2 id="create-heading">${t("home.createTitle")}</h2>
-          <p id="template-note">Files are created in a private home directory for this workspace.</p>
+          <h2 id="create-heading" data-i18n="home.createTitle">${t("home.createTitle")}</h2>
+          <p id="template-note" data-i18n="home.note">${t("home.note")}</p>
         </div>
-        <div class="sample-projects" aria-label="${t("home.samples")}">
-          <span class="sample-label">${t("home.samples")}</span>
-          <span class="sample-hint">${t("home.samplesCopy")}</span>
+        <div class="sample-projects" aria-label="${t("home.samples")}" data-i18n-aria="home.samples">
+          <span class="sample-label" data-i18n="home.samples">${t("home.samples")}</span>
+          <span class="sample-hint" data-i18n="home.samplesCopy">${t("home.samplesCopy")}</span>
           <div class="sample-actions">
-            <button class="button button-quiet" type="button" data-sample="python">Python</button>
-            <button class="button button-quiet" type="button" data-sample="node">Node</button>
-            <button class="button button-quiet" type="button" data-sample="empty">Empty</button>
+            <button class="button button-quiet" type="button" data-sample="python"><span data-i18n="home.sample.python">${t("home.sample.python")}</span></button>
+            <button class="button button-quiet" type="button" data-sample="node"><span data-i18n="home.sample.node">${t("home.sample.node")}</span></button>
+            <button class="button button-quiet" type="button" data-sample="empty"><span data-i18n="home.sample.empty">${t("home.sample.empty")}</span></button>
           </div>
         </div>
         <form id="workspace-form" class="create-form">
-          <label class="field-label" for="workspace-name">${t("home.workspaceName")}</label>
+          <label class="field-label" for="workspace-name" data-i18n="home.workspaceName">${t("home.workspaceName")}</label>
           <input id="workspace-name" class="input input-bordered" name="name" required maxlength="64" placeholder="e.g. orchid-dashboard" autocomplete="off" />
-          <label class="field-label" for="template-select">${t("home.starter")}</label>
+          <label class="field-label" for="template-select" data-i18n="home.starter">${t("home.starter")}</label>
           <select id="template-select" class="select select-bordered" name="template"></select>
-          <button id="create-workspace" class="button btn btn-primary" type="submit">${t("home.createAction")} <span aria-hidden="true">↗</span></button>
+          <button id="create-workspace" class="button button-primary" type="submit"><span data-i18n="home.createAction">${t("home.createAction")}</span></button>
         </form>
       </section>
-      <footer class="home-footer"><span>Jahaziel, remote source IDE</span><span>Files stay on your server</span></footer>
+      <footer class="home-footer"><span data-i18n="home.footer">${t("home.footer")}</span><span data-i18n="home.footerCopy">${t("home.footerCopy")}</span></footer>
     </main>
   `;
 }
 
 export function bindHome(): void {
     const list = byId("workspace-list");
-    effect(() => {
-        const workspaces = state.workspaces;
-        list.replaceChildren(...workspaces.map(workspaceCard));
-    });
+    const renderCards = (): void => list.replaceChildren(...state.workspaces.map(workspaceCard));
+    effect(renderCards);
+    subscribeLocale(renderCards);
 
     const select = byId<HTMLSelectElement>("template-select");
     effect(() => {

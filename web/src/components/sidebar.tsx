@@ -66,6 +66,7 @@ import {
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, bindValue, byId, effect, on } from "../lib/dom";
 import { subscribeLocale, t, tp } from "../lib/i18n";
+import { icon } from "../lib/icons";
 import {
     state,
     toast,
@@ -112,7 +113,8 @@ function gitChangeRow(change: GitChange): HTMLLIElement {
         const unstage = document.createElement("button");
         unstage.type = "button";
         unstage.className = "git-action";
-        unstage.textContent = "Unstage";
+        unstage.dataset.i18n = "git.unstage";
+        unstage.textContent = t("git.unstage");
         on(unstage, "click", () => guard(() => updateGitPath("unstage", change.path)));
         item.append(unstage);
     }
@@ -120,7 +122,8 @@ function gitChangeRow(change: GitChange): HTMLLIElement {
         const stage = document.createElement("button");
         stage.type = "button";
         stage.className = "git-action";
-        stage.textContent = "Stage";
+        stage.dataset.i18n = "git.stage";
+        stage.textContent = t("git.stage");
         on(stage, "click", () => guard(() => updateGitPath("stage", change.path)));
         item.append(stage);
     }
@@ -134,7 +137,8 @@ function renderLanguagePacks(): void {
         if (packs.length === 0) {
             const empty = document.createElement("li");
             empty.className = "language-empty";
-            empty.textContent = "No language packs are listed by this server.";
+            empty.dataset.i18n = "lang.noPacks";
+            empty.textContent = t("lang.noPacks");
             list.replaceChildren(empty);
             return;
         }
@@ -336,18 +340,18 @@ const languages: Record<string, string> = {
 export function sidebarMarkup(): string {
     return `
     <aside class="file-sidebar" aria-label="Workspace files">
-      <div class="panel-heading"><div><span class="panel-glyph">▤</span><span>${t("files.explorer")}</span></div><span class="panel-meta">${t("svc.workspace")}</span></div>
-      <div class="project-root"><span class="root-caret">⌄</span><span id="root-name">Project</span></div>
+      <div class="panel-heading"><div><span class="panel-glyph">${icon("files")}</span><span data-i18n="files.explorer">${t("files.explorer")}</span></div><span class="panel-meta" data-i18n="svc.workspace">${t("svc.workspace")}</span></div>
+      <div class="project-root"><span class="root-caret">${icon("caret")}</span><span id="root-name">Project</span></div>
       <div class="workspace-search" role="search">
-        <input id="workspace-search" type="search" placeholder="${t("files.search")}" aria-label="${t("files.search")}" autocomplete="off" />
+        <input id="workspace-search" type="search" placeholder="${t("files.search")}" data-i18n-placeholder="files.search" aria-label="${t("files.search")}" data-i18n-aria="files.search" autocomplete="off" />
         <ul id="search-results" class="search-results" aria-live="polite" hidden></ul>
       </div>
       <div class="file-actions" aria-label="File actions">
-        <button id="new-file" type="button" title="${t("files.newFile")}">＋<span>File</span></button>
-        <button id="new-folder" type="button" title="${t("files.newFolder")}">▱<span>Folder</span></button>
-        <button id="download-selected" type="button" title="${t("files.download")}" aria-label="${t("files.download")}" disabled>↓</button>
-        <button id="rename-selected" type="button" title="${t("files.rename")}">↗</button>
-        <button id="delete-selected" type="button" title="${t("bulk.delete")}">×</button>
+        <button id="new-file" type="button" title="${t("files.newFile")}">${icon("plus")}<span data-i18n="files.file">${t("files.file")}</span></button>
+        <button id="new-folder" type="button" title="${t("files.newFolder")}">${icon("folder")}<span data-i18n="files.folder">${t("files.folder")}</span></button>
+        <button id="download-selected" type="button" title="${t("files.download")}" aria-label="${t("files.download")}" disabled>${icon("download")}</button>
+        <button id="rename-selected" type="button" title="${t("files.rename")}" data-i18n-title="files.rename" aria-label="${t("files.rename")}" data-i18n-aria="files.rename">${icon("external")}</button>
+        <button id="delete-selected" type="button" title="${t("bulk.delete")}" data-i18n-title="bulk.delete" aria-label="${t("bulk.delete")}" data-i18n-aria="bulk.delete">${icon("close")}</button>
       </div>
       <div id="bulk-actions" class="bulk-actions" aria-label="Bulk file actions" hidden>
         <span id="bulk-count" class="bulk-count"></span>
@@ -365,7 +369,7 @@ export function sidebarMarkup(): string {
       <ul id="file-tree" class="file-tree"></ul>
 
       <section class="task-panel" aria-label="Workspace setup and run tasks">
-        <div class="panel-heading"><div><span class="panel-glyph">▶</span><span>${t("nav.run")}</span></div><span id="setup-state" class="panel-meta">Pending</span></div>
+        <div class="panel-heading"><div><span class="panel-glyph">${icon("play")}</span><span data-i18n="nav.run">${t("nav.run")}</span></div><span id="setup-state" class="panel-meta">${t("run.pending")}</span></div>
         <div class="setup-row"><span id="setup-summary">Template setup is queued and will start shortly.</span><button id="setup-retry" class="text-action" type="button" hidden>${t("common.retry")}</button></div>
         <div id="setup-correlation" class="operation-ref" hidden></div>
         <pre id="setup-output" class="task-output" hidden></pre>
@@ -373,16 +377,16 @@ export function sidebarMarkup(): string {
         <button id="task-stop" class="text-action" type="button" hidden>${t("common.stop")}</button>
         <div id="task-correlation" class="operation-ref" hidden></div>
         <pre id="task-output" class="task-output" hidden></pre>
-        <section class="run-history-panel" aria-label="Run history">
-          <h3>Run history</h3>
+        <section class="run-history-panel" aria-label="${t("run.history")}" data-i18n-aria="run.history">
+          <h3 data-i18n="run.history">${t("run.history")}</h3>
           <ul id="run-history" class="debug-list"></ul>
         </section>
       </section>
 
       <section class="debug-panel" aria-label="Debugger">
-        <div class="panel-heading"><div><span class="panel-glyph">◆</span><span>Debug</span></div><span id="debug-state" class="panel-meta" role="status">NOT RUNNING</span></div>
+        <div class="panel-heading"><div><span class="panel-glyph">${icon("debug")}</span><span data-i18n="nav.debug">${t("nav.debug")}</span></div><span id="debug-state" class="panel-meta" role="status">NOT RUNNING</span></div>
         <div class="debug-config-toolbar">
-          <button id="debug-load-launch-config" class="button button-quiet" type="button">Load launch.json</button>
+          <button id="debug-load-launch-config" class="button button-quiet" type="button"><span data-i18n="debug.loadLaunch">${t("debug.loadLaunch")}</span></button>
           <label id="debug-launch-config-field" class="debug-field" for="debug-launch-config" hidden>Launch configuration
             <select id="debug-launch-config" hidden disabled></select>
           </label>
@@ -417,23 +421,23 @@ export function sidebarMarkup(): string {
           <label class="debug-field" for="debug-attach-target">Attach to a running task
             <select id="debug-attach-target" aria-label="Running workspace debug target"></select>
           </label>
-          <button id="debug-attach" class="button button-quiet" type="button" disabled>Attach</button>
+          <button id="debug-attach" class="button button-quiet" type="button" data-i18n="debug.attach" disabled>${t("debug.attach")}</button>
         </div>
         <div class="debug-actions">
-          <button id="debug-start" class="button btn btn-primary" type="button">Start debugging</button>
+          <button id="debug-start" class="button button-primary" type="button" data-i18n="debug.start">${t("debug.start")}</button>
           <button id="debug-reconnect" class="button button-quiet" type="button" hidden>Reconnect</button>
-          <button id="debug-stop" class="button button-quiet" type="button" disabled>Stop</button>
+          <button id="debug-stop" class="button button-quiet" type="button" data-i18n="common.stop" disabled>${t("common.stop")}</button>
         </div>
         <div class="debug-controls" role="group" aria-label="Debugger controls">
-          <button type="button" data-debug-command="continue" disabled>Continue</button>
-          <button type="button" data-debug-command="pause" disabled>Pause</button>
-          <button type="button" data-debug-command="next" disabled>Step over</button>
-          <button type="button" data-debug-command="stepIn" disabled>Step in</button>
-          <button type="button" data-debug-command="stepOut" disabled>Step out</button>
+          <button type="button" data-debug-command="continue" data-i18n="debug.continue" disabled>${t("debug.continue")}</button>
+          <button type="button" data-debug-command="pause" data-i18n="debug.pause" disabled>${t("debug.pause")}</button>
+          <button type="button" data-debug-command="next" data-i18n="debug.stepOver" disabled>${t("debug.stepOver")}</button>
+          <button type="button" data-debug-command="stepIn" data-i18n="debug.stepIn" disabled>${t("debug.stepIn")}</button>
+          <button type="button" data-debug-command="stepOut" data-i18n="debug.stepOut" disabled>${t("debug.stepOut")}</button>
         </div>
-        <section class="debug-subpanel" aria-label="Breakpoints">
-          <h3>Breakpoints</h3>
-          <p class="debug-breakpoint-hint">Tap or click a line number in the editor to toggle a breakpoint.</p>
+        <section class="debug-subpanel" aria-label="${t("debug.breakpoints")}" data-i18n-aria="debug.breakpoints">
+          <h3 data-i18n="debug.breakpoints">${t("debug.breakpoints")}</h3>
+          <p class="debug-breakpoint-hint" data-i18n="debug.breakpointHint">${t("debug.breakpointHint")}</p>
           <label class="debug-field" for="debug-breakpoint-path">Workspace file
             <input id="debug-breakpoint-path" type="text" maxlength="4096" placeholder="Open a workspace file" autocomplete="off" />
           </label>
@@ -458,46 +462,46 @@ export function sidebarMarkup(): string {
           <ul id="debug-breakpoint-list" class="debug-list"></ul>
         </section>
         <div class="debug-inspect-grid">
-          <section class="debug-subpanel" aria-label="Call stack">
-            <h3>Call stack</h3>
+          <section class="debug-subpanel" aria-label="${t("debug.callStack")}" data-i18n-aria="debug.callStack">
+            <h3 data-i18n="debug.callStack">${t("debug.callStack")}</h3>
             <ul id="debug-stack" class="debug-list"><li class="debug-empty">Pause to inspect frames.</li></ul>
           </section>
-          <section class="debug-subpanel" aria-label="Variables">
-            <h3>Variables</h3>
+          <section class="debug-subpanel" aria-label="${t("debug.variablesTitle")}" data-i18n-aria="debug.variablesTitle">
+            <h3 data-i18n="debug.variablesTitle">${t("debug.variablesTitle")}</h3>
             <ul id="debug-variables" class="debug-list"><li class="debug-empty">No frame selected.</li></ul>
           </section>
         </div>
-        <section class="debug-subpanel" aria-label="Watches">
-          <h3>Watches</h3>
+        <section class="debug-subpanel" aria-label="${t("debug.watches")}" data-i18n-aria="debug.watches">
+          <h3 data-i18n="debug.watches">${t("debug.watches")}</h3>
           <form id="debug-watch-form" class="debug-inline-form">
             <label class="debug-field" for="debug-watch-expression">Expression
               <input id="debug-watch-expression" type="text" maxlength="512" placeholder="user.name" autocomplete="off" />
             </label>
-            <button type="submit" disabled>Add</button>
+            <button type="submit" data-i18n="debug.add" disabled>${t("debug.add")}</button>
           </form>
           <ul id="debug-watches" class="debug-list"><li class="debug-empty">Add an expression to inspect it when paused.</li></ul>
         </section>
-        <section class="debug-subpanel" aria-label="Debug console">
-          <h3>Debug console</h3>
+        <section class="debug-subpanel" aria-label="${t("debug.consoleTitle")}" data-i18n-aria="debug.consoleTitle">
+          <h3 data-i18n="debug.consoleTitle">${t("debug.consoleTitle")}</h3>
           <pre id="debug-console" class="debug-console" aria-live="polite">Debugger output will appear here.</pre>
           <form id="debug-console-form" class="debug-inline-form">
             <label class="debug-field" for="debug-console-input">Evaluate
               <input id="debug-console-input" type="text" maxlength="4096" placeholder="Expression or command" autocomplete="off" />
             </label>
-            <button type="submit" disabled>Send</button>
+            <button type="submit" data-i18n="svc.send" disabled>${t("svc.send")}</button>
           </form>
         </section>
       </section>
 
       <section class="language-panel" aria-label="Language services">
-        <div class="panel-heading"><div><span class="panel-glyph">λ</span><span>Languages</span></div><span id="language-state" class="panel-meta">Optional</span></div>
+        <div class="panel-heading"><div><span class="panel-glyph">${icon("code")}</span><span data-i18n="nav.languages">${t("nav.languages")}</span></div><span id="language-state" class="panel-meta">${t("lang.optional")}</span></div>
         <ul id="language-pack-list" class="language-pack-list"></ul>
         <div id="language-diagnostics" class="language-diagnostics" aria-live="polite"></div>
         ${problemsMarkup()}
       </section>
 
       <section class="git-panel" aria-label="Git source control">
-        <div class="panel-heading"><div><span class="panel-glyph">⑂</span><span>${t("git.heading")}</span></div><div class="git-heading-actions"><span id="git-state" class="panel-meta">Git</span><button id="git-refresh" class="text-action" type="button" aria-label="${t("common.refresh")}">${t("common.refresh")}</button></div></div>
+        <div class="panel-heading"><div><span class="panel-glyph">${icon("branch")}</span><span data-i18n="git.heading">${t("git.heading")}</span></div><div class="git-heading-actions"><span id="git-state" class="panel-meta">Git</span><button id="git-refresh" class="text-action" type="button" aria-label="${t("common.refresh")}" data-i18n-aria="common.refresh">${t("common.refresh")}</button></div></div>
         <ul id="git-changes" class="git-changes"></ul>
         <form id="git-commit-form" class="git-commit-form">
           <textarea id="git-message" maxlength="512" rows="2" placeholder="${t("git.message")}" aria-label="${t("git.message")}"></textarea>
@@ -514,7 +518,7 @@ export function sidebarMarkup(): string {
         <div id="git-blame-view" class="git-blame" hidden></div>
         <div id="git-diff-split" class="git-diff-split" hidden></div>
       </section>
-      <div class="sidebar-foot"><span class="tiny-pulse"></span>Files stored on server</div>
+      <div class="sidebar-foot"><span class="tiny-pulse"></span><span data-i18n="sidebar.foot">${t("sidebar.foot")}</span></div>
     </aside>
   `;
 }
@@ -566,7 +570,8 @@ function bindFileTree(): void {
         if (files.length === 0) {
             const empty = document.createElement("p");
             empty.className = "tree-empty";
-            empty.textContent = "This workspace is empty.";
+            empty.dataset.i18n = "files.emptyTree";
+            empty.textContent = t("files.emptyTree");
             tree.replaceChildren(empty);
             return;
         }
@@ -630,7 +635,8 @@ function bindRunPanel(): void {
         if (tasks.length === 0) {
             const empty = document.createElement("span");
             empty.className = "setup-row";
-            empty.textContent = "No runnable tasks found in this workspace.";
+            empty.dataset.i18n = "run.noTasks";
+            empty.textContent = t("run.noTasks");
             taskList.replaceChildren(empty);
             return;
         }
@@ -660,7 +666,8 @@ function bindRunPanel(): void {
         if (runs.length === 0) {
             const empty = document.createElement("li");
             empty.className = "debug-empty";
-            empty.textContent = "No runs yet.";
+            empty.dataset.i18n = "run.noRuns";
+            empty.textContent = t("run.noRuns");
             history.replaceChildren(empty);
             return;
         }

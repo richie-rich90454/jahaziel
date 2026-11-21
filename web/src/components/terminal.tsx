@@ -17,6 +17,7 @@ import {
     updateOpenCode,
 } from "../lib/controller";
 import { bindDisabled, bindHidden, bindText, byId, effect, on } from "../lib/dom";
+import { icon } from "../lib/icons";
 import { state, toast } from "../lib/store";
 
 const inputKeys: Record<string, string> = {
@@ -40,8 +41,8 @@ export function terminalMarkup(): string {
           <button id="opencode-remove" class="terminal-action" type="button" hidden>Remove</button>
           <select id="terminal-session-select" class="terminal-session-select" aria-label="Detached terminal sessions" hidden disabled></select>
           <button id="terminal-reconnect" class="terminal-action" type="button" hidden disabled>Reconnect</button>
-          <button id="terminal-new" class="terminal-action" type="button">＋ New terminal</button>
-          <button id="close-terminal" class="terminal-action terminal-close" type="button" hidden>×</button>
+          <button id="terminal-new" class="terminal-action" type="button">${icon("plus")} New terminal</button>
+          <button id="close-terminal" class="terminal-action terminal-close" type="button" aria-label="Close terminal" hidden>${icon("close")}</button>
         </div>
       </div>
       <div id="terminal-key-strip" class="terminal-key-strip" aria-label="Terminal keyboard shortcuts" hidden>
