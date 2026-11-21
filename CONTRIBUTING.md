@@ -7,6 +7,16 @@
 
 # Contributing
 
+## First contribution
+
+New here? The fastest path is:
+
+1. Pick an open [good first issue](https://github.com/richie-rich90454/jahaziel/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or reproduce the loopback demo in the [README](README.md#try-it-in-60-seconds).
+2. Follow the wrapper-only setup below; nothing is installed globally.
+3. Open a PR using the template and ask questions in the PR — maintainers will help you land it.
+
+For UI work, regenerate the demo assets with `node tools/demo-capture.cjs target/jahaziel.jar` so screenshots and the walkthrough match the change.
+
 ## Cohesive changes
 
 Keep each change focused on one user-visible behavior or maintenance

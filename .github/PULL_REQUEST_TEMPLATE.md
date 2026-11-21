@@ -9,18 +9,24 @@
 
 ## Change
 
-<!-- Keep this focused on one cohesive behavior, with related code, docs, and verification. -->
+<!-- One cohesive behavior. Include related code, docs, and tests in focused commits. -->
 
 ## Why
 
+<!-- Link the issue this addresses: Fixes #... -->
+
 ## Verification
 
-- [ ] `./mvnw -q -pl <module> verify` passes
-- [ ] New behavior has tests
+- [ ] `./mvnw -B verify -Psmoke` passes (or `mvnw.cmd -B verify -Psmoke` on Windows)
+- [ ] Browser changes: `pnpm --dir web run build` and `cd web && pnpm exec playwright test` pass
+- [ ] New behavior has a focused test
+- [ ] Docs updated when the contract, configuration, or workflow changed
 - [ ] No new top-level dependency without an ADR
 
 ## Checklist
 
-- [ ] Javadoc on every public type, method, and field
-- [ ] License header on every file
-- [ ] No user-facing stack traces
+- [ ] SPDX header on every new file
+- [ ] Conventional commit messages (imperative, lowercase, max 72 characters)
+- [ ] No user-facing stack traces or secrets in logs/screenshots
+
+<!-- New here? Pick an issue labeled "good first issue" and ask for help in the PR if you need it. -->
