@@ -289,7 +289,7 @@ locked, so an in-place replacement fails until the process exits.
 Install Caddy with its
 [official instructions](https://caddyserver.com/docs/install). Add both exact
 hosts to the host's Caddyfile; replace the example names in the included
-[`ops/caddy/Caddyfile`](../../ops/caddy/Caddyfile) and its content security
+`ops/caddy/Caddyfile` and its content security
 policy. Use `ops/caddy/Caddyfile.linux`, `Caddyfile.macos`, or
 `Caddyfile.windows` for the matching OS:
 
@@ -460,7 +460,7 @@ directory until you no longer need the previous state for rollback. See the
 
 ### Before you update: backup and support bundle
 
-Read the [CHANGELOG](../../CHANGELOG.md) for the target version, then capture
+Read the `CHANGELOG.md` for the target version, then capture
 both a restorable state and a diagnostics snapshot **before** touching the
 jar:
 
@@ -508,7 +508,7 @@ offline replacements when the service is already stopped.
    `Stop-Service -Name jahaziel`). Do this first on every OS and especially on
    Windows.
 2. Back up `.env` and `data/`, and write a support bundle, as above.
-3. Read the [CHANGELOG](../../CHANGELOG.md) for behavior and migration notes.
+3. Read the `CHANGELOG.md` for behavior and migration notes.
 4. Download the new `jahaziel.jar` and its published `SHA256SUMS` into a
    staging directory outside the live jar directory.
 5. Dry-run the staging:

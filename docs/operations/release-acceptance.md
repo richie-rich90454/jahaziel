@@ -43,7 +43,7 @@ Recorded counts for the current green run:
 ### Gate 2 — Automated deployment walkthrough: Passing
 
 The scripted walkthrough in
-[`tools/deployment-acceptance.cjs`](../../tools/deployment-acceptance.cjs)
+`tools/deployment-acceptance.cjs`
 runs on all five host targets via
 [deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml).
 It verifies 19 checks: demo sign-in, identity, templates, workspace setup,

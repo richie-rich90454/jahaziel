@@ -187,7 +187,7 @@ class SyncServerCoverageTest {
                 try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
                     in.readInt();
                 } catch (Exception expected) {
-                    assertTrue(true);
+                    assertTrue(expected != null, "server must reject the frame");
                 }
             }
             try (Socket socket = new Socket("127.0.0.1", port)) {
@@ -200,7 +200,7 @@ class SyncServerCoverageTest {
                 try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
                     in.readInt();
                 } catch (Exception expected) {
-                    assertTrue(true);
+                    assertTrue(expected != null, "server must reject the frame");
                 }
             }
             try (Socket socket = new Socket("127.0.0.1", port)) {
@@ -215,7 +215,7 @@ class SyncServerCoverageTest {
                 try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
                     in.readInt();
                 } catch (Exception expected) {
-                    assertTrue(true);
+                    assertTrue(expected != null, "server must reject the frame");
                 }
             }
             Thread.sleep(200);
@@ -293,7 +293,7 @@ class SyncServerCoverageTest {
                 try {
                     readFrame(in);
                 } catch (Exception expected) {
-                    assertTrue(true);
+                    assertTrue(expected != null, "server must reject the frame");
                 }
             }
             Thread.sleep(200);
@@ -377,7 +377,7 @@ class SyncServerCoverageTest {
                     assertEquals(false, reply.get("ok"));
                 } catch (EOFException closed) {
                     // ponytail: move failure is IOException, swallowed without a frame.
-                    assertTrue(true);
+                    assertTrue(closed != null, "connection close is an accepted failure mode");
                 }
             }
         } finally {

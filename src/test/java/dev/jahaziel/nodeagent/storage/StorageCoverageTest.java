@@ -6,7 +6,6 @@ package dev.jahaziel.nodeagent.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.jahaziel.nodeagent.sync.SyncException;
 import dev.jahaziel.spi.ImageRef;
@@ -233,6 +232,5 @@ class StorageCoverageTest {
                         runner.run(List.of("du", "x", "y"));
                     }
                 });
-        assertTrue(true);
     }
 }

@@ -14,7 +14,7 @@ guides describing the same product.
 
 ## Mandatory same-change updates
 
-The repository [AGENTS.md](../../AGENTS.md) defines these product contracts;
+The repository `AGENTS.md` defines these product contracts;
 they are part of "done", not optional follow-ups:
 
 - `docs/basis_auth_setup_guide.md` is the downstream integration contract.

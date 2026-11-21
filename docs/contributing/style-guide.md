@@ -7,7 +7,7 @@
 
 # Style guide
 
-Short version of the repository [AGENTS.md](../../AGENTS.md) rules. The build
+Short version of the repository `AGENTS.md` rules. The build
 uses JDK 25, Node 24+, and pnpm 12.14.0; use the wrapper (`./mvnw`, `mvnw.cmd`)
 and `dev.ps1` with repository-local caches. No global installs.
 

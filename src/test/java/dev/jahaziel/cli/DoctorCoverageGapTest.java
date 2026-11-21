@@ -122,7 +122,6 @@ class DoctorCoverageGapTest {
             }
         }
         if (!sawSqlite || urls.isEmpty()) {
-            assertTrue(true);
             return;
         }
         try (java.net.URLClassLoader loader =
