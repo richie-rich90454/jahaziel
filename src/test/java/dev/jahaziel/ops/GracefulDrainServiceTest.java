@@ -63,7 +63,9 @@ class GracefulDrainServiceTest {
         assertEquals(1, result.tasks());
         assertEquals(2, result.components());
         assertEquals(1, task.stops);
-        assertEquals(5000L, task.timeout);
+        assertTrue(
+                task.timeout > 0L && task.timeout <= 5000L,
+                "the drain passes the remaining time, not the original budget");
         assertEquals(1, task.closes);
         assertEquals(1, pty.closes);
         assertEquals(1, language.closes);

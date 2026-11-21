@@ -33,10 +33,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -377,6 +379,15 @@ class GatewayRelayFilterTest {
                                         public void run() {
                                             try (Socket client = listener.accept()) {
                                                 client.setSoTimeout(5000);
+                                                // Read the relay's request line first: replying
+                                                // before
+                                                // the request reaches the backend made the relay's
+                                                // write fail on some OSes and left the body empty.
+                                                new BufferedReader(
+                                                                new InputStreamReader(
+                                                                        client.getInputStream(),
+                                                                        StandardCharsets.US_ASCII))
+                                                        .readLine();
                                                 OutputStream out = client.getOutputStream();
                                                 out.write(
                                                         ("HTTP/1.1 200 OK\r\n"
