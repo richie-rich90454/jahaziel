@@ -20,9 +20,9 @@ the real-iPad acceptance gate below.
 
 ## Candidate under test
 
-- Commit SHA: `6de60d84739d3f5ce1d76c4cfdc616cd4e83fe82`
+- Commit SHA: `77d79cbfbeb5ab91fc0766120de874b55427b1dc`
 - Artifact: `target/jahaziel.jar`
-- Artifact SHA-256: `724dfcfc1980eec729d3e04bde0f10b757f9d197d25b662f8d95276a4af4c630` (local `target/jahaziel.jar`; CI re-verifies its own artifact)
+- Artifact SHA-256: `1c88441aebffa13b664e61043cdec4687224bd2ad39d761ebf48c552355dc792` (local `target/jahaziel.jar`; CI re-verifies its own artifact)
 - Workbench bundle size: recorded by CI
 - Server target: Linux x64 / Linux arm64
 
@@ -123,7 +123,7 @@ a distro-specific package or downloading the full LLVM distribution.
 
 ## Automated gate results
 
-CI runs **2029 unit tests (16 skipped) plus 5 smoke tests** against the packaged
+CI runs **2030 unit tests (16 skipped) plus 5 smoke tests** against the packaged
 jar and the Playwright E2E suite (**62 tests, all passing**) on Linux. The
 Windows x64 deployment leg was previously broken: the extensionless `mvnw`
 wrapper checked out with CRLF and could not run under `bash`. `.gitattributes`

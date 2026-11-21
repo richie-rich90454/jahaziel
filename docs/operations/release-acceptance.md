@@ -36,7 +36,7 @@ actions are pinned to immutable commit SHAs rather than floating tags.
 
 Recorded counts for the current green run:
 
-- Maven: **2029 unit tests (16 skipped) + 5 smoke tests**, all passing (`./mvnw -B verify -Psmoke`).
+- Maven: **2030 unit tests (16 skipped) + 5 smoke tests**, all passing (`./mvnw -B verify -Psmoke`).
 - E2E: **62 tests, all passing** (`pnpm --dir web exec playwright test`, Playwright against the stub, including the iPad viewport/touch matrix; run by Linux CI, only listed on Windows).
 - License and format checks: **clean** (Maven license/format goals and `pnpm --dir web run format:check`).
 
@@ -80,7 +80,7 @@ project task, and a working path-based preview. No real-host results are recorde
 
 | Gate | Evidence | Status | Owner | Date |
 |---|---|---|---|---|
-| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 2029 unit tests (16 skipped) + 5 smoke, E2E 62 tests (all passing), license/format clean, Windows bash wrapper fixed | Passing | CI | — |
+| CI green on Linux x64/arm64 and macOS x64/arm64, Windows x64 | [linux.yml](../../.github/workflows/linux.yml), [cross-platform.yml](../../.github/workflows/cross-platform.yml); Maven 2030 unit tests (16 skipped) + 5 smoke, E2E 62 tests (all passing), license/format clean, Windows bash wrapper fixed | Passing | CI | — |
 | Automated deployment walkthrough on Ubuntu x64/arm64, macOS x64/arm64, Windows x64 | [deployment-acceptance.yml](../../.github/workflows/deployment-acceptance.yml), 19 checks per host | Passing | CI | — |
 | Physical iPad browser matrix | Real-device results (none recorded) | Open | — | — |
 | Live host deployment with IdP MFA | Real-host results (none recorded) | Open | — | — |
