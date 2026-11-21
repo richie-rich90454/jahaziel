@@ -66,6 +66,8 @@ export const runtime = {
     fitAddon: null as import("@xterm/addon-fit").FitAddon | null,
     terminalObserver: null as ResizeObserver | null,
     terminalSessionId: null as string | null,
+    terminalReconnectTimer: null as number | null,
+    terminalReconnectAttempts: 0,
     socket: null as WebSocket | null,
     taskRunId: null as string | null,
     taskPollingId: null as string | null,

@@ -141,12 +141,7 @@ test("markdown preview toggle shows and hides the rendered document", async ({ w
   );
 });
 
-// SKIPPED: the plugins/capability view is rendered only by src/admin.ts, which is not
-// a Vite build entry (index.html is the sole entry) and has no route in the stub
-// server. The built app therefore never mounts #capability-list, so its available /
-// unavailable states cannot be asserted without editing files outside this task's
-// ownership (src/**, stub-server.cjs, or a new admin.html build entry).
-test.skip("plugins capability view lists available and unavailable states", async ({ page }) => {
+test("plugins capability view lists available and unavailable states", async ({ page }) => {
   await page.goto("/admin.html");
   await expect(page.locator("#capability-list .capability")).not.toHaveCount(0);
   await expect(page.locator("#capability-list .capability-unavailable")).not.toHaveCount(0);

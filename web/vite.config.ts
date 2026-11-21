@@ -18,6 +18,10 @@ export default defineConfig({
     sourcemap: false,
     manifest: true,
     rollupOptions: {
+      input: {
+        main: "./index.html",
+        admin: "./admin.html",
+      },
       output: {
         manualChunks(id) {
           if (/node_modules[/\\](@codemirror[/\\]lang-html|@lezer[/\\]html)[/\\]/.test(id)) {

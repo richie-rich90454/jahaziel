@@ -23,10 +23,33 @@ export function bindQuickOpen(): void {
     on(input, "input", () => {
         void renderQuickOpen(input.value);
     });
-    on(input, "keydown", (event) => {
-        if (event.key === "Escape") closeQuickOpen();
-    });
     const palette = byId("quick-open-palette");
+    const dialog = palette.querySelector<HTMLElement>(".quick-open-dialog")!;
+    on(palette, "keydown", (event) => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeQuickOpen();
+            return;
+        }
+        if (event.key !== "Tab") return;
+        const focusable = Array.from(
+            dialog.querySelectorAll<HTMLElement>("input:not([disabled]), button:not([disabled])"),
+        ).filter((node) => node.offsetParent !== null);
+        if (focusable.length === 0) {
+            event.preventDefault();
+            return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (event.shiftKey && (active === first || !dialog.contains(active))) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
     on(palette, "click", (event) => {
         if (event.target === palette) closeQuickOpen();
     });

@@ -5,7 +5,7 @@
 
 import { api, errorText, isUnavailable } from "./api";
 import { subscribeSelection, selectedPaths } from "./bulk-files";
-import { byId, effect } from "./dom";
+import { byId, ownedEffect } from "./dom";
 import { applyExternalChange } from "./editor";
 import { getTheme, setTheme } from "./theme";
 import { setState, state, toast, type DocumentBody } from "./store";
@@ -25,6 +25,8 @@ let pollTimer: number | null = null;
 let channel: BroadcastChannel | null = null;
 let localId = "";
 let applyingRemote = false;
+let stopSyncEffects: (() => void) | null = null;
+let unsubscribeSelection: (() => void) | null = null;
 const peers = new Map<string, { name: string; at: number }>();
 const pending = new Map<string, { content: string; version: string }>();
 
@@ -48,6 +50,7 @@ async function loadChanged(path: string): Promise<void> {
     const { body, response } = await api<DocumentBody>(
         `/api/v1/workspaces/${id}/files/document?${query}`,
     );
+    if (state.workspace?.workspaceId !== id) return;
     const version = response.headers.get("ETag") || body.version;
     pending.set(path, { content: body.content, version });
     applyExternalChange(path, body.content, version, false);
@@ -100,6 +103,10 @@ export function startWatching(): void {
 export function stopWatching(): void {
     if (pollTimer !== null) window.clearInterval(pollTimer);
     pollTimer = null;
+    stopSyncEffects?.();
+    stopSyncEffects = null;
+    unsubscribeSelection?.();
+    unsubscribeSelection = null;
     channel?.close();
     channel = null;
 }
@@ -174,12 +181,12 @@ function installCrossTabSync(): void {
     channel.onmessage = (event: MessageEvent<SyncMessage>) => {
         if (event.data?.type === "sync") applyRemote(event.data);
     };
-    effect(() => {
+    stopSyncEffects = ownedEffect(() => {
         void state.activePath;
         void state.selectedPath;
         broadcast({ activePath: state.activePath, selectedPath: state.selectedPath });
     });
-    subscribeSelection(() => broadcast({ selection: selectedPaths() }));
+    unsubscribeSelection = subscribeSelection(() => broadcast({ selection: selectedPaths() }));
     broadcast({
         activePath: state.activePath,
         selectedPath: state.selectedPath,

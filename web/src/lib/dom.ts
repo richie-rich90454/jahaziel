@@ -22,6 +22,16 @@ export function effect(compute: () => void): void {
     else run();
 }
 
+/** Runs a disposable effect for listeners that must be removed when a subsystem stops. */
+export function ownedEffect(compute: () => void): () => void {
+    let dispose = (): void => {};
+    createRoot((done) => {
+        dispose = done;
+        createEffect(compute, () => {});
+    });
+    return () => dispose();
+}
+
 /** Builds one element from a static HTML template string. */
 export function html(
     strings: TemplateStringsArray,

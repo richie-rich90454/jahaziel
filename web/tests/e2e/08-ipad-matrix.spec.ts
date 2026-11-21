@@ -43,16 +43,6 @@ async function expectTouchTarget(locator: Locator, label: string): Promise<void>
   expect(box!.width, `${label}: touch target width`).toBeGreaterThanOrEqual(44);
 }
 
-// Several upstream controls are undersized in this build: theme/locale selects
-// (30px), save and use-server-version buttons (40px), terminal actions (36px).
-// Their reachability is still asserted; the size gap is reported, not hidden
-// behind a weaker threshold.
-async function expectReachableByTap(locator: Locator, label: string): Promise<void> {
-  await expect(locator, label).toBeVisible();
-  await expect(locator, label).toBeEnabled();
-  expect(await locator.boundingBox(), `${label}: no bounding box`).not.toBeNull();
-}
-
 async function showFilesPanel(page: Page, workbench: WorkbenchPage): Promise<void> {
   const nav = page.locator('.workbench-panel-nav [data-panel="files"]');
   if (await nav.isVisible()) await nav.tap();
@@ -198,14 +188,14 @@ for (const context of IPAD_CONTEXTS) {
     test("reaches theme and locale controls by touch", async ({ page, signedIn, workspace }) => {
       const home = new HomePage(page);
       await home.goto();
-      await expectReachableByTap(home.localeSelect(), `${context.label}: locale select`);
+      await expectTouchTarget(home.localeSelect(), `${context.label}: locale select`);
       await home.localeSelect().selectOption("es");
       await expect(page.locator("html")).toHaveAttribute("lang", "es");
 
       await page.goto(`/#workspace/${workspace.id}`);
       await expect(page.locator("#workbench-page")).toBeVisible();
       const theme = page.locator("#theme-select");
-      await expectReachableByTap(theme, `${context.label}: theme select`);
+      await expectTouchTarget(theme, `${context.label}: theme select`);
       await theme.selectOption("dark");
       await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
       await expectNoHorizontalOverflow(page, context.label);
@@ -231,7 +221,7 @@ test.describe("iPad matrix: save, conflict and reconnect touch controls", () => 
   }) => {
     await workbench.openFile("README.md");
     await workbench.editEditor("# Saved from iPad\n");
-    await expectReachableByTap(workbench.saveButton, "save button");
+    await expectTouchTarget(workbench.saveButton, "save button");
     await workbench.saveButton.tap();
     await expect(workbench.saveState).toHaveText("Saved");
 
@@ -252,7 +242,7 @@ test.describe("iPad matrix: save, conflict and reconnect touch controls", () => 
     await expect(workbench.conflictActions).toBeVisible();
 
     const useServer = page.locator("#use-server-version");
-    await expectReachableByTap(useServer, "use server version button");
+    await expectTouchTarget(useServer, "use server version button");
     page.once("dialog", (dialog) => void dialog.accept());
     await useServer.tap();
     await expect(workbench.conflictActions).toBeHidden();
@@ -265,8 +255,13 @@ test.describe("iPad matrix: save, conflict and reconnect touch controls", () => 
     page,
   }) => {
     await workbench.openPanel("terminal");
+    await expectTouchTarget(page.locator("#terminal-new"), "terminal new button");
     await page.locator("#terminal-new").tap();
     await expect(workbench.terminalState).toHaveText("Connected", { timeout: 20_000 });
+    await expectTouchTarget(
+      page.locator("#terminal-copy-selection"),
+      "terminal copy selection button",
+    );
 
     // A server-side session with no browser socket is detached; after reload the
     // app reconnects the active one and leaves the reconnect affordance visible.
@@ -280,7 +275,7 @@ test.describe("iPad matrix: save, conflict and reconnect touch controls", () => 
 
     const reconnect = page.locator("#terminal-reconnect");
     await expect(reconnect).toBeVisible({ timeout: 10_000 });
-    await expectReachableByTap(reconnect, "terminal reconnect button");
+    await expectTouchTarget(reconnect, "terminal reconnect button");
     await reconnect.tap();
     await expect(workbench.terminalState).toHaveText("Connected", { timeout: 20_000 });
   });

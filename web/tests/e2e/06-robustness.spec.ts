@@ -53,6 +53,45 @@ test("a slow API still settles into a usable home page", async ({ page, signedIn
   await expect(page.locator("#loading-state")).toHaveText(/synced/i);
 });
 
+test("untrusted upload names, markdown URLs and terminal text stay inert", async ({ workbench, page }) => {
+  const pwned = (): Promise<boolean | undefined> =>
+    page.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned);
+
+  await workbench.openFile("README.md");
+  await workbench.editEditor(
+    '[link](//evil.example/x)\n\n<img src=x onerror="window.__pwned=1">\n',
+  );
+  await expect(workbench.markdownPreviewBody()).toBeVisible();
+  expect(await workbench.markdownPreviewBody().locator('a[href^="//"]').count()).toBe(0);
+  expect(await workbench.markdownPreviewBody().locator("img[onerror]").count()).toBe(0);
+  expect(await pwned()).toBeUndefined();
+
+  await page.evaluate(() => {
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'shot" onerror="window.__pwned=1".png', {
+      type: "image/png",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    document.getElementById("file-tree")?.dispatchEvent(
+      new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }),
+    );
+  });
+  const generated = page.locator("#file-tree .tree-item").filter({ hasText: ".html" }).first();
+  await expect(generated).toBeAttached();
+  await generated.click();
+  await expect(page.locator("#editor-surface .editor-instance:not([hidden]) .cm-content")).toContainText(
+    "&quot; onerror=&quot;window.__pwned=1",
+  );
+  expect(await pwned()).toBeUndefined();
+
+  await workbench.openPanel("terminal");
+  await page.locator("#terminal-new").click();
+  await expect(workbench.terminalState).toHaveText("Connected", { timeout: 20_000 });
+  await page.keyboard.insertText('<img src=x onerror="window.__pwned=1">');
+  expect(await page.locator('#terminal-surface img[onerror]').count()).toBe(0);
+  expect(await pwned()).toBeUndefined();
+});
+
 test("invalid input is rejected by the form and never sent", async ({ page, signedIn }) => {
   const home = new HomePage(page);
   await home.goto();

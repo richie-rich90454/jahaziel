@@ -6,6 +6,7 @@
 // Admin dashboard companion: health, workspaces, users, live logs.
 "use strict";
 
+import "./app.css";
 import { pluginsMarkup, renderPlugins } from "./components/plugins";
 
 function renderCapabilities(): void {

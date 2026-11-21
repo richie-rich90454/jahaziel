@@ -6,6 +6,7 @@
 import { api, errorText } from "./api";
 import { refreshFiles } from "./files";
 import { t } from "./i18n";
+import { escapeHtml } from "./markdown";
 import { state, toast } from "./store";
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -67,7 +68,7 @@ async function saveBlob(file: File): Promise<void> {
     const name = uniqueName(file.name.replace(/\.[^.]+$/, "")).replace(/\.txt$/, "") + ".html";
     await saveText(
         name,
-        `<!doctype html><html><body><img src="${dataUrl}" alt="${file.name}" /></body></html>`,
+        `<!doctype html><html><body><img src="${dataUrl}" alt="${escapeHtml(file.name)}" /></body></html>`,
     );
 }
 

@@ -4,8 +4,11 @@
 ///
 
 interface ApiErrorBody {
+    detail?: string;
     message?: string;
+    title?: string;
     code?: string;
+    correlationId?: string;
 }
 
 /** Fetches JSON from the control plane with the browser session cookie. */
@@ -29,13 +32,16 @@ export async function api<T>(
     if (response.status === 204) return { body: null as T, response };
     if (!response.ok) {
         let detail = "Request failed";
+        let correlationId: string | undefined;
         try {
             const body = (await response.json()) as ApiErrorBody;
-            detail = body.message || body.code || detail;
+            detail = body.detail ?? body.message ?? body.title ?? body.code ?? detail;
+            correlationId = body.correlationId;
         } catch {
             /* Keep the status for non-JSON errors. */
         }
-        throw new Error(`${response.status} ${detail}`);
+        const reference = correlationId ? ` (ref ${correlationId})` : "";
+        throw new Error(`${response.status} ${detail}${reference}`);
     }
     if (!(response.headers.get("content-type") || "").includes("json"))
         return { body: null as T, response };

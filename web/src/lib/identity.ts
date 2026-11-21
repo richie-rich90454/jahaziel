@@ -311,15 +311,40 @@ export function restoreWorkspaceFromLocation(): void {
         .catch((failure) => toast(errorText(failure), "error"));
 }
 
+const WORKSPACE_POLL_MS = 5000;
+const WORKSPACE_POLL_MAX_MS = 60_000;
+
+function startWorkspacePoll(): void {
+    let failures = 0;
+    const poll = (): void => {
+        const delay = Math.min(WORKSPACE_POLL_MS * 2 ** failures, WORKSPACE_POLL_MAX_MS);
+        window.setTimeout(() => {
+            if (document.hidden || state.workspace !== null) {
+                poll();
+                return;
+            }
+            void renderWorkspaces().then(
+                () => {
+                    failures = 0;
+                    poll();
+                },
+                () => {
+                    failures += 1;
+                    poll();
+                },
+            );
+        }, delay);
+    };
+    poll();
+}
+
 export async function main(): Promise<void> {
     installHistoryShortcuts();
     await loadIdentity();
     if (state.user) {
         await Promise.all([loadTemplates(), renderWorkspaces()]);
         restoreWorkspaceFromLocation();
-        window.setInterval(() => {
-            if (state.workspace === null) renderWorkspaces().catch(() => undefined);
-        }, 5000);
+        startWorkspacePoll();
     }
     window.addEventListener("popstate", restoreWorkspaceFromLocation);
     window.addEventListener("hashchange", restoreWorkspaceFromLocation);

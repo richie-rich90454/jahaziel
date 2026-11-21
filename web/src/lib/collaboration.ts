@@ -275,7 +275,11 @@ export function clearWorkspaceSearch(): void {
     setState("downloadDisabled", true);
 }
 
+let quickOpenReturnFocus: HTMLElement | null = null;
+
 export function openQuickOpen(): void {
+    quickOpenReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setState("quickOpenVisible", true);
     setState("quickOpenQuery", "");
     byId("quick-open-palette").hidden = false;
@@ -287,6 +291,8 @@ export function openQuickOpen(): void {
 
 export function closeQuickOpen(): void {
     setState("quickOpenVisible", false);
+    if (quickOpenReturnFocus?.isConnected) quickOpenReturnFocus.focus();
+    quickOpenReturnFocus = null;
 }
 
 export async function renderQuickOpen(query: string): Promise<void> {

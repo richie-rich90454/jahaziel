@@ -40,14 +40,16 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
 
     const actions = card.querySelector<HTMLElement>(".workspace-actions")!;
     const open = html`
-        <button type="button" class="button btn btn-primary">Open workspace</button>
+        <button type="button" class="button btn btn-primary">${t("home.openWorkspace")}</button>
     `;
     on(open, "click", () => {
         void openWorkspace(workspace);
     });
     actions.append(open);
     const clone = html`
-        <button type="button" class="button button-quiet workspace-clone">Clone</button>
+        <button type="button" class="button button-quiet workspace-clone">
+            ${t("home.clone")}
+        </button>
     `;
     on(clone, "click", () => {
         void promptClone(workspace).catch((failure) => toast(errorText(failure), "error"));
@@ -55,7 +57,7 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
     actions.append(clone);
     if (["requested", "suspended", "failed"].includes(workspace.state)) {
         const start = html`
-            <button type="button" class="button button-quiet">Start</button>
+            <button type="button" class="button button-quiet">${t("home.start")}</button>
         `;
         on(start, "click", () => {
             void startWorkspaceFromCard(workspace);
@@ -63,7 +65,7 @@ function workspaceCard(workspace: Workspace): HTMLLIElement {
         actions.append(start);
     } else if (["ready", "active", "idle"].includes(workspace.state)) {
         const stop = html`
-            <button type="button" class="button button-quiet">Stop</button>
+            <button type="button" class="button button-quiet">${t("common.stop")}</button>
         `;
         on(stop, "click", () => {
             void stopWorkspaceFromCard(workspace);
@@ -117,8 +119,8 @@ export function homeMarkup(): string {
         <ul id="workspace-list" class="workspace-list"></ul>
         <div id="empty-workspaces" class="empty-state" hidden>
           <div class="empty-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-          <h3>Your next project starts here.</h3>
-          <p>Choose a starter and Jahaziel will lay down the first files.</p>
+          <h3>${t("home.emptyTitle")}</h3>
+          <p>${t("home.emptyCopy")}</p>
         </div>
       </section>
       <section class="create-section" aria-labelledby="create-heading">

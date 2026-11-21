@@ -3,7 +3,7 @@
 /// SPDX-License-Identifier: Apache-2.0
 ///
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
     return value
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
@@ -14,6 +14,7 @@ function escapeHtml(value: string): string {
 
 function safeUrl(value: string): string | null {
     const trimmed = value.trim();
+    if (trimmed.includes("\\") || /^[\\/]{2}/.test(trimmed)) return null;
     if (/^(https?:|mailto:|\/|#|\.\/|\.\.\/)/i.test(trimmed)) return trimmed;
     if (/^[\w./-]+(?:\?[\w=&%-]*)?(?:#[\w-]+)?$/.test(trimmed)) return trimmed;
     return null;

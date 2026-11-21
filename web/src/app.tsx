@@ -52,7 +52,7 @@ export function App(): HTMLElement {
       <div id="user-badge" class="user-badge" hidden>
         <span class="user-presence"></span><span id="user-name"></span><span id="user-email" class="user-email"></span>
       </div>
-      <a id="login-link" class="login-link" href="/api/login" hidden>Sign in <span aria-hidden="true">↗</span></a>
+      <a id="login-link" class="login-link" href="/api/login" hidden>${t("bar.signIn")} <span aria-hidden="true">↗</span></a>
     </header>
 
     ${homeMarkup()}
@@ -68,8 +68,8 @@ export function App(): HTMLElement {
         <div class="bar-spacer"></div>
         <div id="preview-links" class="preview-links"></div>
         <label class="tools-control" for="tools-select">
-          <span class="sr-only">Workspace tools</span>
-          <select id="tools-select" aria-label="Workspace tools">
+          <span class="sr-only">${t("bar.tools")}</span>
+          <select id="tools-select" aria-label="${t("bar.tools")}">
             <option value="files">Files</option>
             <option value="history">History</option>
             <option value="trash">Trash</option>
@@ -101,17 +101,17 @@ export function App(): HTMLElement {
         <button type="button" data-panel="git" aria-pressed="false">${t("nav.git")}</button>
         <button type="button" data-panel="terminal" aria-pressed="false">${t("nav.terminal")}</button>
         <button type="button" data-panel="preview" aria-pressed="false">${t("nav.preview")}</button>
-        <button type="button" data-panel="collaboration" aria-pressed="false">Collaborate</button>
-        <button type="button" data-panel="agent" aria-pressed="false">Agent</button>
-        <button type="button" data-panel="data" aria-pressed="false">Data</button>
-        <button type="button" data-panel="club" aria-pressed="false">Club</button>
-        <button type="button" data-panel="ops" aria-pressed="false">Ops</button>
-        <button type="button" data-panel="history" aria-pressed="false">History</button>
-        <button type="button" data-panel="trash" aria-pressed="false">Trash</button>
-        <button type="button" data-panel="diff" aria-pressed="false">Diff</button>
-        <button type="button" data-panel="clone" aria-pressed="false">Clone</button>
-        <button type="button" data-panel="config" aria-pressed="false">Config</button>
-        <button type="button" data-panel="flags" aria-pressed="false">Flags</button>
+        <button type="button" data-panel="collaboration" aria-pressed="false">${t("panel.collaboration")}</button>
+        <button type="button" data-panel="agent" aria-pressed="false">${t("panel.agent")}</button>
+        <button type="button" data-panel="data" aria-pressed="false">${t("panel.data")}</button>
+        <button type="button" data-panel="club" aria-pressed="false">${t("panel.club")}</button>
+        <button type="button" data-panel="ops" aria-pressed="false">${t("panel.ops")}</button>
+        <button type="button" data-panel="history" aria-pressed="false">${t("panel.history")}</button>
+        <button type="button" data-panel="trash" aria-pressed="false">${t("panel.trash")}</button>
+        <button type="button" data-panel="diff" aria-pressed="false">${t("panel.diff")}</button>
+        <button type="button" data-panel="clone" aria-pressed="false">${t("panel.clone")}</button>
+        <button type="button" data-panel="config" aria-pressed="false">${t("panel.config")}</button>
+        <button type="button" data-panel="flags" aria-pressed="false">${t("panel.flags")}</button>
       </nav>
       <div class="workbench-layout">
         ${sidebarMarkup()}
@@ -153,6 +153,17 @@ function bindAppearanceControls(): void {
             git: "nav.git",
             terminal: "nav.terminal",
             preview: "nav.preview",
+            collaboration: "panel.collaboration",
+            agent: "panel.agent",
+            data: "panel.data",
+            club: "panel.club",
+            ops: "panel.ops",
+            history: "panel.history",
+            trash: "panel.trash",
+            diff: "panel.diff",
+            clone: "panel.clone",
+            config: "panel.config",
+            flags: "panel.flags",
         };
         for (const button of Array.from(
             document.querySelectorAll<HTMLButtonElement>(".workbench-panel-nav [data-panel]"),

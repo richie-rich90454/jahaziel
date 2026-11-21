@@ -8,7 +8,47 @@ import { byId } from "./dom";
 import { setPanel, setState, state, toast, type TerminalSession } from "./store";
 import { runtime, type StreamMessage } from "./runtime";
 
-export async function refreshTerminalSessions(): Promise<void> {
+const RECONNECT_BASE_MS = 500;
+const RECONNECT_MAX_MS = 8000;
+
+function isFinalTerminalClose(code: number): boolean {
+    return code === 1000 || code === 1008 || (code >= 4400 && code < 4500);
+}
+
+function isPolicyTerminalClose(code: number): boolean {
+    return code === 1008 || (code >= 4400 && code < 4500);
+}
+
+function clearReconnectTimer(): void {
+    if (runtime.terminalReconnectTimer !== null) {
+        window.clearTimeout(runtime.terminalReconnectTimer);
+        runtime.terminalReconnectTimer = null;
+    }
+}
+
+function scheduleReconnect(session: TerminalSession, workspaceId: string): void {
+    clearReconnectTimer();
+    const attempt = runtime.terminalReconnectAttempts;
+    runtime.terminalReconnectAttempts = attempt + 1;
+    runtime.terminalReconnectTimer = window.setTimeout(
+        () => {
+            runtime.terminalReconnectTimer = null;
+            if (
+                state.workspace?.workspaceId !== workspaceId ||
+                runtime.terminalSessionId ||
+                runtime.socket?.readyState === WebSocket.OPEN
+            )
+                return;
+            void closeTerminal(false);
+            void connectTerminal(session, workspaceId).catch((failure) =>
+                toast(errorText(failure), "error"),
+            );
+        },
+        Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS),
+    );
+}
+
+export async function refreshTerminalSessions(preserveState = false): Promise<void> {
     const workspace = state.workspace;
     if (!workspace) return;
     const { body } = await api<TerminalSession[]>(
@@ -21,7 +61,7 @@ export async function refreshTerminalSessions(): Promise<void> {
     setState("terminalSelectDisabled", detached.length === 0);
     setState("terminalReconnectHidden", detached.length === 0);
     setState("terminalReconnectDisabled", detached.length === 0);
-    if (!runtime.terminalSessionId) {
+    if (!runtime.terminalSessionId && !preserveState) {
         setState(
             "terminalState",
             detached.length === 0
@@ -108,6 +148,7 @@ export async function copyTerminalSelection(): Promise<void> {
 }
 
 function closeTerminal(closeServerSession: boolean, refreshSessions = false): Promise<void> {
+    clearReconnectTimer();
     runtime.terminalObserver?.disconnect();
     runtime.terminalObserver = null;
     runtime.socket?.close();
@@ -217,6 +258,8 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
             socket.close();
             return;
         }
+        clearReconnectTimer();
+        runtime.terminalReconnectAttempts = 0;
         terminal.focus();
         setState("terminalState", "Restoring…");
     });
@@ -256,8 +299,29 @@ async function connectTerminal(session: TerminalSession, workspaceId: string): P
             terminal.write("\r\n[terminal] invalid server message\r\n");
         }
     });
-    socket.addEventListener("close", () => {
-        if (runtime.socket === socket) setState("terminalState", "Disconnected");
+    socket.addEventListener("close", (event) => {
+        if (runtime.socket !== socket || runtime.terminalSessionId !== session.sessionId) return;
+        if (state.workspace?.workspaceId !== workspaceId) return;
+        const final = isFinalTerminalClose(event.code);
+        const reason = final ? `Disconnected (${event.code})` : "Disconnected — reconnecting…";
+        void closeTerminal(false);
+        void refreshTerminalSessions(true)
+            .catch(() => undefined)
+            .then(() => {
+                if (state.workspace?.workspaceId !== workspaceId || runtime.terminalSessionId)
+                    return;
+                setState("terminalState", reason);
+                if (final) {
+                    setState("terminalReconnectHidden", false);
+                    setState("terminalReconnectDisabled", false);
+                    toast(
+                        isPolicyTerminalClose(event.code)
+                            ? "Terminal connection refused by policy. Reconnect after the issue is resolved."
+                            : "Terminal session closed. Use Reconnect to resume it.",
+                        "error",
+                    );
+                } else scheduleReconnect(session, workspaceId);
+            });
     });
     socket.addEventListener("error", () => {
         if (runtime.socket === socket) setState("terminalState", "Connection error");

@@ -29,15 +29,20 @@ function formatBytes(bytes: number): string {
 }
 
 export async function refreshLanguagePacks(): Promise<void> {
-    if (!state.workspace || !runtime.languageServices) return;
+    const workspaceId = state.workspace?.workspaceId;
+    if (!workspaceId || !runtime.languageServices) return;
     const packs = await runtime.languageServices.refresh();
+    if (state.workspace?.workspaceId !== workspaceId) return;
     setState("languagePacks", packs);
 }
 
 export async function toggleLanguagePack(pack: LanguagePack): Promise<void> {
+    const workspaceId = state.workspace?.workspaceId;
+    if (!workspaceId) return;
     try {
         if (pack.selected) {
             await runtime.languageServices?.disable(pack.id);
+            if (state.workspace?.workspaceId !== workspaceId) return;
             setState("languageState", "Language pack disabled");
         } else {
             setState(
@@ -45,11 +50,14 @@ export async function toggleLanguagePack(pack: LanguagePack): Promise<void> {
                 `Installing ${pack.name} (${formatBytes(pack.downloadBytes)})…`,
             );
             await runtime.languageServices?.enable(pack.id);
+            if (state.workspace?.workspaceId !== workspaceId) return;
             toast(`${pack.name} is ready for this workspace.`);
         }
         await refreshLanguagePacks();
+        if (state.workspace?.workspaceId !== workspaceId) return;
         if (state.activePath) activateDocument(state.activePath);
     } catch (failure) {
+        if (state.workspace?.workspaceId !== workspaceId) return;
         setState("languageState", "Language pack operation failed");
         toast(errorText(failure), "error");
     }
@@ -72,7 +80,9 @@ function languageIdForPath(path: string): string | null {
 }
 
 export async function focusDiagnostic(diagnostic: LanguageDiagnostic): Promise<void> {
+    const workspaceId = state.workspace?.workspaceId;
     await openDocument(diagnostic.path);
+    if (state.workspace?.workspaceId !== workspaceId) return;
     activateDocument(diagnostic.path);
     const opened = runtime.openDocuments.get(diagnostic.path);
     if (!opened) return;
@@ -139,7 +149,9 @@ async function openImageDocument(path: string): Promise<void> {
         { credentials: "same-origin" },
     );
     if (!response.ok) throw new Error(`${response.status} Image could not be loaded.`);
-    const url = URL.createObjectURL(await response.blob());
+    const blob = await response.blob();
+    if (state.workspace?.workspaceId !== workspace.workspaceId) return;
+    const url = URL.createObjectURL(blob);
     const wrapper = document.createElement("div");
     wrapper.className = "editor-instance image-preview";
     const image = document.createElement("img");
@@ -176,6 +188,7 @@ export async function openDocument(path: string): Promise<void> {
     const { body, response } = await api<DocumentBody>(
         `/api/v1/workspaces/${workspace.workspaceId}/files/document?${query}`,
     );
+    if (state.workspace?.workspaceId !== workspace.workspaceId) return;
     const localDraft = readLocalDraft(workspace.workspaceId, path);
     const initialContent = localDraft?.content ?? body.content;
     const recoveredDraft = localDraft !== null && localDraft.content !== body.content;
@@ -201,6 +214,7 @@ export async function openDocument(path: string): Promise<void> {
         true,
     );
     const [editor, language] = await Promise.all([import("codemirror"), languageFor(path)]);
+    if (state.workspace?.workspaceId !== workspace.workspaceId) return;
     const { EditorView } = editor;
     const view = new EditorView({
         doc: initialContent,
@@ -514,6 +528,7 @@ export async function saveActiveDocument(): Promise<void> {
                 body: JSON.stringify({ content: opened.view.state.doc.toString() }),
             },
         );
+        if (state.workspace?.workspaceId !== workspace.workspaceId) return;
         opened.version = response.headers.get("ETag") || body.version;
         opened.savedContent = body.content;
         opened.dirty = false;

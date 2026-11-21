@@ -4,6 +4,7 @@
 ///
 
 import { bindDisabled, bindText, byId, effect, on } from "../lib/dom";
+import { t } from "../lib/i18n";
 import { state } from "../lib/store";
 import {
     call,
@@ -36,28 +37,28 @@ import {
 const sections: Array<{ panel: ServiceSection; label: string; intro: string }> = [
     {
         panel: "collaboration",
-        label: "Collaboration",
-        intro: "Members, presence, comments, live sessions and share links for this workspace.",
+        label: t("service.collaboration"),
+        intro: t("service.collaboration.intro"),
     },
     {
         panel: "agent",
-        label: "Agent",
-        intro: "Sessions, prompt snippets, staged patches, chat and model usage.",
+        label: t("service.agent"),
+        intro: t("service.agent.intro"),
     },
     {
         panel: "data",
-        label: "Data tools",
-        intro: "SQLite browsing, CSV tables, notebooks, search index and file history.",
+        label: t("service.data"),
+        intro: t("service.data.intro"),
     },
     {
         panel: "club",
-        label: "Club",
-        intro: "Instructor sessions, tutorials, checkpoints, showcase and moderation.",
+        label: t("service.club"),
+        intro: t("service.club.intro"),
     },
     {
         panel: "ops",
-        label: "Admin ops",
-        intro: "Support bundles, backups, audit, GDPR requests and approvals.",
+        label: t("service.ops"),
+        intro: t("service.ops.intro"),
     },
 ];
 
@@ -80,11 +81,11 @@ export function servicePanelsMarkup(): string {
     <section class="service-panel" data-panel="${panel}" aria-label="${label}">
       <div class="service-head">
         <h2>${label}</h2>
-        <span id="svc-${panel}-status" class="service-status" role="status">Not loaded</span>
-        ${button(`svc-${panel}-refresh`, "Refresh")}
+        <span id="svc-${panel}-status" class="service-status" role="status">${t("service.notLoaded")}</span>
+        ${button(`svc-${panel}-refresh`, t("common.refresh"))}
       </div>
       <p class="service-intro">${intro}</p>
-      <p id="svc-${panel}-unavailable" class="service-unavailable" hidden>Unavailable on this host</p>
+      <p id="svc-${panel}-unavailable" class="service-unavailable" hidden>${t("service.unavailable")}</p>
       <p id="svc-${panel}-result" class="service-result" role="status"></p>
       ${panelMarkup(panel)}
     </section>`,

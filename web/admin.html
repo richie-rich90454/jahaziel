@@ -1,0 +1,25 @@
+<!--
+
+    Copyright 2026 The Jahaziel Authors
+    SPDX-License-Identifier: Apache-2.0
+
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <title>Jahaziel — Admin capabilities</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <main class="admin-host">
+      <h1>Jahaziel admin</h1>
+      <p id="admin-health" role="status">checking</p>
+      <div id="admin-capabilities"></div>
+      <pre id="admin-logs" aria-label="Live admin logs"></pre>
+    </main>
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>
