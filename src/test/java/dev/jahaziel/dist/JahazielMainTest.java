@@ -7,7 +7,10 @@ package dev.jahaziel.dist;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import dev.jahaziel.platform.TestEnv;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -136,12 +139,13 @@ class JahazielMainTest {
     }
 
     @Test
-    void demoBootForcesLoopbackEvenWhenAHostBindIsConfigured() {
+    void demoHonorsConfiguredBindWithExplicitNonLoopbackOverride() {
         String priorAddress = System.getProperty("server.address");
         Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
         Path dataPath = emptyDir.resolve("demo-data");
         try {
             System.setProperty("server.address", "0.0.0.0");
+            System.setProperty(JahazielMain.DEMO_NON_LOOPBACK_PROPERTY, "true");
             JarDataDir data = JarDataDir.resolve(dataPath.toString());
             DevKeys.Keys keys =
                     new DevKeys.Keys(
@@ -151,16 +155,105 @@ class JahazielMainTest {
                             dataPath.toString(), 11451, 8081, "localhost", true, false, false);
 
             assertEquals(
-                    "127.0.0.1",
+                    "0.0.0.0",
                     JahazielMain.portablePropertyMap(data, keys, parsed).get("server.address"));
             JahazielMain.portableProperties(data, keys, parsed);
 
-            assertEquals("127.0.0.1", System.getProperty("server.address"));
+            assertEquals("0.0.0.0", System.getProperty("server.address"));
         } finally {
             if (priorAddress == null) {
                 System.clearProperty("server.address");
             } else {
                 System.setProperty("server.address", priorAddress);
+            }
+            clearNewProperties(before);
+        }
+    }
+
+    @Test
+    void demoRefusesNonLoopbackBindWithoutExplicitOverride() {
+        String priorAddress = System.getProperty("server.address");
+        Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+        Path dataPath = emptyDir.resolve("demo-refuse");
+        try {
+            System.setProperty("server.address", "0.0.0.0");
+            JarDataDir data = JarDataDir.resolve(dataPath.toString());
+            DevKeys.Keys keys =
+                    new DevKeys.Keys(
+                            data.keys().resolve("jwt.key"), data.keys().resolve("jwt.pub"));
+            JahazielMain.Arguments parsed =
+                    new JahazielMain.Arguments(
+                            dataPath.toString(), 11451, 8081, "localhost", true, false, false);
+            IllegalArgumentException failure =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> JahazielMain.portablePropertyMap(data, keys, parsed));
+            assertTrue(failure.getMessage().contains("non-loopback"));
+        } finally {
+            if (priorAddress == null) {
+                System.clearProperty("server.address");
+            } else {
+                System.setProperty("server.address", priorAddress);
+            }
+            clearNewProperties(before);
+        }
+    }
+
+    @Test
+    void envDemoForcesLoopbackWithoutCliFlag() {
+        String priorDemoEnv = System.getenv(JahazielMain.DEMO_ENV);
+        String priorAddress = System.getProperty("server.address");
+        Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+        Path dataPath = emptyDir.resolve("demo-env");
+        try {
+            TestEnv.set(JahazielMain.DEMO_ENV, "true");
+            JarDataDir data = JarDataDir.resolve(dataPath.toString());
+            DevKeys.Keys keys =
+                    new DevKeys.Keys(
+                            data.keys().resolve("jwt.key"), data.keys().resolve("jwt.pub"));
+            JahazielMain.Arguments parsed =
+                    new JahazielMain.Arguments(
+                            dataPath.toString(), 11451, 8081, "localhost", false, false, false);
+            java.util.Map<String, String> properties =
+                    JahazielMain.portablePropertyMap(data, keys, parsed);
+            assertEquals("127.0.0.1", properties.get("server.address"));
+            assertEquals("true", properties.get("jahaziel.demo"));
+            assertEquals("stub", properties.get("jahaziel.auth.provider"));
+            JahazielMain.portableProperties(data, keys, parsed);
+            assertEquals("127.0.0.1", System.getProperty("server.address"));
+        } finally {
+            TestEnv.set(JahazielMain.DEMO_ENV, priorDemoEnv);
+            if (priorAddress == null) {
+                System.clearProperty("server.address");
+            } else {
+                System.setProperty("server.address", priorAddress);
+            }
+            clearNewProperties(before);
+        }
+    }
+
+    @Test
+    void jvmDemoPropertyForcesLoopbackWithoutCliFlag() {
+        String priorDemo = System.getProperty("jahaziel.demo");
+        Set<String> before = new HashSet<>(System.getProperties().stringPropertyNames());
+        Path dataPath = emptyDir.resolve("demo-prop");
+        try {
+            System.setProperty("jahaziel.demo", "true");
+            JarDataDir data = JarDataDir.resolve(dataPath.toString());
+            DevKeys.Keys keys =
+                    new DevKeys.Keys(
+                            data.keys().resolve("jwt.key"), data.keys().resolve("jwt.pub"));
+            JahazielMain.Arguments parsed =
+                    new JahazielMain.Arguments(
+                            dataPath.toString(), 11451, 8081, "localhost", false, false, false);
+            assertEquals(
+                    "127.0.0.1",
+                    JahazielMain.portablePropertyMap(data, keys, parsed).get("server.address"));
+        } finally {
+            if (priorDemo == null) {
+                System.clearProperty("jahaziel.demo");
+            } else {
+                System.setProperty("jahaziel.demo", priorDemo);
             }
             clearNewProperties(before);
         }

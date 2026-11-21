@@ -212,7 +212,7 @@ JAHAZIEL_BACKEND=local
 # JAHAZIEL_SHARE_SECRET=<long-random-secret>
 ~~~
 
-`CURRENT_URL_ORIGIN` is the public HTTPS origin with no trailing path; it derives both registered URLs above. `BASIS_AUTH_RESOURCE_SECRET` verifies backchannel webhook proofs, and `BASIS_AUTH_INTERNAL_URL` is the private listener for webhook verification and fail-closed user-state checks. `BASIS_AUTH_COOKIE_SECRET` is at least 32 random bytes; this app keeps sessions server-side and signs tokens with generated keys in `data/keys`, so the value is accepted but not used to encrypt cookies. Login stays off until the issuer, client, resource, and origin are configured. Keep `.env` private (`chmod 0600`). Configuration is read at startup, so a credential change requires a restart.
+`CURRENT_URL_ORIGIN` is the public HTTPS origin with no trailing path; it derives both registered URLs above. `BASIS_AUTH_RESOURCE_SECRET` verifies backchannel webhook proofs, and `BASIS_AUTH_INTERNAL_URL` is the private listener for webhook verification and fail-closed user-state checks. `BASIS_AUTH_COOKIE_SECRET` is at least 32 random bytes; this app keeps sessions server-side and signs tokens with generated keys in `data/keys`, so the value is accepted but not used to encrypt cookies. Login stays off until the issuer, client id, client secret, resource, and origin are configured. Keep `.env` private (`chmod 0600`). Configuration is read at startup, so a credential change requires a restart.
 
 Legacy `BASIS_REDIRECT_URI`, `BASIS_CLIENT_ID`, `BASIS_CLIENT_SECRET` and `BASIS_RESOURCE` remain accepted as backward-compatible aliases; use one spelling consistently. For optional Microsoft Entra login the keys are `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_WEBHOOK_STATE` / `MICROSOFT_WEBHOOK_ID`; this build reads `MICROSOFT_ISSUER` (tenant in the URL), `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET` from `.env`. Grant administrator rights through your identity provider or database — there is no `.env` admin-bootstrap key in this build. For the full downstream IdP contract and secret-rotation procedure, see the [basis-auth integration guide](docs/basis_auth_setup_guide.md). To use Google, GitHub, generic OIDC, local password + TOTP, passkey, API token, or LDAP instead, see [Authentication providers](#authentication-providers).
 
@@ -300,17 +300,18 @@ More detail: [Quick start](docs/guide/quick-start.md), [Use the workbench](docs/
 
 ## Delivered modules
 
-These modules are present in the jar alongside the core workbench (files, editor, terminal, run, preview, Git, debug, and languages). Modules marked **backend-only** ship their domain/service layer but have no dedicated SolidJS panel at this stage.
+These modules are present in the jar alongside the core workbench (files, editor, terminal, run, preview, Git, debug, and languages). Most have a dedicated SolidJS service panel; modules marked **backend-only** ship their domain/service layer without one.
 
 | Module | Package | Status |
 |---|---|---|
-| Collaboration — members, invitations, file comments, share links, live sessions, audit | `dev.jahaziel.collaboration` | Backend-only; JDBC store included |
-| Agent assistant — chat, sessions, patch review, prompts, model catalog | `dev.jahaziel.agent` | Backend-only; no dedicated workbench panel yet |
+| Collaboration — members, invitations, file comments, share links, live sessions, audit | `dev.jahaziel.collaboration` | SolidJS panel available; JDBC store included |
+| Agent assistant — chat, sessions, patch review, prompts, model catalog | `dev.jahaziel.agent` | SolidJS panel available |
 | Agent tools — managed coding-tool service seam | `dev.jahaziel.agenttools` | Backend-only; OpenCode is launched from the terminal |
-| Data tools — CSV/SQLite browsing, notebook cells, file diffs, search index | `dev.jahaziel.datatools` | Backend-only |
-| Club — teaching sessions, roles, validation tasks, checkpoints | `dev.jahaziel.club` | Backend-only; additive and optional, Git remains the source of truth |
+| Data tools — CSV/SQLite browsing, notebook cells, file diffs, search index | `dev.jahaziel.datatools` | SolidJS panel available |
+| Club — teaching sessions, roles, validation tasks, checkpoints | `dev.jahaziel.club` | SolidJS panel available; additive and optional, Git remains the source of truth |
+| Operations — support bundles, backups, approvals, GDPR requests | `dev.jahaziel.ops` | SolidJS panel available (Admin ops) |
 | Observability — metrics, hourly rollups, resource sampling | `dev.jahaziel.monitoring` | Backend-only; health endpoint is available |
-| Compliance — audit records, retention, policy evaluation, administration actions | `dev.jahaziel.audit`, `dev.jahaziel.policy`, `dev.jahaziel.administration` | Backend-only |
+| Compliance — audit records, retention, policy evaluation, administration actions | `dev.jahaziel.audit`, `dev.jahaziel.policy`, `dev.jahaziel.administration` | Backend-only; administrative actions are exposed through the Admin ops panel |
 
 ## Maintainability
 

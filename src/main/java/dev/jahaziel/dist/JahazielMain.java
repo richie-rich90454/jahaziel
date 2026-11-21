@@ -43,6 +43,14 @@ public final class JahazielMain {
     /** Default control-plane port for the portable jar. */
     static final int DEFAULT_PORT = 11451;
 
+    /** Environment spellings of the demo flag and the non-loopback opt-in. */
+    static final String DEMO_ENV = "JAHAZIEL_DEMO";
+
+    static final String DEMO_NON_LOOPBACK_ENV = "JAHAZIEL_DEMO_ALLOW_NON_LOOPBACK";
+
+    /** Explicit opt-in needed to bind demo mode to a non-loopback address. */
+    static final String DEMO_NON_LOOPBACK_PROPERTY = "jahaziel.demo.allow-non-loopback";
+
     /** Subdirectories owned under the data root. */
     static final List<String> PORTABLE_DIRS =
             List.of(
@@ -200,6 +208,16 @@ public final class JahazielMain {
             }
             System.setProperty(key, entry.getValue());
         }
+        // Uppercase .env boot keys need their Spring property names: system properties are not
+        // relaxed-bound the way the real environment is.
+        setBootProperty("jahaziel.demo", DEMO_ENV, fileEnv);
+        setBootProperty("jahaziel.share.secret", "JAHAZIEL_SHARE_SECRET", fileEnv);
+        setBootProperty("jahaziel.jwt.ttl-seconds", "JAHAZIEL_JWT_TTL_SECONDS", fileEnv);
+        setBootProperty("logging.level.root", "JAHAZIEL_LOG_LEVEL", fileEnv);
+        setBootProperty(
+                "jahaziel.language-tools.node-executable",
+                "JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE",
+                fileEnv);
         setBasis("basis.auth-issuer", "BASIS_AUTH_ISSUER", null, fileEnv);
         setBasis("basis.client-id", "BASIS_AUTH_CLIENT_ID", "BASIS_CLIENT_ID", fileEnv);
         setBasis("basis.client-secret", "BASIS_AUTH_CLIENT_SECRET", "BASIS_CLIENT_SECRET", fileEnv);
@@ -213,6 +231,11 @@ public final class JahazielMain {
         setBasis("basis.cookie-secret", "BASIS_AUTH_COOKIE_SECRET", null, fileEnv);
         setBasis("basis.current-url-origin", "CURRENT_URL_ORIGIN", null, fileEnv);
         setBasis("basis.redirect-uri", "BASIS_REDIRECT_URI", null, fileEnv);
+        String cookieSecret = System.getProperty("basis.cookie-secret");
+        if (cookieSecret != null && cookieSecret.length() < 32) {
+            throw new IllegalArgumentException(
+                    "BASIS_AUTH_COOKIE_SECRET must be at least 32 bytes when configured");
+        }
         if (System.getProperty("basis.redirect-uri") == null) {
             String origin = basisValue("CURRENT_URL_ORIGIN", null, fileEnv);
             if (origin != null && !origin.isBlank()) {
@@ -222,6 +245,15 @@ public final class JahazielMain {
                 }
                 System.setProperty("basis.redirect-uri", base + "/api/auth/basis/callback");
             }
+        }
+    }
+
+    /** Maps an uppercase .env boot key to its Spring property; real env and explicit flags win. */
+    private static void setBootProperty(
+            String property, String envKey, Map<String, String> fileEnv) {
+        String value = firstNonNull(System.getenv(envKey), fileEnv.get(envKey));
+        if (value != null && System.getProperty(property) == null) {
+            System.setProperty(property, value);
         }
     }
 
@@ -335,19 +367,77 @@ public final class JahazielMain {
         }
     }
 
+    /** True when demo mode comes from the CLI flag, the real environment, or a JVM property. */
+    static boolean effectiveDemo(Arguments parsed) {
+        return parsed.demo()
+                || truthy(System.getenv(DEMO_ENV))
+                || truthy(System.getProperty("jahaziel.demo"))
+                || truthy(System.getProperty(DEMO_ENV));
+    }
+
+    private static boolean truthy(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
+        return normalized.equals("true")
+                || normalized.equals("on")
+                || normalized.equals("yes")
+                || normalized.equals("1");
+    }
+
+    /**
+     * Returns the loopback bind demo mode must use, refusing a configured non-loopback address
+     * unless the operator explicitly opted in. Null when demo mode is off.
+     */
+    static String demoBindAddress(Arguments parsed) {
+        if (!effectiveDemo(parsed)) {
+            return null;
+        }
+        String configured =
+                firstNonBlank(
+                        System.getenv("SERVER_ADDRESS"), System.getProperty("server.address"));
+        boolean allowNonLoopback =
+                truthy(System.getProperty(DEMO_NON_LOOPBACK_PROPERTY))
+                        || truthy(System.getenv(DEMO_NON_LOOPBACK_ENV));
+        if (configured != null && !isLoopback(configured) && !allowNonLoopback) {
+            throw new IllegalArgumentException(
+                    "demo mode cannot bind to non-loopback address "
+                            + configured
+                            + "; unset server.address or set "
+                            + DEMO_NON_LOOPBACK_PROPERTY
+                            + "=true");
+        }
+        // The explicit override keeps the operator's chosen bind; every other demo boot is pinned
+        // to loopback so the fixed admin identity is never reachable from another host.
+        return allowNonLoopback && configured != null ? configured : "127.0.0.1";
+    }
+
+    private static boolean isLoopback(String address) {
+        String value = address.trim();
+        return value.equals("127.0.0.1")
+                || value.equals("localhost")
+                || value.equals("::1")
+                || value.startsWith("127.");
+    }
+
     static void portableProperties(JarDataDir data, DevKeys.Keys keys, Arguments parsed) {
         portableProperties(data, keys, parsed, Platforms.detect(parsed.dataDir()));
     }
 
     static void portableProperties(
             JarDataDir data, DevKeys.Keys keys, Arguments parsed, Platform platform) {
+        boolean demo = effectiveDemo(parsed);
         for (Map.Entry<String, String> entry :
                 portablePropertyMap(data, keys, parsed, platform).entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (parsed.demo() && key.equals("server.address")) {
-                // Demo authentication grants a fixed admin identity, so never let an inherited
-                // environment or system property expose that mode on a network interface.
+            // Demo authentication grants a fixed admin identity, so its mode and bind must win over
+            // any inherited environment or system property.
+            if (demo
+                    && (key.equals("server.address")
+                            || key.equals("jahaziel.demo")
+                            || key.equals("jahaziel.auth.provider"))) {
                 System.setProperty(key, value);
             } else {
                 setIfAbsent(key, value);
@@ -394,10 +484,11 @@ public final class JahazielMain {
         properties.put("jahaziel.storage.root", data.root().toString());
         properties.put("jahaziel.data-dir", data.root().toString());
         properties.put("jahaziel.templates.dir", data.root().resolve("templates").toString());
-        if (parsed.demo()) {
+        String demoBind = demoBindAddress(parsed);
+        if (demoBind != null) {
             properties.put("jahaziel.auth.provider", "stub");
             properties.put("jahaziel.demo", "true");
-            properties.put("server.address", "127.0.0.1");
+            properties.put("server.address", demoBind);
         }
         properties.put("jahaziel.domain", parsed.domain());
         properties.put("jahaziel.jwt.private-key-file", keys.privateKey().toString());

@@ -1,2 +1,5 @@
 v1.7.0
-sha256:1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890
+# SHA-256 of the official release tarballs, from the upstream .sha256.txt assets:
+# https://github.com/firecracker-microvm/firecracker/releases/tag/v1.7.0
+sha256:55bd3e6d599fdd108e36e52f9aee2319f06c18a90f2fa49b64e93fdf06f5ff53
+sha256-aarch64:3cba100386baaae9714a7b3f6514a09fa12d1ebe3afe1b2d3613f5a401edf550

@@ -65,6 +65,10 @@ application's own session error code with the same status and description.
 
 ## Numeric basis-auth codes
 
+A callback whose `state` lacks the matching `basis_login_state` browser cookie
+is rejected before the issuer is contacted; JSON clients receive HTTP `406`
+because the failure is a redirect for browser clients.
+
 Sign-in failures surface the issuer's numeric application code in the login
 error body with recovery guidance. These match the downstream contract's
 [troubleshooting table](../basis_auth_setup_guide.md#11-troubleshooting):

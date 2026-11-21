@@ -210,7 +210,7 @@ class ServiceSupervisorCoverageGapTest {
         shutdown.invoke(supervisor);
         Field flag = supervisor.getClass().getDeclaredField("shuttingDown");
         flag.setAccessible(true);
-        assertTrue((boolean) flag.get(supervisor));
+        assertTrue(((java.util.concurrent.atomic.AtomicBoolean) flag.get(supervisor)).get());
     }
 
     @Test
@@ -491,6 +491,12 @@ class ServiceSupervisorCoverageGapTest {
                                 "[Service]\nExecStart=/bin/true\nProtectHome=yes\n"));
         assertTrue(ServiceSupervisor.sandboxScript(homeOnly).contains("/home"));
         assertEquals("a/b", ServiceSupervisor.posix(Path.of("a/b")));
+    }
+
+    @Test
+    void readWritePathsAreSingleQuotedForTheShell() {
+        assertEquals("'/tmp/my dir'", ServiceSupervisor.shellQuote(Path.of("/tmp/my dir")));
+        assertEquals("'/tmp/it'\\''s'", ServiceSupervisor.shellQuote(Path.of("/tmp/it's")));
     }
 
     private static Object newSupervisor(List<ServiceUnit> units, Path logDir) throws Exception {

@@ -1,0 +1,52 @@
+Jahaziel
+Copyright 2026 The Jahaziel Authors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+Third-party components
+----------------------
+
+The packaged jar and the build/test toolchain include the following
+third-party components. License identifiers below were taken from the
+POMs in the local Maven repository used to build this project; where a
+POM did not declare a license, the upstream project's published license
+is stated.
+
+Runtime dependencies:
+
+  * Spring Boot, Spring Framework, Spring Data, Spring Security,
+    Spring Web, Spring WebSocket, Spring Integration and Spring AOP
+    (org.springframework) - Apache License, Version 2.0.
+  * Hibernate ORM and hibernate-community-dialects (org.hibernate.orm)
+    - Apache License, Version 2.0. (Hibernate 7.x relicensed from the
+    LGPL 2.1 used by older releases; the local POMs declare Apache-2.0.)
+  * SQLite JDBC (org.xerial:sqlite-jdbc) - Apache License, Version 2.0.
+  * Flyway database migrations (org.flywaydb:flyway-core) - Apache
+    License, Version 2.0 (upstream project license; the published POM
+    does not declare a license element).
+  * Nimbus JOSE+JWT (com.nimbusds:nimbus-jose-jwt) - Apache License,
+    Version 2.0.
+  * Jackson databind (tools.jackson.core / com.fasterxml.jackson.core)
+    - Apache License, Version 2.0.
+  * SnakeYAML (org.yaml:snakeyaml) - Apache License, Version 2.0.
+  * PostgreSQL JDBC Driver (org.postgresql:postgresql) - BSD-2-Clause
+    (PostgreSQL License).
+  * Micrometer (io.micrometer) - Apache License, Version 2.0.
+  * pty4j (org.jetbrains.pty4j) - Apache License, Version 2.0.
+  * SLF4J API (org.slf4j) - MIT License.
+  * Logback (ch.qos.logback) - dual licensed under the Eclipse Public
+    License 2.0 and the GNU Lesser General Public License 2.1.
+  * Jakarta Persistence API (jakarta.persistence) - Eclipse Public
+    License 2.0 / Eclipse Distribution License 1.0 (dual licensed).
+
+Build and test dependencies (not shipped in the runtime jar):
+
+  * ArchUnit (com.tngtech.archunit) - Apache License, Version 2.0 and
+    BSD License (dual licensed).
+  * JUnit 5 (org.junit.jupiter) - Eclipse Public License 2.0.
+  * Mockito (org.mockito) - MIT License.
+  * Testcontainers (org.testcontainers) - MIT License.
+
+The browser workbench has its own dependency notices under web/; consult
+the licenses of the dependencies declared in web/package.json.

@@ -22,13 +22,14 @@ provider, not every possible login source.
 | `BASIS_AUTH_RESOURCE` | — | API audience |
 | `BASIS_AUTH_RESOURCE_SECRET` | — | Resource secret used for webhook proof and internal API authentication |
 | `BASIS_AUTH_INTERNAL_URL` | — | Private listener for webhook verification and user-state checks |
-| `BASIS_AUTH_COOKIE_SECRET` | — | At least 32 random bytes; accepted for the canonical setup (sessions are server-side, tokens signed with `data/keys`) |
+| `BASIS_AUTH_COOKIE_SECRET` | — | At least 32 random bytes; accepted for the canonical setup (sessions are server-side, tokens signed with `data/keys`); a shorter configured value fails startup |
 | `CURRENT_URL_ORIGIN` | — | Public HTTPS origin, no trailing path; derives the callback and backchannel URLs |
 | `PORT` | `11451` | API port (`--port` overrides) |
 | `JAHAZIEL_GATEWAY_PORT` | `8081` | Legacy standalone gateway socket (`--gateway-port` overrides; off unless enabled) |
 | `JAHAZIEL_DOMAIN` | `localhost` | Public domain for gateway URLs and token issuer (`--domain` overrides; browsers resolve `*.localhost` to loopback, so local runs need no setup; set a real domain with DNS for LAN/server runs) |
 | `JAHAZIEL_LOG_LEVEL` | `INFO` | Root log level |
-| `JAHAZIEL_DEMO` | `false` | Legacy demo flag (prefer `--demo`) |
+| `JAHAZIEL_DEMO` | `false` | Demo flag (prefer `--demo`); forces a loopback bind |
+| `JAHAZIEL_DEMO_ALLOW_NON_LOOPBACK` | `false` | Explicit opt-in to bind demo mode to a non-loopback address; startup fails on a configured non-loopback bind without it |
 | `JAHAZIEL_BACKEND` | `local` | `local` is the only selectable backend in this release; Firecracker is retained for separate verification and is not selectable |
 | `JAHAZIEL_LANGUAGE_TOOLS_NODE_EXECUTABLE` | `/usr/bin/node` | Existing Node.js executable used by explicitly enabled TypeScript and Python language services; Jahaziel never installs it |
 | `JAHAZIEL_SHARE_SECRET` | — | HMAC secret for share links; generated in memory if unset, so revocation and signatures are lost on restart |
@@ -70,7 +71,7 @@ Configuration keys are namespaced per provider. Dotted keys come from `.env` or
 
 | Provider | Required | Optional |
 |---|---|---|
-| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`, `CURRENT_URL_ORIGIN` | `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_COOKIE_SECRET`; legacy `BASIS_REDIRECT_URI` / `BASIS_CLIENT_ID` / `BASIS_CLIENT_SECRET` / `BASIS_RESOURCE` aliases |
+| `basis-auth` | `BASIS_AUTH_ISSUER`, `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET` (required), `BASIS_AUTH_RESOURCE`, `CURRENT_URL_ORIGIN` — all five | `BASIS_AUTH_RESOURCE_SECRET`, `BASIS_AUTH_INTERNAL_URL`, `BASIS_AUTH_COOKIE_SECRET`; legacy `BASIS_REDIRECT_URI` / `BASIS_CLIENT_ID` / `BASIS_CLIENT_SECRET` / `BASIS_RESOURCE` aliases |
 | `microsoft` | `microsoft.client-id` / `MICROSOFT_CLIENT_ID` | `microsoft.client-secret`, `microsoft.redirect-uri`, `microsoft.issuer`, `microsoft.scopes` |
 | `google` | `google.client-id` / `GOOGLE_CLIENT_ID` | `google.client-secret`, `google.redirect-uri`, `google.issuer`, `google.scopes` |
 | `oidc` | `oidc.client-id` / `OIDC_CLIENT_ID` | `oidc.client-secret`, `oidc.redirect-uri`, `oidc.issuer`, `oidc.scopes` |

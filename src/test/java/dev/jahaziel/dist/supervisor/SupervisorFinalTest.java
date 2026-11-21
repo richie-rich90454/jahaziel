@@ -389,7 +389,8 @@ class SupervisorFinalTest {
                             public Object answer(InvocationOnMock inv) throws Throwable {
                                 Field down = supervisor.getClass().getDeclaredField("shuttingDown");
                                 down.setAccessible(true);
-                                down.setBoolean(supervisor, true);
+                                ((java.util.concurrent.atomic.AtomicBoolean) down.get(supervisor))
+                                        .set(true);
                                 return 0;
                             }
                         });
@@ -518,7 +519,7 @@ class SupervisorFinalTest {
         setWanted(service, true);
         Field down = supervisor.getClass().getDeclaredField("shuttingDown");
         down.setAccessible(true);
-        down.setBoolean(supervisor, true);
+        ((java.util.concurrent.atomic.AtomicBoolean) down.get(supervisor)).set(true);
         invoke(service, "run");
     }
 

@@ -37,7 +37,8 @@ import java.util.stream.Stream;
  * End-to-end DevConnect login against a hermetic basis-auth stand-in: the browser is sent to the
  * IdP, the callback sets the session and token cookies, and the API then answers as the resolved
  * user. Also proves the account rules: first login creates an active user, a disabled account loses
- * access, and a second subject on a linked email is refused.
+ * access, and each distinct (provider, sub) gets its own account even when two subjects share an
+ * email address.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DevConnectLoginTest {
@@ -161,9 +162,11 @@ class DevConnectLoginTest {
     void theAliasCallbackCompletesLoginToo() throws Exception {
         IDP.identity("alias-sub", "alias@example.com", "Alias User");
         Response start = get(base() + "/api/login", null);
+        String state = cookie(start, "basis_login_state");
         Response idp = get(start.headers().firstValue("location").orElseThrow(), null);
         String callback = idp.headers().firstValue("location").orElseThrow();
-        Response done = get(callback.replace("/api/oauth/callback", "/api/oauth2/bcallback"), null);
+        Response done =
+                get(callback.replace("/api/oauth/callback", "/api/oauth2/bcallback"), state);
         assertEquals(302, done.status(), done.body());
         assertTrue(cookies(done).contains("basis_sites_session="));
     }
@@ -224,12 +227,13 @@ class DevConnectLoginTest {
     private static Response loginFlow() throws Exception {
         Response start = get(base() + "/api/login", null);
         assertEquals(302, start.status(), start.body());
+        String state = cookie(start, "basis_login_state");
         String authorize = start.headers().firstValue("location").orElseThrow();
         assertTrue(authorize.contains("/authorize?"), authorize);
         Response idp = get(authorize, null);
         assertEquals(302, idp.status());
         String callback = idp.headers().firstValue("location").orElseThrow();
-        return get(callback, null);
+        return get(callback, state);
     }
 
     private static String base() {

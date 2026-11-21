@@ -791,8 +791,10 @@ select other providers. Notes that refine the contract for this codebase:
   `action=test` returns `202` before delivering the HMAC proof asynchronously;
   nonce and challenge must each be 43-character base64url values. The logout
   handler additionally ends local BFF sessions for the resolved `(provider,
-  subject)` link and clears app cookies. Already-issued stateless JWTs are not
-  revocable; the next request filter expires them.
+  subject)` link and clears app cookies. It does not revoke already-issued
+  stateless app JWTs: a token still within its `exp` keeps working even after
+  logout because logout only clears the browser cookie. Immediate invalidation
+  requires the JTI revocation feed or a signing-key rotation.
 - **Resource API.** `BasisResourceFilter` validates basis access tokens on
   `/api/v1/workspaces/**` only when an `Authorization: Bearer` header carries a
   JWT with `typ=at+jwt`. It requires `sub`, `client_id`, `scope`, `permissions`,
@@ -806,8 +808,16 @@ select other providers. Notes that refine the contract for this codebase:
   section 11 and returned in the login error body with operator-facing recovery
   text. Secrets, codes and raw cookies are never logged.
 - **Browser login.** Browsers continue to use the application's own BFF session
-  and JWT after a successful basis-auth callback. Direct API clients may use a
-  valid basis access token on workspace endpoints as described above.
+  and JWT after a successful basis-auth callback. The authorization `state` is
+  also bound to the initiating browser with a short-lived `SameSite=Lax`
+  `basis_login_state` cookie; a callback without that cookie is rejected (HTTP
+  `406` for JSON clients). Discovery endpoints must use HTTPS and share the
+  configured issuer host, except for loopback issuers in local development.
+  UserInfo is fetched through the discovered `userinfo_endpoint` with a 5-second
+  timeout as optional profile enrichment: verified ID-token claims stay
+  authoritative, and UserInfo only fills claims the ID token omitted.
+  Direct API clients may use a valid basis access token on workspace endpoints
+  as described above.
 - **Verified principal.** After `BasisResourceFilter` validates a basis access
   token, it resolves the local user from the `(basis-auth, sub)` link and
   publishes `basis.verified.userId`. `SecurityConfig` authenticates workspace

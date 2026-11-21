@@ -13,4 +13,4 @@ and merge within their areas.
 
 Security-relevant changes need two approvals and a threat-model review.
 Licensed Apache 2.0. Contributions fall under the Developer Certificate
-of Origin.
+of Origin 1.1 as the stated standard; it is not enforced automatically.

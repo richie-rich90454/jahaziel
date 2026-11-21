@@ -29,8 +29,14 @@ Use these spellings for new installs. They match
 | `BASIS_AUTH_RESOURCE` | Resource audience |
 | `BASIS_AUTH_RESOURCE_SECRET` | Resource secret for webhook proof and internal API authentication |
 | `BASIS_AUTH_INTERNAL_URL` | Base URL for internal API calls |
-| `BASIS_AUTH_COOKIE_SECRET` | At least 32 random bytes; part of the canonical setup (sessions are server-side and tokens signed with `data/keys`, so the value is accepted but not used to encrypt cookies) |
+| `BASIS_AUTH_COOKIE_SECRET` | At least 32 random bytes; part of the canonical setup (sessions are server-side and tokens signed with `data/keys`, so the value is accepted but not used to encrypt cookies). A shorter configured value fails startup. |
 | `CURRENT_URL_ORIGIN` | Public HTTPS origin with no trailing path |
+
+Login requires all five legacy names tracked by `Cli.BASIS_VARS` /
+`DotEnv.BASIS_VARS` — issuer, redirect URI, client id, client secret and
+resource — with the client secret required. In the canonical setup
+`CURRENT_URL_ORIGIN` derives the redirect URI, so the five become issuer,
+client id, client secret, resource and origin.
 
 The two callback URLs are derived from `CURRENT_URL_ORIGIN`:
 
@@ -51,14 +57,6 @@ settings as part of canonical setup; older examples may still mention them.
 Secret rotation is covered in the guide's
 [secret rotation](../guide/configuration.md#secret-rotation) section and
 sections 10.4/10.5 of the downstream guide.
-
-## Optional Microsoft Entra keys
-
-| Variable | Purpose |
-|---|---|
-| `MICROSOFT_TENANT_ID` | Entra tenant when the provider needs one explicitly |
-| `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Entra application credentials |
-| `MICROSOFT_WEBHOOK_STATE`, `MICROSOFT_WEBHOOK_ID` | Webhook state and identifier |
 
 ## Other login providers
 
@@ -111,19 +109,16 @@ variables with the dotted name uppercased where your launcher requires it.
 | Variable | Purpose |
 |---|---|
 | `PORT` | API port when `--port` is absent (default `11451`) |
-| `HOST` | Optional bind host used by deployment templates |
 | `TRUSTED_PROXY_HOPS` | Optional trusted reverse-proxy hop count |
 | `DISABLE_DEBUG_ROUTES` | Optional switch to disable debug routes |
 | `JAHAZIEL_GATEWAY_PORT` | Legacy standalone gateway socket when `--gateway-port` is absent (default `8081`; off unless enabled) |
 | `JAHAZIEL_DOMAIN` | Public domain and token issuer when `--domain` is absent (`localhost` by default) |
 | `JAHAZIEL_LOG_LEVEL` | Root log level |
-| `JAHAZIEL_DEMO` | Legacy demo flag (prefer `--demo`) |
+| `JAHAZIEL_DEMO` | Demo flag (prefer `--demo`); forces a loopback bind |
+| `JAHAZIEL_DEMO_ALLOW_NON_LOOPBACK` | Explicit opt-in to bind demo mode to a non-loopback address; otherwise demo startup fails on a configured non-loopback bind |
 | `JAHAZIEL_BACKEND` | `local` (the only selectable backend in this release) |
 | `JAHAZIEL_SHARE_SECRET` | HMAC secret for share links; generated in memory if unset |
 | `JAHAZIEL_JWT_TTL_SECONDS` | Preview/session token lifetime (`jahaziel.jwt.ttl-seconds`, default `900`) |
-| `NO_COLOR` | Disables ANSI colors in `logs` output |
-| `DATABASE_POOL_MAX` | Optional pool size when a pooling datasource is configured |
 
 Jahaziel uses **SQLite** by default (`./data/jahaziel.db`). Do not introduce a
-PostgreSQL `DATABASE_URL`; a pool setting applies only where a pooling
-datasource is actually configured.
+PostgreSQL `DATABASE_URL`.
