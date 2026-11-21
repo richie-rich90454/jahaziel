@@ -62,6 +62,41 @@ class GatewayRouteCoverageGapTest {
                 .register(anySlug(), org.mockito.ArgumentMatchers.eq(8080), anyId());
     }
 
+    @Test
+    void reconcileRegistersBothWorkspacesSharingOneUserPort() {
+        RouteRegistry registry = mock(RouteRegistry.class);
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        UserService users = mock(UserService.class);
+        PortService ports = mock(PortService.class);
+        GatewayRouteServiceImpl svc =
+                new GatewayRouteServiceImpl(Optional.of(registry), workspaces, users, ports);
+        Instant now = Instant.now();
+        List<WorkspaceView> views = new java.util.ArrayList<>();
+        List<UUID> ids = new java.util.ArrayList<>();
+        for (int index = 0; index < 2; index++) {
+            WorkspaceId wid = new WorkspaceId(UUID.randomUUID());
+            ids.add(wid.value());
+            dev.jahaziel.identity.domain.UserId owner =
+                    new dev.jahaziel.identity.domain.UserId(UUID.randomUUID());
+            Workspace ws = mock(Workspace.class);
+            when(ws.id()).thenReturn(wid);
+            when(ws.owner()).thenReturn(owner);
+            when(ws.state()).thenReturn(new WorkspaceState.Ready(now));
+            WorkspaceView view = mock(WorkspaceView.class);
+            when(view.workspace()).thenReturn(ws);
+            when(users.slug(owner)).thenReturn("richard");
+            PortBinding binding = new PortBinding(owner.value(), 8080, wid.value(), "http", now);
+            when(ports.bindingsByWorkspace(wid)).thenReturn(List.of(binding));
+            views.add(view);
+        }
+        when(workspaces.describeAll()).thenReturn(views);
+
+        svc.reconcile();
+
+        verify(registry).register("richard", 8080, ids.get(0));
+        verify(registry).register("richard", 8080, ids.get(1));
+    }
+
     private static String anySlug() {
         return org.mockito.ArgumentMatchers.anyString();
     }

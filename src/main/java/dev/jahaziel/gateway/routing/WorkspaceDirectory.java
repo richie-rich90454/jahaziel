@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentMap;
 /** In-memory user-port to workspace routing table. */
 public final class WorkspaceDirectory extends RouteRegistry {
     private final ConcurrentMap<Route, UUID> routes = new ConcurrentHashMap<>();
+    private final ConcurrentMap<WorkspacePort, String> pathRoutes = new ConcurrentHashMap<>();
 
     /**
      * Registers a route.
@@ -26,7 +27,9 @@ public final class WorkspaceDirectory extends RouteRegistry {
      */
     @Override
     public void register(String userSlug, int port, UUID workspaceId) {
-        routes.put(new Route(userSlug, port), Objects.requireNonNull(workspaceId, "workspaceId"));
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        routes.put(new Route(userSlug, port), workspaceId);
+        pathRoutes.put(new WorkspacePort(workspaceId, port), userSlug);
     }
 
     /**
@@ -38,6 +41,34 @@ public final class WorkspaceDirectory extends RouteRegistry {
     @Override
     public void unregister(String userSlug, int port) {
         routes.remove(new Route(userSlug, port));
+        for (Map.Entry<WorkspacePort, String> entry : pathRoutes.entrySet()) {
+            if (entry.getKey().port() == port && entry.getValue().equals(userSlug)) {
+                pathRoutes.remove(entry.getKey());
+            }
+        }
+    }
+
+    @Override
+    public void unregister(String userSlug, int port, UUID workspaceId) {
+        pathRoutes.remove(new WorkspacePort(workspaceId, port));
+        Route route = new Route(userSlug, port);
+        if (!workspaceId.equals(routes.get(route))) {
+            return;
+        }
+        routes.remove(route);
+        String replacement = null;
+        for (Map.Entry<WorkspacePort, String> entry : pathRoutes.entrySet()) {
+            if (entry.getKey().port() != port || !entry.getValue().equals(userSlug)) {
+                continue;
+            }
+            String candidate = entry.getKey().workspaceId().toString();
+            if (replacement == null || candidate.compareTo(replacement) < 0) {
+                replacement = candidate;
+            }
+        }
+        if (replacement != null) {
+            routes.put(route, UUID.fromString(replacement));
+        }
     }
 
     /**
@@ -65,12 +96,39 @@ public final class WorkspaceDirectory extends RouteRegistry {
         if (port < 1 || port > 65535) {
             return Optional.empty();
         }
-        for (Map.Entry<Route, UUID> entry : routes.entrySet()) {
-            if (entry.getKey().port() == port && entry.getValue().equals(workspaceId)) {
-                return Optional.of(entry.getKey().userSlug());
-            }
+        return Optional.ofNullable(pathRoutes.get(new WorkspacePort(workspaceId, port)));
+    }
+
+    /** A workspace-port key for path-based previews, which are workspace-scoped. */
+    private static final class WorkspacePort {
+        private final UUID workspaceId;
+        private final int port;
+
+        WorkspacePort(UUID workspaceId, int port) {
+            this.workspaceId = Objects.requireNonNull(workspaceId, "workspaceId");
+            this.port = port;
         }
-        return Optional.empty();
+
+        UUID workspaceId() {
+            return workspaceId;
+        }
+
+        int port() {
+            return port;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof WorkspacePort)) return false;
+            WorkspacePort other = (WorkspacePort) o;
+            return port == other.port && workspaceId.equals(other.workspaceId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(workspaceId, port);
+        }
     }
 
     /** A user-slug and workspace-port route key. */

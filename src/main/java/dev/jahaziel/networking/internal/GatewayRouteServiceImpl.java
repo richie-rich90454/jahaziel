@@ -63,7 +63,7 @@ public final class GatewayRouteServiceImpl extends GatewayRouteService {
         for (Map.Entry<RouteKey, UUID> current : new ArrayList<>(registered.entrySet())) {
             if (!current.getValue().equals(desired.get(current.getKey()))) {
                 RouteKey key = current.getKey();
-                registry.get().unregister(key.slug(), key.port());
+                registry.get().unregister(key.slug(), key.port(), key.workspaceId());
                 registered.remove(key);
             }
         }
@@ -90,7 +90,9 @@ public final class GatewayRouteServiceImpl extends GatewayRouteService {
             }
             WorkspaceId workspaceId = view.workspace().id();
             for (PortBinding binding : ports.bindingsByWorkspace(workspaceId)) {
-                desired.put(new RouteKey(slug, binding.port()), workspaceId.value());
+                desired.put(
+                        new RouteKey(slug, binding.port(), workspaceId.value()),
+                        workspaceId.value());
             }
         }
         return desired;
@@ -109,11 +111,13 @@ public final class GatewayRouteServiceImpl extends GatewayRouteService {
     private static final class RouteKey {
         private final String slug;
         private final int port;
+        private final UUID workspaceId;
 
-        RouteKey(String slug, int port) {
+        RouteKey(String slug, int port, UUID workspaceId) {
             Objects.requireNonNull(slug, "slug");
             this.slug = slug;
             this.port = port;
+            this.workspaceId = Objects.requireNonNull(workspaceId, "workspaceId");
         }
 
         String slug() {
@@ -124,17 +128,23 @@ public final class GatewayRouteServiceImpl extends GatewayRouteService {
             return port;
         }
 
+        UUID workspaceId() {
+            return workspaceId;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (!(o instanceof RouteKey)) return false;
             RouteKey other = (RouteKey) o;
-            return port == other.port && slug.equals(other.slug);
+            return port == other.port
+                    && slug.equals(other.slug)
+                    && workspaceId.equals(other.workspaceId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(slug, port);
+            return Objects.hash(slug, port, workspaceId);
         }
     }
 }

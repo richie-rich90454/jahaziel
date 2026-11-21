@@ -27,4 +27,16 @@ public abstract class RouteRegistry {
      * @param port the workspace port
      */
     public abstract void unregister(String userSlug, int port);
+
+    /**
+     * Removes one workspace's route. Implementations that key routes only by user and port can keep
+     * the inherited behavior; path-based previews need the precise form.
+     *
+     * @param userSlug the URL-safe user slug
+     * @param port the workspace port
+     * @param workspaceId the serving workspace
+     */
+    public void unregister(String userSlug, int port, UUID workspaceId) {
+        unregister(userSlug, port);
+    }
 }

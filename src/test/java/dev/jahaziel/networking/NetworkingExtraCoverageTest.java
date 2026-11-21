@@ -229,7 +229,7 @@ class NetworkingExtraCoverageTest {
         svc.reconcile();
         when(workspaces.describeAll()).thenReturn(List.of());
         svc.reconcile();
-        verify(registry).unregister("slug", 8080);
+        verify(registry).unregister("slug", 8080, wid.value());
     }
 
     @Test

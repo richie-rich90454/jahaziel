@@ -24,6 +24,27 @@ class WorkspaceDirectoryTest {
     }
 
     @Test
+    void twoWorkspacesOfOneUserCanShareAPortForPathPreviews() {
+        WorkspaceDirectory directory = new WorkspaceDirectory();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        directory.register("richard", 8080, first);
+        directory.register("richard", 8080, second);
+
+        assertEquals("richard", directory.lookupSlug(first, 8080).orElseThrow());
+        assertEquals("richard", directory.lookupSlug(second, 8080).orElseThrow());
+
+        directory.unregister("richard", 8080, first);
+        assertTrue(directory.lookupSlug(first, 8080).isEmpty());
+        assertEquals("richard", directory.lookupSlug(second, 8080).orElseThrow());
+        assertTrue(directory.lookup("richard", 8080).isPresent());
+
+        directory.unregister("richard", 8080, second);
+        assertTrue(directory.lookupSlug(second, 8080).isEmpty());
+        assertTrue(directory.lookup("richard", 8080).isEmpty());
+    }
+
+    @Test
     void resolvesSlugOnlyForTheMatchingWorkspacePort() {
         WorkspaceDirectory directory = new WorkspaceDirectory();
         UUID workspace = UUID.randomUUID();
