@@ -35,6 +35,8 @@ public final class PluginSettings {
         "BASIS_SCOPES",
         "basis.offline-access",
         "BASIS_AUTH_OFFLINE_ACCESS",
+        "basis.refresh-window-seconds",
+        "BASIS_AUTH_REFRESH_WINDOW_SECONDS",
         "microsoft.client-id",
         "MICROSOFT_CLIENT_ID",
         "microsoft.client-secret",

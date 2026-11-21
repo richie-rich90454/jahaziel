@@ -15,6 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /** Small loopback token endpoint that rotates refresh tokens like basis-auth. */
 final class RefreshStub implements AutoCloseable {
@@ -30,6 +32,9 @@ final class RefreshStub implements AutoCloseable {
     private volatile String lastAuthorization;
     private volatile String lastRefresh;
     private volatile String lastClientId;
+    private volatile CountDownLatch gate;
+    private volatile CountDownLatch gated;
+    private volatile boolean gateUsed;
 
     private RefreshStub(
             HttpServer server, String clientId, String clientSecret, boolean publicClient) {
@@ -78,6 +83,29 @@ final class RefreshStub implements AutoCloseable {
         this.failRefresh = value;
     }
 
+    /** Holds the next refresh request so a concurrent caller can be observed. */
+    void gateNextRefresh() {
+        this.gate = new CountDownLatch(1);
+        this.gated = new CountDownLatch(1);
+        this.gateUsed = false;
+    }
+
+    boolean awaitGatedRefresh() {
+        try {
+            return gated != null && gated.await(5L, TimeUnit.SECONDS);
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    void releaseRefresh() {
+        CountDownLatch waiting = gate;
+        if (waiting != null) {
+            waiting.countDown();
+        }
+    }
+
     private HttpHandler handler(final String path) {
         return new HttpHandler() {
             @Override
@@ -119,6 +147,19 @@ final class RefreshStub implements AutoCloseable {
         if (!"refresh_token".equals(lastGrant) || failRefresh || !current.equals(lastRefresh)) {
             json(exchange, 400, "{\"error\":\"invalid_grant\"}");
             return;
+        }
+        CountDownLatch waiting = gate;
+        if (waiting != null && !gateUsed) {
+            gateUsed = true;
+            CountDownLatch entered = gated;
+            if (entered != null) {
+                entered.countDown();
+            }
+            try {
+                waiting.await(10L, TimeUnit.SECONDS);
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt();
+            }
         }
         issued++;
         current = "refresh-" + issued;

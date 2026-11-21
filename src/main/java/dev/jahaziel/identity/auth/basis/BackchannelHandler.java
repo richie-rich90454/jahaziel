@@ -201,9 +201,12 @@ public final class BackchannelHandler {
         store.addDeniedJti(jti, validAfter, numberClaim(claims, "access_token_expires_at"));
         String subject = stringClaim(claims, "sub");
         if (subject == null || subject.length() == 0) {
-            // No signed subject: deny the JTI only. Do not guess which sessions to end.
+            // The issuer's at-revocation+jwt has no sub today: refresh replacements and
+            // explicit revocations are the same shape. Deny the JTI only; use logout_token
+            // to end sessions. See the downstream guide, section 13.
             return HttpResult.noContent();
         }
+        // No current issuer event carries sub; keep this defensive path for signed future ones.
         store.removeSessionsForSubject(subject);
         // 204 with a subject makes the BFF controller end the (provider, sub) linked sessions.
         return HttpResult.loggedOut(subject);

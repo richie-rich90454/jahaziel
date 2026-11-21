@@ -17,6 +17,9 @@ import dev.jahaziel.identity.auth.basis.TokenVerifier;
 import dev.jahaziel.plugin.PluginContext;
 import dev.jahaziel.plugin.PluginDescriptor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,7 +31,15 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** basis-auth OIDC provider: authorization code, PKCE, RS256 ID tokens, and backchannel events. */
 public final class BasisAuthPlugin extends AuthProviderPlugin {
@@ -47,8 +58,12 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
                             AuthCapability.MFA_ASSURANCE,
                             AuthCapability.REFRESH,
                             AuthCapability.BACKCHANNEL));
+    private static final long MIN_REFRESH_WINDOW_SECONDS = 1L;
+    private static final long MAX_REFRESH_WINDOW_SECONDS = 300L;
+    private static final Logger log = LoggerFactory.getLogger(BasisAuthPlugin.class);
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Set<String> refreshing = ConcurrentHashMap.newKeySet();
 
     private PluginContext context;
     private BasisConfig config;
@@ -57,6 +72,8 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     private TokenVerifier verifier;
     private BackchannelHandler backchannel;
     private BasisHttp http;
+    private long refreshWindowMillis;
+    private ScheduledExecutorService refresher;
 
     public BasisAuthPlugin() {
         super(DESCRIPTOR);
@@ -76,10 +93,30 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
         context.putService(SERVICE_BACKCHANNEL, backchannel);
         context.putService(SERVICE_TOKEN_VERIFIER, verifier);
         context.putService(SERVICE_STORE, store);
+        refreshWindowMillis = configuredRefreshWindow(context);
+        if (refreshWindowMillis > 0L && config.offlineAccess()) {
+            long intervalSeconds = Math.max(1L, refreshWindowMillis / 2000L);
+            refresher = Executors.newSingleThreadScheduledExecutor(new RefreshThreads());
+            refresher.scheduleWithFixedDelay(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            refreshDue();
+                        }
+                    },
+                    intervalSeconds,
+                    intervalSeconds,
+                    TimeUnit.SECONDS);
+        }
     }
 
     @Override
-    public void shutdown() {}
+    public void shutdown() {
+        if (refresher != null) {
+            refresher.shutdownNow();
+            refresher = null;
+        }
+    }
 
     @Override
     public String startLogin(
@@ -169,6 +206,10 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
                         claims);
         store.putSession(sessionId, identity);
         store.putRefreshToken(sessionId, tokens.get("refresh_token"));
+        long expiresIn = seconds(tokens.get("expires_in"));
+        if (expiresIn > 0L) {
+            store.putTokenExpiresAt(sessionId, System.currentTimeMillis() + expiresIn * 1000L);
+        }
         return identity;
     }
 
@@ -177,56 +218,90 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
         return store.getSession(sessionId);
     }
 
+    /**
+     * Refreshes a session, skipping duplicate calls for a session already being rotated. Two
+     * concurrent refreshes would make the issuer revoke the whole token family.
+     */
     @Override
     public AuthIdentity refresh(PluginContext context, String sessionId) {
-        if (sessionId == null || sessionId.length() == 0) {
+        if (sessionId == null || sessionId.length() == 0 || !refreshing.add(sessionId)) {
             return null;
         }
-        String current = store.refreshToken(sessionId);
-        if (current == null || current.length() == 0) {
-            return null;
-        }
-        Map<String, String> form = new LinkedHashMap<String, String>();
-        form.put("grant_type", "refresh_token");
-        form.put("refresh_token", current);
-        form.put("resource", config.resource());
-        if (config.publicClient()) {
-            form.put("client_id", config.clientId());
-        }
-        String endpoint = metadata.discovery().tokenEndpoint();
-        String authorization =
-                config.publicClient() ? null : basic(config.clientId(), config.clientSecret());
-        String body;
         try {
-            body =
-                    http.postForm(
-                            endpoint, BasisHttp.form(form), authorization, Duration.ofSeconds(60));
-        } catch (BasisOAuthException failure) {
-            if ("invalid_grant".equals(failure.error())) {
-                store.clearRefresh(sessionId);
+            String current = store.refreshToken(sessionId);
+            if (current == null || current.length() == 0) {
                 return null;
             }
-            throw failure;
+            Map<String, String> form = new LinkedHashMap<String, String>();
+            form.put("grant_type", "refresh_token");
+            form.put("refresh_token", current);
+            form.put("resource", config.resource());
+            if (config.publicClient()) {
+                form.put("client_id", config.clientId());
+            }
+            String endpoint = metadata.discovery().tokenEndpoint();
+            String authorization =
+                    config.publicClient() ? null : basic(config.clientId(), config.clientSecret());
+            String body;
+            try {
+                body =
+                        http.postForm(
+                                endpoint,
+                                BasisHttp.form(form),
+                                authorization,
+                                Duration.ofSeconds(60));
+            } catch (BasisOAuthException failure) {
+                if ("invalid_grant".equals(failure.error())) {
+                    store.clearRefresh(sessionId);
+                    return null;
+                }
+                throw failure;
+            }
+            JsonNode node;
+            try {
+                node = mapper.readTree(body);
+            } catch (Exception failure) {
+                throw new BasisException("basis-auth refresh response is not JSON", failure);
+            }
+            String accessToken = text(node, "access_token");
+            String idToken = text(node, "id_token");
+            String rotated = text(node, "refresh_token");
+            if (accessToken == null
+                    || idToken == null
+                    || rotated == null
+                    || rotated.length() == 0) {
+                throw new BasisException("basis-auth refresh response lacks required tokens");
+            }
+            long expiresIn =
+                    node == null || node.get("expires_in") == null
+                            ? 0L
+                            : node.get("expires_in").asLong();
+            store.consumeAndReplace(sessionId, current, rotated);
+            store.putTokenExpiresAt(sessionId, System.currentTimeMillis() + expiresIn * 1000L);
+            return store.getSession(sessionId);
+        } finally {
+            refreshing.remove(sessionId);
         }
-        JsonNode node;
-        try {
-            node = mapper.readTree(body);
-        } catch (Exception failure) {
-            throw new BasisException("basis-auth refresh response is not JSON", failure);
+    }
+
+    /**
+     * Runs one pre-expiry refresh pass over due sessions. Public so a lifecycle test can drive a
+     * pass deterministically instead of waiting for the scheduler's tick.
+     */
+    public void refreshDue() {
+        if (refreshWindowMillis <= 0L) {
+            return;
         }
-        String accessToken = text(node, "access_token");
-        String idToken = text(node, "id_token");
-        String rotated = text(node, "refresh_token");
-        if (accessToken == null || idToken == null || rotated == null || rotated.length() == 0) {
-            throw new BasisException("basis-auth refresh response lacks required tokens");
+        List<String> due =
+                store.sessionsNeedingRefresh(System.currentTimeMillis(), refreshWindowMillis);
+        for (String sessionId : due) {
+            try {
+                refresh(context, sessionId);
+            } catch (RuntimeException failure) {
+                // One failed session must not stop the pass or expose tokens in logs.
+                log.warn("basis-auth automatic refresh failed for a session");
+            }
         }
-        long expiresIn =
-                node == null || node.get("expires_in") == null
-                        ? 0L
-                        : node.get("expires_in").asLong();
-        store.consumeAndReplace(sessionId, current, rotated);
-        store.putTokenExpiresAt(sessionId, System.currentTimeMillis() + expiresIn * 1000L);
-        return store.getSession(sessionId);
     }
 
     /** The context handed to initialize, for callers without direct access to it. */
@@ -285,7 +360,49 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
         tokens.put("id_token", idToken);
         tokens.put("access_token", accessToken);
         tokens.put("refresh_token", text(node, "refresh_token"));
+        JsonNode expires = node == null ? null : node.get("expires_in");
+        tokens.put(
+                "expires_in",
+                expires == null || expires.isNull() ? null : Long.toString(expires.asLong()));
         return tokens;
+    }
+
+    /** Opt-in window in milliseconds; zero disables the scheduler. Invalid values fail closed. */
+    private static long configuredRefreshWindow(PluginContext context) {
+        String value = context.setting("basis.refresh-window-seconds");
+        if (blank(value)) {
+            value = context.setting("BASIS_AUTH_REFRESH_WINDOW_SECONDS");
+        }
+        if (blank(value)) {
+            value = System.getenv("BASIS_AUTH_REFRESH_WINDOW_SECONDS");
+        }
+        if (blank(value)) {
+            return 0L;
+        }
+        try {
+            long seconds = Long.parseLong(value.trim());
+            if (seconds >= MIN_REFRESH_WINDOW_SECONDS && seconds <= MAX_REFRESH_WINDOW_SECONDS) {
+                return seconds * 1000L;
+            }
+        } catch (NumberFormatException ignored) {
+            // Fall through to the warning and stay off.
+        }
+        log.warn(
+                "basis-auth refresh window must be {} to {} seconds; automatic refresh is off",
+                Long.valueOf(MIN_REFRESH_WINDOW_SECONDS),
+                Long.valueOf(MAX_REFRESH_WINDOW_SECONDS));
+        return 0L;
+    }
+
+    private static long seconds(String value) {
+        if (blank(value)) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     private static void append(StringBuilder url, String name, String value) {
@@ -304,5 +421,17 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
     private static String basic(String user, String secret) {
         String pair = user + ":" + secret;
         return "Basic " + Base64.getEncoder().encodeToString(pair.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** One daemon thread for the whole plugin, stopped by shutdown. */
+    private static final class RefreshThreads implements ThreadFactory {
+        private final AtomicInteger count = new AtomicInteger();
+
+        @Override
+        public Thread newThread(Runnable task) {
+            Thread thread = new Thread(task, "basis-refresh-" + count.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
     }
 }

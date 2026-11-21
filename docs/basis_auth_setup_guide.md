@@ -224,6 +224,10 @@ used to encrypt browser cookies. Older deployments may keep the aliases
 `BASIS_RESOURCE`; they are supported but are not the canonical spelling.
 Public clients have no secret. Keep secrets server-side in every case.
 
+Optional, off by default: `BASIS_AUTH_REFRESH_WINDOW_SECONDS` (or the plugin
+setting `basis.refresh-window-seconds`) enables the app's pre-expiry refresh
+scheduler. See section 13 before enabling it.
+
 ### 4.2 Start login
 
 1. Fetch discovery and JWKS from the issuer. Cache for about five minutes.
@@ -419,11 +423,17 @@ after persisting.
 `ACCESS_TOKEN_REVOCATION_GRACE_SECONDS` on the service sets how far ahead
 `valid_after` may be. It defaults to `0`.
 
-When the signed `revocation_token` also carries `sub`, that subject identifies
-the affected user: an integrator may end that user's local sessions through the
-same `(provider, sub)` link used for logout. Without a signed `sub` there is no
-trustworthy subject to end sessions for, so only the JTI is denied; pair such
-events with backchannel logout for immediate sign-out.
+The current issuer's `issueAccessTokenRevocation` (in `basis-auth`,
+`src/oauth/keys.ts`) signs only `access_token_jti`, `valid_after`, and
+`access_token_expires_at` in an `at-revocation+jwt`; it does not set `sub`.
+`exchangeRefreshToken` in `src/oauth/service.ts` records the same event for a
+routine refresh replacement as an explicit revoke or an ended session does.
+Refresh replacements and explicit revocations therefore share one shape and
+cannot be told apart from the verified payload; do not delete BFF sessions on
+these events. End sessions through `logout_token` (section 5.2) instead.
+This application still ends sessions when a verified `at-revocation+jwt`
+happens to carry `sub`, but no current issuer event supplies one, so that path
+is defensive only.
 
 ### 5.4 Reject invalid access tokens consistently
 
@@ -794,27 +804,39 @@ select other providers. Notes that refine the contract for this codebase:
   further use, and revokes the whole token family on reuse. `invalid_grant`
   clears refresh state. The advertised `REFRESH` capability is backed by this
   method and requires `BASIS_AUTH_OFFLINE_ACCESS=true` to obtain a refresh
-  token. There is no automatic periodic refresh near expiry. This app has no
-  bounded scheduler to drive one, the access-token expiry is recorded only
-  after a refresh (not at login), and `refresh()` performs a blocking token
-  request. A new background timer would need lifecycle management, per-session
-  serialization, and would race with the login-time refresh: two refreshes of
-  the same session trip `RefreshReuseException` and revoke the whole family.
-  Applications must schedule refresh themselves per section 4.7.
+  token at login; without it there is no refresh grant to schedule. The
+  authorization-code response's `expires_in` is now recorded at login as well
+  as after each refresh, so sessions have a known expiry.
+  Automatic pre-expiry refresh is **off by default** and opt-in via
+  `BASIS_AUTH_REFRESH_WINDOW_SECONDS` (or `basis.refresh-window-seconds`),
+  accepted only for 1–300 seconds; invalid or out-of-range values leave it off.
+  One daemon thread polls every `max(1, window / 2)` seconds, refreshes only
+  sessions with a refresh token whose recorded expiry is in the future and
+  inside the window, and is stopped in `BasisAuthPlugin.shutdown()`. A
+  concurrent `refresh()` call for a session already rotating returns `null`
+  instead of starting a second rotation, so a scheduler tick cannot race a
+  request and trip `RefreshReuseException`. This is a single-instance feature:
+  another process sharing the same store could still rotate the same token.
+  Choose a window shorter than the issuer's access-token lifetime (the
+  no-callback cap is 600 seconds), otherwise a refreshed token can immediately
+  be due again. Applications that run multiple instances must keep this off
+  and schedule refresh themselves per section 4.7.
 - **Backchannel.** `POST /api/auth/basis/backchannel` (with
   `POST /api/auth/backchannel` kept as an alias) handles all three event types.
   `action=test` returns `202` before delivering the HMAC proof asynchronously;
   nonce and challenge must each be 43-character base64url values. The logout
   handler ends local BFF sessions for the resolved `(provider, subject)` link
-  and clears app cookies. A `revoke_access_token` event whose signed
-  `at-revocation+jwt` carries `sub` does the same: it denies the JTI and ends
-  every BFF session linked to that `(basis-auth, sub)` identity. A revocation
-  without a signed `sub` only denies the JTI, because there is no trustworthy
-  subject to link; pair it with backchannel logout for immediate sign-out.
-  Neither path revokes already-issued stateless app JWTs: a token still within
-  its `exp` keeps working after logout because logout only clears the browser
-  cookie. Immediate invalidation requires the JTI revocation feed or a
-  signing-key rotation.
+  and clears app cookies. `revoke_access_token` always denies the signed JTI
+  with the earliest `valid_after`; the issuer's `at-revocation+jwt` has no `sub`,
+  so a routine refresh replacement and an explicit revocation are
+  indistinguishable and neither ends BFF sessions. The code ends sessions if a
+  verified revocation token does carry `sub`, but no current issuer event does;
+  rely on `logout_token` for sign-out. Neither path revokes already-issued
+  stateless app JWTs: a token still within its `exp` keeps working after logout
+  because logout only clears the browser cookie and the app JWT is validated
+  locally. Immediate invalidation requires the JTI revocation feed at the API
+  or a signing-key rotation. A resource with no verified callback gets tokens
+  capped at 10 minutes across code, refresh, and client-credentials grants.
 - **ID token validation.** `TokenVerifier.verifyIdToken` checks the RS256
   signature, issuer, audience, expiry, and nonce. `at_hash` is optional per
   OIDC: when the token carries it and an access token is available it must
@@ -854,3 +876,55 @@ select other providers. Notes that refine the contract for this codebase:
   an additional provider identity via `/api/auth/link`. These endpoints do not
   change the basis-auth contract above, but they share the same
   `(provider, subject)` identity store and never join accounts by email.
+- **Admin MFA assurance.** `TokenVerifier.mfaAssured` maps an `amr` entry of
+  `mfa`/`otp` or an `acr` of `2`/containing `mfa` in the verified ID token to
+  `AuthIdentity.mfaAssured`. Admin routes require that assurance; an issuer
+  profile that omits those claims cannot grant admin access, even when the
+  user is otherwise entitled. `BASIS_ADMIN_BOOTSTRAP_EMAIL` and
+  `BASIS_ADMIN_REQUIRED_ACR` are not setup keys.
+- **Proxy trust.** Public origins derived from `X-Forwarded-Proto` and
+  `X-Forwarded-Host` are honored only when `JAHZIEL_TRUST_FORWARDED_HEADERS=true`.
+  Behind a TLS-terminating proxy, set it and `CURRENT_URL_ORIGIN` to the real
+  HTTPS origin so the registered callback and backchannel URLs match what the
+  browser uses; otherwise leave it off. Do not trust forwarded headers from a
+  client-facing network.
+
+## 14. Production sign-off checklist
+
+Verify these against the **live** issuer before enabling this integration in
+production. Section 9 is the functional checklist; these are the assumptions
+that can silently change.
+
+- [ ] Discovery and JWKS are HTTPS, same-host as the configured issuer, and
+      reachable from both the app and API networks.
+- [ ] IDs, secrets, callbacks, and the resource secret are the production
+      values; `${CURRENT_URL_ORIGIN}/api/auth/basis/callback` and
+      `${CURRENT_URL_ORIGIN}/api/auth/basis/backchannel` are registered exactly
+      and the webhook proof returns `200` for each URL.
+- [ ] The access-token `typ` is `at+jwt`, the ID token `typ`/claims and optional
+      `at_hash` match section 4.4, and `expires_in` agrees with the JWT's
+      `exp - iat`.
+- [ ] Confirm the live `at-revocation+jwt` still has no `sub`. If a future
+      issuer starts signing `sub` on routine refresh replacements, treat that
+      as a breaking contract change and remove the app's defensive
+      session-deletion-on-revocation path before deploying it: the payload
+      cannot distinguish a replacement from an explicit revocation.
+- [ ] Test that a revocation denies the JTI after `valid_after`, that logout
+      ends the BFF session via `logout_token`, and that a stateless app JWT
+      inside its `exp` still works after logout. Decide whether that survival
+      window is acceptable or require a signing-key rotation.
+- [ ] Confirm whether a valid backchannel URL is registered. Without one, new
+      access tokens are capped at 10 minutes for code, refresh, and client
+      credentials; verify the live token's `expires_in` and cache TTLs.
+- [ ] Confirm a refresh token is actually returned: `offline_access` must be
+      allowed and `BASIS_AUTH_OFFLINE_ACCESS=true` set. Without it there is no
+      refresh grant and the `REFRESH` capability is inactive.
+- [ ] For admin users, confirm the ID token carries `amr=mfa`/`otp` or an
+      MFA-bearing `acr`; otherwise admin access is denied by design.
+- [ ] Confirm the proxy setup: with a TLS terminator, set
+      `JAHZIEL_TRUST_FORWARDED_HEADERS=true` and the real HTTPS
+      `CURRENT_URL_ORIGIN`; never trust forwarded headers from clients.
+- [ ] If automatic refresh is enabled, confirm one app instance owns the store,
+      the configured window is below the live access-token lifetime, a reused
+      refresh token still revokes the family, and `shutdown()` leaves no
+      `basis-refresh-*` thread behind.

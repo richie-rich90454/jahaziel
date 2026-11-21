@@ -236,6 +236,23 @@ public final class BasisStore {
         }
     }
 
+    /**
+     * Sessions whose access token expires inside the window and that still hold a refresh token.
+     * Sessions with no recorded expiry are skipped: the app cannot know when they are due.
+     */
+    public synchronized List<String> sessionsNeedingRefresh(long nowMillis, long windowMillis) {
+        List<String> due = new ArrayList<String>();
+        for (String id : sessions.propertyNames()) {
+            long expiresAt = number(sessions.get(id), "accessTokenExpiresAt");
+            if (expiresAt > nowMillis
+                    && expiresAt <= nowMillis + windowMillis
+                    && refresh.get(id) != null) {
+                due.add(id);
+            }
+        }
+        return due;
+    }
+
     private ObjectNode loadRoot() {
         if (!Files.exists(file)) {
             return mapper.createObjectNode();

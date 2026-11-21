@@ -91,7 +91,10 @@ error body with recovery guidance. These match the downstream contract's
 
 `invalid_grant` on code exchange means the code expired, was consumed, or the
 verifier was wrong; on refresh it means the token was rotated or the session
-was revoked. Clear state and require a new sign-in.
+was revoked. Clear state and require a new sign-in. The optional automatic
+pre-expiry refresh uses the same rule: `invalid_grant` clears that session's
+refresh state; a concurrent refresh call for a session already rotating returns
+no identity instead of starting a second rotation.
 
 Webhook verification and the internal listener use their own statuses:
 `202` for `action=test`, `400 invalid_request` for bad input, `401
