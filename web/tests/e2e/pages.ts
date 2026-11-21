@@ -128,7 +128,7 @@ export class WorkbenchPage {
     this.searchInput = page.locator("#workspace-search");
     this.searchResults = page.locator("#search-results");
     this.activeFile = page.locator("#active-file");
-    this.editor = page.locator("#editor-surface .cm-content").first();
+    this.editor = page.locator("#editor-surface .editor-instance:not([hidden]) .cm-content").first();
     this.saveState = page.locator("#save-state");
     this.saveButton = page.locator("#save-file");
     this.conflictActions = page.locator("#save-conflict-actions");
