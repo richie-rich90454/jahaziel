@@ -7,8 +7,8 @@ package dev.jahaziel.identity.auth.wiring;
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.auth.BasisAuthPlugin;
 import dev.jahaziel.identity.auth.basis.BackchannelHandler;
+import dev.jahaziel.identity.auth.basis.BasisException;
 import dev.jahaziel.identity.auth.basis.HttpResult;
-import dev.jahaziel.identity.auth.basis.TokenVerifier.TokenRejectedException;
 import dev.jahaziel.identity.internal.devconnect.DevConnectServiceImpl;
 import dev.jahaziel.plugin.PluginContext;
 
@@ -55,7 +55,7 @@ public final class BackchannelController {
         HttpResult result;
         try {
             result = handler.handle(form);
-        } catch (TokenRejectedException rejected) {
+        } catch (BasisException failure) {
             result = HttpResult.badRequest();
         }
         ResponseEntity.BodyBuilder response = ResponseEntity.status(result.status());

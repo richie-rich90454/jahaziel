@@ -74,6 +74,18 @@ public final class BasisOAuthException extends BasisException {
                 14501,
                 "Ask the operator to add the audience to this client.");
         code("resource_not_allowed", 14501, "Ask the operator to add the audience to this client.");
+        code(
+                "backchannel_url_not_registered",
+                14408,
+                "Register the backchannel receiver in basis-auth and save it for verification.");
+        code(
+                "backchannel_url_unverified",
+                14408,
+                "Register the backchannel receiver in basis-auth and save it for verification.");
+        code(
+                "invalid_backchannel_url",
+                14408,
+                "Register the backchannel receiver in basis-auth and save it for verification.");
         code("interaction_required", 2400, "Restart authorization.");
         code("interaction_expired", 2400, "Restart authorization.");
         code("login_required", 2400, "Restart authorization.");

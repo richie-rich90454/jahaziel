@@ -29,7 +29,7 @@ Use these spellings for new installs. They match
 | `BASIS_AUTH_RESOURCE` | Resource audience |
 | `BASIS_AUTH_RESOURCE_SECRET` | Resource secret for webhook proof and internal API authentication |
 | `BASIS_AUTH_INTERNAL_URL` | Base URL for internal API calls |
-| `BASIS_AUTH_COOKIE_SECRET` | App session cookie secret; at least 32 bytes |
+| `BASIS_AUTH_COOKIE_SECRET` | At least 32 random bytes; part of the canonical setup (sessions are server-side and tokens signed with `data/keys`, so the value is accepted but not used to encrypt cookies) |
 | `CURRENT_URL_ORIGIN` | Public HTTPS origin with no trailing path |
 
 The two callback URLs are derived from `CURRENT_URL_ORIGIN`:

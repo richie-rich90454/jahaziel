@@ -25,6 +25,7 @@ import java.util.Set;
 public final class TokenVerifier {
     public static final String LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
     private static final long CLOCK_SKEW_SECONDS = 60L;
+    private static final long BACKCHANNEL_MAX_LIFETIME_MS = 130_000L;
 
     private final BasisConfig config;
     private final BasisMetadata metadata;
@@ -71,7 +72,13 @@ public final class TokenVerifier {
 
     public VerifiedToken verifyBackchannelToken(
             String token, String expectedType, String audience) {
-        return verifyBackchannelToken(token, expectedType, audience, 0L);
+        VerifiedToken verified = verifyBackchannelToken(token, expectedType, audience, 0L);
+        Date expiry = verified.claims().getExpirationTime();
+        if (expiry == null
+                || expiry.getTime() - System.currentTimeMillis() > BACKCHANNEL_MAX_LIFETIME_MS) {
+            throw new TokenRejectedException("backchannel token exceeds its two-minute lifetime");
+        }
+        return verified;
     }
 
     private VerifiedToken verifyBackchannelToken(

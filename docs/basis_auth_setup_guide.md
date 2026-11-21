@@ -766,7 +766,10 @@ this guide in the same change. See `AGENTS.md` for the mandatory rule.
 ## 13. Implemented integration notes
 
 This application implements the contract above through `BasisAuthPlugin` in
-`dev.jahaziel.identity.auth`. Notes that refine the contract for this codebase:
+`dev.jahaziel.identity.auth` when `AUTH_PROVIDERS=basis-auth` is set. With no
+`AUTH_PROVIDERS` setting the built-in DevConnect OIDC flow handles browser login
+using the same canonical keys; the backchannel receiver and resource-token
+filter still run. Notes that refine the contract for this codebase:
 
 - **Credential keys.** The canonical set is `BASIS_AUTH_ISSUER`,
   `BASIS_AUTH_CLIENT_ID`, `BASIS_AUTH_CLIENT_SECRET`, `BASIS_AUTH_RESOURCE`,
@@ -780,8 +783,10 @@ This application implements the contract above through `BasisAuthPlugin` in
 - **Refresh.** `BasisAuthPlugin.refresh(sessionId)` rotates the refresh token
   with HTTP Basic client authentication, persists the replacement before any
   further use, and revokes the whole token family on reuse. `invalid_grant`
-  clears refresh state and requires a new sign-in. The advertised `REFRESH`
-  capability is backed by this method.
+  clears refresh state. The advertised `REFRESH` capability is backed by this
+  method. Requires `BASIS_AUTH_OFFLINE_ACCESS=true` and the plugin login path;
+  a token-family revocation does not by itself delete the browser BFF session,
+  so pair it with backchannel logout for immediate sign-out.
 - **Backchannel.** `POST /api/auth/basis/backchannel` (with
   `POST /api/auth/backchannel` kept as an alias) handles all three event types.
   `action=test` returns `202` before delivering the HMAC proof asynchronously;
