@@ -66,6 +66,11 @@ jobs:
         run: |
           pnpm --dir web audit --audit-level=high
           pnpm --dir docs audit --audit-level=high
+      - name: Build docs site
+        shell: bash
+        run: |
+          pnpm --dir docs install --frozen-lockfile
+          pnpm --dir docs run docs:build
       - name: Build browser workbench
         working-directory: web
         run: |

@@ -80,7 +80,7 @@ scp target/jahaziel.jar jahaziel@example-host:/var/lib/jahaziel/jahaziel.jar
 
 ~~~powershell
 # Windows PowerShell: OpenSSH scp, or a file share
-scp .\target\jahaziel.jar jahaziel@example-host:C:\jahaziel\jahaziel.jar
+scp .\target\jahaziel.jar jahaziel@example-host:C:/jahaziel/jahaziel.jar
 Copy-Item .\target\jahaziel.jar \\example-host\share\jahaziel\jahaziel.jar
 ~~~
 
@@ -337,7 +337,7 @@ These modules are present in the jar alongside the core workbench (files, editor
 
 ## Project status
 
-Jahaziel is under active development. The project version is `0.1.0-SNAPSHOT`; workflow artifacts are build outputs for evaluation, not stable release packages. The Linux x64 and arm64 CI pipeline — including the packaged browser smoke — is green, and a 30-test Windows Playwright E2E suite checks the SolidJS workbench against a local stub. Those are regression checks, not host acceptance: a release still requires real-device iPad testing, native acceptance on both Linux architectures, and real-host checks on macOS and Windows with their service templates. Review the [current plan](docs/plan.md) and [release acceptance checklist](docs/operations/acceptance.md) before deploying it for important work.
+Jahaziel is under active development. The project version is `0.1.0-SNAPSHOT`; workflow artifacts are build outputs for evaluation, not stable release packages. The Linux x64 and arm64 CI pipeline — including the packaged browser smoke and a 62-test Playwright E2E suite that checks the SolidJS workbench against a local stub — is green. The Windows job only lists the E2E suite's tests (`playwright test --list`); it does not run them. Those are regression checks, not host acceptance, and the project is **not release-accepted**: a release still requires real-device iPad testing, native acceptance on both Linux architectures, and real-host checks on macOS and Windows with their service templates. Review the [current plan](docs/plan.md) and [release acceptance checklist](docs/operations/acceptance.md) before deploying it for important work.
 
 ## Contribute and get help
 

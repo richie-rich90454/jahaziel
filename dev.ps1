@@ -72,10 +72,13 @@ function Get-NodeVersion {
 }
 
 function Resolve-MavenExecutable {
-  $maven = Get-Command mvn.cmd -ErrorAction SilentlyContinue
-  if (-not $maven) { $maven = Get-Command mvn -ErrorAction SilentlyContinue }
-  if ($maven -and $maven.Source) { return $maven.Source }
-  throw "An existing Maven installation is required. Add its executable to PATH; this workflow will not download a Maven distribution."
+  $windows = if ($null -ne (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue)) { [bool]$IsWindows } else { $true }
+  $name = if ($windows) { "mvnw.cmd" } else { "mvnw" }
+  $wrapper = Join-Path $ScriptDir $name
+  if (-not (Test-Path -LiteralPath $wrapper -PathType Leaf)) {
+    throw "The repository Maven wrapper ($name) is missing from $ScriptDir. This workflow uses the wrapper and will not fall back to a global Maven install."
+  }
+  return $wrapper
 }
 
 function Invoke-Mvn([string[]]$MavenArguments) {

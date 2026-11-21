@@ -892,14 +892,35 @@ run()
     process.exitCode = 1;
   })
   .finally(async () => {
-    if (browser) await browser.close().catch(() => undefined);
-    await stopServer(server).catch((failure) => console.error(failure));
-    if (identityProvider) {
-      await new Promise((resolve) => identityProvider.server.close(() => resolve()));
-    }
-    if (fs.existsSync(scratchRoot)
-        && path.dirname(scratchRoot) === scratchBase
-        && path.basename(scratchRoot).startsWith("run-")) {
+    const cleanupErrors = [];
+    const cleanup = async (label, action) => {
+      try {
+        await action();
+      } catch (failure) {
+        cleanupErrors.push(`${label}: ${failure?.stack || failure?.message || String(failure)}`);
+      }
+    };
+
+    // A hung browser close must not strand the JVM or the scratch directory.
+    await cleanup("browser close", async () => {
+      if (!browser) return;
+      await Promise.race([
+        browser.close(),
+        delay(10_000, undefined, { ref: false }).then(() => { throw new Error("timed out after 10s"); }),
+      ]);
+    });
+    await cleanup("server stop", () => stopServer(server));
+    await cleanup("identity provider close", () => new Promise((resolve, reject) => {
+      if (!identityProvider) return resolve();
+      identityProvider.server.close((failure) => {
+        if (failure && failure.code !== "ERR_SERVER_NOT_RUNNING") reject(failure);
+        else resolve();
+      });
+    }));
+    await cleanup("scratch removal", async () => {
+      if (!fs.existsSync(scratchRoot)
+          || path.dirname(scratchRoot) !== scratchBase
+          || !path.basename(scratchRoot).startsWith("run-")) return;
       let last;
       for (let attempt = 0; attempt < 5; attempt += 1) {
         try {
@@ -911,10 +932,14 @@ run()
         } catch (failure) {
           last = failure;
           if (!REMOVE_RETRY_CODES.has(failure.code) || attempt === 4) break;
-          await delay(100 * (attempt + 1));
+          await delay(200 * (attempt + 1));
         }
       }
-      console.error(`browser smoke: could not remove scratch ${scratchRoot}: ${last.message}`);
+      throw last;
+    });
+
+    if (cleanupErrors.length) {
+      console.error(`browser smoke cleanup failed (reported separately from the test result):\n  ${cleanupErrors.join("\n  ")}`);
       process.exitCode = 1;
     }
   });

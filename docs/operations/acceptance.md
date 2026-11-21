@@ -20,11 +20,19 @@ the real-iPad acceptance gate below.
 
 ## Candidate under test
 
-- Commit SHA: pending
+- Commit SHA: TO BE FILLED AFTER FINAL COMMIT
 - Artifact: `target/jahaziel.jar`
-- Artifact SHA-256: pending
+- Artifact SHA-256: `06c49a684fbe0f33220147312ca454ae8c92c8240ea6ef9b5a478c657fc84fb9` (from the local build; re-verify after the final build)
 - Workbench bundle size: recorded by CI
 - Server target: Linux x64 / Linux arm64
+
+## Software bill of materials
+
+SBOM generation is not implemented. A complete offline SPDX document would need
+new tooling not pinned here — a Maven dependency plugin for Java's graph and a
+lockfile/YAML parser for pnpm — and the existing `DependencyAuditReport` model
+only records references to SBOM files produced elsewhere. No SBOM artifact is
+produced or claimed by the gates below.
 
 ## Automated per-OS acceptance runner
 
@@ -115,8 +123,8 @@ a distro-specific package or downloading the full LLVM distribution.
 
 ## Automated gate results
 
-CI runs **1943 unit tests (16 skipped) plus 5 smoke tests** against the packaged
-jar and the Playwright E2E suite (**60 passed / 1 skipped**) on Linux. The
+CI runs **2029 unit tests (16 skipped) plus 5 smoke tests** against the packaged
+jar and the Playwright E2E suite (**62 tests, all passing**) on Linux. The
 Windows x64 deployment leg was previously broken: the extensionless `mvnw`
 wrapper checked out with CRLF and could not run under `bash`. `.gitattributes`
 now pins it to LF, so that leg runs again. These automated results do not

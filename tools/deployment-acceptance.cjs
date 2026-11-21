@@ -419,7 +419,18 @@ async function run() {
     server = null;
     check("server stopped before backup");
 
-    const backupOutput = runJar(["backup"]);
+    // Windows can hold a freshly released workspace file for a moment after the server exits.
+    let backupOutput;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        backupOutput = runJar(["backup"]);
+        break;
+      } catch (failure) {
+        const locked = /being used|cannot access|another program|另一个程序|sharing violation|AccessDenied/i;
+        if (attempt === 2 || !locked.test(failure.message)) throw failure;
+        await delay(500 * (attempt + 1));
+      }
+    }
     const archiveMatch = backupOutput.match(/^jahaziel: backup: (.+\.tar\.gz)/m);
     assert.ok(archiveMatch, `backup did not report an archive:\n${backupOutput}`);
     const archive = path.resolve(scratchRoot, archiveMatch[1]);

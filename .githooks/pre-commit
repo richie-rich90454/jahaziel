@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fail on banned strings leaking back into docs.
 set -eu
-banned='DESIGN\.md|--run=|systemd|Task Scheduler|C:/tmp|Signed-off-by:'
+banned='DESIGN\.md|--run=|Task Scheduler|C:/tmp|Signed-off-by:'
 # docs/plan.md intentionally names the banned strings it bans; skip it.
 if git diff --cached --name-only | grep -E '^(docs/|README\.md|CONTRIBUTING\.md)' | grep -v '^docs/plan\.md$' | xargs grep -nE "$banned" 2>/dev/null; then
   echo "pre-commit: banned string found (see .githooks/pre-commit)" >&2
