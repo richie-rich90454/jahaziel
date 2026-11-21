@@ -199,7 +199,14 @@ public final class BackchannelHandler {
             throw new TokenRejectedException("revocation valid_after mismatch");
         }
         store.addDeniedJti(jti, validAfter, numberClaim(claims, "access_token_expires_at"));
-        return HttpResult.noContent();
+        String subject = stringClaim(claims, "sub");
+        if (subject == null || subject.length() == 0) {
+            // No signed subject: deny the JTI only. Do not guess which sessions to end.
+            return HttpResult.noContent();
+        }
+        store.removeSessionsForSubject(subject);
+        // 204 with a subject makes the BFF controller end the (provider, sub) linked sessions.
+        return HttpResult.loggedOut(subject);
     }
 
     private static String stringClaim(JWTClaimsSet claims, String name) {

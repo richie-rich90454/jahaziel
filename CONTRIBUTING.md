@@ -137,7 +137,7 @@ change.
 ## Legal
 
 By contributing you agree your work is licensed under the Apache
-License 2.0 and you have the right to submit it under the Developer
-Certificate of Origin 1.1. DCO 1.1 is the stated contribution standard;
-it is not enforced automatically, and the repository pre-commit hook
-rejects sign-off trailers, so do not add one to commits.
+License 2.0 and that you have the right to submit it. The Developer
+Certificate of Origin is discussed as a contribution standard in
+`GOVERNANCE.md`, but it is **not enforced**: the repository pre-commit
+hook rejects sign-off trailers, so do not add one to commits.

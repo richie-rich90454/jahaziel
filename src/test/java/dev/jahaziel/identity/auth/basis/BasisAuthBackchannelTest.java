@@ -131,6 +131,43 @@ final class BasisAuthBackchannelTest {
     }
 
     @Test
+    void revocationWithSubjectEndsProviderSessionsAndCarriesSubject() throws Exception {
+        AuthIdentity identity = login("revoke-state", "revoke-nonce");
+        String sessionId = identity.claims().get("session_id");
+        assertNotNull(plugin.currentIdentity(context, sessionId));
+
+        long validAfter = System.currentTimeMillis() / 1000L - 5L;
+        Map<String, Object> claims = baseClaims(RESOURCE);
+        claims.put("access_token_jti", "jti-with-subject");
+        claims.put("valid_after", Long.valueOf(validAfter));
+        claims.put("sub", identity.subject());
+        Map<String, String> form = new HashMap<String, String>();
+        form.put("action", "revoke_access_token");
+        form.put("jti", "jti-with-subject");
+        form.put("valid_after", Long.toString(validAfter));
+        form.put("revocation_token", idp.sign("at-revocation+jwt", claims));
+
+        HttpResult result = plugin.backchannel().handle(form);
+
+        assertEquals(204, result.status());
+        assertEquals(identity.subject(), result.subject());
+        assertNull(plugin.currentIdentity(context, sessionId));
+    }
+
+    @Test
+    void revocationWithoutSubjectKeepsProviderSessions() throws Exception {
+        AuthIdentity identity = login("revoke-nosub-state", "revoke-nosub-nonce");
+        String sessionId = identity.claims().get("session_id");
+        assertNotNull(plugin.currentIdentity(context, sessionId));
+
+        HttpResult result = revoke("jti-without-subject", System.currentTimeMillis() / 1000L - 5L);
+
+        assertEquals(204, result.status());
+        assertNull(result.subject());
+        assertNotNull(plugin.currentIdentity(context, sessionId));
+    }
+
+    @Test
     void revocationWithMismatchedJtiIsRejected() {
         long validAfter = System.currentTimeMillis() / 1000L;
         Map<String, Object> claims = baseClaims(RESOURCE);
@@ -158,7 +195,7 @@ final class BasisAuthBackchannelTest {
         assertEquals(401, plugin.backchannel().validateBearer("Basic abc").status());
     }
 
-    private void revoke(String jti, long validAfter) {
+    private HttpResult revoke(String jti, long validAfter) {
         Map<String, Object> claims = baseClaims(RESOURCE);
         claims.put("access_token_jti", jti);
         claims.put("valid_after", Long.valueOf(validAfter));
@@ -170,7 +207,9 @@ final class BasisAuthBackchannelTest {
         form.put("jti", jti);
         form.put("valid_after", Long.toString(validAfter));
         form.put("revocation_token", idp.sign("at-revocation+jwt", claims));
-        assertEquals(204, plugin.backchannel().handle(form).status());
+        HttpResult result = plugin.backchannel().handle(form);
+        assertEquals(204, result.status());
+        return result;
     }
 
     private Map<String, Object> baseClaims(String audience) {

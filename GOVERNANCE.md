@@ -12,5 +12,6 @@ The dictator sets direction and resolves deadlocks. Maintainers review
 and merge within their areas.
 
 Security-relevant changes need two approvals and a threat-model review.
-Licensed Apache 2.0. Contributions fall under the Developer Certificate
-of Origin 1.1 as the stated standard; it is not enforced automatically.
+Licensed Apache 2.0. The Developer Certificate of Origin is a stated
+contribution standard but is **not enforced**: the pre-commit hook rejects
+sign-off trailers, so no DCO sign-off is attached to commits.

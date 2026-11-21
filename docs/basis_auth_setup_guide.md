@@ -278,7 +278,9 @@ Use a standard OIDC/JWT library and check:
 - audience equals your client ID;
 - expiry;
 - `nonce` equals the stored value;
-- `at_hash` if your library does not check it automatically.
+- `at_hash` **when present**: OIDC makes it optional, so do not require it when
+  absent. When issued, it must equal the hash of the accompanying access token.
+  A library that checks it automatically satisfies this check.
 
 ### 4.5 Create the app session
 
@@ -416,6 +418,12 @@ after persisting.
 
 `ACCESS_TOKEN_REVOCATION_GRACE_SECONDS` on the service sets how far ahead
 `valid_after` may be. It defaults to `0`.
+
+When the signed `revocation_token` also carries `sub`, that subject identifies
+the affected user: an integrator may end that user's local sessions through the
+same `(provider, sub)` link used for logout. Without a signed `sub` there is no
+trustworthy subject to end sessions for, so only the JTI is denied; pair such
+events with backchannel logout for immediate sign-out.
 
 ### 5.4 Reject invalid access tokens consistently
 
@@ -558,7 +566,8 @@ Run against the target issuer before declaring the integration done:
 - [ ] Login completes with `openid`, state, nonce, and PKCE.
 - [ ] Callback rejects mismatched state and an invalid verifier.
 - [ ] Code exchange succeeds once; a reused code fails with `invalid_grant`.
-- [ ] ID token validates issuer, audience, signature, expiry, nonce, and hash.
+- [ ] ID token validates issuer, audience, signature, expiry, and nonce;
+      `at_hash` is validated when present, not required.
 - [ ] App creates its own session; no `basis_sso` sharing.
 - [ ] API accepts a valid token for the exact resource audience.
 - [ ] API rejects a token with the wrong audience, missing scope, or missing
@@ -630,7 +639,8 @@ curl -s https://auth.example.org/oauth/jwks
 - [ ] Resource audience and scopes still registered and allowed.
 - [ ] Permission catalog, defaults, and grants still valid.
 - [ ] Access and ID token validation still checks issuer, audience, algorithm,
-      `typ`, expiry, nonce, and `at_hash`.
+      `typ`, expiry, and nonce; ID-token `at_hash` is checked when present but
+      is optional.
 - [ ] Access-token lifetime assumptions (caches, refresh thresholds, clock skew)
       still hold.
 - [ ] Standard `invalid_token` response unchanged.
@@ -783,18 +793,32 @@ select other providers. Notes that refine the contract for this codebase:
   with HTTP Basic client authentication, persists the replacement before any
   further use, and revokes the whole token family on reuse. `invalid_grant`
   clears refresh state. The advertised `REFRESH` capability is backed by this
-  method. It requires `BASIS_AUTH_OFFLINE_ACCESS=true` to obtain a refresh
-  token; a token-family revocation does not by itself delete the browser BFF
-  session, so pair it with backchannel logout for immediate sign-out.
+  method and requires `BASIS_AUTH_OFFLINE_ACCESS=true` to obtain a refresh
+  token. There is no automatic periodic refresh near expiry. This app has no
+  bounded scheduler to drive one, the access-token expiry is recorded only
+  after a refresh (not at login), and `refresh()` performs a blocking token
+  request. A new background timer would need lifecycle management, per-session
+  serialization, and would race with the login-time refresh: two refreshes of
+  the same session trip `RefreshReuseException` and revoke the whole family.
+  Applications must schedule refresh themselves per section 4.7.
 - **Backchannel.** `POST /api/auth/basis/backchannel` (with
   `POST /api/auth/backchannel` kept as an alias) handles all three event types.
   `action=test` returns `202` before delivering the HMAC proof asynchronously;
   nonce and challenge must each be 43-character base64url values. The logout
-  handler additionally ends local BFF sessions for the resolved `(provider,
-  subject)` link and clears app cookies. It does not revoke already-issued
-  stateless app JWTs: a token still within its `exp` keeps working even after
-  logout because logout only clears the browser cookie. Immediate invalidation
-  requires the JTI revocation feed or a signing-key rotation.
+  handler ends local BFF sessions for the resolved `(provider, subject)` link
+  and clears app cookies. A `revoke_access_token` event whose signed
+  `at-revocation+jwt` carries `sub` does the same: it denies the JTI and ends
+  every BFF session linked to that `(basis-auth, sub)` identity. A revocation
+  without a signed `sub` only denies the JTI, because there is no trustworthy
+  subject to link; pair it with backchannel logout for immediate sign-out.
+  Neither path revokes already-issued stateless app JWTs: a token still within
+  its `exp` keeps working after logout because logout only clears the browser
+  cookie. Immediate invalidation requires the JTI revocation feed or a
+  signing-key rotation.
+- **ID token validation.** `TokenVerifier.verifyIdToken` checks the RS256
+  signature, issuer, audience, expiry, and nonce. `at_hash` is optional per
+  OIDC: when the token carries it and an access token is available it must
+  equal the access-token hash; when absent, it is not required.
 - **Resource API.** `BasisResourceFilter` validates basis access tokens on
   `/api/v1/workspaces/**` only when an `Authorization: Bearer` header carries a
   JWT with `typ=at+jwt`. It requires `sub`, `client_id`, `scope`, `permissions`,
