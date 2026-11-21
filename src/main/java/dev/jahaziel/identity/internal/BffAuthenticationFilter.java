@@ -75,6 +75,7 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         if (demo
+                && loopback(request)
                 && request.getHeader(HttpHeaders.AUTHORIZATION) == null
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             publishDemoIdentity();
@@ -87,6 +88,17 @@ public final class BffAuthenticationFilter extends OncePerRequestFilter {
             authenticateFromCookies(request, response);
         }
         chain.doFilter(request, response);
+    }
+
+    /** Demo identity is only ever published to a loopback caller, never to a remote bind. */
+    static boolean loopback(HttpServletRequest request) {
+        String address = request.getRemoteAddr();
+        if (address == null) return false;
+        String value = address;
+        if (value.startsWith("[") && value.indexOf(']') > 0) {
+            value = value.substring(1, value.indexOf(']'));
+        }
+        return "127.0.0.1".equals(value) || "::1".equals(value) || "0:0:0:0:0:0:0:1".equals(value);
     }
 
     private static void publishDemoIdentity() {

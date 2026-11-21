@@ -31,7 +31,7 @@ public final class AuthProviderDispatcher {
     }
 
     /** Returns the selected provider, or null when none is available. */
-    public AuthProviderPlugin active() {
+    public synchronized AuthProviderPlugin active() {
         if (resolved) {
             return active;
         }

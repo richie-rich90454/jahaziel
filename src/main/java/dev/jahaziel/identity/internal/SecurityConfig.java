@@ -6,6 +6,7 @@ package dev.jahaziel.identity.internal;
 
 import dev.jahaziel.identity.api.DevConnectService;
 import dev.jahaziel.identity.api.JwtService;
+import dev.jahaziel.identity.api.MfaGate;
 import dev.jahaziel.identity.api.UserService;
 import dev.jahaziel.identity.auth.basis.BasisResourceFilter;
 import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
@@ -85,6 +86,21 @@ public class SecurityConfig {
         BasisResourceFilter.setIdentityStore(identityStore);
     }
 
+    /** Installs the account lookup the shared administrator API gate uses for MFA. */
+    @Autowired
+    public void setAdminUserService(final UserService service) {
+        MfaGate.install(
+                new MfaGate() {
+                    @Override
+                    public boolean enabled(UserId user) {
+                        // Demo mode is loopback-only and has no real second factor.
+                        String demo =
+                                System.getProperty("jahaziel.demo", System.getenv("JAHAZIEL_DEMO"));
+                        return Boolean.parseBoolean(demo) || service.isMfaEnabled(user);
+                    }
+                });
+    }
+
     /**
      * Builds the filter chain.
      *
@@ -143,7 +159,28 @@ public class SecurityConfig {
                                 exchanges.requestMatchers("/", "/index.html").permitAll();
                                 if (demoMode) {
                                     exchanges
-                                            .requestMatchers("/_admin", "/_admin/diagnostics")
+                                            .requestMatchers(
+                                                    new RequestMatcher() {
+                                                        @Override
+                                                        public boolean matches(
+                                                                HttpServletRequest request) {
+                                                            String path = request.getRequestURI();
+                                                            String context =
+                                                                    request.getContextPath();
+                                                            if (context != null
+                                                                    && !context.isEmpty()
+                                                                    && path.startsWith(context)) {
+                                                                path =
+                                                                        path.substring(
+                                                                                context.length());
+                                                            }
+                                                            return ("/_admin".equals(path)
+                                                                            || "/_admin/diagnostics"
+                                                                                    .equals(path))
+                                                                    && BffAuthenticationFilter
+                                                                            .loopback(request);
+                                                        }
+                                                    })
                                             .permitAll();
                                 }
                                 exchanges.anyRequest().authenticated();

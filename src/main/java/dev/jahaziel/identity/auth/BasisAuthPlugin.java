@@ -133,20 +133,24 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
                         http.get(
                                 metadata.discovery().userinfoEndpoint(),
                                 "Bearer " + access,
-                                Duration.ofSeconds(60));
+                                Duration.ofSeconds(5));
                 JsonNode profile = mapper.readTree(body);
                 String profileEmail = text(profile, "email");
                 String profileName = text(profile, "name");
                 if (email == null || email.length() == 0) email = profileEmail;
                 if (displayName == null || displayName.length() == 0) displayName = profileName;
-                if (profileEmail != null && profileEmail.length() > 0) {
+                if (blank(claims.get("email"))
+                        && profileEmail != null
+                        && profileEmail.length() > 0) {
                     claims.put("email", profileEmail);
                 }
-                if (profileName != null && profileName.length() > 0) {
+                if (blank(claims.get("name")) && profileName != null && profileName.length() > 0) {
                     claims.put("name", profileName);
                 }
                 JsonNode verifiedFlag = profile == null ? null : profile.get("email_verified");
-                if (verifiedFlag != null && verifiedFlag.isBoolean()) {
+                if (!derived.claims().containsKey("email_verified")
+                        && verifiedFlag != null
+                        && verifiedFlag.isBoolean()) {
                     emailVerified = verifiedFlag.asBoolean();
                 }
             } catch (Exception unavailable) {
@@ -286,6 +290,10 @@ public final class BasisAuthPlugin extends AuthProviderPlugin {
 
     private static void append(StringBuilder url, String name, String value) {
         url.append(name).append('=').append(BasisHttp.encode(value)).append('&');
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.length() == 0;
     }
 
     private static String text(JsonNode node, String field) {

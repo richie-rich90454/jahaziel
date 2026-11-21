@@ -79,4 +79,22 @@ public final class ApiProblem {
     public void setCorrelationId(String value) {
         this.correlationId = value;
     }
+
+    /** Alias of detail so the browser error helper can read {@code message}. */
+    public String getMessage() {
+        return detail;
+    }
+
+    public void setMessage(String value) {
+        this.detail = value;
+    }
+
+    /** Alias of type so the browser error helper can read {@code code}. */
+    public String getCode() {
+        return type;
+    }
+
+    public void setCode(String value) {
+        this.type = value;
+    }
 }

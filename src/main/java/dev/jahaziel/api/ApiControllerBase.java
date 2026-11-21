@@ -5,6 +5,7 @@
 package dev.jahaziel.api;
 
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.MfaGate;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.security.CanonicalPathGuard;
 import dev.jahaziel.workspace.domain.WorkspaceId;
@@ -24,6 +25,12 @@ public abstract class ApiControllerBase {
     protected static final String ADMIN = "admin";
 
     protected final AuthorizationService auth;
+
+    /** The shared MFA gate used by every administrator entry point. */
+    public static boolean mfaEnabled(UserId user) {
+        MfaGate gate = MfaGate.current();
+        return gate == null || gate.enabled(user);
+    }
 
     protected ApiControllerBase(AuthorizationService auth) {
         if (auth == null) {
@@ -65,6 +72,9 @@ public abstract class ApiControllerBase {
     protected UserId requireAdmin(Principal principal) {
         UserId user = requireUser(principal);
         if (!auth.isAdmin(user)) {
+            throw ApiFailureException.forbidden();
+        }
+        if (!mfaEnabled(user)) {
             throw ApiFailureException.forbidden();
         }
         return user;

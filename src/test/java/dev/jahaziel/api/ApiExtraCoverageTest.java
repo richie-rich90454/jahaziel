@@ -303,13 +303,16 @@ class ApiExtraCoverageTest {
                         .toString());
         assertEquals(
                 "/?login=failed",
-                c.callback("s", "code", "access_denied").getHeaders().getLocation().toString());
+                c.callback("s", "code", "access_denied", null)
+                        .getHeaders()
+                        .getLocation()
+                        .toString());
         DevConnectService.LoginResult r =
                 new DevConnectService.LoginResult(UUID.randomUUID(), "sess", "tok");
         when(dev.completeLogin("s", "code")).thenReturn(r);
         when(dev.sessionTtl()).thenReturn(Duration.ofDays(1));
         when(dev.tokenTtl()).thenReturn(Duration.ofHours(1));
-        org.springframework.http.ResponseEntity<Void> ok = c.callback("s", "code", null);
+        org.springframework.http.ResponseEntity<Void> ok = c.callback("s", "code", null, "s");
         assertEquals(302, ok.getStatusCode().value());
         assertTrue(ok.getHeaders().get("Set-Cookie").size() == 2);
         UserId u = new UserId(UUID.randomUUID());

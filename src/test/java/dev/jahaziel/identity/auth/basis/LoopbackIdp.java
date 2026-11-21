@@ -58,6 +58,7 @@ final class LoopbackIdp implements AutoCloseable {
     private volatile boolean issueRefresh = true;
     private volatile boolean basicRequired = true;
     private volatile String refreshToken = "plain-refresh-token-value";
+    private volatile String userinfoBody = "{}";
     private volatile JsonNode proofBody;
     private volatile String proofAuthorization;
     private volatile String proofResource;
@@ -85,6 +86,7 @@ final class LoopbackIdp implements AutoCloseable {
         server.createContext("/authorize", idp.handler("authorize"));
         server.createContext("/oauth/token", idp.handler("token"));
         server.createContext("/oauth/jwks", idp.handler("jwks"));
+        server.createContext("/oauth/userinfo", idp.handler("userinfo"));
         server.createContext("/internal/backchannel/validate", idp.handler("proof"));
         server.start();
         return idp;
@@ -124,6 +126,10 @@ final class LoopbackIdp implements AutoCloseable {
 
     void basicRequired(boolean value) {
         this.basicRequired = value;
+    }
+
+    void userinfo(String body) {
+        this.userinfoBody = body == null ? "{}" : body;
     }
 
     void assurance(java.util.List<String> amr, String acr) {
@@ -195,6 +201,8 @@ final class LoopbackIdp implements AutoCloseable {
         } else if ("jwks".equals(path)) {
             jwksHits.incrementAndGet();
             json(exchange, 200, new JWKSet(signingKey.toPublicJWK()).toString());
+        } else if ("userinfo".equals(path)) {
+            json(exchange, 200, userinfoBody);
         } else {
             proofExchange(exchange);
         }

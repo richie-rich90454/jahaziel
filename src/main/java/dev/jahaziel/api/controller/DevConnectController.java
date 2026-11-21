@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Duration;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import java.util.UUID;
 public class DevConnectController {
     private static final String SUCCESS_REDIRECT = "/";
     private static final String FAILURE_REDIRECT = "/?login=failed";
+    static final String STATE_COOKIE = "basis_login_state";
 
     private final DevConnectService devconnect;
     private final UserService users;
@@ -80,7 +82,11 @@ public class DevConnectController {
     @GetMapping("/api/login")
     public ResponseEntity<Void> login() {
         if (demo) return redirect(SUCCESS_REDIRECT);
-        return redirect(devconnect.startLogin());
+        String url = devconnect.startLogin();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.SET_COOKIE, stateCookie(stateOf(url)).toString())
+                .location(URI.create(url))
+                .build();
     }
 
     /**
@@ -95,8 +101,12 @@ public class DevConnectController {
     public ResponseEntity<Void> callback(
             @RequestParam(name = "state", required = false) String state,
             @RequestParam(name = "code", required = false) String code,
-            @RequestParam(name = "error", required = false) String error) {
+            @RequestParam(name = "error", required = false) String error,
+            @CookieValue(name = STATE_COOKIE, required = false) String stateCookie) {
         if (error != null) {
+            return redirect(FAILURE_REDIRECT);
+        }
+        if (state == null || state.isBlank() || !state.equals(stateCookie)) {
             return redirect(FAILURE_REDIRECT);
         }
         return withCookies(devconnect.completeLogin(state, code));
@@ -245,6 +255,30 @@ public class DevConnectController {
                 .path("/")
                 .maxAge(Duration.ZERO)
                 .build();
+    }
+
+    private ResponseCookie stateCookie(String state) {
+        return ResponseCookie.from(STATE_COOKIE, state == null ? "" : state)
+                .httpOnly(true)
+                .secure(!demo)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(Duration.ofMinutes(10))
+                .build();
+    }
+
+    private static String stateOf(String url) {
+        String query = URI.create(url).getRawQuery();
+        if (query == null) return null;
+        String[] pairs = query.split("&");
+        for (int index = 0; index < pairs.length; index++) {
+            int equal = pairs[index].indexOf('=');
+            if (equal > 0 && "state".equals(pairs[index].substring(0, equal))) {
+                return java.net.URLDecoder.decode(
+                        pairs[index].substring(equal + 1), StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 
     private static ResponseEntity<Void> redirect(String location) {

@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.auth.github;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.platform.AtomicJsonFiles;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -150,10 +150,12 @@ public final class GitHubStore {
             if (node != null && node.isObject()) {
                 return (ObjectNode) node;
             }
-        } catch (IOException failure) {
-            throw new GitHubException("cannot read github store", failure);
+        } catch (Exception failure) {
+            AtomicJsonFiles.quarantine(file);
+            return mapper.createObjectNode();
         }
-        throw new GitHubException("github store is not an object");
+        AtomicJsonFiles.quarantine(file);
+        return mapper.createObjectNode();
     }
 
     private ObjectNode object(ObjectNode parent, String name) {
@@ -169,24 +171,24 @@ public final class GitHubStore {
     private SecretKey loadKey() {
         try {
             if (Files.exists(keyFile)) {
-                byte[] encoded =
-                        Base64.getDecoder()
-                                .decode(
-                                        new String(
-                                                        Files.readAllBytes(keyFile),
-                                                        StandardCharsets.UTF_8)
-                                                .trim());
-                return new SecretKeySpec(encoded, "AES");
+                try {
+                    byte[] encoded =
+                            Base64.getDecoder()
+                                    .decode(
+                                            new String(
+                                                            Files.readAllBytes(keyFile),
+                                                            StandardCharsets.UTF_8)
+                                                    .trim());
+                    return new SecretKeySpec(encoded, "AES");
+                } catch (IllegalArgumentException corrupt) {
+                    throw new GitHubException("github encryption key is corrupt", corrupt);
+                }
             }
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256);
             SecretKey generated = generator.generateKey();
             String encoded = Base64.getEncoder().encodeToString(generated.getEncoded());
-            Files.write(
-                    keyFile,
-                    encoded.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(keyFile, encoded.getBytes(StandardCharsets.UTF_8));
             return generated;
         } catch (IOException failure) {
             throw new GitHubException("cannot persist github encryption key", failure);
@@ -228,11 +230,8 @@ public final class GitHubStore {
 
     private void flush() {
         try {
-            Files.write(
-                    file,
-                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(
+                    file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new GitHubException("cannot persist github store", failure);
         }

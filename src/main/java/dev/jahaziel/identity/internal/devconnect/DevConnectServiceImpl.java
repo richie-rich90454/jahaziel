@@ -237,7 +237,7 @@ public class DevConnectServiceImpl extends DevConnectService {
             throw new LoginRejectedException("identity mismatch between ID token and UserInfo");
         }
 
-        AppUserEntity user = provision(info.sub(), info.email(), info.name());
+        AppUserEntity user = provision(info.sub(), info.email(), info.name(), info.emailVerified());
         applyAdminBootstrap(user, info.emailVerified(), idToken);
         Instant now = clock.instant();
         BffSessionEntity session = new BffSessionEntity();
@@ -570,31 +570,37 @@ public class DevConnectServiceImpl extends DevConnectService {
         return false;
     }
 
-    private AppUserEntity provision(String subject, String email, String displayName) {
+    private AppUserEntity provision(
+            String subject, String email, String displayName, boolean emailVerified) {
         Optional<AppUserEntity> linked = users.findByExternalId(subject);
         if (linked.isPresent()) {
             AppUserEntity user = linked.get();
             requireActive(user);
             return touch(user, email, displayName);
         }
-        List<AppUserEntity> byEmail = users.findByEmailIgnoreCase(email);
-        if (byEmail.size() > 1) {
-            throw new LoginRejectedException(
-                    "email " + email + " matches multiple accounts; an operator must resolve it");
-        }
-        if (byEmail.size() == 1) {
-            AppUserEntity user = byEmail.get(0);
-            if (user.getExternalId() != null
-                    && !user.getExternalId().isBlank()
-                    && !subject.equals(user.getExternalId())) {
+        // An unverified email is not proof of account ownership; never use it as a join key.
+        if (emailVerified) {
+            List<AppUserEntity> byEmail = users.findByEmailIgnoreCase(email);
+            if (byEmail.size() > 1) {
                 throw new LoginRejectedException(
                         "email "
                                 + email
-                                + " is already linked to a different identity; an operator must resolve it");
+                                + " matches multiple accounts; an operator must resolve it");
             }
-            requireActive(user);
-            user.setExternalId(subject);
-            return touch(user, email, displayName);
+            if (byEmail.size() == 1) {
+                AppUserEntity user = byEmail.get(0);
+                if (user.getExternalId() != null
+                        && !user.getExternalId().isBlank()
+                        && !subject.equals(user.getExternalId())) {
+                    throw new LoginRejectedException(
+                            "email "
+                                    + email
+                                    + " is already linked to a different identity; an operator must resolve it");
+                }
+                requireActive(user);
+                user.setExternalId(subject);
+                return touch(user, email, displayName);
+            }
         }
         return create(subject, email, displayName);
     }

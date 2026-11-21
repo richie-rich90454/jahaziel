@@ -4,6 +4,8 @@
  */
 package dev.jahaziel.identity.auth.token;
 
+import dev.jahaziel.platform.AtomicJsonFiles;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -13,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -114,19 +115,18 @@ public final class ApiTokenStore {
             if (node != null && node.isObject()) {
                 return (ObjectNode) node;
             }
-        } catch (IOException failure) {
-            throw new ApiTokenException("cannot read api-token store", failure);
+        } catch (Exception failure) {
+            AtomicJsonFiles.quarantine(file);
+            return mapper.createObjectNode();
         }
-        throw new ApiTokenException("api-token store is not an object");
+        AtomicJsonFiles.quarantine(file);
+        return mapper.createObjectNode();
     }
 
     private void flush() {
         try {
-            Files.write(
-                    file,
-                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(
+                    file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new ApiTokenException("cannot persist api-token store", failure);
         }

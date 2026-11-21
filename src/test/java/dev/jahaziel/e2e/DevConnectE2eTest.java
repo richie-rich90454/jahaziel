@@ -29,16 +29,23 @@ class DevConnectE2eTest extends E2eBase {
 
     @Test
     void callbackWithoutParamsFails() throws Exception {
-        // IdP is not configured, so requireConfigured fires before param checks; assert actual.
+        // Without the login state cookie the callback fails closed before contacting the IdP.
         E2eResponse callback = getAnonymous("/api/oauth/callback");
-        assertEquals(500, callback.status(), callback.body());
-        assertTrue(callback.body().contains("DEVCONNECT_FAILED"), callback.body());
+        assertEquals(406, callback.status(), callback.body());
+        assertNoSessionCookies(callback);
     }
 
     @Test
     void callbackWithBogusStateFails() throws Exception {
         E2eResponse callback = getAnonymous("/api/oauth/callback?state=bogus&code=bogus");
-        assertEquals(500, callback.status(), callback.body());
+        assertEquals(406, callback.status(), callback.body());
+        assertNoSessionCookies(callback);
+    }
+
+    private static void assertNoSessionCookies(E2eResponse callback) {
+        String cookies = callback.allHeaders("set-cookie");
+        assertTrue(
+                !cookies.contains("basis_sites_session=") && !cookies.contains("token="), cookies);
     }
 
     @Test

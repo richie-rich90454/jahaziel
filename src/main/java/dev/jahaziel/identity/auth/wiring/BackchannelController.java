@@ -78,6 +78,7 @@ public final class BackchannelController {
     private static ResponseCookie cleared(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
+                .secure(true)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(Duration.ZERO)

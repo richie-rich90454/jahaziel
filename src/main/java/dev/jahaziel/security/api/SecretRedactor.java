@@ -29,8 +29,20 @@ public final class SecretRedactor {
     private static final Pattern INCOMPLETE_JWT =
             Pattern.compile("\\beyJ[A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]*){0,2}\\z");
     private static final String[] SENSITIVE_PREFIXES = {
-        "authorization", "client_secret", "client-secret", "password", "passwd", "token",
-        "api_key", "api-key", "apikey", "secret", "bearer", "eyJ"
+        "authorization",
+        "client_secret",
+        "client-secret",
+        "password",
+        "passwd",
+        "token",
+        "api_key",
+        "api-key",
+        "apikey",
+        "secret",
+        "bearer",
+        "eyJ",
+        "webhook_state",
+        "webhook-state"
     };
     private static final int MAX_PENDING_CHARS = 64 * 1024;
     private static final String OVERSIZED_SECRET_NOTICE =

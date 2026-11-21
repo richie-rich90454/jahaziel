@@ -80,9 +80,15 @@ final class CookieWriteOriginFilter extends OncePerRequestFilter {
     }
 
     private static URI requestOrigin(HttpServletRequest request) {
-        String scheme = first(request.getHeader("X-Forwarded-Proto"));
+        // Forwarded headers are client-controlled unless a trusted proxy is configured.
+        String trusted =
+                System.getProperty(
+                        "jahaziel.trust-forwarded-headers",
+                        System.getenv("JAHZIEL_TRUST_FORWARDED_HEADERS"));
+        boolean allowForwarded = Boolean.parseBoolean(trusted);
+        String scheme = allowForwarded ? first(request.getHeader("X-Forwarded-Proto")) : null;
         if (scheme == null) scheme = request.getScheme();
-        String authority = first(request.getHeader("X-Forwarded-Host"));
+        String authority = allowForwarded ? first(request.getHeader("X-Forwarded-Host")) : null;
         if (authority == null) {
             String host = request.getServerName();
             if (host.indexOf(':') >= 0 && !host.startsWith("[")) host = "[" + host + "]";

@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.auth.basis;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.platform.AtomicJsonFiles;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -56,6 +56,7 @@ public final class BasisStore {
         this.sessions = object(root, "sessions");
         this.denied = object(root, "denied");
         this.refresh = object(root, "refresh");
+        prune();
         this.encryptionKey = loadKey();
     }
 
@@ -178,7 +179,7 @@ public final class BasisStore {
         return nowSeconds >= number(node, "validAfter");
     }
 
-    long validAfter(String jti) {
+    synchronized long validAfter(String jti) {
         JsonNode node = denied.get(jti);
         return node == null ? Long.MAX_VALUE : number(node, "validAfter");
     }
@@ -244,10 +245,12 @@ public final class BasisStore {
             if (node != null && node.isObject()) {
                 return (ObjectNode) node;
             }
-        } catch (IOException failure) {
-            throw new BasisException("cannot read basis-auth store", failure);
+        } catch (Exception failure) {
+            AtomicJsonFiles.quarantine(file);
+            return mapper.createObjectNode();
         }
-        throw new BasisException("basis-auth store is not an object");
+        AtomicJsonFiles.quarantine(file);
+        return mapper.createObjectNode();
     }
 
     private ObjectNode object(ObjectNode parent, String name) {
@@ -263,24 +266,24 @@ public final class BasisStore {
     private SecretKey loadKey() {
         try {
             if (Files.exists(keyFile)) {
-                byte[] encoded =
-                        Base64.getDecoder()
-                                .decode(
-                                        new String(
-                                                        Files.readAllBytes(keyFile),
-                                                        StandardCharsets.UTF_8)
-                                                .trim());
-                return new javax.crypto.spec.SecretKeySpec(encoded, "AES");
+                try {
+                    byte[] encoded =
+                            Base64.getDecoder()
+                                    .decode(
+                                            new String(
+                                                            Files.readAllBytes(keyFile),
+                                                            StandardCharsets.UTF_8)
+                                                    .trim());
+                    return new javax.crypto.spec.SecretKeySpec(encoded, "AES");
+                } catch (IllegalArgumentException corrupt) {
+                    throw new BasisException("basis-auth encryption key is corrupt", corrupt);
+                }
             }
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256);
             SecretKey generated = generator.generateKey();
             String encoded = Base64.getEncoder().encodeToString(generated.getEncoded());
-            Files.write(
-                    keyFile,
-                    encoded.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(keyFile, encoded.getBytes(StandardCharsets.UTF_8));
             return generated;
         } catch (IOException failure) {
             throw new BasisException("cannot persist basis-auth encryption key", failure);
@@ -321,14 +324,49 @@ public final class BasisStore {
     }
 
     private void flush() {
+        prune();
         try {
-            Files.write(
-                    file,
-                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(
+                    file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new BasisException("cannot persist basis-auth store", failure);
+        }
+    }
+
+    /** Drops expired pending logins, denylist entries, and sessions so the store stays bounded. */
+    private void prune() {
+        long nowMillis = System.currentTimeMillis();
+        long nowSeconds = nowMillis / 1000L;
+        List<String> doomed = new ArrayList<String>();
+        for (String state : pending.propertyNames()) {
+            if (number(pending.get(state), "expiresAt") <= nowMillis) {
+                doomed.add(state);
+            }
+        }
+        for (int index = 0; index < doomed.size(); index++) {
+            pending.remove(doomed.get(index));
+        }
+        doomed.clear();
+        for (String jti : denied.propertyNames()) {
+            long expiresAt = number(denied.get(jti), "expiresAt");
+            if (expiresAt > 0L && nowSeconds >= expiresAt) {
+                doomed.add(jti);
+            }
+        }
+        for (int index = 0; index < doomed.size(); index++) {
+            denied.remove(doomed.get(index));
+        }
+        doomed.clear();
+        for (String id : sessions.propertyNames()) {
+            long expiresAt = number(sessions.get(id), "accessTokenExpiresAt");
+            if (expiresAt > 0L && nowMillis >= expiresAt) {
+                doomed.add(id);
+            }
+        }
+        for (int index = 0; index < doomed.size(); index++) {
+            String id = doomed.get(index);
+            sessions.remove(id);
+            refresh.remove(id);
         }
     }
 

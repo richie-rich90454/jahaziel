@@ -18,10 +18,14 @@ import dev.jahaziel.plugin.PluginDescriptor;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 final class AuthProviderDispatcherTest {
     @Test
@@ -113,6 +117,47 @@ final class AuthProviderDispatcherTest {
 
         dispatcher.endSession("session-1");
         assertEquals("session-1", plugin.endedSession);
+    }
+
+    @Test
+    void activeResolvesExactlyOnceUnderConcurrentCallers() throws Exception {
+        final StubPlugin plugin = new StubPlugin("google");
+        AuthPluginRegistry registry = new AuthPluginRegistry();
+        registry.register(plugin);
+        final AuthProviderDispatcher dispatcher =
+                new AuthProviderDispatcher(
+                        registry, new AuthProviderConfig(Arrays.asList("google"), null));
+        final int count = 8;
+        final CountDownLatch start = new CountDownLatch(1);
+        final CountDownLatch done = new CountDownLatch(count);
+        final List<AuthProviderPlugin> results =
+                Collections.synchronizedList(new ArrayList<AuthProviderPlugin>());
+        List<Thread> workers = new ArrayList<Thread>();
+        for (int index = 0; index < count; index++) {
+            Thread worker =
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        start.await();
+                                        results.add(dispatcher.active());
+                                    } catch (InterruptedException interrupted) {
+                                        Thread.currentThread().interrupt();
+                                    } finally {
+                                        done.countDown();
+                                    }
+                                }
+                            });
+            workers.add(worker);
+            worker.start();
+        }
+        start.countDown();
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+        for (int index = 0; index < results.size(); index++) {
+            assertSame(plugin, results.get(index));
+        }
+        assertEquals(count, results.size());
     }
 
     private static final class StubPlugin extends AuthProviderPlugin {

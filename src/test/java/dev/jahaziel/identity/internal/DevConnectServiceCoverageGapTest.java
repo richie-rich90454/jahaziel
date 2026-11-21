@@ -94,7 +94,8 @@ class DevConnectServiceCoverageGapTest {
         Jwt jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("sub");
         when(client.verifyIdToken(any(), any())).thenReturn(jwt);
-        when(client.userinfo(any())).thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N"));
+        when(client.userinfo(any()))
+                .thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N", true));
         when(users.findByExternalId("sub")).thenReturn(Optional.empty());
         AppUserEntity legacy = new AppUserEntity();
         legacy.setUserId(UUID.randomUUID());
@@ -132,7 +133,8 @@ class DevConnectServiceCoverageGapTest {
         Jwt jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("sub");
         when(client.verifyIdToken(any(), any())).thenReturn(jwt);
-        when(client.userinfo(any())).thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N"));
+        when(client.userinfo(any()))
+                .thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N", true));
         when(users.findByExternalId("sub")).thenReturn(Optional.empty());
         AppUserEntity same = new AppUserEntity();
         same.setUserId(UUID.randomUUID());

@@ -217,6 +217,19 @@ final class BasisAuthPluginTest {
         }
     }
 
+    @Test
+    void userInfoNeverOverridesVerifiedIdTokenClaims() throws Exception {
+        idp.userinfo(
+                "{\"sub\":\"basis-sub-1\",\"email\":\"attacker@example.org\","
+                        + "\"name\":\"Attacker\",\"email_verified\":false}");
+        AuthIdentity identity = login("state-userinfo", "nonce-userinfo");
+        assertEquals("user@example.org", identity.email());
+        assertEquals("Basis User", identity.displayName());
+        assertTrue(identity.emailVerified());
+        assertEquals("user@example.org", identity.claims().get("email"));
+        assertEquals("Basis User", identity.claims().get("name"));
+    }
+
     private AuthIdentity login(String state, String nonce) throws Exception {
         String url = plugin.startLogin(context, state, nonce, REDIRECT);
         String code = idp.authorize(url);

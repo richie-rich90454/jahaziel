@@ -204,7 +204,8 @@ class DevConnectServiceExtraCoverageTest {
         Jwt jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("sub");
         when(client.verifyIdToken(any(), any())).thenReturn(jwt);
-        when(client.userinfo(any())).thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N"));
+        when(client.userinfo(any()))
+                .thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N", true));
         when(users.findByExternalId("sub")).thenReturn(Optional.empty());
         AppUserEntity a = new AppUserEntity();
         a.setUserId(UUID.randomUUID());
@@ -241,7 +242,8 @@ class DevConnectServiceExtraCoverageTest {
         Jwt jwt = mock(Jwt.class);
         when(jwt.getSubject()).thenReturn("sub");
         when(client.verifyIdToken(any(), any())).thenReturn(jwt);
-        when(client.userinfo(any())).thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N"));
+        when(client.userinfo(any()))
+                .thenReturn(new DevConnectClient.UserInfo("sub", "e@x.y", "N", true));
         AppUserEntity linked = new AppUserEntity();
         linked.setUserId(UUID.randomUUID());
         linked.setStatus("active");
@@ -296,7 +298,7 @@ class DevConnectServiceExtraCoverageTest {
         when(jwt.getSubject()).thenReturn("sub-new");
         when(client.verifyIdToken(any(), any())).thenReturn(jwt);
         when(client.userinfo(any()))
-                .thenReturn(new DevConnectClient.UserInfo("sub-new", "e@x.y", "N"));
+                .thenReturn(new DevConnectClient.UserInfo("sub-new", "e@x.y", "N", true));
         when(users.findByExternalId("sub-new")).thenReturn(Optional.empty());
         AppUserEntity other = new AppUserEntity();
         other.setUserId(UUID.randomUUID());

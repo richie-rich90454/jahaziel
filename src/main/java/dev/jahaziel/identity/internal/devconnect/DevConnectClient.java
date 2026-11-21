@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.internal.devconnect;
 
 import dev.jahaziel.identity.api.DevConnectException;
+import dev.jahaziel.identity.auth.basis.BasisMetadata;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -83,7 +84,12 @@ public final class DevConnectClient {
         }
         synchronized (this) {
             if (!fresh()) {
-                String url = props.issuerBase() + "/.well-known/openid-configuration";
+                String issuer = props.issuerBase();
+                if (!BasisMetadata.endpointAllowed(issuer, issuer)) {
+                    throw new DevConnectException(
+                            "DevConnect issuer is not an allowed http(s) URL");
+                }
+                String url = issuer + "/.well-known/openid-configuration";
                 discovery = parseDiscovery(fetch(url), url);
                 discoveredAt = clock.instant();
             }
@@ -289,12 +295,31 @@ public final class DevConnectClient {
 
     private DiscoveryDocument parseDiscovery(String body, String url) {
         JsonNode node = read(body, url);
-        return new DiscoveryDocument(
-                required(node, "issuer", url),
-                required(node, "authorization_endpoint", url),
-                required(node, "token_endpoint", url),
-                required(node, "userinfo_endpoint", url),
-                required(node, "jwks_uri", url));
+        String issuer = props.issuerBase();
+        DiscoveryDocument document =
+                new DiscoveryDocument(
+                        required(node, "issuer", url),
+                        required(node, "authorization_endpoint", url),
+                        required(node, "token_endpoint", url),
+                        required(node, "userinfo_endpoint", url),
+                        required(node, "jwks_uri", url));
+        if (!issuer.equals(document.issuer())) {
+            throw new DevConnectException(
+                    "DevConnect discovery issuer does not match configuration");
+        }
+        requireSameOrigin(issuer, document.issuer(), "issuer");
+        requireSameOrigin(issuer, document.authorizationEndpoint(), "authorization_endpoint");
+        requireSameOrigin(issuer, document.tokenEndpoint(), "token_endpoint");
+        requireSameOrigin(issuer, document.userinfoEndpoint(), "userinfo_endpoint");
+        requireSameOrigin(issuer, document.jwksUri(), "jwks_uri");
+        return document;
+    }
+
+    private static void requireSameOrigin(String issuer, String endpoint, String field) {
+        if (!BasisMetadata.endpointAllowed(issuer, endpoint)) {
+            throw new DevConnectException(
+                    "DevConnect discovery " + field + " is not on the configured issuer host");
+        }
     }
 
     private JsonNode read(String body, String url) {

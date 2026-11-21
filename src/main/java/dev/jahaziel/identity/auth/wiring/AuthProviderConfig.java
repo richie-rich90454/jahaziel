@@ -49,13 +49,19 @@ public final class AuthProviderConfig {
     }
 
     private static boolean basisConfigured(PluginContext context) {
-        return present(context.setting("basis.auth-issuer"))
-                && present(context.setting("basis.client-id"))
-                && present(context.setting("basis.resource"));
+        return present(context, "basis.auth-issuer", "BASIS_AUTH_ISSUER")
+                && present(context, "basis.client-id", "BASIS_CLIENT_ID", "BASIS_AUTH_CLIENT_ID")
+                && present(context, "basis.resource", "BASIS_RESOURCE", "BASIS_AUTH_RESOURCE");
     }
 
-    private static boolean present(String value) {
-        return value != null && value.trim().length() > 0;
+    private static boolean present(PluginContext context, String... keys) {
+        for (int index = 0; index < keys.length; index++) {
+            String value = context.setting(keys[index]);
+            if (value != null && value.trim().length() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

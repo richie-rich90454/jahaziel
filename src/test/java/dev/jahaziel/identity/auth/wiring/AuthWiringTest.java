@@ -83,6 +83,32 @@ final class AuthWiringTest {
     }
 
     @Test
+    void configActivatesBasisForCanonicalAndLegacyAliases() {
+        Map<String, String> canonical = new HashMap<String, String>();
+        canonical.put("BASIS_AUTH_ISSUER", "https://idp.example.org");
+        canonical.put("BASIS_AUTH_CLIENT_ID", "example-web");
+        canonical.put("BASIS_AUTH_RESOURCE", RESOURCE);
+        assertEquals(
+                java.util.Arrays.asList("basis-auth"),
+                AuthProviderConfig.fromSettings(new PluginContext(temp, canonical))
+                        .enabledProviders());
+
+        Map<String, String> legacyUpper = new HashMap<String, String>();
+        legacyUpper.put("BASIS_AUTH_ISSUER", "https://idp.example.org");
+        legacyUpper.put("BASIS_CLIENT_ID", "example-web");
+        legacyUpper.put("BASIS_RESOURCE", RESOURCE);
+        assertEquals(
+                java.util.Arrays.asList("basis-auth"),
+                AuthProviderConfig.fromSettings(new PluginContext(temp, legacyUpper))
+                        .enabledProviders());
+
+        Map<String, String> partial = new HashMap<String, String>();
+        partial.put("BASIS_AUTH_ISSUER", "https://idp.example.org");
+        partial.put("BASIS_AUTH_CLIENT_ID", "example-web");
+        assertTrue(AuthProviderConfig.fromSettings(new PluginContext(temp, partial)).isEmpty());
+    }
+
+    @Test
     void identityStoreReadsAndWritesProviderSubjectLinks() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         UserIdentityStore identities = new UserIdentityStore(jdbc);

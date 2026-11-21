@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.auth.oidc;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.platform.AtomicJsonFiles;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -126,10 +126,12 @@ public final class OidcStore {
             if (node != null && node.isObject()) {
                 return (ObjectNode) node;
             }
-        } catch (IOException failure) {
-            throw new OidcException("cannot read oidc store", failure);
+        } catch (Exception failure) {
+            AtomicJsonFiles.quarantine(file);
+            return mapper.createObjectNode();
         }
-        throw new OidcException("oidc store is not an object");
+        AtomicJsonFiles.quarantine(file);
+        return mapper.createObjectNode();
     }
 
     private ObjectNode object(ObjectNode parent, String name) {
@@ -144,11 +146,8 @@ public final class OidcStore {
 
     private void flush() {
         try {
-            Files.write(
-                    file,
-                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(
+                    file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new OidcException("cannot persist oidc store", failure);
         }

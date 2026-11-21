@@ -17,6 +17,7 @@ import dev.jahaziel.language.api.LanguagePackInstallException;
 import dev.jahaziel.node.api.NodeNotFoundException;
 import dev.jahaziel.policy.api.PolicyNotFoundException;
 import dev.jahaziel.runtime.api.NodeAgentUnreachableException;
+import dev.jahaziel.security.SecretRedactor;
 import dev.jahaziel.snapshot.api.SnapshotNotFoundException;
 import dev.jahaziel.terminal.api.TerminalLimitException;
 import dev.jahaziel.terminal.api.TerminalNotFoundException;
@@ -42,8 +43,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Maps domain failures to error bodies. User messages are handwritten; stack traces never leave the
- * server.
+ * Maps domain failures to fixed error bodies. Raw exception messages and IdP URLs stay in the
+ * server log behind a correlation id; a caller only ever sees a handwritten message.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -53,14 +54,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler(WorkspaceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError workspaceNotFound(WorkspaceNotFoundException failure) {
-        return error("NOT_FOUND", "Workspace not found");
+        return respond("NOT_FOUND", "Workspace not found", failure);
     }
 
     /** Maps missing users to 404. */
     @ExceptionHandler(UserNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError userNotFound(UserNotFoundException failure) {
-        return error("NOT_FOUND", "User not found");
+        return respond("NOT_FOUND", "User not found", failure);
     }
 
     /** Maps missing snapshots, nodes, terminals, and policies to 404. */
@@ -73,71 +74,73 @@ public class ApiExceptionHandler {
     })
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError resourceNotFound(RuntimeException failure) {
-        return error("NOT_FOUND", "Resource not found");
+        return respond("NOT_FOUND", "Resource not found", failure);
     }
 
-    /** Maps refused access to 403 with who and what. */
+    /** Maps refused access to 403 with who and what kept server-side. */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiError accessDenied(AccessDeniedException failure) {
-        return new ApiError(
-                "FORBIDDEN",
-                "Forbidden",
-                UUID.randomUUID().toString(),
-                Map.of("user", failure.userId().value().toString(), "action", failure.action()));
+        Map<String, String> details = new LinkedHashMap<String, String>();
+        details.put("user", failure.userId().value().toString());
+        details.put("action", failure.action());
+        return respond("FORBIDDEN", "Forbidden", failure, details);
     }
 
     /** Maps a refused login to 403. An operator resolves it. */
     @ExceptionHandler(LoginRejectedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiError loginRejected(LoginRejectedException failure) {
-        return error("LOGIN_REJECTED", failure.getMessage());
+        return respond("LOGIN_REJECTED", "Login was rejected", failure);
     }
 
-    /** Surfaces the documented basis-auth error code and recovery guidance, never the raw body. */
+    /** Surfaces the documented basis-auth code and recovery guidance, never a raw IdP URL. */
     @ExceptionHandler(BasisOAuthException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError basisOAuthFailed(BasisOAuthException failure) {
-        String code = String.valueOf(failure.code());
         Map<String, String> details = new LinkedHashMap<String, String>();
-        details.put("code", code);
+        details.put("code", String.valueOf(failure.code()));
         details.put("recovery", failure.recovery());
-        return new ApiError(code, failure.recovery(), UUID.randomUUID().toString(), details);
+        return respond(
+                String.valueOf(failure.code()),
+                "Authentication with the identity provider failed",
+                failure,
+                details);
     }
 
-    /** Maps a failed DevConnect step to 500, naming the target and cause for the operator. */
+    /** Maps a failed DevConnect step to 500, logging the target and cause for the operator. */
     @ExceptionHandler(DevConnectException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiError devConnectFailed(DevConnectException failure) {
-        return error("DEVCONNECT_FAILED", failure.getMessage());
+        return respond("DEVCONNECT_FAILED", "An external connection step failed", failure);
     }
 
     /** Maps unreachable node agents to 503. Starts fail safe, never fail open. */
     @ExceptionHandler(NodeAgentUnreachableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ApiError nodeAgentUnreachable(NodeAgentUnreachableException failure) {
-        return error("NODE_AGENT_UNREACHABLE", "Node agent not responding");
+        return respond("NODE_AGENT_UNREACHABLE", "Node agent not responding", failure);
     }
 
     /** Maps terminal host failures to 503. */
     @ExceptionHandler(TerminalUnavailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ApiError terminalUnavailable(TerminalUnavailableException failure) {
-        return error("TERMINAL_UNAVAILABLE", failure.getMessage());
+        return respond("TERMINAL_UNAVAILABLE", "Terminal is unavailable", failure);
     }
 
     /** Maps terminal capacity failures to 429. */
     @ExceptionHandler(TerminalLimitException.class)
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     public ApiError terminalLimit(TerminalLimitException failure) {
-        return error("TERMINAL_LIMIT", failure.getMessage());
+        return respond("TERMINAL_LIMIT", "Terminal capacity reached", failure);
     }
 
     /** Maps managed tool lifecycle conflicts to 409. */
     @ExceptionHandler({AgentToolBusyException.class, AgentToolNotInstalledException.class})
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError agentToolConflict(RuntimeException failure) {
-        return error("AGENT_TOOL_CONFLICT", failure.getMessage());
+        return respond("AGENT_TOOL_CONFLICT", "Managed tool conflict", failure);
     }
 
     /**
@@ -146,37 +149,34 @@ public class ApiExceptionHandler {
     @ExceptionHandler(LanguagePackInstallException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ApiError languagePackInstallFailed(LanguagePackInstallException failure) {
-        String trace = UUID.randomUUID().toString();
-        log.warn("language-pack installation failed {}", trace, failure);
-        return new ApiError(
+        return respond(
                 "LANGUAGE_PACK_INSTALL_FAILED",
                 "Language pack could not be installed; retry or inspect the server log",
-                trace,
-                Map.of());
+                failure);
     }
 
     /** Maps illegal lifecycle transitions to 409. */
     @ExceptionHandler(IllegalWorkspaceStateException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError illegalState(IllegalWorkspaceStateException failure) {
-        return error("STATE_CONFLICT", "Workspace state does not allow this action");
+        return respond("STATE_CONFLICT", "Workspace state does not allow this action", failure);
     }
 
     /** Maps stale editor saves to 412 so the workbench can offer a reload or merge. */
     @ExceptionHandler(WorkspaceFileConflictException.class)
     @ResponseStatus(HttpStatus.PRECONDITION_FAILED)
     public ApiError fileConflict(WorkspaceFileConflictException failure) {
-        return error("FILE_CONFLICT", failure.getMessage());
+        return respond("FILE_CONFLICT", "The file has changed since it was loaded", failure);
     }
 
-    /** Maps bad input to 400 without exposing local filesystem paths or process details. */
+    /** Maps bad input to 400 without exposing raw messages or local paths. */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError badInput(IllegalArgumentException failure) {
-        return error("VALIDATION_FAILED", failure.getMessage());
+        return respond("VALIDATION_FAILED", "The request contains an invalid value", failure);
     }
 
-    /** Maps an unknown path to 404, not 500: nothing is broken, the route does not exist. */
+    /** Maps an unknown path to 404. The query string is never logged: OAuth codes land there. */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError noResource(NoResourceFoundException failure, HttpServletRequest request) {
@@ -184,47 +184,54 @@ public class ApiExceptionHandler {
         String remote = request == null ? "-" : request.getRemoteAddr();
         String host = request == null ? "-" : String.valueOf(request.getHeader("Host"));
         String agent = request == null ? "-" : String.valueOf(request.getHeader("User-Agent"));
-        String rawTarget =
-                request == null
-                        ? "-"
-                        : request.getRequestURI()
-                                + (request.getQueryString() == null
-                                        ? ""
-                                        : "?" + request.getQueryString());
         String accept = request == null ? "-" : String.valueOf(request.getHeader("Accept"));
+        String correlationId = UUID.randomUUID().toString();
         log.warn(
-                "no route for {} {} (raw {}) from {} host={} agent={} accept={}",
+                "NOT_FOUND [{}] {} {} from {} host={} agent={} accept={} - {}",
+                correlationId,
                 failure.getHttpMethod(),
                 path,
-                rawTarget,
                 remote,
-                host,
-                agent,
-                accept);
-        return new ApiError(
-                "NOT_FOUND",
-                "No such endpoint",
-                UUID.randomUUID().toString(),
-                Map.of("path", path));
+                SecretRedactor.redact(host),
+                SecretRedactor.redact(agent),
+                SecretRedactor.redact(accept),
+                SecretRedactor.redact(String.valueOf(failure.getMessage())));
+        return new ApiError("NOT_FOUND", "No such endpoint", correlationId, Map.of("path", path));
     }
 
     /** Maps bean validation failures to 400. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError invalidBody(MethodArgumentNotValidException failure) {
-        return error("VALIDATION_FAILED", "Request body is invalid");
+        return respond("VALIDATION_FAILED", "Request body is invalid", failure);
     }
 
     /** Maps everything else to 500 without leaking detail. The trace id links to the log. */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiError unexpected(Exception failure) {
-        String trace = UUID.randomUUID().toString();
-        log.error("unhandled error {}", trace, failure);
-        return new ApiError("INTERNAL_ERROR", "Unexpected error", trace, Map.of());
+        String correlationId = UUID.randomUUID().toString();
+        log.error(
+                "INTERNAL_ERROR [{}] {}",
+                correlationId,
+                SecretRedactor.redact(String.valueOf(failure.getMessage())),
+                failure);
+        return new ApiError("INTERNAL_ERROR", "Unexpected error", correlationId, Map.of());
     }
 
-    private static ApiError error(String code, String message) {
-        return new ApiError(code, message, UUID.randomUUID().toString(), Map.of());
+    private static ApiError respond(String code, String message, Exception cause) {
+        return respond(code, message, cause, Map.of());
+    }
+
+    private static ApiError respond(
+            String code, String message, Exception cause, Map<String, String> details) {
+        String correlationId = UUID.randomUUID().toString();
+        log.warn(
+                "{} [{}] {}",
+                code,
+                correlationId,
+                SecretRedactor.redact(String.valueOf(cause.getMessage())),
+                cause);
+        return new ApiError(code, message, correlationId, details);
     }
 }

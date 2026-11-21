@@ -14,8 +14,9 @@ public final class BrowserOrigin {
     /**
      * Checks an optional Origin header against the request origin visible to the browser.
      *
-     * <p>When present, the first values of {@code X-Forwarded-Proto} and {@code X-Forwarded-Host}
-     * describe the public request origin. These headers must be set by a trusted reverse proxy.
+     * <p>Forwarded headers describe the public request origin only when {@code
+     * jahaziel.trust-forwarded-headers} is enabled (or the explicit overload opts in). Without that
+     * setting the request's own Host and scheme are used, so a client cannot spoof its origin.
      *
      * @param origin the browser Origin header, or {@code null} when absent
      * @param forwardedProto the X-Forwarded-Proto header
@@ -30,12 +31,24 @@ public final class BrowserOrigin {
             String forwardedHost,
             String host,
             URI requestUri) {
+        return matchesIfPresent(
+                origin, forwardedProto, forwardedHost, host, requestUri, forwardedTrusted());
+    }
+
+    /** Matches an origin, honoring forwarded headers only when the caller trusts its proxy. */
+    public static boolean matchesIfPresent(
+            String origin,
+            String forwardedProto,
+            String forwardedHost,
+            String host,
+            URI requestUri,
+            boolean trustForwarded) {
         if (origin == null || origin.isBlank()) return true;
         try {
             URI source = URI.create(origin);
-            String scheme = first(forwardedProto);
+            String scheme = trustForwarded ? first(forwardedProto) : null;
             if (scheme == null) scheme = requestUri.getScheme();
-            String authority = first(forwardedHost);
+            String authority = trustForwarded ? first(forwardedHost) : null;
             if (authority == null) authority = first(host);
             if (authority == null) authority = requestUri.getRawAuthority();
             if (scheme == null || authority == null) return false;
@@ -49,6 +62,14 @@ public final class BrowserOrigin {
         } catch (IllegalArgumentException invalid) {
             return false;
         }
+    }
+
+    private static boolean forwardedTrusted() {
+        String configured =
+                System.getProperty(
+                        "jahaziel.trust-forwarded-headers",
+                        System.getenv("JAHZIEL_TRUST_FORWARDED_HEADERS"));
+        return Boolean.parseBoolean(configured);
     }
 
     private static String first(String header) {

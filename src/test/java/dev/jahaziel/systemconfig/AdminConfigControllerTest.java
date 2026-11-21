@@ -11,7 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.jahaziel.api.AdminConfigController;
 import dev.jahaziel.api.ApiFailureException;
 import dev.jahaziel.authorization.api.AuthorizationService;
+import dev.jahaziel.identity.api.MfaGate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,6 +26,11 @@ import java.util.Map;
 
 /** Admin endpoints require the admin role and expose validated config and flags. */
 final class AdminConfigControllerTest {
+    @BeforeEach
+    void clearMfaGate() {
+        MfaGate.install(null);
+    }
+
     @Test
     void controllerIsAnnotatedRestController() {
         assertTrue(AdminConfigController.class.isAnnotationPresent(RestController.class));

@@ -15,8 +15,10 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.URI;
 import java.text.ParseException;
 import java.time.Duration;
+import java.util.Locale;
 
 /** Discovery and JWKS, cached for five minutes and shared by login and backchannel checks. */
 public final class BasisMetadata {
@@ -69,7 +71,11 @@ public final class BasisMetadata {
     }
 
     private Discovery loadDiscovery() {
-        String url = config.issuer() + "/.well-known/openid-configuration";
+        String issuer = config.issuer();
+        if (!endpointAllowed(issuer, issuer)) {
+            throw new BasisException("basis-auth issuer is not an allowed http(s) URL");
+        }
+        String url = issuer + "/.well-known/openid-configuration";
         String body = http.get(url, FETCH_TIMEOUT);
         JsonNode node;
         try {
@@ -83,11 +89,63 @@ public final class BasisMetadata {
                         required(node, "authorization_endpoint", url),
                         required(node, "token_endpoint", url),
                         required(node, "jwks_uri", url),
-                        optional(node, "userinfo_endpoint", config.issuer() + "/oauth/userinfo"));
-        if (!config.issuer().equals(loaded.issuer())) {
+                        optional(node, "userinfo_endpoint", issuer + "/oauth/userinfo"));
+        if (!issuer.equals(loaded.issuer())) {
             throw new BasisException("basis-auth discovery issuer does not match configuration");
         }
+        requireSameOrigin(issuer, loaded.issuer(), "issuer");
+        requireSameOrigin(issuer, loaded.authorizationEndpoint(), "authorization_endpoint");
+        requireSameOrigin(issuer, loaded.tokenEndpoint(), "token_endpoint");
+        requireSameOrigin(issuer, loaded.jwksUri(), "jwks_uri");
+        requireSameOrigin(issuer, loaded.userinfoEndpoint(), "userinfo_endpoint");
         return loaded;
+    }
+
+    private static void requireSameOrigin(String issuer, String endpoint, String field) {
+        if (!endpointAllowed(issuer, endpoint)) {
+            throw new BasisException(
+                    "basis-auth discovery " + field + " is not on the configured issuer host");
+        }
+    }
+
+    /**
+     * True only for an HTTPS issuer, or an HTTP loopback issuer used in development, whose endpoint
+     * shares its host and scheme. An explicit port is allowed; redirects to other hosts are not.
+     */
+    public static boolean endpointAllowed(String issuer, String endpoint) {
+        try {
+            URI base = URI.create(issuer);
+            URI target = URI.create(endpoint);
+            String scheme = lower(base.getScheme());
+            String baseHost = host(base.getHost());
+            boolean allowed =
+                    "https".equals(scheme) || ("http".equals(scheme) && loopback(baseHost));
+            return allowed
+                    && baseHost.length() > 0
+                    && scheme.equals(lower(target.getScheme()))
+                    && baseHost.equals(host(target.getHost()));
+        } catch (IllegalArgumentException invalid) {
+            return false;
+        }
+    }
+
+    private static boolean loopback(String host) {
+        return "localhost".equals(host)
+                || "::1".equals(host)
+                || "0:0:0:0:0:0:0:1".equals(host)
+                || host.startsWith("127.");
+    }
+
+    private static String host(String value) {
+        String result = lower(value);
+        if (result.startsWith("[") && result.endsWith("]")) {
+            return result.substring(1, result.length() - 1);
+        }
+        return result;
+    }
+
+    private static String lower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 
     private JWKSet jwks(boolean force) {

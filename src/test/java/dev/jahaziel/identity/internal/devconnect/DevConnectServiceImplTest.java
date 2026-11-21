@@ -6,6 +6,7 @@ package dev.jahaziel.identity.internal.devconnect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +33,7 @@ import dev.jahaziel.identity.persistence.AppUserEntity;
 import dev.jahaziel.identity.persistence.AppUserRepository;
 import dev.jahaziel.identity.persistence.BffSessionEntity;
 import dev.jahaziel.identity.persistence.BffSessionRepository;
+import dev.jahaziel.identity.persistence.OidcPendingEntity;
 import dev.jahaziel.identity.persistence.OidcPendingRepository;
 import dev.jahaziel.identity.persistence.UserRoleRepository;
 import dev.jahaziel.plugin.PluginContext;
@@ -42,8 +44,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -244,6 +248,49 @@ final class DevConnectServiceImplTest {
 
         assertEquals("plugin-session-1", plugin.endedSession);
         verify(sessions).delete(session);
+    }
+
+    @Test
+    void unverifiedEmailNeverJoinsAnExistingAccount() {
+        OidcPendingEntity row = new OidcPendingEntity();
+        row.setState("state-1");
+        row.setNonce("n");
+        row.setCodeVerifier("v");
+        row.setRedirectUri(REDIRECT);
+        row.setCreatedAt(CLOCK.instant());
+        row.setExpiresAt(CLOCK.instant().plus(Duration.ofMinutes(5)));
+        when(pending.findById("state-1")).thenReturn(Optional.of(row));
+        when(client.exchange("code", "v", REDIRECT))
+                .thenReturn(new DevConnectClient.Tokens("id", "acc"));
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getSubject()).thenReturn("new-sub");
+        when(client.verifyIdToken("id", "n")).thenReturn(jwt);
+        when(client.userinfo("acc"))
+                .thenReturn(
+                        new DevConnectClient.UserInfo(
+                                "new-sub", "user@example.org", "Example User", false));
+        AppUserEntity existing = activeUser(UUID.randomUUID(), "user@example.org");
+        when(users.findByExternalId("new-sub")).thenReturn(Optional.empty());
+        when(users.findByEmailIgnoreCase("user@example.org")).thenReturn(List.of(existing));
+        DevConnectServiceImpl service =
+                new DevConnectServiceImpl(
+                        props,
+                        client,
+                        pending,
+                        sessions,
+                        users,
+                        roles,
+                        tokens,
+                        CLOCK,
+                        new AuthProviderDispatcher(
+                                new AuthPluginRegistry(),
+                                new AuthProviderConfig(Collections.<String>emptyList(), null)),
+                        identities);
+
+        DevConnectService.LoginResult result = service.completeLogin("state-1", "code");
+
+        assertNotEquals(existing.getUserId(), result.userId());
+        verify(users, never()).findByEmailIgnoreCase(anyString());
     }
 
     private DevConnectServiceImpl service(AuthProviderDispatcher dispatcher) {

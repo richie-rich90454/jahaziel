@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import jakarta.servlet.FilterChain;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -23,9 +24,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class CookieWriteOriginFilterTest {
     private final CookieWriteOriginFilter filter = new CookieWriteOriginFilter();
 
+    @BeforeEach
+    void trustForwardedHeaders() {
+        System.setProperty("jahaziel.trust-forwarded-headers", "true");
+    }
+
     @AfterEach
     void clearAuthentication() {
         SecurityContextHolder.clearContext();
+        System.clearProperty("jahaziel.trust-forwarded-headers");
     }
 
     @Test

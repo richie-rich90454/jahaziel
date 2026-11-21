@@ -162,7 +162,7 @@ public class AdminUiController {
         if (!auth.isAdmin(user)) {
             throw new AccessDeniedException(user, "admin");
         }
-        if (!users.isMfaEnabled(user)) {
+        if (users != null && !users.isMfaEnabled(user)) {
             throw new AccessDeniedException(user, "admin:mfa");
         }
         return user;

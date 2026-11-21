@@ -5,6 +5,7 @@
 package dev.jahaziel.identity.auth.ldap;
 
 import dev.jahaziel.identity.auth.AuthIdentity;
+import dev.jahaziel.platform.AtomicJsonFiles;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -95,19 +95,18 @@ public final class LdapStore {
             if (node != null && node.isObject()) {
                 return (ObjectNode) node;
             }
-        } catch (IOException failure) {
-            throw new LdapException("cannot read LDAP store", failure);
+        } catch (Exception failure) {
+            AtomicJsonFiles.quarantine(file);
+            return mapper.createObjectNode();
         }
-        throw new LdapException("LDAP store is not an object");
+        AtomicJsonFiles.quarantine(file);
+        return mapper.createObjectNode();
     }
 
     private void flush() {
         try {
-            Files.write(
-                    file,
-                    mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
+            AtomicJsonFiles.writeAtomically(
+                    file, mapper.writeValueAsString(root).getBytes(StandardCharsets.UTF_8));
         } catch (IOException failure) {
             throw new LdapException("cannot persist LDAP store", failure);
         }

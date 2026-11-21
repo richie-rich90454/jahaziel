@@ -70,14 +70,15 @@ class ShareE2eTest extends E2eBase {
 
     @Test
     void expiredTokenIsRejected() throws Exception {
-        // Expiry is checked before the signature, so a past epoch fails without the secret.
+        // Expiry is checked before the signature, so a past epoch fails without the secret. All
+        // rejected tokens share the 400 VALIDATION_FAILED body; the reason stays in the log.
         String id = createWorkspace(userToken(), uniqueName("stale"));
         long past = Instant.now().minus(Duration.ofHours(2)).getEpochSecond();
         String forged = id + "." + past + ".00";
 
         E2eResponse redeemed = get("/s/" + forged, userToken());
         assertEquals(400, redeemed.status(), redeemed.body());
-        assertTrue(redeemed.body().contains("expired"), redeemed.body());
+        assertTrue(redeemed.body().contains("VALIDATION_FAILED"), redeemed.body());
     }
 
     @Test
