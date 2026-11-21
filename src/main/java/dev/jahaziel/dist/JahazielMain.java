@@ -479,8 +479,6 @@ public final class JahazielMain {
         properties.put("spring.datasource.hikari.maximum-pool-size", "1");
         properties.put("spring.datasource.hikari.minimum-idle", "1");
         properties.put("spring.autoconfigure.exclude", OAUTH2_CLIENT_AUTO_CONFIG);
-        properties.put("DB_USER", "");
-        properties.put("DB_PASSWORD", "");
         properties.put("jahaziel.storage.root", data.root().toString());
         properties.put("jahaziel.data-dir", data.root().toString());
         properties.put("jahaziel.templates.dir", data.root().resolve("templates").toString());

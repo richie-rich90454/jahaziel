@@ -42,10 +42,10 @@ uses JDK 25. `dev.jahaziel.plugin` is the kernel:
 - `PluginRegistry` — registers plugins, resolves `requires` edges in dependency
   order, initializes in that order, and shuts down in reverse. Cycles and
   missing dependencies fail fast.
-- `PluginLoader` — takes the built-in plugins and can load additional
-  `*.jar` files from a jar-adjacent directory. Each jar must have a sibling
-  `.sha256` file with its SHA-256 digest; a missing or mismatched checksum
-  rejects the jar.
+- `PluginLoader` (in `dev.jahaziel.admin.internal`) — the Spring component that
+  loads operator-installed `*.jar` plugins from the jar-adjacent plugin
+  directory through `ServiceLoader`. Plugin jars are operator-controlled; the
+  loader does not fetch or execute remote code.
 - `PluginContext` — the data directory and startup settings handed to every
   plugin.
 
