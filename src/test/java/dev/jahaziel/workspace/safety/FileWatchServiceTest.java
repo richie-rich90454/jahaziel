@@ -10,7 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.List;
 
 /** Polling reports added, modified, and deleted files relative to a persisted baseline. */
@@ -37,6 +39,27 @@ public final class FileWatchServiceTest {
         assertTrue(first.toFile().delete());
         List<WatchChange> afterDelete = service.changesSince(workspace, 0L);
         assertTrue(contains(afterDelete, "a.txt", WatchChange.DELETED));
+    }
+
+    @Test
+    void detectsSameSizeEditWithUnchangedMtime(@TempDir Path temp) throws Exception {
+        final String data = temp.resolve("data").toString();
+        final dev.jahaziel.workspace.domain.WorkspaceId workspace = SafetyFixtures.workspace();
+        final FileWatchService service = new FileWatchService(data);
+        Path file = SafetyPaths.home(data, workspace).resolve("same.txt");
+        FileTime fixed = FileTime.fromMillis(1_700_000_000_000L);
+
+        SafetyFixtures.write(file, "one");
+        Files.setLastModifiedTime(file, fixed);
+        service.changesSince(workspace, 0L);
+
+        SafetyFixtures.write(file, "two");
+        Files.setLastModifiedTime(file, fixed);
+        List<WatchChange> changes = service.changesSince(workspace, 0L);
+
+        assertTrue(
+                contains(changes, "same.txt", WatchChange.MODIFIED),
+                "hash must be compared even when size and mtime are unchanged");
     }
 
     @Test

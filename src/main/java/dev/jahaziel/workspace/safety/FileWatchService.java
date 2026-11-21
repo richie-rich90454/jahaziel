@@ -117,18 +117,13 @@ public final class FileWatchService {
                             long stamp = attributes.lastModifiedTime().toMillis();
                             long modifiedAt = attributes.lastModifiedTime().toMillis();
                             long size = attributes.size();
-                            Observed previous = baseline.get(relative);
+                            // Always rehash: coarse mtime granularity plus an unchanged size
+                            // would otherwise hide same-size edits made within one tick.
                             String digest;
-                            if (previous != null
-                                    && previous.stamp == stamp
-                                    && previous.size == size) {
-                                digest = previous.hash;
-                            } else {
-                                try {
-                                    digest = hash(file);
-                                } catch (IOException failure) {
-                                    throw new UncheckedIOException(failure);
-                                }
+                            try {
+                                digest = hash(file);
+                            } catch (IOException failure) {
+                                throw new UncheckedIOException(failure);
                             }
                             result.put(relative, new Observed(modifiedAt, stamp, size, digest));
                             return FileVisitResult.CONTINUE;
