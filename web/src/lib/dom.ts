@@ -16,18 +16,29 @@ export function render(code: () => HTMLElement, host: HTMLElement): void {
 }
 
 /** Runs a Solid effect inside the application's reactive root. */
-export function effect(compute: () => void): void {
-    const run = (): void => createEffect(compute, () => {});
+export function effect(work: () => unknown): void {
+    const run = (): void =>
+        createEffect(
+            // Solid 2 tracks only in the compute phase. Callers pass one callback
+            // that both reads reactive state and writes the DOM, so it must run
+            // here. The effect phase forwards a returned cleanup so Solid
+            // disposes it before the next run and on teardown.
+            () => work(),
+            (cleanup) => (typeof cleanup === "function" ? (cleanup as () => void) : undefined),
+        );
     if (rootOwner) runWithOwner(rootOwner, run);
     else run();
 }
 
 /** Runs a disposable effect for listeners that must be removed when a subsystem stops. */
-export function ownedEffect(compute: () => void): () => void {
+export function ownedEffect(work: () => unknown): () => void {
     let dispose = (): void => {};
     createRoot((done) => {
         dispose = done;
-        createEffect(compute, () => {});
+        createEffect(
+            () => work(),
+            (cleanup) => (typeof cleanup === "function" ? (cleanup as () => void) : undefined),
+        );
     });
     return () => dispose();
 }

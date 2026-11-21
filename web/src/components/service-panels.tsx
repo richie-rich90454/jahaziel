@@ -3,7 +3,7 @@
 /// SPDX-License-Identifier: Apache-2.0
 ///
 
-import { bindDisabled, bindText, byId, effect, on } from "../lib/dom";
+import { bindDisabled, byId, effect, on } from "../lib/dom";
 import { t } from "../lib/i18n";
 import { state } from "../lib/store";
 import {
@@ -96,104 +96,104 @@ export function servicePanelsMarkup(): string {
 function panelMarkup(panel: ServiceSection): string {
     if (panel === "collaboration")
         return `
-      <div class="svc-block"><h3>Members</h3><ul id="svc-collaboration-members" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-collab-invitee", "Invitee")}${field("svc-collab-role", "Role", "text", "EDITOR")}${button("svc-collab-invite", "Invite")}</div>
-        <div class="svc-row">${field("svc-collab-token", "Invitation token")}${button("svc-collab-accept", "Accept invitation")}</div>
+      <div class="svc-block"><h3>${t("svc.members")}</h3><ul id="svc-collaboration-members" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-collab-invitee", t("svc.invitee"))}${field("svc-collab-role", t("svc.role"), "text", "EDITOR")}${button("svc-collab-invite", t("svc.invite"))}</div>
+        <div class="svc-row">${field("svc-collab-token", t("svc.invitationToken"))}${button("svc-collab-accept", t("svc.acceptInvitation"))}</div>
       </div>
-      <div class="svc-block"><h3>Presence</h3><ul id="svc-collaboration-presence" class="svc-list"></ul>
-        <div class="svc-row">${button("svc-collab-presence-join", "Join")}${button("svc-collab-presence-leave", "Leave")}${field("svc-collab-file", "Active file")}${button("svc-collab-presence-file", "Set file")}</div>
+      <div class="svc-block"><h3>${t("svc.presence")}</h3><ul id="svc-collaboration-presence" class="svc-list"></ul>
+        <div class="svc-row">${button("svc-collab-presence-join", t("svc.join"))}${button("svc-collab-presence-leave", t("svc.leave"))}${field("svc-collab-file", t("svc.activeFile"))}${button("svc-collab-presence-file", t("svc.setFile"))}</div>
       </div>
-      <div class="svc-block"><h3>Comments</h3><ul id="svc-collaboration-comments" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-collab-comment-path", "Path")}${field("svc-collab-comment-line", "Line", "number", "1")}${button("svc-collab-comment-add", "Add comment")}</div>
-        ${area("svc-collab-comment-text", "Comment", 2)}
+      <div class="svc-block"><h3>${t("svc.comments")}</h3><ul id="svc-collaboration-comments" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-collab-comment-path", t("svc.path"))}${field("svc-collab-comment-line", t("svc.line"), "number", "1")}${button("svc-collab-comment-add", t("svc.addComment"))}</div>
+        ${area("svc-collab-comment-text", t("svc.comment"), 2)}
       </div>
-      <div class="svc-block"><h3>Share links</h3><ul id="svc-collaboration-shares" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-collab-share-scope", "Scope", "text", "VIEW")}<label class="svc-field svc-field-check"><input id="svc-collab-one-time" type="checkbox" /><span>One time</span></label>${button("svc-collab-share-create", "Create link")}</div>
+      <div class="svc-block"><h3>${t("svc.shareLinks")}</h3><ul id="svc-collaboration-shares" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-collab-share-scope", t("svc.scope"), "text", "VIEW")}<label class="svc-field svc-field-check"><input id="svc-collab-one-time" type="checkbox" /><span>${t("svc.oneTime")}</span></label>${button("svc-collab-share-create", t("svc.createLink"))}</div>
       </div>
-      <div class="svc-block"><h3>Audit</h3><ul id="svc-collaboration-audit" class="svc-list"></ul></div>`;
+      <div class="svc-block"><h3>${t("svc.audit")}</h3><ul id="svc-collaboration-audit" class="svc-list"></ul></div>`;
     if (panel === "agent")
         return `
-      <div class="svc-block"><h3>Sessions</h3><ul id="svc-agent-sessions" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-agent-session-name", "Session name")}${field("svc-agent-session-id", "Session id")}${button("svc-agent-session-create", "New session")}</div>
+      <div class="svc-block"><h3>${t("svc.sessions")}</h3><ul id="svc-agent-sessions" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-agent-session-name", t("svc.sessionName"))}${field("svc-agent-session-id", t("svc.sessionId"))}${button("svc-agent-session-create", t("svc.newSession"))}</div>
         <pre id="svc-agent-transcript" class="svc-output"></pre>
-        <div class="svc-row">${field("svc-agent-line", "Transcript line")}${button("svc-agent-line-add", "Append line")}</div>
+        <div class="svc-row">${field("svc-agent-line", t("svc.transcriptLine"))}${button("svc-agent-line-add", t("svc.appendLine"))}</div>
       </div>
-      <div class="svc-block"><h3>Prompt library</h3><ul id="svc-agent-prompts" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-agent-prompt-name", "Snippet name")}${button("svc-agent-prompt-create", "Save snippet")}</div>
-        ${area("svc-agent-prompt-text", "Snippet text", 3)}
+      <div class="svc-block"><h3>${t("svc.promptLibrary")}</h3><ul id="svc-agent-prompts" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-agent-prompt-name", t("svc.snippetName"))}${button("svc-agent-prompt-create", t("svc.saveSnippet"))}</div>
+        ${area("svc-agent-prompt-text", t("svc.snippetText"), 3)}
       </div>
-      <div class="svc-block"><h3>Staged diff review</h3><ul id="svc-agent-patches" class="svc-list"></ul>
-        ${area("svc-agent-patch-text", "Unified patch to stage", 6)}
-        <div class="svc-row">${button("svc-agent-patch-stage", "Stage patch")}</div>
+      <div class="svc-block"><h3>${t("svc.stagedDiffReview")}</h3><ul id="svc-agent-patches" class="svc-list"></ul>
+        ${area("svc-agent-patch-text", t("svc.patchToStage"), 6)}
+        <div class="svc-row">${button("svc-agent-patch-stage", t("svc.stagePatch"))}</div>
         <ul id="svc-agent-hunks" class="svc-list"></ul>
       </div>
-      <div class="svc-block"><h3>Chat</h3><div id="svc-agent-chat" class="svc-output"></div>
-        <div class="svc-row">${field("svc-agent-chat-file", "Active file")}${field("svc-agent-chat-selection", "Selection")}${button("svc-agent-chat-send", "Send")}${button("svc-agent-chat-cancel", "Cancel")}</div>
-        ${area("svc-agent-chat-text", "Message", 3)}
+      <div class="svc-block"><h3>${t("svc.chat")}</h3><div id="svc-agent-chat" class="svc-output"></div>
+        <div class="svc-row">${field("svc-agent-chat-file", t("svc.activeFile"))}${field("svc-agent-chat-selection", t("svc.selection"))}${button("svc-agent-chat-send", t("svc.send"))}${button("svc-agent-chat-cancel", t("common.cancel"))}</div>
+        ${area("svc-agent-chat-text", t("svc.message"), 3)}
       </div>
-      <div class="svc-block"><h3>Model and usage</h3><ul id="svc-agent-models" class="svc-list"></ul><p id="svc-agent-usage" class="svc-meta"></p></div>`;
+      <div class="svc-block"><h3>${t("svc.modelAndUsage")}</h3><ul id="svc-agent-models" class="svc-list"></ul><p id="svc-agent-usage" class="svc-meta"></p></div>`;
     if (panel === "data")
         return `
-      <div class="svc-block"><h3>SQLite</h3>
-        <div class="svc-row">${field("svc-data-sqlite-path", "Database path", "text", "app.db")}${button("svc-data-sqlite-tables", "List tables")}${button("svc-data-sqlite-schema", "Schema")}</div>
-        <div class="svc-row"><label class="svc-field"><span>Table</span><select id="svc-data-table"></select></label>${button("svc-data-sqlite-rows", "View rows")}${field("svc-data-sql", "SQL query")}${button("svc-data-sqlite-query", "Run query")}</div>
+      <div class="svc-block"><h3>${t("svc.sqlite")}</h3>
+        <div class="svc-row">${field("svc-data-sqlite-path", t("svc.databasePath"), "text", "app.db")}${button("svc-data-sqlite-tables", t("svc.listTables"))}${button("svc-data-sqlite-schema", t("svc.schema"))}</div>
+        <div class="svc-row"><label class="svc-field"><span>${t("svc.table")}</span><select id="svc-data-table"></select></label>${button("svc-data-sqlite-rows", t("svc.viewRows"))}${field("svc-data-sql", t("svc.sqlQuery"))}${button("svc-data-sqlite-query", t("svc.runQuery"))}</div>
         <div id="svc-data-table-view" class="svc-table-view"></div>
       </div>
-      <div class="svc-block"><h3>CSV</h3>${area("svc-data-csv", "CSV content", 4)}
-        <div class="svc-row">${field("svc-data-csv-path", "Save path")}${field("svc-data-csv-version", "Expected version")}${button("svc-data-csv-parse", "Parse")}${button("svc-data-csv-write", "Write")}${button("svc-data-csv-save", "Save")}</div>
+      <div class="svc-block"><h3>${t("svc.csv")}</h3>${area("svc-data-csv", t("svc.csvContent"), 4)}
+        <div class="svc-row">${field("svc-data-csv-path", t("svc.savePath"))}${field("svc-data-csv-version", t("svc.expectedVersion"))}${button("svc-data-csv-parse", t("svc.parse"))}${button("svc-data-csv-write", t("svc.write"))}${button("svc-data-csv-save", t("common.save"))}</div>
         <div id="svc-data-csv-view" class="svc-table-view"></div>
       </div>
-      <div class="svc-block"><h3>Notebook</h3>
-        <div class="svc-row">${field("svc-data-notebook", "Notebook path")}${field("svc-data-task-id", "Task id")}${button("svc-data-cells-load", "Load cells")}${button("svc-data-cells-save", "Save cells")}${button("svc-data-notebook-run", "Run")}</div>
-        ${area("svc-data-cells", "Cells (one per line)", 4)}
+      <div class="svc-block"><h3>${t("svc.notebook")}</h3>
+        <div class="svc-row">${field("svc-data-notebook", t("svc.notebookPath"))}${field("svc-data-task-id", t("svc.taskId"))}${button("svc-data-cells-load", t("svc.loadCells"))}${button("svc-data-cells-save", t("svc.saveCells"))}${button("svc-data-notebook-run", t("nav.run"))}</div>
+        ${area("svc-data-cells", t("svc.cells"), 4)}
         <pre id="svc-data-outputs" class="svc-output"></pre>
       </div>
-      <div class="svc-block"><h3>Search index</h3>
-        <div class="svc-row">${field("svc-data-search", "Query")}${button("svc-data-index", "Index")}${button("svc-data-rebuild", "Rebuild")}${button("svc-data-search-run", "Search")}</div>
+      <div class="svc-block"><h3>${t("svc.searchIndex")}</h3>
+        <div class="svc-row">${field("svc-data-search", t("svc.query"))}${button("svc-data-index", t("svc.index"))}${button("svc-data-rebuild", t("svc.rebuild"))}${button("svc-data-search-run", t("svc.search"))}</div>
         <p id="svc-data-index-count" class="svc-meta"></p><ul id="svc-data-hits" class="svc-list"></ul>
       </div>
-      <div class="svc-block"><h3>File history</h3><ul id="svc-data-versions" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-data-from", "From version")}${field("svc-data-to", "To version")}${button("svc-data-history-diff", "Compare")}</div>
-        <div class="svc-row">${field("svc-data-snapshot", "Snapshot id")}${field("svc-data-restore-path", "Restore path")}${button("svc-data-restore", "Restore")}</div>
+      <div class="svc-block"><h3>${t("svc.fileHistory")}</h3><ul id="svc-data-versions" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-data-from", t("svc.fromVersion"))}${field("svc-data-to", t("svc.toVersion"))}${button("svc-data-history-diff", t("svc.compare"))}</div>
+        <div class="svc-row">${field("svc-data-snapshot", t("svc.snapshotId"))}${field("svc-data-restore-path", t("svc.restorePath"))}${button("svc-data-restore", t("svc.restore"))}</div>
         <ul id="svc-data-history" class="svc-list"></ul>
       </div>`;
     if (panel === "club")
         return `
-      <div class="svc-block"><h3>Session</h3><div id="svc-club-session" class="svc-meta"></div>
-        <div class="svc-row">${field("svc-club-session-id", "Session id")}${button("svc-club-session-get", "Load")}${button("svc-club-session-fork", "Fork")}</div>
-        <div class="svc-row">${field("svc-club-template", "Template", "text", "python")}${field("svc-club-capacity", "Capacity", "number", "20")}${button("svc-club-session-create", "Create")}</div>
-        <div class="svc-row">${field("svc-club-code", "Join code")}${field("svc-club-role", "Role", "text", "LEARNER")}${button("svc-club-session-join", "Join")}${button("svc-club-code-rotate", "Rotate code")}${button("svc-club-leaderboard", "Leaderboard")}</div>
+      <div class="svc-block"><h3>${t("svc.session")}</h3><div id="svc-club-session" class="svc-meta"></div>
+        <div class="svc-row">${field("svc-club-session-id", t("svc.sessionId"))}${button("svc-club-session-get", t("svc.load"))}${button("svc-club-session-fork", t("svc.fork"))}</div>
+        <div class="svc-row">${field("svc-club-template", t("svc.template"), "text", "python")}${field("svc-club-capacity", t("svc.capacity"), "number", "20")}${button("svc-club-session-create", t("svc.create"))}</div>
+        <div class="svc-row">${field("svc-club-code", t("svc.joinCode"))}${field("svc-club-role", t("svc.role"), "text", "LEARNER")}${button("svc-club-session-join", t("svc.join"))}${button("svc-club-code-rotate", t("svc.rotateCode"))}${button("svc-club-leaderboard", t("svc.leaderboard"))}</div>
       </div>
-      <div class="svc-block"><h3>Tutorial progress</h3>
-        <div class="svc-row">${field("svc-club-lesson", "Lesson id")}${field("svc-club-step", "Step id")}${button("svc-club-lesson-load", "Load lesson")}${button("svc-club-step-verify", "Verify step")}${button("svc-club-progress", "Progress")}</div>
+      <div class="svc-block"><h3>${t("svc.tutorialProgress")}</h3>
+        <div class="svc-row">${field("svc-club-lesson", t("svc.lessonId"))}${field("svc-club-step", t("svc.stepId"))}${button("svc-club-lesson-load", t("svc.loadLesson"))}${button("svc-club-step-verify", t("svc.verifyStep"))}${button("svc-club-progress", t("svc.progress"))}</div>
         <p id="svc-club-progress-value" class="svc-meta"></p>
       </div>
-      <div class="svc-block"><h3>Checkpoints</h3><ul id="svc-club-checkpoints" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-club-checkpoint-tag", "Tag")}${field("svc-club-checkpoint-note", "Note")}${button("svc-club-checkpoint-submit", "Submit")}${button("svc-club-checkpoint-list", "List")}${button("svc-club-export", "Export")}</div>
-        ${area("svc-club-checkpoint-content", "Checkpoint content", 2)}
+      <div class="svc-block"><h3>${t("svc.checkpoints")}</h3><ul id="svc-club-checkpoints" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-club-checkpoint-tag", t("svc.tag"))}${field("svc-club-checkpoint-note", t("svc.note"))}${button("svc-club-checkpoint-submit", t("svc.submit"))}${button("svc-club-checkpoint-list", t("svc.list"))}${button("svc-club-export", t("svc.export"))}</div>
+        ${area("svc-club-checkpoint-content", t("svc.checkpointContent"), 2)}
       </div>
-      <div class="svc-block"><h3>Showcase</h3><ul id="svc-club-showcase" class="svc-list"></ul>${button("svc-club-showcase-refresh", "Refresh showcase")}</div>
-      <div class="svc-block"><h3>Chat and moderation</h3><div id="svc-club-chat" class="svc-output"></div>
-        <div class="svc-row">${field("svc-club-chat-text", "Message")}${button("svc-club-chat-send", "Post")}${button("svc-club-chat-refresh", "Refresh")}${button("svc-club-chat-pinned", "Pinned")}</div>
-        <div class="svc-row">${field("svc-club-target", "Target user id")}${button("svc-club-mute", "Mute")}${button("svc-club-unmute", "Unmute")}${button("svc-club-remove", "Remove")}${button("svc-club-lock", "Lock")}${button("svc-club-unlock", "Unlock")}</div>
-        <div class="svc-row">${button("svc-club-help-join", "Join help queue")}${button("svc-club-help-leave", "Leave help queue")}${button("svc-club-help-size", "Queue size")}${button("svc-club-help-next", "Next learner")}</div>
+      <div class="svc-block"><h3>${t("svc.showcase")}</h3><ul id="svc-club-showcase" class="svc-list"></ul>${button("svc-club-showcase-refresh", t("svc.refreshShowcase"))}</div>
+      <div class="svc-block"><h3>${t("svc.chatAndModeration")}</h3><div id="svc-club-chat" class="svc-output"></div>
+        <div class="svc-row">${field("svc-club-chat-text", t("svc.message"))}${button("svc-club-chat-send", t("svc.post"))}${button("svc-club-chat-refresh", t("common.refresh"))}${button("svc-club-chat-pinned", t("svc.pinned"))}</div>
+        <div class="svc-row">${field("svc-club-target", t("svc.targetUserId"))}${button("svc-club-mute", t("svc.mute"))}${button("svc-club-unmute", t("svc.unmute"))}${button("svc-club-remove", t("svc.remove"))}${button("svc-club-lock", t("svc.lock"))}${button("svc-club-unlock", t("svc.unlock"))}</div>
+        <div class="svc-row">${button("svc-club-help-join", t("svc.joinHelpQueue"))}${button("svc-club-help-leave", t("svc.leaveHelpQueue"))}${button("svc-club-help-size", t("svc.queueSize"))}${button("svc-club-help-next", t("svc.nextLearner"))}</div>
       </div>`;
     return `
-      <div class="svc-block"><h3>Support and backups</h3>
-        <div class="svc-row">${button("svc-ops-bundle", "Create support bundle")}<span id="svc-ops-bundle-result" class="svc-meta"></span></div>
-        <div class="svc-row">${button("svc-ops-backup", "Backup status")}<span id="svc-ops-backup-result" class="svc-meta"></span></div>
+      <div class="svc-block"><h3>${t("svc.supportAndBackups")}</h3>
+        <div class="svc-row">${button("svc-ops-bundle", t("svc.createSupportBundle"))}<span id="svc-ops-bundle-result" class="svc-meta"></span></div>
+        <div class="svc-row">${button("svc-ops-backup", t("svc.backupStatus"))}<span id="svc-ops-backup-result" class="svc-meta"></span></div>
       </div>
-      <div class="svc-block"><h3>Audit</h3>
-        <div class="svc-row">${field("svc-ops-audit-from", "From")}${field("svc-ops-audit-to", "To")}${field("svc-ops-audit-actor", "Actor")}${field("svc-ops-audit-action", "Action")}</div>
-        <div class="svc-row">${field("svc-ops-audit-workspace", "Workspace")}${field("svc-ops-audit-result", "Result")}${field("svc-ops-audit-format", "Format", "text", "csv")}${button("svc-ops-audit-query", "Query")}${button("svc-ops-audit-export", "Export")}</div>
+      <div class="svc-block"><h3>${t("svc.audit")}</h3>
+        <div class="svc-row">${field("svc-ops-audit-from", t("svc.from"))}${field("svc-ops-audit-to", t("svc.to"))}${field("svc-ops-audit-actor", t("svc.actor"))}${field("svc-ops-audit-action", t("svc.action"))}</div>
+        <div class="svc-row">${field("svc-ops-audit-workspace", t("svc.workspace"))}${field("svc-ops-audit-result", t("svc.result"))}${field("svc-ops-audit-format", t("svc.format"), "text", "csv")}${button("svc-ops-audit-query", t("svc.query"))}${button("svc-ops-audit-export", t("svc.export"))}</div>
         <ul id="svc-ops-audit" class="svc-list"></ul><pre id="svc-ops-export" class="svc-output"></pre>
       </div>
-      <div class="svc-block"><h3>GDPR</h3>
-        <div class="svc-row">${field("svc-ops-gdpr-user", "User id")}${field("svc-ops-gdpr-confirm", "Confirmation")}${button("svc-ops-gdpr-export", "Export")}${button("svc-ops-gdpr-delete", "Delete")}</div>
+      <div class="svc-block"><h3>${t("svc.gdpr")}</h3>
+        <div class="svc-row">${field("svc-ops-gdpr-user", t("svc.userId"))}${field("svc-ops-gdpr-confirm", t("svc.confirmation"))}${button("svc-ops-gdpr-export", t("svc.export"))}${button("svc-ops-gdpr-delete", t("svc.delete"))}</div>
         <p id="svc-ops-gdpr" class="svc-meta"></p>
       </div>
-      <div class="svc-block"><h3>Approvals</h3><ul id="svc-ops-approvals" class="svc-list"></ul>
-        <div class="svc-row">${field("svc-ops-approval-type", "Type")}${field("svc-ops-approval-target", "Target")}${button("svc-ops-approval-submit", "Submit")}</div>
+      <div class="svc-block"><h3>${t("svc.approvals")}</h3><ul id="svc-ops-approvals" class="svc-list"></ul>
+        <div class="svc-row">${field("svc-ops-approval-type", t("svc.type"))}${field("svc-ops-approval-target", t("svc.target"))}${button("svc-ops-approval-submit", t("svc.submit"))}</div>
       </div>`;
 }
 
@@ -229,7 +229,7 @@ function action(label: string, data: Record<string, string>): HTMLButtonElement 
 
 function table(host: HTMLElement, data: DataTable | null): void {
     if (!data) {
-        host.textContent = "No table loaded.";
+        host.textContent = t("svc.noTable");
         return;
     }
     const element = document.createElement("table");
@@ -284,8 +284,8 @@ function bindCollaboration(): void {
             "svc-collaboration-members",
             s.members.map((entry) =>
                 item(entry, [
-                    action("Change role", { act: "role", id: entry.split(":")[0] }),
-                    action("Remove", { act: "remove", id: entry.split(":")[0] }),
+                    action(t("svc.changeRole"), { act: "role", id: entry.split(":")[0] }),
+                    action(t("svc.remove"), { act: "remove", id: entry.split(":")[0] }),
                 ]),
             ),
         );
@@ -297,15 +297,17 @@ function bindCollaboration(): void {
             "svc-collaboration-comments",
             s.comments.map((entry) =>
                 item(entry, [
-                    action("Reply", { act: "reply", id: entry.split(":")[0] }),
-                    action("Resolve", { act: "resolve", id: entry.split(":")[0] }),
-                    action("Delete", { act: "delete", id: entry.split(":")[0] }),
+                    action(t("svc.reply"), { act: "reply", id: entry.split(":")[0] }),
+                    action(t("svc.resolve"), { act: "resolve", id: entry.split(":")[0] }),
+                    action(t("svc.delete"), { act: "delete", id: entry.split(":")[0] }),
                 ]),
             ),
         );
         list(
             "svc-collaboration-shares",
-            s.shares.map((entry) => item(entry, [action("Revoke", { act: "revoke", id: entry })])),
+            s.shares.map((entry) =>
+                item(entry, [action(t("svc.revoke"), { act: "revoke", id: entry })]),
+            ),
         );
         list(
             "svc-collaboration-audit",
@@ -318,7 +320,7 @@ function bindCollaboration(): void {
         const id = button.dataset.id ?? "";
         const act = button.dataset.act;
         if (act === "reply") {
-            const text = window.prompt("Reply text") ?? "";
+            const text = window.prompt(t("svc.replyText")) ?? "";
             if (text)
                 guard(() =>
                     call("collaboration", `${p.workspace}/comments/${id}/reply`, {
@@ -353,7 +355,7 @@ function bindCollaboration(): void {
         if (!button) return;
         const target = button.dataset.id ?? "";
         if (button.dataset.act === "role") {
-            const role = window.prompt("Role (VIEWER, EDITOR, OWNER)") ?? "";
+            const role = window.prompt(t("svc.roleChoices")) ?? "";
             if (role)
                 guard(() =>
                     call("collaboration", `${p.workspace}/members/${target}/role`, {
@@ -447,10 +449,10 @@ function bindAgent(): void {
             "svc-agent-sessions",
             s.sessions.map((session: AgentSession) =>
                 item(`${session.name} (${session.status})`, [
-                    action("Resume", { act: "resume", id: session.id }),
-                    action("Restart", { act: "restart", id: session.id }),
-                    action("Kill", { act: "kill", id: session.id }),
-                    action("Transcript", { act: "transcript", id: session.id }),
+                    action(t("svc.resume"), { act: "resume", id: session.id }),
+                    action(t("svc.restart"), { act: "restart", id: session.id }),
+                    action(t("svc.kill"), { act: "kill", id: session.id }),
+                    action(t("svc.transcript"), { act: "transcript", id: session.id }),
                 ]),
             ),
         );
@@ -458,8 +460,8 @@ function bindAgent(): void {
             "svc-agent-prompts",
             s.prompts.map((prompt: AgentPrompt) =>
                 item(`${prompt.name} (${prompt.owner})`, [
-                    action("Render", { act: "render", id: prompt.id }),
-                    action("Delete", { act: "delete", id: prompt.id }),
+                    action(t("svc.render"), { act: "render", id: prompt.id }),
+                    action(t("svc.delete"), { act: "delete", id: prompt.id }),
                 ]),
             ),
         );
@@ -467,7 +469,7 @@ function bindAgent(): void {
             "svc-agent-patches",
             s.patches.map((patch: AgentPatch) =>
                 item(`${patch.filePath} (${patch.status})`, [
-                    action("Review", { act: "review", id: patch.id }),
+                    action(t("svc.review"), { act: "review", id: patch.id }),
                 ]),
             ),
         );
@@ -475,10 +477,16 @@ function bindAgent(): void {
         list(
             "svc-agent-hunks",
             hunks.map((hunk, index) =>
-                item(`Hunk ${index}: ${hunk.split("\n")[0].replace(/^@@ /, "").slice(0, 60)}`, [
-                    action("Accept", { act: "accept", id: String(index) }),
-                    action("Reject", { act: "reject", id: String(index) }),
-                ]),
+                item(
+                    t("svc.hunk", {
+                        index,
+                        header: hunk.split("\n")[0].replace(/^@@ /, "").slice(0, 60),
+                    }),
+                    [
+                        action(t("svc.accept"), { act: "accept", id: String(index) }),
+                        action(t("svc.reject"), { act: "reject", id: String(index) }),
+                    ],
+                ),
             ),
         );
         list(
@@ -491,8 +499,12 @@ function bindAgent(): void {
             .join("\n");
         const usage = s.usage;
         byId("svc-agent-usage").textContent = usage
-            ? `${usage.messages} messages, ${usage.tokensIn} in, ${usage.tokensOut} out`
-            : "No usage recorded.";
+            ? t("svc.usage", {
+                  messages: usage.messages,
+                  tokensIn: usage.tokensIn,
+                  tokensOut: usage.tokensOut,
+              })
+            : t("svc.noUsage");
     });
     on(byId("svc-agent-sessions"), "click", (event) => {
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-act]");
@@ -656,7 +668,7 @@ function bindData(): void {
             "svc-data-history",
             s.history.map((diff: FileDiff) => item(`${diff.path}: ${diff.change}`)),
         );
-        byId("svc-data-index-count").textContent = `${s.indexCount} indexed files.`;
+        byId("svc-data-index-count").textContent = t("svc.indexedFiles", { count: s.indexCount });
     });
     on(byId("svc-data-sqlite-tables"), "click", () =>
         guard(async () => {
@@ -827,14 +839,23 @@ function bindClub(): void {
     effect(() => {
         const s = serviceState.club;
         byId("svc-club-session").textContent = s.session
-            ? `${s.session.template}, ${s.session.participants}/${s.session.capacity} participants, code ${s.session.joinCode}, leaderboard ${s.session.leaderboard}, locked ${s.session.locked}`
-            : "No session loaded.";
-        byId("svc-club-progress-value").textContent = `${s.progress} steps completed.`;
+            ? t("svc.sessionDetail", {
+                  template: s.session.template,
+                  participants: s.session.participants,
+                  capacity: s.session.capacity,
+                  joinCode: s.session.joinCode,
+                  leaderboard: String(s.session.leaderboard),
+                  locked: String(s.session.locked),
+              })
+            : t("svc.noSession");
+        byId("svc-club-progress-value").textContent = t("svc.stepsCompleted", {
+            count: s.progress,
+        });
         list(
             "svc-club-checkpoints",
             s.checkpoints.map((entry: ClubCheckpoint) =>
                 item(
-                    `${entry.snapshotTag}: ${entry.note || "no note"}, ${entry.promotedTo || "not promoted"}`,
+                    `${entry.snapshotTag}: ${entry.note || t("svc.noNote")}, ${entry.promotedTo || t("svc.notPromoted")}`,
                 ),
             ),
         );
@@ -847,7 +868,7 @@ function bindClub(): void {
         byId("svc-club-chat").textContent = s.chat
             .map(
                 (message: ClubChat) =>
-                    `${message.pinned ? "[pinned] " : ""}${message.author}: ${message.text}`,
+                    `${message.pinned ? t("svc.pinnedTag") : ""}${message.author}: ${message.text}`,
             )
             .join("\n");
     });
@@ -1054,7 +1075,12 @@ function bindOps(): void {
         const s = serviceState.ops;
         byId("svc-ops-bundle-result").textContent = s.bundle;
         byId("svc-ops-backup-result").textContent = s.backup
-            ? `${s.backup.count} backups, latest ${s.backup.latest || "none"}, RPO ${s.backup.rpoMinutes}m, RTO ${s.backup.rtoMinutes}m`
+            ? t("svc.backups", {
+                  count: s.backup.count,
+                  latest: s.backup.latest || t("svc.none"),
+                  rpo: s.backup.rpoMinutes,
+                  rto: s.backup.rtoMinutes,
+              })
             : "";
         byId("svc-ops-export").textContent = s.exportText;
         byId("svc-ops-gdpr").textContent = s.result;
@@ -1068,8 +1094,8 @@ function bindOps(): void {
             "svc-ops-approvals",
             s.approvals.map((approval) =>
                 item(`${approval.type} ${approval.target} ${approval.status}`, [
-                    action("Approve", { act: "approve", id: approval.id }),
-                    action("Reject", { act: "reject", id: approval.id }),
+                    action(t("svc.approve"), { act: "approve", id: approval.id }),
+                    action(t("svc.reject"), { act: "reject", id: approval.id }),
                 ]),
             ),
         );
@@ -1089,7 +1115,11 @@ function bindOps(): void {
                 `${p.ops}/support-bundle`,
                 { method: "POST", body: json({}) },
             );
-            if (result) serviceState.ops.bundle = `${result.fileName}, verified ${result.verified}`;
+            if (result)
+                serviceState.ops.bundle = t("svc.bundleResult", {
+                    file: result.fileName,
+                    verified: String(result.verified),
+                });
         }),
     );
     on(byId("svc-ops-backup"), "click", () => guard(() => loadOps()));
@@ -1122,7 +1152,7 @@ function bindOps(): void {
         ),
     );
     on(byId("svc-ops-gdpr-delete"), "click", () => {
-        if (!window.confirm("Permanently delete this user's data?")) return;
+        if (!window.confirm(t("svc.deleteConfirm"))) return;
         guard(() =>
             call("ops", `${p.ops}/gdpr/delete`, {
                 method: "POST",
@@ -1160,7 +1190,7 @@ function bindOps(): void {
             });
         else
             guard(async () => {
-                const reason = window.prompt("Rejection reason") ?? "";
+                const reason = window.prompt(t("svc.rejectionReason")) ?? "";
                 await call("ops", `${p.ops}/approvals/${id}/reject`, {
                     method: "POST",
                     body: json({ reason }),

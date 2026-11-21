@@ -30,8 +30,8 @@
     --ui: "Segoe UI", system-ui, -apple-system, sans-serif;
     --mono: "IBM Plex Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
     --ink: #2d352e;
-    --muted: #6c776d;
-    --faint: #5f6b60;
+    --muted: #59645a;
+    --faint: #626d63;
     --line: #dcded6;
     --line-soft: #e8e9e3;
     --accent: #2f6f52;
@@ -2214,7 +2214,7 @@ button:active:not(:disabled) {
     --color-error: #ef8f80;
     --ink: #e7ece7;
     --muted: #a4b1a7;
-    --faint: #75847a;
+    --faint: #849389;
     --line: #344039;
     --line-soft: #28322c;
     --accent: #78c79a;

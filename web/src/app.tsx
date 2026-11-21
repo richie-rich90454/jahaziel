@@ -70,13 +70,13 @@ export function App(): HTMLElement {
         <label class="tools-control" for="tools-select">
           <span class="sr-only">${t("bar.tools")}</span>
           <select id="tools-select" aria-label="${t("bar.tools")}">
-            <option value="files">Files</option>
-            <option value="history">History</option>
-            <option value="trash">Trash</option>
-            <option value="diff">Diff</option>
-            <option value="clone">Clone</option>
-            <option value="config">Config</option>
-            <option value="flags">Flags</option>
+            <option value="files">${t("nav.files")}</option>
+            <option value="history">${t("panel.history")}</option>
+            <option value="trash">${t("panel.trash")}</option>
+            <option value="diff">${t("panel.diff")}</option>
+            <option value="clone">${t("panel.clone")}</option>
+            <option value="config">${t("panel.config")}</option>
+            <option value="flags">${t("panel.flags")}</option>
           </select>
         </label>
         <button id="bar-clone" class="button btn bar-clone" type="button" title="Clone this workspace">Clone</button>

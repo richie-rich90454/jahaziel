@@ -22,7 +22,7 @@ export function editorMarkup(): string {
       <div id="editor-tabs" class="editor-tabs"></div>
       <div class="editor-controls">
         <span id="save-state" class="save-state"></span>
-        <button id="markdown-toggle" class="button button-quiet" type="button" hidden>Split preview</button>
+        <button id="markdown-toggle" class="button button-quiet" type="button" hidden>${t("markdown.split")}</button>
         <button id="save-file" class="button btn button-save" type="button" disabled>${t("common.save")} <kbd>Ctrl S</kbd></button>
       </div>
     </div>

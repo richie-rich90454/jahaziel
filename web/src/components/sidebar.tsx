@@ -336,18 +336,18 @@ const languages: Record<string, string> = {
 export function sidebarMarkup(): string {
     return `
     <aside class="file-sidebar" aria-label="Workspace files">
-      <div class="panel-heading"><div><span class="panel-glyph">▤</span><span>Explorer</span></div><span class="panel-meta">Workspace</span></div>
+      <div class="panel-heading"><div><span class="panel-glyph">▤</span><span>${t("files.explorer")}</span></div><span class="panel-meta">${t("svc.workspace")}</span></div>
       <div class="project-root"><span class="root-caret">⌄</span><span id="root-name">Project</span></div>
       <div class="workspace-search" role="search">
-        <input id="workspace-search" type="search" placeholder="Search workspace…" aria-label="Search workspace files and contents" autocomplete="off" />
+        <input id="workspace-search" type="search" placeholder="${t("files.search")}" aria-label="${t("files.search")}" autocomplete="off" />
         <ul id="search-results" class="search-results" aria-live="polite" hidden></ul>
       </div>
       <div class="file-actions" aria-label="File actions">
-        <button id="new-file" type="button" title="New file">＋<span>File</span></button>
-        <button id="new-folder" type="button" title="New folder">▱<span>Folder</span></button>
-        <button id="download-selected" type="button" title="Download selected file" aria-label="Download selected file" disabled>↓</button>
-        <button id="rename-selected" type="button" title="Rename selected">↗</button>
-        <button id="delete-selected" type="button" title="Delete selected">×</button>
+        <button id="new-file" type="button" title="${t("files.newFile")}">＋<span>File</span></button>
+        <button id="new-folder" type="button" title="${t("files.newFolder")}">▱<span>Folder</span></button>
+        <button id="download-selected" type="button" title="${t("files.download")}" aria-label="${t("files.download")}" disabled>↓</button>
+        <button id="rename-selected" type="button" title="${t("files.rename")}">↗</button>
+        <button id="delete-selected" type="button" title="${t("bulk.delete")}">×</button>
       </div>
       <div id="bulk-actions" class="bulk-actions" aria-label="Bulk file actions" hidden>
         <span id="bulk-count" class="bulk-count"></span>
@@ -365,12 +365,12 @@ export function sidebarMarkup(): string {
       <ul id="file-tree" class="file-tree"></ul>
 
       <section class="task-panel" aria-label="Workspace setup and run tasks">
-        <div class="panel-heading"><div><span class="panel-glyph">▶</span><span>Run</span></div><span id="setup-state" class="panel-meta">Pending</span></div>
-        <div class="setup-row"><span id="setup-summary">Template setup is queued and will start shortly.</span><button id="setup-retry" class="text-action" type="button" hidden>Retry</button></div>
+        <div class="panel-heading"><div><span class="panel-glyph">▶</span><span>${t("nav.run")}</span></div><span id="setup-state" class="panel-meta">Pending</span></div>
+        <div class="setup-row"><span id="setup-summary">Template setup is queued and will start shortly.</span><button id="setup-retry" class="text-action" type="button" hidden>${t("common.retry")}</button></div>
         <div id="setup-correlation" class="operation-ref" hidden></div>
         <pre id="setup-output" class="task-output" hidden></pre>
         <div id="task-list" class="task-list"></div>
-        <button id="task-stop" class="text-action" type="button" hidden>Stop task</button>
+        <button id="task-stop" class="text-action" type="button" hidden>${t("common.stop")}</button>
         <div id="task-correlation" class="operation-ref" hidden></div>
         <pre id="task-output" class="task-output" hidden></pre>
         <section class="run-history-panel" aria-label="Run history">
@@ -497,10 +497,10 @@ export function sidebarMarkup(): string {
       </section>
 
       <section class="git-panel" aria-label="Git source control">
-        <div class="panel-heading"><div><span class="panel-glyph">⑂</span><span>Source control</span></div><div class="git-heading-actions"><span id="git-state" class="panel-meta">Git</span><button id="git-refresh" class="text-action" type="button" aria-label="Refresh Git status">Refresh</button></div></div>
+        <div class="panel-heading"><div><span class="panel-glyph">⑂</span><span>${t("git.heading")}</span></div><div class="git-heading-actions"><span id="git-state" class="panel-meta">Git</span><button id="git-refresh" class="text-action" type="button" aria-label="${t("common.refresh")}">${t("common.refresh")}</button></div></div>
         <ul id="git-changes" class="git-changes"></ul>
         <form id="git-commit-form" class="git-commit-form">
-          <textarea id="git-message" maxlength="512" rows="2" placeholder="Commit message" aria-label="Commit message"></textarea>
+          <textarea id="git-message" maxlength="512" rows="2" placeholder="${t("git.message")}" aria-label="${t("git.message")}"></textarea>
           <button id="git-commit" class="button button-save" type="submit" disabled>${t("git.commit")}</button>
         </form>
         <pre id="git-diff" class="git-diff" hidden></pre>
