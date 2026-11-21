@@ -6,6 +6,7 @@ package dev.jahaziel.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +44,7 @@ import dev.jahaziel.datatools.NotebookExecution;
 import dev.jahaziel.datatools.NotebookRunner;
 import dev.jahaziel.datatools.SearchIndex;
 import dev.jahaziel.datatools.SqliteBrowser;
+import dev.jahaziel.identity.api.MfaGate;
 import dev.jahaziel.identity.domain.UserId;
 import dev.jahaziel.ops.ApprovalQueue;
 import dev.jahaziel.ops.AuditQueryService;
@@ -51,6 +53,7 @@ import dev.jahaziel.ops.ScheduledBackupService;
 import dev.jahaziel.ops.SupportBundleService;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +78,13 @@ final class ApiEndpointsTest {
     private final UUID workspaceId = UUID.randomUUID();
     private final UserId user = new UserId(userId);
     private final WorkspaceId workspace = new WorkspaceId(workspaceId);
+
+    @BeforeEach
+    void clearMfaGate() {
+        // Unit tests have no application context; a gate left by a closed one points at a dead
+        // EntityManagerFactory and fails the admin-enabled path (see the CI regression below).
+        MfaGate.install(null);
+    }
 
     private static Principal principal(UUID value) {
         return new Principal() {
@@ -508,6 +518,34 @@ final class ApiEndpointsTest {
         assertEquals(ScheduledBackupService.RPO_MINUTES, status.getRpoMinutes());
         verify(backups).latest();
         verify(backups).listBackups();
+    }
+
+    @Test
+    void adminEnabledPathIsIsolatedFromAClosedApplicationContext() {
+        // A full-context test that closes its context leaves SecurityConfig's DB-backed gate
+        // installed; the admin path then fails as CI did with a closed EntityManagerFactory.
+        assertNull(
+                MfaGate.current(),
+                "a stale MFA gate from a closed application context must not be inherited");
+
+        ScheduledBackupService backups = mock(ScheduledBackupService.class);
+        Path archive = tempDir.resolve("backup-after-close.zip");
+        when(backups.latest()).thenReturn(archive);
+        when(backups.listBackups()).thenReturn(Arrays.asList(archive));
+        AuthorizationService auth = mock(AuthorizationService.class);
+        when(auth.isAdmin(user)).thenReturn(true);
+        OpsAdminController controller =
+                new OpsAdminController(
+                        mock(SupportBundleService.class),
+                        backups,
+                        mock(AuditQueryService.class),
+                        mock(AuditService.class),
+                        mock(GdprService.class),
+                        mock(ApprovalQueue.class),
+                        auth);
+
+        OpsDtos.BackupStatusDto status = controller.backupStatus(principal(userId));
+        assertEquals("backup-after-close.zip", status.getLatest());
     }
 
     @Test

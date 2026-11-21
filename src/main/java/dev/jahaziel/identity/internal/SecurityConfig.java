@@ -12,6 +12,7 @@ import dev.jahaziel.identity.auth.basis.BasisResourceFilter;
 import dev.jahaziel.identity.auth.wiring.UserIdentityStore;
 import dev.jahaziel.identity.domain.UserId;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -99,6 +100,12 @@ public class SecurityConfig {
                         return Boolean.parseBoolean(demo) || service.isMfaEnabled(user);
                     }
                 });
+    }
+
+    /** Drops the global gate before its user service's context is gone. */
+    @PreDestroy
+    public void clearAdminUserService() {
+        MfaGate.install(null);
     }
 
     /**

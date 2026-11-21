@@ -52,6 +52,7 @@ import java.security.Principal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 class TemplateCoverageGapTest {
@@ -81,17 +82,39 @@ class TemplateCoverageGapTest {
 
     private TemplateController controller(
             WorkspaceService workspaces, WorkspaceDtoFactory dtos, Path dir) {
+        return controller(workspaces, dtos, mock(PortService.class), dir);
+    }
+
+    private TemplateController controller(
+            WorkspaceService workspaces, WorkspaceDtoFactory dtos, PortService ports, Path dir) {
         WorkspaceFiles files = mock(WorkspaceFiles.class);
         when(files.forWorkspace(any())).thenReturn(mock(WorkspaceFiles.Operations.class));
         return new TemplateController(
                 workspaces,
                 files,
                 mock(WorkspaceTaskService.class),
-                mock(PortService.class),
+                ports,
                 dtos,
                 new ObjectMapper(),
                 dir.toString(),
                 "node-a");
+    }
+
+    private static Workspace newWorkspace(UserId owner, WorkspaceId id) {
+        return new Workspace(
+                id,
+                owner,
+                "ws",
+                new WorkspaceQuota(21474836480L, 1000000L),
+                new VirtualMachine(
+                        new VirtualMachineId(UUID.randomUUID()),
+                        id,
+                        new VirtualMachineConfiguration(2, 2048)));
+    }
+
+    private static WorkspaceView viewOf(Workspace workspace) {
+        return new WorkspaceView(
+                workspace, Instant.now(), Instant.now(), new StorageUsage(0, 0, 0, 0));
     }
 
     private static MockedStatic.Verification isDirectory() {
@@ -417,5 +440,89 @@ class TemplateCoverageGapTest {
                             }
                         });
         assertEquals(HttpStatus.NOT_FOUND, missing.getStatusCode());
+    }
+
+    @Test
+    void applyAllowsSamePortAcrossWorkspacesOfSameUser() throws Exception {
+        Path dir = tmp.resolve("apply-shared-port");
+        Files.createDirectories(dir.resolve("web"));
+        Files.writeString(dir.resolve("web").resolve("template.json"), "{\"ports\":[8080]}");
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        WorkspaceDtoFactory dtos = mock(WorkspaceDtoFactory.class);
+        PortService ports = mock(PortService.class);
+        TemplateController controller = controller(workspaces, dtos, ports, dir);
+
+        UserId owner = new UserId(UUID.randomUUID());
+        WorkspaceId firstId = new WorkspaceId(UUID.randomUUID());
+        WorkspaceId secondId = new WorkspaceId(UUID.randomUUID());
+        Workspace first = newWorkspace(owner, firstId);
+        Workspace second = newWorkspace(owner, secondId);
+        when(workspaces.create(any(), any(), any(int.class), any(long.class), any()))
+                .thenReturn(first, second);
+        when(workspaces.describe(firstId)).thenReturn(viewOf(first));
+        when(workspaces.describe(secondId)).thenReturn(viewOf(second));
+        when(dtos.forUser(any(), any())).thenReturn(mock(WorkspaceDto.class));
+        when(ports.lookup(owner.value(), 8080)).thenReturn(Optional.empty(), Optional.of(firstId));
+
+        controller.apply(
+                "web", new TemplateController.ApplyRequest("first"), principal(owner.value()));
+        controller.apply(
+                "web", new TemplateController.ApplyRequest("second"), principal(owner.value()));
+
+        verify(ports).registerPort(owner, 8080, firstId, "http");
+        verify(ports).registerPort(owner, 8080, secondId, "http");
+    }
+
+    @Test
+    void applyRejectsDuplicatePortsWithinTemplate() throws Exception {
+        Path dir = tmp.resolve("apply-duplicate-port");
+        Files.createDirectories(dir.resolve("dup"));
+        Files.writeString(dir.resolve("dup").resolve("template.json"), "{\"ports\":[8080,8080]}");
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        final TemplateController controller =
+                controller(workspaces, mock(WorkspaceDtoFactory.class), dir);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() {
+                        controller.apply(
+                                "dup",
+                                new TemplateController.ApplyRequest("ws"),
+                                principal(UUID.randomUUID()));
+                    }
+                });
+        Mockito.verify(workspaces, Mockito.never())
+                .create(any(UserId.class), anyString(), anyInt(), anyLong(), any(NodeId.class));
+    }
+
+    @Test
+    void applyRejectsReservedPorts() throws Exception {
+        Path dir = tmp.resolve("apply-reserved-port");
+        Files.createDirectories(dir.resolve("reserved"));
+        WorkspaceService workspaces = mock(WorkspaceService.class);
+        final TemplateController controller =
+                controller(workspaces, mock(WorkspaceDtoFactory.class), dir);
+        for (int reserved : List.of(22, 25)) {
+            Files.writeString(
+                    dir.resolve("reserved").resolve("template.json"),
+                    "{\"ports\":[" + reserved + "]}");
+            IllegalArgumentException failure =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            new Executable() {
+                                @Override
+                                public void execute() {
+                                    controller.apply(
+                                            "reserved",
+                                            new TemplateController.ApplyRequest("ws"),
+                                            principal(UUID.randomUUID()));
+                                }
+                            });
+            assertTrue(failure.getMessage().contains("reserved"));
+        }
+        Mockito.verify(workspaces, Mockito.never())
+                .create(any(UserId.class), anyString(), anyInt(), anyLong(), any(NodeId.class));
     }
 }

@@ -8,13 +8,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Small filesystem and text helpers shared by the operations services. Every path a service writes
@@ -321,16 +325,31 @@ public final class OpsFiles {
         if (!folder.exists()) {
             return;
         }
+        makeWritable(target);
         File[] children = folder.listFiles();
         if (children != null) {
             for (int i = 0; i < children.length; i++) {
                 if (children[i].isDirectory()) {
                     deleteTree(root, children[i].toPath());
                 } else {
+                    makeWritable(children[i].toPath());
                     deleteIfPresent(children[i].toPath());
                 }
             }
         }
         deleteIfPresent(target);
+    }
+
+    // Backups freeze snapshots with "chmod a-w": POSIX needs the directory write bit back to
+    // remove entries, and Windows needs the read-only flag cleared on files.
+    private static void makeWritable(Path path) {
+        try {
+            Set<PosixFilePermission> permissions =
+                    EnumSet.copyOf(Files.getPosixFilePermissions(path, LinkOption.NOFOLLOW_LINKS));
+            permissions.add(PosixFilePermission.OWNER_WRITE);
+            Files.setPosixFilePermissions(path, permissions);
+        } catch (UnsupportedOperationException | IOException unsupported) {
+            path.toFile().setWritable(true, false);
+        }
     }
 }

@@ -210,10 +210,6 @@ public class TemplateController {
                     throw new IllegalArgumentException(
                             "port " + port + " is reserved and never exposed");
                 }
-                if (ports.lookup(owner.value(), port).isPresent()) {
-                    throw new IllegalArgumentException(
-                            "port " + port + " is already registered for this user");
-                }
             }
         }
         validateStarterPaths(starterFiles);
