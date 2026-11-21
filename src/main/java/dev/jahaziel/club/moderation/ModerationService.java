@@ -58,7 +58,7 @@ public final class ModerationService {
      * @param text the message text
      * @return the stored message
      */
-    public ChatMessage post(ClubSession session, UserId user, String text) {
+    public synchronized ChatMessage post(ClubSession session, UserId user, String text) {
         Objects.requireNonNull(session, "session");
         if (session.isLocked()) {
             throw new ClubLimitException("session is locked");
@@ -176,7 +176,7 @@ public final class ModerationService {
      * @param actor the acting staff member
      * @param messageId the message identifier
      */
-    public void pin(ClubSession session, UserId actor, String messageId) {
+    public synchronized void pin(ClubSession session, UserId actor, String messageId) {
         requireStaff(session, actor);
         ChatMessage found = findMessage(session.id(), messageId);
         if (found == null) {
@@ -192,7 +192,7 @@ public final class ModerationService {
      * @param user the reading participant
      * @return an unmodifiable list of pinned messages
      */
-    public List<ChatMessage> pinned(ClubSession session, UserId user) {
+    public synchronized List<ChatMessage> pinned(ClubSession session, UserId user) {
         requireMember(session, user);
         List<ChatMessage> result = new ArrayList<ChatMessage>();
         List<ChatMessage> current = messagesFor(session.id());
@@ -246,7 +246,7 @@ public final class ModerationService {
      * @param session the session
      * @param user the participant asking for help
      */
-    public void joinHelpQueue(ClubSession session, UserId user) {
+    public synchronized void joinHelpQueue(ClubSession session, UserId user) {
         requireMember(session, user);
         if (ClubRoles.OBSERVER.equals(session.roleOf(user))) {
             throw new ClubAccessDeniedException("observers cannot join the help queue");
@@ -266,7 +266,7 @@ public final class ModerationService {
      * @param session the session
      * @param user the participant
      */
-    public void leaveHelpQueue(ClubSession session, UserId user) {
+    public synchronized void leaveHelpQueue(ClubSession session, UserId user) {
         helpQueue(session.id()).remove(user);
     }
 
@@ -278,7 +278,7 @@ public final class ModerationService {
      * @return the next user
      * @throws IllegalStateException when the queue is empty
      */
-    public UserId nextHelp(ClubSession session, UserId actor) {
+    public synchronized UserId nextHelp(ClubSession session, UserId actor) {
         requireStaff(session, actor);
         List<UserId> queue = helpQueue(session.id());
         if (queue.isEmpty()) {
@@ -293,7 +293,7 @@ public final class ModerationService {
      * @param session the session
      * @return the number of waiting users
      */
-    public int helpQueueSize(ClubSession session) {
+    public synchronized int helpQueueSize(ClubSession session) {
         return helpQueue(session.id()).size();
     }
 
@@ -305,21 +305,21 @@ public final class ModerationService {
         return clubRoot.resolve("sessions").resolve(sessionId).resolve("chat.db");
     }
 
-    private List<ChatMessage> messagesFor(String sessionId) {
+    private synchronized List<ChatMessage> messagesFor(String sessionId) {
         if (!messages.containsKey(sessionId)) {
             messages.put(sessionId, new ArrayList<ChatMessage>());
         }
         return messages.get(sessionId);
     }
 
-    private List<UserId> helpQueue(String sessionId) {
+    private synchronized List<UserId> helpQueue(String sessionId) {
         if (!helpQueues.containsKey(sessionId)) {
             helpQueues.put(sessionId, new ArrayList<UserId>());
         }
         return helpQueues.get(sessionId);
     }
 
-    private ChatMessage findMessage(String sessionId, String messageId) {
+    private synchronized ChatMessage findMessage(String sessionId, String messageId) {
         List<ChatMessage> current = messagesFor(sessionId);
         for (int index = 0; index < current.size(); index++) {
             if (current.get(index).id().equals(messageId)) {
@@ -442,12 +442,12 @@ public final class ModerationService {
         }
 
         /** Returns whether the message is pinned. */
-        public boolean isPinned() {
+        public synchronized boolean isPinned() {
             return pinned;
         }
 
         /** Sets the pinned flag. */
-        public void setPinned(boolean pinned) {
+        public synchronized void setPinned(boolean pinned) {
             this.pinned = pinned;
         }
     }

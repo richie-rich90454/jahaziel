@@ -4,6 +4,7 @@
  */
 package dev.jahaziel.datatools;
 
+import dev.jahaziel.workspace.api.WorkspaceFileEvents;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
 import java.io.IOException;
@@ -21,7 +22,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Per-workspace SQLite FTS5 index. The database lives under the jar data directory's {@code index}
@@ -31,7 +35,9 @@ import java.util.List;
 public final class SearchIndex {
     public static final int MAX_RESULTS = 100;
     private static final long MAX_FILE_BYTES = 1024 * 1024;
+    private static final List<SearchIndex> REGISTERED = new CopyOnWriteArrayList<SearchIndex>();
 
+    private final Path dataRoot;
     private final Path indexRoot;
     private final Path homesRoot;
     private final List<String> ignorePatterns;
@@ -40,11 +46,40 @@ public final class SearchIndex {
         if (dataRoot == null) {
             throw new IllegalArgumentException("dataRoot is required");
         }
-        this.indexRoot = dataRoot.resolve("index");
-        this.homesRoot = dataRoot.resolve("workspaces");
+        this.dataRoot = dataRoot.toAbsolutePath().normalize();
+        this.indexRoot = this.dataRoot.resolve("index");
+        this.homesRoot = this.dataRoot.resolve("workspaces");
         this.ignorePatterns = new ArrayList<String>();
         if (ignorePatterns != null) {
             this.ignorePatterns.addAll(ignorePatterns);
+        }
+        REGISTERED.add(this);
+        WorkspaceFileEvents.register(
+                new WorkspaceFileEvents.Listener() {
+                    @Override
+                    public void changed(Path root, WorkspaceId workspace) {
+                        reindex(root, workspace);
+                    }
+                });
+    }
+
+    /**
+     * Refreshes every index registered for {@code dataRoot} after a workspace file change. The
+     * index is a derived cache, so a failure here never fails the file operation that triggered it.
+     */
+    public static void reindex(Path dataRoot, WorkspaceId workspaceId) {
+        if (dataRoot == null || workspaceId == null) {
+            return;
+        }
+        Path root = dataRoot.toAbsolutePath().normalize();
+        for (SearchIndex index : REGISTERED) {
+            if (root.equals(index.dataRoot)) {
+                try {
+                    index.index(workspaceId);
+                } catch (RuntimeException ignored) {
+                    // A stale derived index is rebuilt by the next scheduled synchronization.
+                }
+            }
         }
     }
 
@@ -111,6 +146,7 @@ public final class SearchIndex {
             throw new UncheckedIOException("cannot prepare index directory", failure);
         }
         int changed = 0;
+        Set<String> present = new HashSet<String>();
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database)) {
             initialize(connection, rebuild);
             List<Path> files = collect(home);
@@ -128,6 +164,7 @@ public final class SearchIndex {
                 if (attributes.size() > MAX_FILE_BYTES) {
                     continue;
                 }
+                present.add(relative);
                 long mtime = attributes.lastModifiedTime().toMillis();
                 long size = attributes.size();
                 try {
@@ -141,6 +178,7 @@ public final class SearchIndex {
                     continue;
                 }
             }
+            prune(connection, present);
         } catch (SQLException failure) {
             throw new IllegalStateException(
                     "index update failed: " + failure.getMessage(), failure);
@@ -200,6 +238,32 @@ public final class SearchIndex {
             statement.setString(1, content);
             statement.setString(2, path);
             statement.executeUpdate();
+        }
+    }
+
+    /** Drops rows for files that were deleted, renamed, or excluded since the last sync. */
+    private static void prune(Connection connection, Set<String> present) throws SQLException {
+        List<String> stale = new ArrayList<String>();
+        try (Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery("SELECT path FROM files")) {
+            while (result.next()) {
+                String path = result.getString(1);
+                if (!present.contains(path)) {
+                    stale.add(path);
+                }
+            }
+        }
+        for (String path : stale) {
+            try (PreparedStatement statement =
+                    connection.prepareStatement("DELETE FROM files WHERE path = ?")) {
+                statement.setString(1, path);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement =
+                    connection.prepareStatement("DELETE FROM fts WHERE path = ?")) {
+                statement.setString(1, path);
+                statement.executeUpdate();
+            }
         }
     }
 

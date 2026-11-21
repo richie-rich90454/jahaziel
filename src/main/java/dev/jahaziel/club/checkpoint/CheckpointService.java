@@ -17,11 +17,12 @@ import dev.jahaziel.workspace.domain.WorkspaceId;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Checkpoint submissions, instructor feedback, and showcase promotion.
@@ -35,7 +36,8 @@ public final class CheckpointService {
     private final SnapshotService snapshots;
     private final ShowcaseGallery gallery;
     private final AuthorizationService authorization;
-    private final Map<String, Submission> submissions = new HashMap<String, Submission>();
+    private final ConcurrentMap<String, Submission> submissions =
+            new ConcurrentHashMap<String, Submission>();
 
     /**
      * Creates the service.
@@ -282,22 +284,22 @@ public final class CheckpointService {
         }
 
         /** Returns the instructor feedback, or null before review. */
-        public String feedback() {
+        public synchronized String feedback() {
             return feedback;
         }
 
         /** Returns the showcase project id this submission was promoted to, or null. */
-        public String promotedTo() {
+        public synchronized String promotedTo() {
             return promotedTo;
         }
 
         /** Sets instructor feedback. */
-        public void setFeedback(String feedback) {
+        public synchronized void setFeedback(String feedback) {
             this.feedback = feedback;
         }
 
         /** Marks the submission as promoted. */
-        public void setPromotedTo(String promotedTo) {
+        public synchronized void setPromotedTo(String promotedTo) {
             this.promotedTo = promotedTo;
         }
     }

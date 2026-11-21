@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -71,6 +72,7 @@ public final class SyncServer {
     static final int PROTOCOL_VERSION = 1;
     static final int MAX_FRAME_BYTES = 16 * 1024 * 1024;
     static final long MAX_WIRE_BYTES = 32L << 30;
+    static final int MAX_CONNECTIONS = 64;
 
     /** Loopback TCP port; guests arrive through the vsock relay. */
     public static final int LOOPBACK_PORT = 19002;
@@ -82,6 +84,9 @@ public final class SyncServer {
     private final ObjectMapper mapper = new ObjectMapper();
     private final ConcurrentMap<UUID, Entry> entries = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Object> locks = new ConcurrentHashMap<>();
+    private final Semaphore connectionSlots = new Semaphore(MAX_CONNECTIONS);
+    private final Set<Socket> activeSockets =
+            Collections.newSetFromMap(new ConcurrentHashMap<Socket, Boolean>());
     private volatile ServerSocket serverSocket;
 
     /** A registered workspace home. */
@@ -221,7 +226,9 @@ public final class SyncServer {
      * @param workspaceId the workspace
      */
     public void deregister(UUID workspaceId) {
-        entries.remove(Objects.requireNonNull(workspaceId, "workspaceId"));
+        UUID id = Objects.requireNonNull(workspaceId, "workspaceId");
+        entries.remove(id);
+        locks.remove(id);
         persist();
     }
 
@@ -289,6 +296,18 @@ public final class SyncServer {
         if (socket != null) {
             socket.close();
         }
+        Iterator<Socket> active = activeSockets.iterator();
+        while (active.hasNext()) {
+            closeQuietly(active.next());
+        }
+    }
+
+    private static void closeQuietly(Socket client) {
+        try {
+            client.close();
+        } catch (IOException ignored) {
+            // Already gone; the connection thread also clears it from the active set.
+        }
     }
 
     private void sweepStaging() throws IOException {
@@ -315,22 +334,43 @@ public final class SyncServer {
             if (socket == null || socket.isClosed()) {
                 return;
             }
+            final Socket client;
             try {
-                final Socket client = socket.accept();
-                Thread connection =
-                        new Thread(
-                                new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        handleQuietly(client);
-                                    }
-                                },
-                                "sync-conn");
-                connection.setDaemon(true);
-                connection.start();
+                client = socket.accept();
             } catch (IOException closed) {
                 return;
             }
+            try {
+                connectionSlots.acquire();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                closeQuietly(client);
+                return;
+            }
+            try {
+                client.setSoTimeout(30_000);
+            } catch (java.net.SocketException invalid) {
+                closeQuietly(client);
+                connectionSlots.release();
+                continue;
+            }
+            activeSockets.add(client);
+            Thread connection =
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        handleQuietly(client);
+                                    } finally {
+                                        activeSockets.remove(client);
+                                        connectionSlots.release();
+                                    }
+                                }
+                            },
+                            "sync-conn");
+            connection.setDaemon(true);
+            connection.start();
         }
     }
 

@@ -68,7 +68,7 @@ class SmokeTest {
                 if (name.matches("BOOT-INF/classes/static/assets/editor-[^/]+\\.js")) {
                     hasEditorAsset = true;
                 }
-                if (name.matches("BOOT-INF/classes/static/assets/index-[^/]+\\.js")) {
+                if (name.matches("BOOT-INF/classes/static/assets/(index|main)-[^/]+\\.js")) {
                     indexAssetCount++;
                 }
                 if (name.contains("code-server")
@@ -201,7 +201,8 @@ class SmokeTest {
                     "/ must mount the workbench application shell");
             assertTrue(
                     root.body().contains("src=\"/src/index.tsx\"")
-                            || root.body().contains("assets/index-"),
+                            || root.body().contains("assets/index-")
+                            || root.body().contains("assets/main-"),
                     "workbench entry module must be referenced");
 
             Matcher script =

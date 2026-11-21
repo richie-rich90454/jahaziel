@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 /**
@@ -48,7 +49,7 @@ public final class ServiceSupervisor {
     private final Path logDir;
     private final PrintStream out;
     private final CountDownLatch stopped = new CountDownLatch(1);
-    private volatile boolean shuttingDown;
+    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
     private ServiceSupervisor(List<ServiceUnit> units, Path logDir, PrintStream out) {
         this.logDir = Objects.requireNonNull(logDir, "logDir");
@@ -217,10 +218,9 @@ public final class ServiceSupervisor {
 
     /** Stops every service, giving each a grace period before it is killed. */
     void shutdown() {
-        if (shuttingDown) {
+        if (!shuttingDown.compareAndSet(false, true)) {
             return;
         }
-        shuttingDown = true;
         List<Service> reversed = new ArrayList<>(services);
         java.util.Collections.reverse(reversed);
         for (Service service : reversed) {
@@ -261,13 +261,13 @@ public final class ServiceSupervisor {
                 runTimer();
                 return;
             }
-            while (wanted && !shuttingDown) {
+            while (wanted && !shuttingDown.get()) {
                 runHooks(unit.execStartPre());
                 state = "running";
                 int exit = launchOnce();
                 state = "exited(" + exit + ")";
                 runHooks(unit.execStop());
-                if (!wanted || shuttingDown || !shouldRestart(exit)) {
+                if (!wanted || shuttingDown.get() || !shouldRestart(exit)) {
                     return;
                 }
                 restarts++;
@@ -277,7 +277,7 @@ public final class ServiceSupervisor {
         }
 
         private void runTimer() {
-            while (wanted && !shuttingDown) {
+            while (wanted && !shuttingDown.get()) {
                 state = "running";
                 launchOnce();
                 state = "waiting";
@@ -327,14 +327,14 @@ public final class ServiceSupervisor {
             wanted = false;
             Process running = process;
             if (running != null && running.isAlive()) {
-                running.destroy();
+                destroyTree(running, false);
                 try {
                     if (!running.waitFor(DEFAULT_KILL_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                        running.destroyForcibly();
+                        destroyTree(running, true);
                     }
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
-                    running.destroyForcibly();
+                    destroyTree(running, true);
                 }
             }
             // The worker is deliberately not interrupted: after the process exits it still has to
@@ -342,6 +342,27 @@ public final class ServiceSupervisor {
             // ExecStop hook (the workspace sync push). Its sleep polls shuttingDown, so it exits
             // promptly.
             state = "stopped";
+        }
+
+        /** Destroys the process and every descendant so wrapper scripts cannot leave orphans. */
+        private static void destroyTree(Process running, boolean forcibly) {
+            Stream<ProcessHandle> children = running.descendants();
+            if (children != null) {
+                Iterator<ProcessHandle> iterator = children.iterator();
+                while (iterator.hasNext()) {
+                    ProcessHandle child = iterator.next();
+                    if (forcibly) {
+                        child.destroyForcibly();
+                    } else {
+                        child.destroy();
+                    }
+                }
+            }
+            if (forcibly) {
+                running.destroyForcibly();
+            } else {
+                running.destroy();
+            }
         }
 
         private void runHooks(List<String> hook) {
@@ -420,7 +441,7 @@ public final class ServiceSupervisor {
          */
         private void sleepSeconds(long seconds) {
             long deadline = System.nanoTime() + Math.min(seconds, 300L) * 1_000_000_000L;
-            while (wanted && !shuttingDown && System.nanoTime() < deadline) {
+            while (wanted && !shuttingDown.get() && System.nanoTime() < deadline) {
                 try {
                     Thread.sleep(200L);
                 } catch (InterruptedException interrupted) {
@@ -495,7 +516,9 @@ public final class ServiceSupervisor {
                     "for d in /home /root /run/user; do [ -d \"$d\" ] && mount -t tmpfs tmpfs \"$d\"; done && ");
         }
         for (Path writable : unit.readWritePaths()) {
-            script.append("mount -o remount,rw ").append(posix(writable)).append(" 2>/dev/null; ");
+            script.append("mount -o remount,rw ")
+                    .append(shellQuote(writable))
+                    .append(" 2>/dev/null; ");
         }
         script.append("exec \"$@\"");
         return script.toString();
@@ -507,5 +530,10 @@ public final class ServiceSupervisor {
      */
     static String posix(Path path) {
         return path.toString().replace('\\', '/');
+    }
+
+    /** Single-quotes a path for the POSIX shell, escaping any embedded quote. */
+    static String shellQuote(Path path) {
+        return "'" + posix(path).replace("'", "'\\''") + "'";
     }
 }

@@ -77,6 +77,38 @@ class SearchIndexTest {
     }
 
     @Test
+    void deletedAndRenamedFilesDoNotLeaveStaleRows() throws Exception {
+        assertEquals(2, index.index(workspaceId));
+        assertEquals("a.txt", index.search(workspaceId, "alpha", 10).get(0).path());
+
+        Files.delete(home.resolve("a.txt"));
+        index.index(workspaceId);
+        assertEquals(0, index.search(workspaceId, "alpha", 10).size());
+
+        Files.move(home.resolve("notes.md"), home.resolve("renamed.md"));
+        index.index(workspaceId);
+        List<IndexHit> moved = index.search(workspaceId, "beta", 10);
+        assertEquals(1, moved.size());
+        assertEquals("renamed.md", moved.get(0).path());
+    }
+
+    @Test
+    void workspaceFileChangesRefreshTheIndexAutomatically() throws Exception {
+        dev.jahaziel.workspace.internal.WorkspaceFilesImpl files =
+                new dev.jahaziel.workspace.internal.WorkspaceFilesImpl(
+                        temporary.toString(), workspaceId);
+
+        files.save("auto.txt", "needle auto content", null, true);
+        assertEquals("auto.txt", index.search(workspaceId, "needle", 10).get(0).path());
+
+        files.rename("auto.txt", "moved.txt");
+        assertEquals("moved.txt", index.search(workspaceId, "needle", 10).get(0).path());
+
+        files.delete("moved.txt");
+        assertEquals(0, index.search(workspaceId, "needle", 10).size());
+    }
+
+    @Test
     void indexDatabaseStaysOutsideWorkspaceHome() throws Exception {
         index.index(workspaceId);
 

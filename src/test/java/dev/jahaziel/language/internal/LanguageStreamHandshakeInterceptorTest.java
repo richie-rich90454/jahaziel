@@ -22,6 +22,7 @@ import dev.jahaziel.workspace.domain.Workspace;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 import dev.jahaziel.workspace.domain.WorkspaceQuota;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -47,10 +48,16 @@ class LanguageStreamHandshakeInterceptorTest {
 
     @BeforeEach
     void setUp() {
+        System.setProperty("jahaziel.trust-forwarded-headers", "true");
         request = request("http://localhost:8080");
         when(authorization.isAllowed(owner, "write", workspaceId)).thenReturn(true);
         when(workspaces.get(workspaceId)).thenReturn(workspace);
         when(packs.artifactFor(workspaceId, "rust")).thenReturn(Path.of("/managed/rust-analyzer"));
+    }
+
+    @AfterEach
+    void clearForwardedTrust() {
+        System.clearProperty("jahaziel.trust-forwarded-headers");
     }
 
     @Test

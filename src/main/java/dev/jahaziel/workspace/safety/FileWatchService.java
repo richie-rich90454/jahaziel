@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -25,48 +26,69 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Polls workspace file mtimes and hashes; no operating-system watcher and no external dependency.
  */
 @Component
 public final class FileWatchService {
+    private static final int MAX_HASH_BYTES = 1024 * 1024;
+
     private final String storageRoot;
+    private final ConcurrentMap<WorkspaceId, Object> locks = new ConcurrentHashMap<>();
 
     public FileWatchService(@Value("${jahaziel.storage.root:data}") String storageRoot) {
         this.storageRoot = SafetyPaths.root(storageRoot).toString();
     }
 
     /** Returns changes observed since an epoch-millisecond timestamp and advances the baseline. */
-    public synchronized List<WatchChange> changesSince(WorkspaceId workspace, long sinceMillis) {
-        Path home = SafetyPaths.home(storageRoot, workspace);
-        Map<String, Observed> current = observe(home);
-        Map<String, Observed> baseline = load(workspace);
-        List<WatchChange> changes = new ArrayList<WatchChange>();
-        for (Map.Entry<String, Observed> entry : current.entrySet()) {
-            Observed previous = baseline.get(entry.getKey());
-            Observed now = entry.getValue();
-            if (now.modifiedAt <= sinceMillis) {
-                continue;
+    public List<WatchChange> changesSince(WorkspaceId workspace, long sinceMillis) {
+        synchronized (lockFor(workspace)) {
+            Path home = SafetyPaths.home(storageRoot, workspace);
+            Map<String, Observed> baseline = load(workspace);
+            Map<String, Observed> current = observe(home, baseline);
+            List<WatchChange> changes = new ArrayList<WatchChange>();
+            for (Map.Entry<String, Observed> entry : current.entrySet()) {
+                Observed previous = baseline.get(entry.getKey());
+                Observed now = entry.getValue();
+                if (now.modifiedAt <= sinceMillis) {
+                    continue;
+                }
+                if (previous == null) {
+                    changes.add(new WatchChange(entry.getKey(), WatchChange.ADDED, now.modifiedAt));
+                } else if (!previous.hash.equals(now.hash)) {
+                    changes.add(
+                            new WatchChange(entry.getKey(), WatchChange.MODIFIED, now.modifiedAt));
+                }
             }
-            if (previous == null) {
-                changes.add(new WatchChange(entry.getKey(), WatchChange.ADDED, now.modifiedAt));
-            } else if (!previous.hash.equals(now.hash)) {
-                changes.add(new WatchChange(entry.getKey(), WatchChange.MODIFIED, now.modifiedAt));
+            for (Map.Entry<String, Observed> entry : baseline.entrySet()) {
+                if (!current.containsKey(entry.getKey())
+                        && entry.getValue().modifiedAt > sinceMillis) {
+                    changes.add(
+                            new WatchChange(
+                                    entry.getKey(),
+                                    WatchChange.DELETED,
+                                    entry.getValue().modifiedAt));
+                }
             }
+            save(workspace, current);
+            return changes;
         }
-        for (Map.Entry<String, Observed> entry : baseline.entrySet()) {
-            if (!current.containsKey(entry.getKey()) && entry.getValue().modifiedAt > sinceMillis) {
-                changes.add(
-                        new WatchChange(
-                                entry.getKey(), WatchChange.DELETED, entry.getValue().modifiedAt));
-            }
-        }
-        save(workspace, current);
-        return changes;
     }
 
-    private static Map<String, Observed> observe(Path root) {
+    private Object lockFor(WorkspaceId workspace) {
+        Object lock = locks.get(workspace);
+        if (lock == null) {
+            Object created = new Object();
+            Object existing = locks.putIfAbsent(workspace, created);
+            lock = existing == null ? created : existing;
+        }
+        return lock;
+    }
+
+    private static Map<String, Observed> observe(Path root, Map<String, Observed> baseline) {
         final Map<String, Observed> result = new HashMap<String, Observed>();
         if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
             return result;
@@ -92,15 +114,23 @@ public final class FileWatchService {
                                 return FileVisitResult.CONTINUE;
                             }
                             String relative = root.relativize(file).toString().replace('\\', '/');
-                            try {
-                                result.put(
-                                        relative,
-                                        new Observed(
-                                                attributes.lastModifiedTime().toMillis(),
-                                                hash(Files.readAllBytes(file))));
-                            } catch (IOException failure) {
-                                throw new UncheckedIOException(failure);
+                            long stamp = attributes.lastModifiedTime().toMillis();
+                            long modifiedAt = attributes.lastModifiedTime().toMillis();
+                            long size = attributes.size();
+                            Observed previous = baseline.get(relative);
+                            String digest;
+                            if (previous != null
+                                    && previous.stamp == stamp
+                                    && previous.size == size) {
+                                digest = previous.hash;
+                            } else {
+                                try {
+                                    digest = hash(file);
+                                } catch (IOException failure) {
+                                    throw new UncheckedIOException(failure);
+                                }
                             }
+                            result.put(relative, new Observed(modifiedAt, stamp, size, digest));
                             return FileVisitResult.CONTINUE;
                         }
                     });
@@ -123,9 +153,22 @@ public final class FileWatchService {
             if (parts.length < 3) {
                 continue;
             }
+            long stamp = Long.MIN_VALUE;
+            long size = -1L;
+            String digest;
+            if (parts.length >= 5) {
+                stamp = Long.parseLong(parts[2]);
+                size = Long.parseLong(parts[3]);
+                digest = parts[4];
+            } else if (parts.length == 4) {
+                size = Long.parseLong(parts[2]);
+                digest = parts[3];
+            } else {
+                digest = parts[2];
+            }
             result.put(
                     SafetyPaths.decodeText(parts[0]),
-                    new Observed(Long.parseLong(parts[1]), parts[2]));
+                    new Observed(Long.parseLong(parts[1]), stamp, size, digest));
         }
         return result;
     }
@@ -133,11 +176,16 @@ public final class FileWatchService {
     private void save(WorkspaceId workspace, Map<String, Observed> observed) {
         StringBuilder text = new StringBuilder();
         for (Map.Entry<String, Observed> entry : observed.entrySet()) {
+            Observed value = entry.getValue();
             text.append(SafetyPaths.encodeText(entry.getKey()))
                     .append(' ')
-                    .append(entry.getValue().modifiedAt)
+                    .append(value.modifiedAt)
                     .append(' ')
-                    .append(entry.getValue().hash)
+                    .append(value.stamp)
+                    .append(' ')
+                    .append(value.size)
+                    .append(' ')
+                    .append(value.hash)
                     .append('\n');
         }
         SafetyPaths.writeText(
@@ -152,20 +200,40 @@ public final class FileWatchService {
                 || lower.equals("target");
     }
 
-    private static String hash(byte[] bytes) {
+    /** Hashes at most a bounded prefix; the digest is a change signal, not a whole-file proof. */
+    private static String hash(Path file) throws IOException {
+        MessageDigest digest;
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 is unavailable", impossible);
         }
+        byte[] buffer = new byte[8192];
+        int remaining = MAX_HASH_BYTES;
+        try (InputStream input = Files.newInputStream(file)) {
+            int read;
+            while (remaining > 0
+                    && (read = input.read(buffer, 0, Math.min(buffer.length, remaining))) >= 0) {
+                if (read == 0) {
+                    continue;
+                }
+                digest.update(buffer, 0, read);
+                remaining -= read;
+            }
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
     private static final class Observed {
         private final long modifiedAt;
+        private final long stamp;
+        private final long size;
         private final String hash;
 
-        private Observed(long modifiedAt, String hash) {
+        private Observed(long modifiedAt, long stamp, long size, String hash) {
             this.modifiedAt = modifiedAt;
+            this.stamp = stamp;
+            this.size = size;
             this.hash = hash;
         }
     }

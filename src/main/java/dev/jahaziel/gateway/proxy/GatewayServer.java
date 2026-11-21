@@ -26,7 +26,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 /**
  * HTTP and WebSocket relay to workspaces. Each connection runs on a virtual thread: authenticate by
@@ -37,11 +40,16 @@ import java.util.UUID;
 public final class GatewayServer {
     private static final int MAX_HEAD_BYTES = 64 * 1024;
     private static final int HEAD_READ_TIMEOUT_MILLIS = 15_000;
+    private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
+    private static final int MAX_CONNECTIONS = 512;
 
     private final HostParser hosts;
     private final JwtVerifier tokens;
     private final WorkspaceDirectory directory;
     private final TargetResolver targets;
+    private final Semaphore connectionSlots = new Semaphore(MAX_CONNECTIONS);
+    private final Set<Socket> activeSockets =
+            java.util.Collections.newSetFromMap(new ConcurrentHashMap<Socket, Boolean>());
     private volatile boolean running;
     private volatile ServerSocket server;
 
@@ -74,13 +82,27 @@ public final class GatewayServer {
         try (ServerSocket server = new ServerSocket(port)) {
             this.server = server;
             while (running) {
-                Socket client = server.accept();
+                final Socket client = server.accept();
+                try {
+                    connectionSlots.acquire();
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    closeQuietly(client);
+                    return;
+                }
+                activeSockets.add(client);
+                client.setSoTimeout(HEAD_READ_TIMEOUT_MILLIS);
                 Thread.ofVirtual()
                         .start(
                                 new Runnable() {
                                     @Override
                                     public void run() {
-                                        handleQuietly(client);
+                                        try {
+                                            handleQuietly(client);
+                                        } finally {
+                                            activeSockets.remove(client);
+                                            connectionSlots.release();
+                                        }
                                     }
                                 });
             }
@@ -93,7 +115,7 @@ public final class GatewayServer {
         }
     }
 
-    /** Stops accepting new connections. */
+    /** Stops accepting new connections and closes every connection still being relayed. */
     public void stop() {
         running = false;
         ServerSocket socket = server;
@@ -103,6 +125,18 @@ public final class GatewayServer {
             } catch (IOException ignored) {
                 // Already closed by serve(); the accept loop is ending.
             }
+        }
+        java.util.Iterator<Socket> active = activeSockets.iterator();
+        while (active.hasNext()) {
+            closeQuietly(active.next());
+        }
+    }
+
+    private static void closeQuietly(Socket client) {
+        try {
+            client.close();
+        } catch (IOException ignored) {
+            // Already gone.
         }
     }
 
@@ -139,10 +173,13 @@ public final class GatewayServer {
         UUID workspaceId = lookup(route);
         checkScope(session, workspaceId);
         InetSocketAddress backend = targets.resolve(workspaceId, route.port());
-        Socket upstream;
+        Socket upstream = new Socket();
         try {
-            upstream = new Socket(backend.getAddress(), backend.getPort());
+            upstream.connect(
+                    new InetSocketAddress(backend.getAddress(), backend.getPort()),
+                    CONNECT_TIMEOUT_MILLIS);
         } catch (IOException failure) {
+            closeQuietly(upstream);
             throw new HttpFailure(502, "backend unreachable");
         }
         try (upstream) {

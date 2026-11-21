@@ -20,6 +20,7 @@ import dev.jahaziel.terminal.domain.TerminalSession;
 import dev.jahaziel.terminal.domain.TerminalSessionId;
 import dev.jahaziel.workspace.domain.WorkspaceId;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -43,10 +44,16 @@ class TerminalStreamHandshakeInterceptorTest {
 
     @BeforeEach
     void setUp() {
+        System.setProperty("jahaziel.trust-forwarded-headers", "true");
         request = request("http://localhost:8080", owner.value().toString());
         when(terminals.get(sessionId))
                 .thenReturn(new TerminalSession(sessionId, workspaceId, owner, 30, 120));
         when(authorization.isAllowed(owner, "write", workspaceId)).thenReturn(true);
+    }
+
+    @AfterEach
+    void clearForwardedTrust() {
+        System.clearProperty("jahaziel.trust-forwarded-headers");
     }
 
     @Test

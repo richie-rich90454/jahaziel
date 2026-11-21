@@ -5,6 +5,7 @@
 package dev.jahaziel.workspace.internal;
 
 import dev.jahaziel.workspace.api.WorkspaceFileConflictException;
+import dev.jahaziel.workspace.api.WorkspaceFileEvents;
 import dev.jahaziel.workspace.api.WorkspaceFiles;
 import dev.jahaziel.workspace.api.WorkspaceFiles.Document;
 import dev.jahaziel.workspace.api.WorkspaceFiles.Entry;
@@ -313,9 +314,9 @@ public final class WorkspaceFilesImpl extends WorkspaceFiles.Operations {
                         throw new WorkspaceFileConflictException("file already exists");
                     }
                     if (createOnly) {
-                        // ATOMIC_MOVE may replace an existing target even without REPLACE_EXISTING.
-                        // The ordinary move contract preserves create-only semantics under a race.
-                        Files.move(temporary, file);
+                        // createLink fails atomically when the target exists, closing the
+                        // exists-then-move race. The finally block unlinks the temp name.
+                        Files.createLink(file, temporary);
                     } else {
                         try {
                             Files.move(
@@ -330,6 +331,7 @@ public final class WorkspaceFilesImpl extends WorkspaceFiles.Operations {
                 } finally {
                     Files.deleteIfExists(temporary);
                 }
+                WorkspaceFileEvents.changed(storageRoot, workspaceId);
                 return new Document(relativePath, content, version(bytes));
             } catch (java.nio.file.FileAlreadyExistsException conflict) {
                 throw new WorkspaceFileConflictException("file already exists");
@@ -384,6 +386,7 @@ public final class WorkspaceFilesImpl extends WorkspaceFiles.Operations {
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
+        WorkspaceFileEvents.changed(storageRoot, workspaceId);
     }
 
     @Override
@@ -402,6 +405,7 @@ public final class WorkspaceFilesImpl extends WorkspaceFiles.Operations {
                 }
             }
             Files.delete(target);
+            WorkspaceFileEvents.changed(storageRoot, workspaceId);
         } catch (DirectoryNotEmptyException notEmpty) {
             throw new IllegalArgumentException("directory must be empty before it can be deleted");
         } catch (IOException failure) {

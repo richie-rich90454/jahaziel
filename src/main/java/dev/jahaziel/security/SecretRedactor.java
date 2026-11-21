@@ -31,6 +31,15 @@ public final class SecretRedactor {
                         "(?i)\\b(?:token|refresh[_-]?token|code|secret|verifier|password|passwd|"
                                 + "api[_-]?key|client[_-]?secret|authorization)\\b\\s*[:=]\\s*"
                                 + "(?:\"[^\"]*\"|'[^']*'|\\bBearer\\s+[A-Za-z0-9._~+/-]+=*|[^\\s,;&]+)"));
+        PATTERNS.add(
+                Pattern.compile(
+                        "(?i)\\b(?:BASIS_AUTH_ISSUER|BASIS_AUTH_CLIENT_ID|BASIS_AUTH_CLIENT_SECRET|"
+                                + "BASIS_AUTH_RESOURCE|BASIS_AUTH_RESOURCE_SECRET|"
+                                + "BASIS_AUTH_INTERNAL_URL|BASIS_AUTH_COOKIE_SECRET|"
+                                + "CURRENT_URL_ORIGIN|MICROSOFT_TENANT_ID|MICROSOFT_CLIENT_ID|"
+                                + "MICROSOFT_CLIENT_SECRET|MICROSOFT_WEBHOOK_STATE|"
+                                + "MICROSOFT_WEBHOOK_ID)\\b\\s*[:=]\\s*"
+                                + "(?:\"[^\"]*\"|'[^']*'|[^\\s,;&]+)"));
     }
 
     private SecretRedactor() {}

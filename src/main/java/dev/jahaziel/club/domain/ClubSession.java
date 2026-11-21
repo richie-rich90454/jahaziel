@@ -113,7 +113,7 @@ public final class ClubSession {
     }
 
     /** Returns the QR join code. */
-    public String joinCode() {
+    public synchronized String joinCode() {
         return joinCode;
     }
 
@@ -123,37 +123,37 @@ public final class ClubSession {
     }
 
     /** Returns whether the session is locked. */
-    public boolean isLocked() {
+    public synchronized boolean isLocked() {
         return locked;
     }
 
     /** Returns whether a per-person leaderboard is explicitly enabled. */
-    public boolean isLeaderboardEnabled() {
+    public synchronized boolean isLeaderboardEnabled() {
         return leaderboardEnabled;
     }
 
     /** Returns whether a shared demo workspace is configured. */
-    public boolean isDemoEnabled() {
+    public synchronized boolean isDemoEnabled() {
         return demoEnabled;
     }
 
     /** Returns the demo workspace, or null when no demo is configured. */
-    public WorkspaceId demoWorkspace() {
+    public synchronized WorkspaceId demoWorkspace() {
         return demoWorkspace;
     }
 
     /** Returns the single user allowed to drive the demo workspace. */
-    public UserId demoController() {
+    public synchronized UserId demoController() {
         return demoController;
     }
 
     /** Enables or disables the optional per-person leaderboard. */
-    public void setLeaderboardEnabled(boolean enabled) {
+    public synchronized void setLeaderboardEnabled(boolean enabled) {
         this.leaderboardEnabled = enabled;
     }
 
     /** Rotates the QR join code, invalidating previously printed codes. */
-    public String rotateJoinCode() {
+    public synchronized String rotateJoinCode() {
         this.joinCode =
                 UUID.randomUUID().toString().replace("-", "").substring(0, JOIN_CODE_LENGTH);
         return joinCode;
@@ -165,19 +165,19 @@ public final class ClubSession {
      * @param workspace the demo workspace identifier
      * @param controller the single user who may drive it
      */
-    public void enableDemo(WorkspaceId workspace, UserId controller) {
+    public synchronized void enableDemo(WorkspaceId workspace, UserId controller) {
         this.demoWorkspace = Objects.requireNonNull(workspace, "workspace");
         this.demoController = Objects.requireNonNull(controller, "controller");
         this.demoEnabled = true;
     }
 
     /** Locks the session against joins, posts, and submissions. */
-    public void lock() {
+    public synchronized void lock() {
         this.locked = true;
     }
 
     /** Unlocks the session. */
-    public void unlock() {
+    public synchronized void unlock() {
         this.locked = false;
     }
 
@@ -189,7 +189,7 @@ public final class ClubSession {
      * @return the stored participant
      * @throws ClubLimitException when the session is locked or full
      */
-    public Participant join(UserId user, String role) {
+    public synchronized Participant join(UserId user, String role) {
         Objects.requireNonNull(user, "user");
         ClubRoles.requireKnown(role);
         if (locked) {
@@ -212,7 +212,7 @@ public final class ClubSession {
      * @param user the participant to remove
      * @return true when a participant was removed
      */
-    public boolean remove(UserId user) {
+    public synchronized boolean remove(UserId user) {
         if (user != null && user.equals(host)) {
             throw new ClubAccessDeniedException("the host cannot be removed");
         }
@@ -231,7 +231,7 @@ public final class ClubSession {
      * @param user the user to find
      * @return the participant or null
      */
-    public Participant participant(UserId user) {
+    public synchronized Participant participant(UserId user) {
         if (user == null) {
             return null;
         }
@@ -244,12 +244,12 @@ public final class ClubSession {
     }
 
     /** Returns an unmodifiable snapshot of the roster. */
-    public List<Participant> participants() {
+    public synchronized List<Participant> participants() {
         return Collections.unmodifiableList(new ArrayList<Participant>(participants));
     }
 
     /** Returns the current roster size, including the host when they joined. */
-    public int size() {
+    public synchronized int size() {
         return participants.size();
     }
 
@@ -259,7 +259,7 @@ public final class ClubSession {
      * @param user the user
      * @return the role, or null when the user has not joined
      */
-    public String roleOf(UserId user) {
+    public synchronized String roleOf(UserId user) {
         if (user != null && user.equals(host)) {
             return ClubRoles.INSTRUCTOR;
         }
@@ -273,7 +273,7 @@ public final class ClubSession {
      * @param user the user
      * @return true for the host and staff participants
      */
-    public boolean isStaff(UserId user) {
+    public synchronized boolean isStaff(UserId user) {
         return ClubRoles.isStaff(roleOf(user));
     }
 
@@ -283,7 +283,7 @@ public final class ClubSession {
      * @param user the user
      * @return false for observers, non-members, and while locked
      */
-    public boolean mayWrite(UserId user) {
+    public synchronized boolean mayWrite(UserId user) {
         return !locked && ClubRoles.mayWrite(roleOf(user));
     }
 
@@ -293,7 +293,7 @@ public final class ClubSession {
      * @param user the participant
      * @param workspace the isolated workspace
      */
-    public void setWorkspace(UserId user, WorkspaceId workspace) {
+    public synchronized void setWorkspace(UserId user, WorkspaceId workspace) {
         Participant participant = participant(user);
         if (participant == null) {
             throw new ClubAccessDeniedException("user has not joined this session");
@@ -307,7 +307,7 @@ public final class ClubSession {
      * @param user the participant
      * @return the workspace identifier or null
      */
-    public WorkspaceId workspaceOf(UserId user) {
+    public synchronized WorkspaceId workspaceOf(UserId user) {
         Participant participant = participant(user);
         return participant == null ? null : participant.workspace();
     }
@@ -320,7 +320,7 @@ public final class ClubSession {
      * @param limit the maximum number of calls kept for this session
      * @return true when the call is within the limit
      */
-    public boolean tryAction(UserId user, String action, int limit) {
+    public synchronized boolean tryAction(UserId user, String action, int limit) {
         Objects.requireNonNull(user, "user");
         if (action == null || action.trim().isEmpty() || limit < 1) {
             throw new IllegalArgumentException("action and positive limit are required");
@@ -338,7 +338,7 @@ public final class ClubSession {
     }
 
     /** Clears all per-action counters. Used when a session is extended. */
-    public void resetRateLimits() {
+    public synchronized void resetRateLimits() {
         actions.clear();
     }
 
@@ -371,22 +371,22 @@ public final class ClubSession {
         }
 
         /** Returns the isolated workspace, or null before a fork. */
-        public WorkspaceId workspace() {
+        public synchronized WorkspaceId workspace() {
             return workspace;
         }
 
         /** Returns whether chat posts are muted. */
-        public boolean isMuted() {
+        public synchronized boolean isMuted() {
             return muted;
         }
 
         /** Sets the isolated workspace. */
-        public void setWorkspace(WorkspaceId workspace) {
+        public synchronized void setWorkspace(WorkspaceId workspace) {
             this.workspace = workspace;
         }
 
         /** Sets the chat mute flag. */
-        public void setMuted(boolean muted) {
+        public synchronized void setMuted(boolean muted) {
             this.muted = muted;
         }
     }

@@ -78,6 +78,22 @@ class SyncServerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void deregisterDropsTheStaleWorkspaceLock() throws Exception {
+        java.lang.reflect.Field field = SyncServer.class.getDeclaredField("locks");
+        field.setAccessible(true);
+        Map<UUID, Object> locks = (Map<UUID, Object>) field.get(server);
+        java.lang.reflect.Method lockFor =
+                SyncServer.class.getDeclaredMethod("lockFor", UUID.class);
+        lockFor.setAccessible(true);
+        lockFor.invoke(server, workspaceId);
+
+        assertTrue(locks.containsKey(workspaceId));
+        server.deregister(workspaceId);
+        assertFalse(locks.containsKey(workspaceId));
+    }
+
+    @Test
     void registerPersistsSecret() {
         String secret = server.secretFor(workspaceId);
         assertEquals(64, secret.length());

@@ -22,7 +22,8 @@ class BrowserOriginTest {
                         "https, http",
                         "ide.example, proxy.internal",
                         "127.0.0.1:8080",
-                        BACKEND_URI));
+                        BACKEND_URI,
+                        true));
     }
 
     @Test
@@ -57,6 +58,17 @@ class BrowserOriginTest {
                         "https://ide.example",
                         "https",
                         "ide.example/path",
+                        "127.0.0.1:8080",
+                        BACKEND_URI));
+    }
+
+    @Test
+    void ignoresForwardedHeadersUnlessTheProxyIsTrusted() {
+        assertFalse(
+                BrowserOrigin.matchesIfPresent(
+                        "https://ide.example",
+                        "https",
+                        "ide.example",
                         "127.0.0.1:8080",
                         BACKEND_URI));
     }

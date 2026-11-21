@@ -57,6 +57,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.IntUnaryOperator;
@@ -258,18 +259,19 @@ public final class DebugServiceImpl extends DebugService {
     public void closeByWorkspace(WorkspaceId workspaceId) {
         Objects.requireNonNull(workspaceId, "workspaceId");
         stoppingWorkspaces.add(workspaceId);
+        List<AdapterSession> closing = new ArrayList<>();
         synchronized (active) {
-            List<AdapterSession> closing = new ArrayList<>();
             for (AdapterSession session : active.values()) {
                 if (session.workspaceId.equals(workspaceId)) {
                     closing.add(session);
                 }
             }
-            for (AdapterSession session : closing) {
-                session.close("STOPPED", "workspace stopped");
-                session.closeAdapterAfterFailedDetach(
-                        "workspace stopped before debugger disconnect was confirmed");
-            }
+        }
+        // Closing blocks on DAP disconnect acknowledgements; never do it under the active lock.
+        for (AdapterSession session : closing) {
+            session.close("STOPPED", "workspace stopped");
+            session.closeAdapterAfterFailedDetach(
+                    "workspace stopped before debugger disconnect was confirmed");
         }
     }
 
@@ -286,12 +288,14 @@ public final class DebugServiceImpl extends DebugService {
     @PreDestroy
     public void closeAll() {
         closed = true;
+        List<AdapterSession> closing;
         synchronized (active) {
-            for (AdapterSession session : new ArrayList<>(active.values())) {
-                session.close("STOPPED", "server stopped");
-                session.closeAdapterAfterFailedDetach(
-                        "server stopped before debugger disconnect was confirmed");
-            }
+            closing = new ArrayList<>(active.values());
+        }
+        for (AdapterSession session : closing) {
+            session.close("STOPPED", "server stopped");
+            session.closeAdapterAfterFailedDetach(
+                    "server stopped before debugger disconnect was confirmed");
         }
         readers.shutdownNow();
     }
@@ -490,23 +494,24 @@ public final class DebugServiceImpl extends DebugService {
         if (!ALLOWED_CLIENT_REQUESTS.contains(command))
             throw new IllegalArgumentException("DAP request is not supported by the workbench");
         if (command.equals("launch") || command.equals("attach")) {
-            if (session.launchSent) {
+            if (command.equals("launch") && session.attachTarget != null) {
+                throw new IllegalArgumentException("this debug session only permits attach");
+            }
+            if (command.equals("attach") && session.attachTarget == null) {
+                throw new IllegalArgumentException("this debug session only permits launch");
+            }
+            if (!session.launchSent.compareAndSet(false, true)) {
                 throw new IllegalArgumentException("debug start request was already sent");
             }
             if (command.equals("launch")) {
-                if (session.attachTarget != null) {
-                    throw new IllegalArgumentException("this debug session only permits attach");
-                }
                 message.set("arguments", launchArguments(session));
             } else {
-                if (session.attachTarget == null) {
-                    throw new IllegalArgumentException("this debug session only permits launch");
-                }
                 message.set("arguments", attachArguments(session));
             }
-            session.launchSent = true;
-        } else if (command.equals("setBreakpoints") || command.equals("source")) {
-            constrainSourcePath(session, message);
+        } else if (command.equals("setBreakpoints")) {
+            constrainSourcePath(session, message, false);
+        } else if (command.equals("source")) {
+            constrainSourcePath(session, message, true);
         }
         return message;
     }
@@ -574,7 +579,7 @@ public final class DebugServiceImpl extends DebugService {
         return args;
     }
 
-    private void constrainSourcePath(AdapterSession session, ObjectNode message)
+    private void constrainSourcePath(AdapterSession session, ObjectNode message, boolean mustExist)
             throws IOException {
         JsonNode arguments = message.get("arguments");
         if (!(arguments instanceof ObjectNode)) {
@@ -588,7 +593,9 @@ public final class DebugServiceImpl extends DebugService {
         ObjectNode sourceObject = (ObjectNode) source;
         JsonNode sourcePath = source.get("path");
         if (sourcePath == null || !sourcePath.isString()) return;
-        Path confined = resolveWorkspacePath(session.home, sourcePath.asString(), true, false);
+        // Breakpoints may target files that do not exist yet; containment is still enforced
+        // by resolveWorkspacePath even when the file itself need not exist.
+        Path confined = resolveWorkspacePath(session.home, sourcePath.asString(), mustExist, false);
         sourceObject.put("path", confined.toString());
     }
 
@@ -932,7 +939,7 @@ public final class DebugServiceImpl extends DebugService {
         private int replayBytes;
         private volatile String state = "RUNNING";
         private volatile String error = "";
-        private volatile boolean launchSent;
+        private final AtomicBoolean launchSent = new AtomicBoolean(false);
         private volatile boolean closed;
 
         private AdapterSession(

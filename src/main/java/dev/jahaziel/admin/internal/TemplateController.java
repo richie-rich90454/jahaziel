@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -203,6 +204,19 @@ public class TemplateController {
             }
         }
         UserId owner = userId(principal);
+        if (template.ports() != null) {
+            for (int port : template.ports()) {
+                if (port == 22 || port == 25) {
+                    throw new IllegalArgumentException(
+                            "port " + port + " is reserved and never exposed");
+                }
+                if (ports.lookup(owner.value(), port).isPresent()) {
+                    throw new IllegalArgumentException(
+                            "port " + port + " is already registered for this user");
+                }
+            }
+        }
+        validateStarterPaths(starterFiles);
         Workspace workspace =
                 workspaces.create(
                         owner, request.workspaceName(), vcpu, memory, new NodeId(defaultNode));
@@ -244,6 +258,23 @@ public class TemplateController {
         if (content == null || content.getBytes(StandardCharsets.UTF_8).length > 256 * 1024) {
             throw new IllegalArgumentException(
                     "template starter file is null or too large: " + relativePath);
+        }
+    }
+
+    /** Rejects paths that normalize to the same file or try to use a file as a directory. */
+    private static void validateStarterPaths(Map<String, String> starterFiles) {
+        List<String> normalized = new ArrayList<String>();
+        for (String path : starterFiles.keySet()) {
+            String candidate = path.replace('\\', '/').toLowerCase(Locale.ROOT);
+            for (int index = 0; index < normalized.size(); index++) {
+                String existing = normalized.get(index);
+                if (candidate.equals(existing)
+                        || candidate.startsWith(existing + "/")
+                        || existing.startsWith(candidate + "/")) {
+                    throw new IllegalArgumentException("template starter paths conflict: " + path);
+                }
+            }
+            normalized.add(candidate);
         }
     }
 

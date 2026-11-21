@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** Starts only selected, pinned language servers and proxies bounded JSON-RPC over stdio. */
@@ -278,7 +279,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
     private void readOutput(ProcessSession session) {
         try (BufferedInputStream input =
                 new BufferedInputStream(session.process.getInputStream())) {
-            while (!session.closed) {
+            while (!session.closed.get()) {
                 int length = frameLength(input);
                 if (length < 0) {
                     break;
@@ -294,7 +295,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
                 }
             }
         } catch (Exception failure) {
-            if (!session.closed && session.process.isAlive()) {
+            if (!session.closed.get() && session.process.isAlive()) {
                 log.debug(
                         "language server output ended for {} ({})", session.languageId, session.id);
             }
@@ -350,8 +351,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
             Thread.currentThread().interrupt();
         } finally {
             sessions.remove(session.id, session);
-            session.closed = true;
-            session.registration.close();
+            session.close();
         }
     }
 
@@ -373,7 +373,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
         private final WorkspaceProcessRegistry.Registration registration;
         private final Consumer<String> output;
         private final BufferedOutputStream input;
-        private volatile boolean closed;
+        private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private ProcessSession(
                 UUID id,
@@ -398,7 +398,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
 
         @Override
         public void send(String jsonMessage) throws IOException {
-            if (closed || !process.isAlive()) {
+            if (closed.get() || !process.isAlive()) {
                 throw new IOException("language server session is closed");
             }
             if (jsonMessage == null
@@ -503,7 +503,7 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
         }
 
         private void closeForWorkspaceStop() {
-            if (!closed) {
+            if (!closed.get()) {
                 try {
                     output.accept(
                             "{\"jsonrpc\":\"2.0\",\"method\":\"jahaziel/sessionClosed\",\"params\":{\"reason\":\"workspace stopped\"}}");
@@ -539,10 +539,9 @@ public final class LanguageServerProcessManager extends WorkspaceProcessLifecycl
 
         @Override
         public void close() {
-            if (closed) {
+            if (!closed.compareAndSet(false, true)) {
                 return;
             }
-            closed = true;
             sessions.remove(id, this);
             List<ProcessHandle> descendants = new ArrayList<>();
             Iterator<ProcessHandle> descendantsIterator = process.descendants().iterator();

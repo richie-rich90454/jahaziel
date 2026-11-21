@@ -4,7 +4,19 @@
  */
 package dev.jahaziel.security;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Security header constants and a builder. The workbench needs no inline scripts and no eval, so
@@ -15,6 +27,16 @@ public final class SecurityHeaders {
     public static final String CONTENT_SECURITY_POLICY = "Content-Security-Policy";
     public static final String CSP =
             "default-src 'self'; script-src 'self'; style-src 'self'; "
+                    + "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+                    + "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
+                    + "form-action 'self'";
+
+    /**
+     * CSP for HTML pages. The admin page embeds a small inline EventSource script, so script-src
+     * allows inline code here while the API-facing {@link #CSP} stays strict.
+     */
+    public static final String HTML_CSP =
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; "
                     + "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
                     + "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
                     + "form-action 'self'";
@@ -75,6 +97,31 @@ public final class SecurityHeaders {
         /** Returns an immutable-size copy of the accumulated headers. */
         public HashMap<String, String> build() {
             return new HashMap<String, String>(values);
+        }
+    }
+
+    /** Applies the default header set to HTML responses, with the inline-script-compatible CSP. */
+    @Component
+    @Order(Ordered.HIGHEST_PRECEDENCE + 50)
+    public static final class HtmlHeaderFilter extends OncePerRequestFilter {
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+                throws ServletException, IOException {
+            String path = request.getRequestURI();
+            String accept = request.getHeader("Accept");
+            boolean html =
+                    (accept != null && accept.contains("text/html"))
+                            || (path != null
+                                    && (path.startsWith("/admin") || path.startsWith("/_admin")));
+            if (html) {
+                HashMap<String, String> headers = SecurityHeaders.defaults();
+                headers.put(CONTENT_SECURITY_POLICY, HTML_CSP);
+                for (Map.Entry<String, String> header : headers.entrySet()) {
+                    response.setHeader(header.getKey(), header.getValue());
+                }
+            }
+            chain.doFilter(request, response);
         }
     }
 }

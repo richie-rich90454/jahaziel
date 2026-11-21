@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Read-only, admin-curated showcase of project previews.
@@ -23,7 +24,7 @@ import java.util.UUID;
  */
 public final class ShowcaseGallery {
     private final AuthorizationService authorization;
-    private final List<Project> projects = new ArrayList<Project>();
+    private final List<Project> projects = new CopyOnWriteArrayList<Project>();
 
     /**
      * Creates the gallery.

@@ -44,6 +44,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -53,6 +56,7 @@ public final class TerminalServiceImpl extends TerminalService {
     private static final int MAX_SESSIONS_PER_WORKSPACE = 8;
     private static final int MAX_HISTORY_CHARS = 64 * 1024;
     private static final Duration IDLE_TTL = Duration.ofHours(12);
+    private static final long REAP_INTERVAL_MINUTES = 30L;
 
     private final WorkspaceDirectoryService directories;
     private final WorkspaceProcessRegistry processRegistry;
@@ -61,6 +65,7 @@ public final class TerminalServiceImpl extends TerminalService {
     private final boolean ptyEnabled;
     private final ConcurrentMap<TerminalSessionId, State> sessions = new ConcurrentHashMap<>();
     private final Set<WorkspaceId> stoppingWorkspaces = new HashSet<>();
+    private volatile ScheduledExecutorService reaper;
 
     /** Registry-only constructor retained for isolated service tests. */
     public TerminalServiceImpl() {
@@ -112,6 +117,7 @@ public final class TerminalServiceImpl extends TerminalService {
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(userId, "userId");
         requireWorkspaceAvailable(workspaceId);
+        ensureReaper();
         reapIdle();
         if (sessions.size() >= MAX_SESSIONS) {
             throw new TerminalLimitException("terminal session limit reached");
@@ -232,16 +238,18 @@ public final class TerminalServiceImpl extends TerminalService {
             throw new IllegalArgumentException("terminal input chunk is too large");
         }
         State state = stateOf(id);
-        if (state.process == null || !state.process.isAlive()) {
-            throw new IllegalStateException("terminal process has exited");
-        }
-        try {
-            OutputStream stream = state.process.getOutputStream();
-            stream.write(input.getBytes(StandardCharsets.UTF_8));
-            stream.flush();
-            state.session.recordActivity();
-        } catch (IOException failure) {
-            throw new UncheckedIOException("cannot write to terminal", failure);
+        synchronized (state) {
+            if (state.process == null || !state.process.isAlive()) {
+                throw new IllegalStateException("terminal process has exited");
+            }
+            try {
+                OutputStream stream = state.process.getOutputStream();
+                stream.write(input.getBytes(StandardCharsets.UTF_8));
+                stream.flush();
+                state.session.recordActivity();
+            } catch (IOException failure) {
+                throw new UncheckedIOException("cannot write to terminal", failure);
+            }
         }
     }
 
@@ -393,8 +401,41 @@ public final class TerminalServiceImpl extends TerminalService {
         } catch (InterruptedException failure) {
             Thread.currentThread().interrupt();
         } finally {
+            sessions.remove(state.session.id(), state);
             closeRegistration(state);
         }
+    }
+
+    /** Starts the idle sweeper on first use so idle sessions expire without a new open(). */
+    private synchronized void ensureReaper() {
+        if (reaper != null) {
+            return;
+        }
+        ScheduledExecutorService executor =
+                Executors.newSingleThreadScheduledExecutor(
+                        new ThreadFactory() {
+                            @Override
+                            public Thread newThread(Runnable runnable) {
+                                Thread thread = new Thread(runnable, "terminal-reaper");
+                                thread.setDaemon(true);
+                                return thread;
+                            }
+                        });
+        executor.scheduleAtFixedRate(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            reapIdle();
+                        } catch (RuntimeException ignored) {
+                            // A single sweep failure must not cancel all later sweeps.
+                        }
+                    }
+                },
+                REAP_INTERVAL_MINUTES,
+                REAP_INTERVAL_MINUTES,
+                TimeUnit.MINUTES);
+        reaper = executor;
     }
 
     private synchronized void reapIdle() {
@@ -423,37 +464,42 @@ public final class TerminalServiceImpl extends TerminalService {
             closeRegistration(state);
             return;
         }
-        ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
-        List<ProcessHandle> descendants =
-                handle == null ? List.of() : handle.descendants().toList();
-        for (ProcessHandle descendant : descendants) {
-            descendant.destroy();
-        }
-        process.destroy();
-        try {
-            if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                for (ProcessHandle descendant : descendants) {
-                    descendant.destroyForcibly();
+        synchronized (state) {
+            ProcessHandle handle = ProcessHandle.of(process.pid()).orElse(null);
+            List<ProcessHandle> descendants =
+                    handle == null ? List.of() : handle.descendants().toList();
+            for (ProcessHandle descendant : descendants) {
+                descendant.destroy();
+            }
+            process.destroy();
+            try {
+                if (!process.waitFor(1, TimeUnit.SECONDS)) {
+                    for (ProcessHandle descendant : descendants) {
+                        descendant.destroyForcibly();
+                    }
+                    process.destroyForcibly();
                 }
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt();
                 process.destroyForcibly();
             }
-        } catch (InterruptedException failure) {
-            Thread.currentThread().interrupt();
-            process.destroyForcibly();
-        }
-        try {
-            process.getInputStream().close();
-            process.getOutputStream().close();
-            process.getErrorStream().close();
-        } catch (IOException ignored) {
-            // Stream closure is best-effort after the process tree has been stopped.
+            try {
+                process.getInputStream().close();
+                process.getOutputStream().close();
+                process.getErrorStream().close();
+            } catch (IOException ignored) {
+                // Stream closure is best-effort after the process tree has been stopped.
+            }
         }
         closeRegistration(state);
     }
 
     private static void closeRegistration(State state) {
-        WorkspaceProcessRegistry.Registration registration = state.registration;
-        state.registration = null;
+        WorkspaceProcessRegistry.Registration registration;
+        synchronized (state) {
+            registration = state.registration;
+            state.registration = null;
+        }
         if (registration != null) registration.close();
     }
 
